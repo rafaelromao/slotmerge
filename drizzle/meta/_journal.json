@@ -26,12 +26,19 @@
     {
       "idx": 3,
       "version": "7",
+      "when": 1783780000001,
+      "tag": "0002_admin_invites",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
       "when": 1783789600000,
       "tag": "0002_controlled_topics",
       "breakpoints": true
     },
     {
-      "idx": 4,
+      "idx": 5,
       "version": "7",
       "when": 1783789600001,
       "tag": "0003_controlled_topics_unique",

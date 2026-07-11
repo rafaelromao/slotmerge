@@ -4,7 +4,7 @@ import type { RuntimeEnv } from "../config/runtime";
 import type { EmailTransport, QueueEmailJobInput } from "./service";
 
 type EmailTransportOptions = {
-  adapter: "mock" | "smtp" | "postmark";
+  adapter: "mock" | "postmark";
   env?: RuntimeEnv;
 };
 

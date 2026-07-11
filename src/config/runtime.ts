@@ -5,7 +5,7 @@ const envSchema = z.object({
   CALENDAR_PROVIDER_MODE: z.enum(["mock", "oauth"]).optional(),
   CALENDAR_TOKEN_ENCRYPTION_KEY: z.string().optional(),
   DATABASE_URL: z.string().min(1),
-  EMAIL_ADAPTER: z.enum(["mock", "smtp", "postmark"]).optional(),
+  EMAIL_ADAPTER: z.enum(["mock", "postmark"]).optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
   MICROSOFT_OAUTH_CLIENT_ID: z.string().optional(),
@@ -20,7 +20,7 @@ export type RuntimeConfig = {
   calendarProviderMode: "mock" | "oauth";
   calendarTokenEncryptionKey: string;
   databaseUrl: string;
-  emailAdapter: "mock" | "smtp" | "postmark";
+  emailAdapter: "mock" | "postmark";
   requirePublicWebhookHttps: boolean;
   sessionSecret: string;
   usesGcpSecretManager: false;

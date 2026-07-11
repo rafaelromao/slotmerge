@@ -101,6 +101,21 @@ export const userTopics = pgTable(
   }),
 );
 
+export const topicsRelations = relations(topics, ({ many }) => ({
+  userTopics: many(userTopics),
+}));
+
+export const userTopicsRelations = relations(userTopics, ({ one }) => ({
+  topic: one(topics, {
+    fields: [userTopics.topicId],
+    references: [topics.id],
+  }),
+  user: one(users, {
+    fields: [userTopics.userId],
+    references: [users.id],
+  }),
+}));
+
 export const invites = pgTable(
   "invites",
   {

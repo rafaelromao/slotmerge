@@ -1,8 +1,12 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { getSessionFromRequest } from "../../../src/auth/session";
 import {
   getTopicPageState,
   saveUserTopicSelection,
 } from "../../../src/topics/repository";
+import { TopicsPageView } from "../../../src/topics/topics-page-view";
+import { renderToStaticMarkup } from "react-dom/server";
 
 export async function GET(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);
@@ -16,7 +20,13 @@ export async function GET(request: Request): Promise<Response> {
   );
 
   return new Response(
-    renderTopicsPageDocument(catalogue, selectedTopicIds, session.csrfToken),
+    `<!doctype html><html lang="en"><body>${renderToStaticMarkup(
+      TopicsPageView({
+        catalogue,
+        selectedTopicIds,
+        csrfToken: session.csrfToken,
+      }),
+    )}</body></html>`,
     {
       status: 200,
       headers: { "content-type": "text/html; charset=utf-8" },
@@ -41,7 +51,7 @@ async function updateTopics(request: Request): Promise<Response> {
 
   const { topicIds, csrfToken } = await readMutationPayload(request);
 
-  if (csrfToken !== session.csrfToken) {
+  if (!hasValidCsrfToken(csrfToken, session.csrfToken)) {
     return Response.json({ error: "invalid_csrf_token" }, { status: 403 });
   }
 
@@ -94,34 +104,13 @@ function getCsrfToken(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-function renderTopicsPageDocument(
-  catalogue: Array<{ id: string; name: string }>,
-  selectedTopicIds: string[],
-  csrfToken: string,
-): string {
-  return `<!doctype html><html lang="en"><body><main style="margin:0 auto;max-width:42rem;padding:2rem 1.25rem;line-height:1.5;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><header style="margin-bottom:1.5rem"><h1 style="margin:0;font-size:2rem">My Topics</h1><p style="margin:0.5rem 0 0;color:#4b5563">Browse the active Topic catalogue and choose which Topics belong on your profile.</p></header><form action="/me/topics" method="post" style="border-top:1px solid #e5e7eb;padding-top:1rem"><input type="hidden" name="csrfToken" value="${escapeHtml(csrfToken)}" /><h2 id="active-topics" style="margin:0 0 0.75rem;font-size:1.125rem">Active Topics</h2><ul style="margin:0;padding-left:1.25rem">${catalogue
-    .map((topic) =>
-      renderTopicListItem(topic, selectedTopicIds.includes(topic.id)),
-    )
-    .join(
-      "",
-    )}</ul><button style="margin-top:1rem;padding:0.625rem 1rem" type="submit">Save topics</button></form></main></body></html>`;
-}
+function hasValidCsrfToken(
+  actualToken: string,
+  expectedToken: string,
+): boolean {
+  if (actualToken.length !== expectedToken.length) {
+    return false;
+  }
 
-function renderTopicListItem(
-  topic: { id: string; name: string },
-  selected: boolean,
-): string {
-  return `<li style="margin-bottom:0.5rem"><label style="display:flex;align-items:center;gap:0.75rem"><input type="checkbox" name="topicIds" value="${escapeHtml(topic.id)}"${
-    selected ? ' checked=""' : ""
-  }/><span>${escapeHtml(topic.name)}</span></label></li>`;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+  return timingSafeEqual(Buffer.from(actualToken), Buffer.from(expectedToken));
 }

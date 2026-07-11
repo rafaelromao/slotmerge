@@ -52,13 +52,10 @@ export async function sealSessionCookie({
 export async function getSessionFromRequest(
   request: Request,
 ): Promise<Session | null> {
-  return getSessionFromCookieHeader(request.headers.get("cookie"));
-}
-
-export async function getSessionFromCookieHeader(
-  cookieHeader: string | null,
-): Promise<Session | null> {
-  const sessionToken = getCookie(cookieHeader, sessionCookieName);
+  const sessionToken = getCookie(
+    request.headers.get("cookie"),
+    sessionCookieName,
+  );
 
   if (!sessionToken) {
     return null;

@@ -7,7 +7,7 @@ import { z } from "zod";
 
 const profileUpdateSchema = z
   .object({
-    displayName: z.string().trim().min(1),
+    displayName: z.string().trim().min(1).optional(),
     avatarUrl: z.union([z.string().trim().min(1), z.null()]).optional(),
     shortBio: z.union([z.string().trim().min(1), z.null()]).optional(),
     profileTimezone: z.union([z.string().trim().min(1), z.null()]).optional(),
@@ -67,8 +67,15 @@ export async function PATCH(request: Request): Promise<Response> {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
+  const displayName =
+    parsed.data.displayName ?? currentProfile.displayName?.trim();
+
+  if (!displayName) {
+    return Response.json({ error: "invalid_profile_update" }, { status: 400 });
+  }
+
   const updatedProfile = await updateProfileByUserId(session.user.id, {
-    displayName: parsed.data.displayName,
+    displayName,
     avatarUrl:
       parsed.data.avatarUrl === undefined
         ? currentProfile.avatarUrl

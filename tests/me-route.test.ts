@@ -246,7 +246,6 @@ describe("PATCH /me", () => {
           cookie: firstCookie,
         },
         body: JSON.stringify({
-          displayName: "Grace Hopper",
           avatarUrl: "https://example.com/grace.png",
           shortBio: "Compiler pioneer",
           profileTimezone: "America/New_York",
@@ -260,7 +259,7 @@ describe("PATCH /me", () => {
       user: {
         id: "user-1",
         email: "user@example.com",
-        displayName: "Grace Hopper",
+        displayName: "Ada Lovelace",
         avatarUrl: "https://example.com/grace.png",
         shortBio: "Compiler pioneer",
         role: "user",
@@ -289,7 +288,7 @@ describe("PATCH /me", () => {
       user: {
         id: "user-1",
         email: "user@example.com",
-        displayName: "Grace Hopper",
+        displayName: "Ada Lovelace",
         avatarUrl: "https://example.com/grace.png",
         shortBio: "Compiler pioneer",
         role: "user",
@@ -304,6 +303,79 @@ describe("PATCH /me", () => {
       topicProposals: [],
       availabilityWindows: [],
       calendarConnections: [],
+    });
+  });
+
+  it("updates the display name and keeps it on later reads", async () => {
+    const profileState: ProfileStateBox = {
+      current: {
+        id: "user-1",
+        email: "user@example.com",
+        displayName: "Ada Lovelace",
+        avatarUrl: null,
+        shortBio: null,
+        role: "user",
+        status: "active",
+        profileTimezone: "UTC",
+        bufferMinutes: 15,
+      },
+    };
+
+    setProfileStateForTests(profileState);
+    setSessionRepositoryForTests({
+      findById: (sessionId) =>
+        Promise.resolve(
+          sessionId === "session-1" || sessionId === "session-2"
+            ? {
+                user: {
+                  id: "user-1",
+                  email: "user@example.com",
+                  displayName: "Ada Lovelace",
+                  avatarUrl: null,
+                  shortBio: null,
+                  role: "user",
+                  status: "active",
+                  profileTimezone: "UTC",
+                  bufferMinutes: 15,
+                },
+                csrfToken:
+                  sessionId === "session-1" ? "csrf-token-1" : "csrf-token-2",
+              }
+            : null,
+        ),
+    });
+
+    const firstCookie = await sealSessionCookie({ sessionId: "session-1" });
+    const patchResponse = await PATCH(
+      new Request("http://localhost/me", {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          cookie: firstCookie,
+        },
+        body: JSON.stringify({ displayName: "Grace Hopper" }),
+      }),
+    );
+
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      user: {
+        displayName: "Grace Hopper",
+      },
+    });
+
+    const secondCookie = await sealSessionCookie({ sessionId: "session-2" });
+    const getResponse = await GET(
+      new Request("http://localhost/me", {
+        headers: { cookie: secondCookie },
+      }),
+    );
+
+    expect(getResponse.status).toBe(200);
+    await expect(getResponse.json()).resolves.toMatchObject({
+      user: {
+        displayName: "Grace Hopper",
+      },
     });
   });
 });

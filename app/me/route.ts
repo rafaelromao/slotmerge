@@ -10,6 +10,126 @@ const supportedTimeZones = new Set(Intl.supportedValuesOf("timeZone"));
 
 type MeProfile = NonNullable<Awaited<ReturnType<typeof getProfileByUserId>>>;
 
+type Topic = { id: string; name: string };
+type TopicProposal = { id: string; name: string };
+type AvailabilityWindow = { id: string; dayOfWeek: number };
+type CalendarConnection = { id: string; provider: string };
+
+type SetupItem = {
+  key: string;
+  label: string;
+  required: boolean;
+  complete: boolean;
+};
+
+type SetupState = {
+  complete: boolean;
+  items: SetupItem[];
+};
+
+const SETUP_ITEMS: SetupItem[] = [
+  {
+    key: "displayName",
+    label: "Display name",
+    required: true,
+    complete: false,
+  },
+  {
+    key: "discoverabilityConsent",
+    label: "Discoverability consent",
+    required: true,
+    complete: false,
+  },
+  {
+    key: "hasTopic",
+    label: "At least one Topic or Topic Proposal",
+    required: true,
+    complete: false,
+  },
+  {
+    key: "hasAvailability",
+    label: "At least one Availability source or manual Availability Window",
+    required: true,
+    complete: false,
+  },
+  {
+    key: "hasCalendarConnection",
+    label: "Calendar Connection",
+    required: false,
+    complete: false,
+  },
+];
+
+function computeSetupCompleteness(
+  profile: MeProfile,
+  topics: Topic[],
+  topicProposals: TopicProposal[],
+  availabilityWindows: AvailabilityWindow[],
+  calendarConnections: CalendarConnection[],
+): SetupState {
+  const items: SetupItem[] = [
+    {
+      key: "displayName",
+      label: "Display name",
+      required: true,
+      complete: Boolean(profile.displayName?.trim()),
+    },
+    {
+      key: "discoverabilityConsent",
+      label: "Discoverability consent",
+      required: true,
+      complete: false,
+    },
+    {
+      key: "hasTopic",
+      label: "At least one Topic or Topic Proposal",
+      required: true,
+      complete: topics.length > 0 || topicProposals.length > 0,
+    },
+    {
+      key: "hasAvailability",
+      label: "At least one Availability source or manual Availability Window",
+      required: true,
+      complete: availabilityWindows.length > 0,
+    },
+    {
+      key: "hasCalendarConnection",
+      label: "Calendar Connection",
+      required: false,
+      complete: calendarConnections.length > 0,
+    },
+  ];
+
+  const requiredItemsComplete = items
+    .filter((i) => i.required)
+    .every((i) => i.complete);
+
+  return {
+    complete: requiredItemsComplete,
+    items,
+  };
+}
+
+function getTopicsByUserId(_userId: string): Promise<Topic[]> {
+  return Promise.resolve([]);
+}
+
+function getTopicProposalsByUserId(_userId: string): Promise<TopicProposal[]> {
+  return Promise.resolve([]);
+}
+
+function getAvailabilityWindowsByUserId(
+  _userId: string,
+): Promise<AvailabilityWindow[]> {
+  return Promise.resolve([]);
+}
+
+function getCalendarConnectionsByUserId(
+  _userId: string,
+): Promise<CalendarConnection[]> {
+  return Promise.resolve([]);
+}
+
 const profileUpdateSchema = z
   .object({
     displayName: z.string().trim().min(1).optional(),
@@ -35,7 +155,23 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
-  return buildMeResponse(profile, session.csrfToken);
+  const topics = await getTopicsByUserId(session.user.id);
+  const topicProposals = await getTopicProposalsByUserId(session.user.id);
+  const availabilityWindows = await getAvailabilityWindowsByUserId(
+    session.user.id,
+  );
+  const calendarConnections = await getCalendarConnectionsByUserId(
+    session.user.id,
+  );
+
+  return buildMeResponse(
+    profile,
+    session.csrfToken,
+    topics,
+    topicProposals,
+    availabilityWindows,
+    calendarConnections,
+  );
 }
 
 export async function PATCH(request: Request): Promise<Response> {
@@ -72,19 +208,53 @@ export async function PATCH(request: Request): Promise<Response> {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
-  return buildMeResponse(updatedProfile, session.csrfToken);
+  const topics = await getTopicsByUserId(session.user.id);
+  const topicProposals = await getTopicProposalsByUserId(session.user.id);
+  const availabilityWindows = await getAvailabilityWindowsByUserId(
+    session.user.id,
+  );
+  const calendarConnections = await getCalendarConnectionsByUserId(
+    session.user.id,
+  );
+
+  return buildMeResponse(
+    updatedProfile,
+    session.csrfToken,
+    topics,
+    topicProposals,
+    availabilityWindows,
+    calendarConnections,
+  );
 }
 
-function buildMeResponse(profile: MeProfile, csrfToken: string): Response {
+function buildMeResponse(
+  profile: MeProfile,
+  csrfToken: string,
+  topics: Topic[],
+  topicProposals: TopicProposal[],
+  availabilityWindows: AvailabilityWindow[],
+  calendarConnections: CalendarConnection[],
+): Response {
+  const setup = computeSetupCompleteness(
+    profile,
+    topics,
+    topicProposals,
+    availabilityWindows,
+    calendarConnections,
+  );
+
   return Response.json({
     user: profile,
     session: { csrfToken },
-    setup: { complete: Boolean(profile.displayName?.trim()) },
+    setup,
     discoverability: { consented: false },
-    topics: [],
-    topicProposals: [],
-    availabilityWindows: [],
-    calendarConnections: [],
+    topics,
+    topicProposals,
+    availabilityWindows,
+    calendarConnections,
+    searchEligibility: {
+      eligible: setup.complete,
+    },
   });
 }
 

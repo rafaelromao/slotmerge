@@ -46,6 +46,14 @@ type ProfileState = {
   bufferMinutes: number;
 };
 
+const setupItems = [
+  { key: "displayName", label: "Display name", required: true, complete: true },
+  { key: "discoverabilityConsent", label: "Discoverability consent", required: true, complete: false },
+  { key: "hasTopic", label: "At least one Topic or Topic Proposal", required: true, complete: false },
+  { key: "hasAvailability", label: "At least one Availability source or manual Availability Window", required: true, complete: false },
+  { key: "hasCalendarConnection", label: "Calendar Connection", required: false, complete: false },
+];
+
 describe("GET /me", () => {
   it("rejects requests without a valid session", async () => {
     const response = await GET(new Request("http://localhost/me"));
@@ -115,12 +123,13 @@ describe("GET /me", () => {
         bufferMinutes: 15,
       },
       session: { csrfToken: "csrf-token-1" },
-      setup: { complete: true },
+      setup: { complete: false, items: setupItems },
       discoverability: { consented: false },
       topics: [],
       topicProposals: [],
       availabilityWindows: [],
       calendarConnections: [],
+      searchEligibility: { eligible: false },
     });
   });
 });
@@ -330,12 +339,13 @@ describe("PATCH /me", () => {
         bufferMinutes: 30,
       },
       session: { csrfToken: "csrf-token-1" },
-      setup: { complete: true },
+      setup: { complete: false, items: setupItems },
       discoverability: { consented: false },
       topics: [],
       topicProposals: [],
       availabilityWindows: [],
       calendarConnections: [],
+      searchEligibility: { eligible: false },
     });
 
     const secondCookie = await sealSessionCookie({ sessionId: "session-2" });
@@ -359,12 +369,13 @@ describe("PATCH /me", () => {
         bufferMinutes: 30,
       },
       session: { csrfToken: "csrf-token-2" },
-      setup: { complete: true },
+      setup: { complete: false, items: setupItems },
       discoverability: { consented: false },
       topics: [],
       topicProposals: [],
       availabilityWindows: [],
       calendarConnections: [],
+      searchEligibility: { eligible: false },
     });
   });
 

@@ -53,8 +53,8 @@ Create separate Secret Manager secrets per environment. Secret names include the
 | `slotmerge-production-google-oauth-client-secret` | Production Google OAuth client secret for Calendar Connections. |
 | `slotmerge-staging-microsoft-oauth-client-secret` | Staging Microsoft OAuth client secret for Calendar Connections. |
 | `slotmerge-production-microsoft-oauth-client-secret` | Production Microsoft OAuth client secret for Calendar Connections. |
-| `slotmerge-staging-email-provider-credential` | Staging Postmark server token or SMTP credential. |
-| `slotmerge-production-email-provider-credential` | Production Postmark server token or SMTP credential. |
+| `slotmerge-staging-email-provider-credential` | Staging Postmark server token. |
+| `slotmerge-production-email-provider-credential` | Production Postmark server token. |
 | `slotmerge-staging-webhook-verification-secret` | Staging webhook verification material when provider webhook verification requires an application-managed secret. |
 | `slotmerge-production-webhook-verification-secret` | Production webhook verification material when provider webhook verification requires an application-managed secret. |
 

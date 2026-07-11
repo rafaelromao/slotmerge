@@ -233,4 +233,46 @@ describe("admin invites", () => {
     expect(html).toContain("Invalid CSRF token.");
     expect(createInvite).not.toHaveBeenCalled();
   });
+
+  it("re-renders the form when the invite submission is malformed", async () => {
+    const createInvite = vi.fn();
+
+    const { POST } = createAdminInvitesHandlers({
+      getSession: vi.fn().mockResolvedValue({
+        user: {
+          id: "admin-1",
+          email: "admin@example.com",
+          displayName: null,
+          role: "admin",
+          status: "active",
+          profileTimezone: null,
+          bufferMinutes: 0,
+        },
+        csrfToken: "csrf-token-1",
+      }),
+      inviteRepository: {
+        listInvites: vi.fn().mockResolvedValue([]),
+        createInvite,
+      },
+    });
+
+    const response = await POST(
+      new Request("http://localhost/admin/invites", {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          _csrf: "csrf-token-1",
+          email: "not-an-email",
+        }).toString(),
+      }),
+    );
+
+    const html = await response.text();
+
+    expect(response.status).toBe(400);
+    expect(html).toContain("Enter a valid email address and choose a role.");
+    expect(createInvite).not.toHaveBeenCalled();
+  });
 });

@@ -56,7 +56,10 @@ export function createAdminInvitesHandlers({
 
       const invites = await inviteRepository.listInvites();
       return htmlResponse(
-        renderAdminInvitesPage({ invites, csrfToken: session.csrfToken }),
+        renderAdminInvitesPage({
+          inviteRows: invites,
+          csrfToken: session.csrfToken,
+        }),
       );
     },
     POST: async (request: Request): Promise<Response> => {
@@ -70,7 +73,7 @@ export function createAdminInvitesHandlers({
       if (typeof csrfToken !== "string" || csrfToken !== session.csrfToken) {
         return htmlResponse(
           renderAdminInvitesPage({
-            invites: await inviteRepository.listInvites(),
+            inviteRows: await inviteRepository.listInvites(),
             csrfToken: session.csrfToken,
             errorMessage: "Invalid CSRF token.",
           }),
@@ -78,21 +81,32 @@ export function createAdminInvitesHandlers({
         );
       }
 
-      const submission = inviteSubmissionSchema.parse({
+      const submission = inviteSubmissionSchema.safeParse({
         email: formData.get("email"),
         role: formData.get("role") ?? undefined,
       });
 
+      if (!submission.success) {
+        return htmlResponse(
+          renderAdminInvitesPage({
+            inviteRows: await inviteRepository.listInvites(),
+            csrfToken: session.csrfToken,
+            errorMessage: "Enter a valid email address and choose a role.",
+          }),
+          400,
+        );
+      }
+
       const result = await inviteRepository.createInvite({
-        email: normalizeEmail(submission.email),
-        role: submission.role,
+        email: normalizeEmail(submission.data.email),
+        role: submission.data.role,
         invitedByAdminId: session.user.id,
       });
 
       if (!result.ok) {
         return htmlResponse(
           renderAdminInvitesPage({
-            invites: await inviteRepository.listInvites(),
+            inviteRows: await inviteRepository.listInvites(),
             csrfToken: session.csrfToken,
             errorMessage: "An invite already exists for that email.",
           }),
@@ -126,17 +140,17 @@ function htmlResponse(body: string, status = 200): Response {
 }
 
 function renderAdminInvitesPage({
-  invites,
+  inviteRows,
   csrfToken,
   errorMessage,
 }: {
-  invites: InviteListItem[];
+  inviteRows: InviteListItem[];
   csrfToken: string;
   errorMessage?: string;
 }): string {
   const rows =
-    invites.length > 0
-      ? invites
+    inviteRows.length > 0
+      ? inviteRows
           .map(
             (invite) => `
               <tr>

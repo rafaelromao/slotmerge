@@ -4,7 +4,7 @@ CREATE TABLE "invites" (
 	"role" text DEFAULT 'user' NOT NULL,
 	"status" text DEFAULT 'pending' NOT NULL,
 	"invited_by_admin_id" uuid NOT NULL,
-	"expires_at" timestamp with time zone,
+	"expires_at" timestamp with time zone NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "invites_email_unique" UNIQUE("email")

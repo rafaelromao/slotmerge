@@ -93,7 +93,15 @@ jobs:
 
       - name: Run local verification
         run: |
-          pnpm dev:web & pnpm dev:worker & pnpm local:verify
+          pnpm dev:web &
+          WEB_PID=$!
+          pnpm dev:worker &
+          WORKER_PID=$!
+          sleep 10
+          pnpm local:verify
+          LOCAL_VERIFY_EXIT=$?
+          kill $WEB_PID $WORKER_PID 2>/dev/null || true
+          exit $LOCAL_VERIFY_EXIT
 
   build-image:
     runs-on: ubuntu-latest
@@ -130,6 +138,7 @@ jobs:
             type=raw,value=latest,enable=false
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -137,13 +146,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          outputs: type=image,push-by-digest=true,name-canonical=${{ steps.meta.outputs.tags }}
-
-      - name: Get image digest
-        id: digest
-        run: |
-          DIGEST=$(docker buildx imagetools inspect ${{ steps.meta.outputs.tags }} --format '{{.Digest}}')
-          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          outputs: type=image,push-by-digest=true,digest=${{ steps.build.outputs.digest }}
 
   deploy-staging:
     runs-on: ubuntu-latest
@@ -237,18 +240,17 @@ jobs:
             ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_PRODUCTION }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}@${{ inputs.image-digest }}
           docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_PRODUCTION }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}@${{ inputs.image-digest }}
 
-      - name: Install Cloud SQL Auth Proxy
-        run: |
-          wget -q https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.11.0/cloud-sql-proxy.linux.amd64 -O cloud-sql-proxy
-          chmod +x cloud-sql-proxy
-
       - name: Run database migrations
         run: |
-          ./cloud-sql-proxy \
+          docker run \
+            --rm \
+            --network=host \
+            --name cloud-sql-proxy \
+            gcr.io/cloud-sql-connectors/cloud-sql-proxy:v2.11.0 \
             --port 5433 \
             ${{ env.GCP_PROJECT_ID_PRODUCTION }}:${{ env.GCP_REGION }}:slotmerge-production-postgres &
           PROXY_PID=$!
-          sleep 3
+          sleep 5
           DATABASE_URL=$(gcloud secrets versions access latest --secret=slotmerge-production-database-url) \
             docker run --rm \
               --network=host \

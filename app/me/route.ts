@@ -88,12 +88,16 @@ function getTopicProposalsByUserId(userId: string): Promise<TopicProposal[]> {
   return Promise.resolve([]);
 }
 
-function getAvailabilityWindowsByUserId(userId: string): Promise<AvailabilityWindow[]> {
+function getAvailabilityWindowsByUserId(
+  userId: string,
+): Promise<AvailabilityWindow[]> {
   void userId;
   return Promise.resolve([]);
 }
 
-function getCalendarConnectionsByUserId(userId: string): Promise<CalendarConnection[]> {
+function getCalendarConnectionsByUserId(
+  userId: string,
+): Promise<CalendarConnection[]> {
   void userId;
   return Promise.resolve([]);
 }

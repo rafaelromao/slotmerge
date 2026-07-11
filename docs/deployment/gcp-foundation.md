@@ -117,6 +117,7 @@ Production assumptions:
 
 - Automated backups are enabled.
 - The smallest production-appropriate instance tier is acceptable for MVP.
+- The application uses the documented app user, not the reserved `postgres` superuser.
 - The app user owns application schema changes through Drizzle migrations or has a clearly documented migration role added by a later database provisioning ticket.
 
 Local development uses local or disposable PostgreSQL. Local migrations and Graphile Worker setup must run before promoting the same app shape to GCP.

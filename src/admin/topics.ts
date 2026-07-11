@@ -14,8 +14,7 @@ export type TopicListItem = {
 };
 
 export type RetireResult =
-  | { ok: true }
-  | { ok: false; reason: "not_found" | "already_retired" };
+  { ok: true } | { ok: false; reason: "not_found" | "already_retired" };
 
 export type TopicRepository = {
   listActive(): Promise<TopicListItem[]>;
@@ -125,9 +124,7 @@ function isAdminSession(session: Session | null): session is Session {
   return session?.user.role === "admin";
 }
 
-function createAccessDeniedResponse(
-  session: Session | null,
-): Response {
+function createAccessDeniedResponse(session: Session | null): Response {
   return htmlResponse(
     session
       ? "<h1>Forbidden</h1><p>Admin access required.</p>"
@@ -162,13 +159,17 @@ function renderTopicsPage({
                 <td>${escapeHtml(labelStatus(t.status))}</td>
                 <td>${t.retiredAt ? escapeHtml(formatDate(t.retiredAt)) : "—"}</td>
                 <td>
-                  ${t.status === "active" ? `
+                  ${
+                    t.status === "active"
+                      ? `
                   <form method="post" style="display:inline">
                     <input type="hidden" name="id" value="${escapeHtml(t.id)}" />
                     <input type="hidden" name="action" value="retire" />
                     <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}" />
                     <button type="submit">Retire</button>
-                  </form>` : ""}
+                  </form>`
+                      : ""
+                  }
                 </td>
               </tr>`,
           )

@@ -16,7 +16,8 @@ export type InviteRole = UserRole;
 export type InviteStatus = "pending" | "accepted" | "revoked";
 export type TopicStatus = "pending" | "active" | "retired";
 export type TopicProposalStatus = "pending" | "approved" | "rejected";
-export type TopicAssociationStatus = "active" | "pending-retired" | "historical";
+export type TopicAssociationStatus =
+  "active" | "pending-retired" | "historical";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),

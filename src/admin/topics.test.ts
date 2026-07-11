@@ -261,9 +261,7 @@ describe("admin topics", () => {
       },
     });
 
-    const getResponse = await GET(
-      new Request("http://localhost/admin/topics"),
-    );
+    const getResponse = await GET(new Request("http://localhost/admin/topics"));
     expect(getResponse.status).toBe(403);
 
     const postResponse = await POST(

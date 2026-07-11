@@ -20,12 +20,10 @@ export type TopicProposalListItem = {
 };
 
 export type ApproveResult =
-  | { ok: true; topicId: string }
-  | { ok: false; reason: "already_processed" };
+  { ok: true; topicId: string } | { ok: false; reason: "already_processed" };
 
 export type RejectResult =
-  | { ok: true }
-  | { ok: false; reason: "already_processed" };
+  { ok: true } | { ok: false; reason: "already_processed" };
 
 export type TopicProposalRepository = {
   listPending(): Promise<TopicProposalListItem[]>;
@@ -154,9 +152,7 @@ function isAdminSession(session: Session | null): session is Session {
   return session?.user.role === "admin";
 }
 
-function createAccessDeniedResponse(
-  session: Session | null,
-): Response {
+function createAccessDeniedResponse(session: Session | null): Response {
   return htmlResponse(
     session
       ? "<h1>Forbidden</h1><p>Admin access required.</p>"

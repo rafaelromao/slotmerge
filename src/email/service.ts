@@ -90,14 +90,32 @@ export function createEmailDeliveryService({
         createdAt,
       });
 
-      await queueJob({
-        emailEventId: emailEvent.id,
-        recipient: input.recipient,
-        type: input.type,
-        payload: input.payload,
-      });
+      try {
+        await queueJob({
+          emailEventId: emailEvent.id,
+          recipient: input.recipient,
+          type: input.type,
+          payload: input.payload,
+        });
+      } catch (error) {
+        const failure =
+          error instanceof Error ? error : new Error(String(error));
+        await eventRepository.markFailed(emailEvent.id, clock(), {
+          code: normalizeErrorCode(failure.message),
+          message: failure.message,
+        });
+        throw failure;
+      }
 
       return { emailEvent };
     },
   };
+}
+
+function normalizeErrorCode(message: string): string {
+  const code = message
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return code || "unknown";
 }

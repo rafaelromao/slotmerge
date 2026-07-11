@@ -24,4 +24,4 @@ The verification command checks runtime configuration, applies Drizzle migration
 
 Local Calendar Connection work does not require public HTTPS provider webhooks. Use the mock provider mode for offline work, or configure provider callback URLs against `http://localhost:3000` when manually testing OAuth callbacks with local provider apps. Provider webhook delivery is promoted only after the GCP HTTPS endpoint exists.
 
-Local email delivery uses the mock adapter unless `EMAIL_ADAPTER` is explicitly set to a real transport and the required transport secrets are present. Production-like adapters fail fast outside local/test mode when secrets are missing.
+Local email delivery uses the mock adapter unless `EMAIL_ADAPTER` is explicitly set to Postmark and `POSTMARK_SERVER_TOKEN` is present. Production-like adapters fail fast outside local/test mode when secrets are missing.

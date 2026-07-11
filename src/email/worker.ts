@@ -43,8 +43,9 @@ export async function processEmailDeliveryJob(
 }
 
 function normalizeErrorCode(message: string): string {
-  return message
+  const code = message
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+  return code || "unknown";
 }

@@ -29,4 +29,6 @@ CREATE TABLE "email_event_attempts" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX "email_event_attempts_email_event_id_attempt_number_idx" ON "email_event_attempts" USING btree ("email_event_id","attempt_number");
+--> statement-breakpoint
 ALTER TABLE "email_event_attempts" ADD CONSTRAINT "email_event_attempts_email_event_id_email_events_id_fk" FOREIGN KEY ("email_event_id") REFERENCES "public"."email_events"("id") ON DELETE cascade ON UPDATE no action;

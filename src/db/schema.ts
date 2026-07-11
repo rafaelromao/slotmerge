@@ -2,6 +2,7 @@ import {
   boolean,
   integer,
   pgTable,
+  uniqueIndex,
   text,
   timestamp,
   uuid,
@@ -81,25 +82,33 @@ export const emailEvents = pgTable("email_events", {
     .defaultNow(),
 });
 
-export const emailEventAttempts = pgTable("email_event_attempts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  emailEventId: uuid("email_event_id")
-    .notNull()
-    .references(() => emailEvents.id, { onDelete: "cascade" }),
-  attemptNumber: integer("attempt_number").notNull(),
-  status: text("status").notNull(),
-  attemptedAt: timestamp("attempted_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
-  failedAt: timestamp("failed_at", { withTimezone: true }),
-  errorCode: text("error_code"),
-  errorMessage: text("error_message"),
-  providerMessageId: text("provider_message_id"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const emailEventAttempts = pgTable(
+  "email_event_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    emailEventId: uuid("email_event_id")
+      .notNull()
+      .references(() => emailEvents.id, { onDelete: "cascade" }),
+    attemptNumber: integer("attempt_number").notNull(),
+    status: text("status").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    providerMessageId: text("provider_message_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    emailEventAttemptUnique: uniqueIndex(
+      "email_event_attempts_email_event_id_attempt_number_idx",
+    ).on(table.emailEventId, table.attemptNumber),
+  }),
+);
 
 export const emailEventsRelations = relations(emailEvents, ({ many }) => ({
   attempts: many(emailEventAttempts),

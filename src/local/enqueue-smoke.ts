@@ -29,9 +29,7 @@ export async function createEnqueueSmokeResponse(
 
   const body = (await request.json()) as { marker?: string };
   const marker: string =
-    typeof body.marker === "string"
-      ? body.marker
-      : `local-smoke-${Date.now()}`;
+    typeof body.marker === "string" ? body.marker : `local-smoke-${Date.now()}`;
 
   await storeSmokeJob(marker);
   await enqueueSmokeJob(marker);

@@ -5,7 +5,13 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: [".next/**", "coverage/**", "drizzle/**", "node_modules/**", "*.mjs"],
+    ignores: [
+      ".next/**",
+      "coverage/**",
+      "drizzle/**",
+      "node_modules/**",
+      "*.mjs",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

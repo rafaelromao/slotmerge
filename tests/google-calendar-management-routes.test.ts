@@ -165,7 +165,7 @@ describe("calendar connection management routes", () => {
           "x-csrf-token": "csrf-token-1",
         },
       }),
-      { params: { id: "connection-1" } },
+      { params: Promise.resolve({ id: "connection-1" }) },
     );
 
     expect(response.status).toBe(200);

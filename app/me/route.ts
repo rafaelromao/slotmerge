@@ -27,39 +27,6 @@ type SetupState = {
   items: SetupItem[];
 };
 
-const SETUP_ITEMS: SetupItem[] = [
-  {
-    key: "displayName",
-    label: "Display name",
-    required: true,
-    complete: false,
-  },
-  {
-    key: "discoverabilityConsent",
-    label: "Discoverability consent",
-    required: true,
-    complete: false,
-  },
-  {
-    key: "hasTopic",
-    label: "At least one Topic or Topic Proposal",
-    required: true,
-    complete: false,
-  },
-  {
-    key: "hasAvailability",
-    label: "At least one Availability source or manual Availability Window",
-    required: true,
-    complete: false,
-  },
-  {
-    key: "hasCalendarConnection",
-    label: "Calendar Connection",
-    required: false,
-    complete: false,
-  },
-];
-
 function computeSetupCompleteness(
   profile: MeProfile,
   topics: Topic[],
@@ -111,23 +78,23 @@ function computeSetupCompleteness(
   };
 }
 
-function getTopicsByUserId(_userId: string): Promise<Topic[]> {
+function getTopicsByUserId(userId: string): Promise<Topic[]> {
+  void userId;
   return Promise.resolve([]);
 }
 
-function getTopicProposalsByUserId(_userId: string): Promise<TopicProposal[]> {
+function getTopicProposalsByUserId(userId: string): Promise<TopicProposal[]> {
+  void userId;
   return Promise.resolve([]);
 }
 
-function getAvailabilityWindowsByUserId(
-  _userId: string,
-): Promise<AvailabilityWindow[]> {
+function getAvailabilityWindowsByUserId(userId: string): Promise<AvailabilityWindow[]> {
+  void userId;
   return Promise.resolve([]);
 }
 
-function getCalendarConnectionsByUserId(
-  _userId: string,
-): Promise<CalendarConnection[]> {
+function getCalendarConnectionsByUserId(userId: string): Promise<CalendarConnection[]> {
+  void userId;
   return Promise.resolve([]);
 }
 

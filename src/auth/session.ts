@@ -8,6 +8,8 @@ export type SessionUser = {
   id: string;
   email: string;
   displayName: string | null;
+  avatarUrl: string | null;
+  shortBio: string | null;
   role: UserRole;
   status: UserStatus;
   profileTimezone: string | null;
@@ -88,6 +90,8 @@ const databaseSessionRepository: SessionRepository = {
           id: users.id,
           email: users.email,
           displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+          shortBio: users.shortBio,
           role: users.role,
           status: users.status,
           profileTimezone: users.profileTimezone,

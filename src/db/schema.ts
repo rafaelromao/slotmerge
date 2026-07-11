@@ -18,6 +18,8 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
   displayName: text("display_name"),
+  avatarUrl: text("avatar_url"),
+  shortBio: text("short_bio"),
   role: text("role").$type<UserRole>().notNull().default("user"),
   status: text("status").$type<UserStatus>().notNull().default("active"),
   profileTimezone: text("profile_timezone"),

@@ -93,15 +93,19 @@ jobs:
 
       - name: Run local verification
         run: |
+          set -euo pipefail
           pnpm dev:web &
           WEB_PID=$!
           pnpm dev:worker &
           WORKER_PID=$!
-          sleep 10
+          trap 'kill $WEB_PID $WORKER_PID 2>/dev/null || true' EXIT
+          for i in {1..60}; do
+            if curl -sf http://127.0.0.1:3000 > /dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
           pnpm local:verify
-          LOCAL_VERIFY_EXIT=$?
-          kill $WEB_PID $WORKER_PID 2>/dev/null || true
-          exit $LOCAL_VERIFY_EXIT
 
   build-image:
     runs-on: ubuntu-latest
@@ -242,6 +246,8 @@ jobs:
 
       - name: Run database migrations
         run: |
+          # TODO: Pin cloud-sql-proxy by digest in production
+          # e.g. gcr.io/cloud-sql-connectors/cloud-sql-proxy@sha256:<digest>
           docker run \
             --rm \
             --network=host \

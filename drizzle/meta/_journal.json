@@ -15,6 +15,13 @@
       "when": 1783789542596,
       "tag": "0000_aromatic_proteus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783780000000,
+      "tag": "0001_admin_invites",
+      "breakpoints": true
     }
   ]
 }

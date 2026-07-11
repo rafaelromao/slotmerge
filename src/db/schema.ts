@@ -1,9 +1,7 @@
 import {
   boolean,
-  index,
   integer,
   pgTable,
-  uniqueIndex,
   text,
   timestamp,
   uuid,
@@ -12,8 +10,8 @@ import { relations } from "drizzle-orm";
 
 export type UserRole = "user" | "organizer" | "admin";
 export type UserStatus = "active" | "suspended";
-export type InviteRole = UserRole;
-export type InviteStatus = "pending" | "accepted" | "revoked";
+export type CalendarConnectionStatus = "pending" | "connected" | "disconnected";
+export type CalendarProvider = "google";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -45,10 +43,6 @@ export const sessions = pgTable("sessions", {
     .defaultNow(),
 });
 
-export const usersRelations = relations(users, ({ many }) => ({
-  sessions: many(sessions),
-}));
-
 export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, {
     fields: [sessions.userId],
@@ -56,36 +50,45 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
   }),
 }));
 
-export const invites = pgTable(
-  "invites",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    email: text("email").notNull().unique(),
-    role: text("role").$type<InviteRole>().notNull().default("user"),
-    status: text("status").$type<InviteStatus>().notNull().default("pending"),
-    invitedByAdminId: uuid("invited_by_admin_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "restrict" }),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => ({
-    invitedByAdminIdIdx: index("invites_invited_by_admin_id_idx").on(
-      table.invitedByAdminId,
-    ),
+export const calendarConnections = pgTable("calendar_connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").$type<CalendarProvider>().notNull(),
+  providerAccountKey: text("provider_account_key"),
+  accountIdentifier: text("account_identifier"),
+  scopes: text("scopes"),
+  status: text("status")
+    .$type<CalendarConnectionStatus>()
+    .notNull()
+    .default("pending"),
+  refreshTokenEncrypted: text("refresh_token_encrypted"),
+  accessTokenEncrypted: text("access_token_encrypted"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", {
+    withTimezone: true,
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const calendarConnectionsRelations = relations(
+  calendarConnections,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [calendarConnections.userId],
+      references: [users.id],
+    }),
   }),
 );
 
-export const invitesRelations = relations(invites, ({ one }) => ({
-  invitedByAdmin: one(users, {
-    fields: [invites.invitedByAdminId],
-    references: [users.id],
-  }),
+export const usersRelations = relations(users, ({ many }) => ({
+  sessions: many(sessions),
+  calendarConnections: many(calendarConnections),
 }));
 
 export const localSmokeJobs = pgTable("local_smoke_jobs", {
@@ -97,66 +100,3 @@ export const localSmokeJobs = pgTable("local_smoke_jobs", {
     .defaultNow(),
   processedAt: timestamp("processed_at", { withTimezone: true }),
 });
-
-export const emailEvents = pgTable("email_events", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  recipient: text("recipient").notNull(),
-  type: text("type").notNull(),
-  payloadReference: text("payload_reference").notNull(),
-  status: text("status").notNull().default("queued"),
-  attempts: integer("attempts").notNull().default(0),
-  sentAt: timestamp("sent_at", { withTimezone: true }),
-  failedAt: timestamp("failed_at", { withTimezone: true }),
-  lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
-  lastErrorCode: text("last_error_code"),
-  lastErrorMessage: text("last_error_message"),
-  providerMessageId: text("provider_message_id"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
-
-export const emailEventAttempts = pgTable(
-  "email_event_attempts",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    emailEventId: uuid("email_event_id")
-      .notNull()
-      .references(() => emailEvents.id, { onDelete: "cascade" }),
-    attemptNumber: integer("attempt_number").notNull(),
-    status: text("status").notNull(),
-    attemptedAt: timestamp("attempted_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
-    failedAt: timestamp("failed_at", { withTimezone: true }),
-    errorCode: text("error_code"),
-    errorMessage: text("error_message"),
-    providerMessageId: text("provider_message_id"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => ({
-    emailEventAttemptUnique: uniqueIndex(
-      "email_event_attempts_email_event_id_attempt_number_idx",
-    ).on(table.emailEventId, table.attemptNumber),
-  }),
-);
-
-export const emailEventsRelations = relations(emailEvents, ({ many }) => ({
-  attempts: many(emailEventAttempts),
-}));
-
-export const emailEventAttemptsRelations = relations(
-  emailEventAttempts,
-  ({ one }) => ({
-    emailEvent: one(emailEvents, {
-      fields: [emailEventAttempts.emailEventId],
-      references: [emailEvents.id],
-    }),
-  }),
-);

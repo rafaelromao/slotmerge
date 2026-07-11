@@ -210,9 +210,7 @@ jobs:
             GOOGLE_OAUTH_CLIENT_SECRET:slotmerge-staging-google-oauth-client-secret,
             MICROSOFT_OAUTH_CLIENT_ID:slotmerge-staging-microsoft-oauth-client-id,
             MICROSOFT_OAUTH_CLIENT_SECRET:slotmerge-staging-microsoft-oauth-client-secret,
-            POSTMARK_SERVER_TOKEN:slotmerge-staging-postmark-server-token,
-            GOOGLE_WEBHOOK_SECRET:slotmerge-staging-google-webhook-secret,
-            MICROSOFT_WEBHOOK_SECRET:slotmerge-staging-microsoft-webhook-secret
+            POSTMARK_SERVER_TOKEN:slotmerge-staging-postmark-server-token
           cloud-sql-instances: ${{ env.GCP_PROJECT_ID_STAGING }}:${{ env.GCP_REGION }}:slotmerge-staging-postgres
 
   deploy-production:
@@ -262,7 +260,9 @@ jobs:
               -e DATABASE_URL \
               ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_PRODUCTION }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}@${{ inputs.image-digest }} \
               pnpm db:migrate
+          MIGRATION_EXIT=$?
           kill $PROXY_PID 2>/dev/null || true
+          if [ $MIGRATION_EXIT -ne 0 ]; then exit $MIGRATION_EXIT; fi
 
       - name: Deploy to Cloud Run (web) with no traffic
         run: |
@@ -285,7 +285,7 @@ jobs:
             --min-instances=1 \
             --max-instances=10 \
             --set-env-vars="NODE_ENV=production,SLOTMERGE_ENV=production,PROCESS_ROLE=worker,GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID_PRODUCTION }},GCP_REGION=${{ env.GCP_REGION }}" \
-            --set-secrets="DATABASE_URL=slotmerge-production-database-url:latest,SESSION_SEAL_KEY=slotmerge-production-session-seal-key:latest,CALENDAR_TOKEN_ENCRYPTION_KEY=slotmerge-production-calendar-token-encryption-key:latest,GOOGLE_OAUTH_CLIENT_ID=slotmerge-production-google-oauth-client-id:latest,GOOGLE_OAUTH_CLIENT_SECRET=slotmerge-production-google-oauth-client-secret:latest,MICROSOFT_OAUTH_CLIENT_ID=slotmerge-production-microsoft-oauth-client-id:latest,MICROSOFT_OAUTH_CLIENT_SECRET=slotmerge-production-microsoft-oauth-client-secret:latest,POSTMARK_SERVER_TOKEN=slotmerge-production-postmark-server-token:latest,GOOGLE_WEBHOOK_SECRET=slotmerge-production-google-webhook-secret:latest,MICROSOFT_WEBHOOK_SECRET=slotmerge-production-microsoft-webhook-secret:latest" \
+            --set-secrets="DATABASE_URL=slotmerge-production-database-url:latest,SESSION_SEAL_KEY=slotmerge-production-session-seal-key:latest,CALENDAR_TOKEN_ENCRYPTION_KEY=slotmerge-production-calendar-token-encryption-key:latest,GOOGLE_OAUTH_CLIENT_ID=slotmerge-production-google-oauth-client-id:latest,GOOGLE_OAUTH_CLIENT_SECRET=slotmerge-production-google-oauth-client-secret:latest,MICROSOFT_OAUTH_CLIENT_ID=slotmerge-production-microsoft-oauth-client-id:latest,MICROSOFT_OAUTH_CLIENT_SECRET=slotmerge-production-microsoft-oauth-client-secret:latest,POSTMARK_SERVER_TOKEN=slotmerge-production-postmark-server-token:latest" \
             --add-cloudsql-instances ${{ env.GCP_PROJECT_ID_PRODUCTION }}:${{ env.GCP_REGION }}:slotmerge-production-postgres
 
       - name: Switch traffic to new production revision

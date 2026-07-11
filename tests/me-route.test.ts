@@ -1,10 +1,50 @@
 import { describe, expect, it } from "vitest";
 
-import { GET } from "../app/me/route";
+import { GET, PATCH } from "../app/me/route";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,
 } from "../src/auth/session";
+import { setProfileRepositoryForTests } from "../src/profile/repository";
+
+function setProfileStateForTests(profileState: ProfileStateBox) {
+  setProfileRepositoryForTests({
+    findByUserId: (userId) =>
+      Promise.resolve(
+        userId === profileState.current.id
+          ? { ...profileState.current }
+          : null,
+      ),
+    updateByUserId: (userId, patch) => {
+      if (userId !== profileState.current.id) {
+        return Promise.resolve(null);
+      }
+
+      profileState.current = {
+        ...profileState.current,
+        ...patch,
+      };
+
+      return Promise.resolve({ ...profileState.current });
+    },
+  });
+}
+
+type ProfileStateBox = {
+  current: ProfileState;
+};
+
+type ProfileState = {
+  id: string;
+  email: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  shortBio: string | null;
+  role: "user";
+  status: "active";
+  profileTimezone: string | null;
+  bufferMinutes: number;
+};
 
 describe("GET /me", () => {
   it("rejects requests without a valid session", async () => {
@@ -16,7 +56,22 @@ describe("GET /me", () => {
     });
   });
 
-  it("returns empty User state for an authenticated session", async () => {
+  it("returns the current profile state for an authenticated User", async () => {
+    const profileState: ProfileStateBox = {
+      current: {
+      id: "user-1",
+      email: "user@example.com",
+      displayName: "Ada Lovelace",
+      avatarUrl: "https://example.com/avatar.png",
+      shortBio: "Computing pioneer",
+      role: "user",
+      status: "active",
+      profileTimezone: "UTC",
+      bufferMinutes: 15,
+      },
+    };
+
+    setProfileStateForTests(profileState);
     setSessionRepositoryForTests({
       findById: (sessionId) =>
         Promise.resolve(
@@ -25,7 +80,9 @@ describe("GET /me", () => {
                 user: {
                   id: "user-1",
                   email: "user@example.com",
-                  displayName: null,
+                  displayName: "Ada Lovelace",
+                  avatarUrl: null,
+                  shortBio: null,
                   role: "user",
                   status: "active",
                   profileTimezone: null,
@@ -49,13 +106,198 @@ describe("GET /me", () => {
       user: {
         id: "user-1",
         email: "user@example.com",
-        displayName: null,
+        displayName: "Ada Lovelace",
+        avatarUrl: "https://example.com/avatar.png",
+        shortBio: "Computing pioneer",
         role: "user",
         status: "active",
-        profileTimezone: null,
-        bufferMinutes: 0,
+        profileTimezone: "UTC",
+        bufferMinutes: 15,
       },
       session: { csrfToken: "csrf-token-1" },
+      setup: { complete: false },
+      discoverability: { consented: false },
+      topics: [],
+      topicProposals: [],
+      availabilityWindows: [],
+      calendarConnections: [],
+    });
+  });
+});
+
+describe("PATCH /me", () => {
+  it("rejects invalid profile updates without mutating the stored profile", async () => {
+    const profileState: ProfileState = {
+      id: "user-1",
+      email: "user@example.com",
+      displayName: "Ada Lovelace",
+      avatarUrl: null,
+      shortBio: null,
+      role: "user",
+      status: "active",
+      profileTimezone: "UTC",
+      bufferMinutes: 15,
+    };
+
+    setProfileRepositoryForTests({
+      findByUserId: (userId) =>
+        Promise.resolve(userId === profileState.id ? { ...profileState } : null),
+      updateByUserId: () => Promise.resolve(null),
+    });
+    setSessionRepositoryForTests({
+      findById: (sessionId) =>
+        Promise.resolve(
+          sessionId === "session-1"
+            ? {
+                user: {
+                  id: "user-1",
+                  email: "user@example.com",
+                  displayName: "Ada Lovelace",
+                  avatarUrl: null,
+                  shortBio: null,
+                  role: "user",
+                  status: "active",
+                  profileTimezone: "UTC",
+                  bufferMinutes: 15,
+                },
+                csrfToken: "csrf-token-1",
+              }
+            : null,
+        ),
+    });
+
+    const cookie = await sealSessionCookie({ sessionId: "session-1" });
+    const response = await PATCH(
+      new Request("http://localhost/me", {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          cookie,
+        },
+        body: JSON.stringify({ bufferMinutes: -1 }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "invalid_profile_update",
+    });
+  });
+
+  it("updates the profile and persists the edits across sessions", async () => {
+    const profileState: ProfileStateBox = {
+      current: {
+        id: "user-1",
+        email: "user@example.com",
+        displayName: "Ada Lovelace",
+        avatarUrl: null,
+        shortBio: null,
+        role: "user",
+        status: "active",
+        profileTimezone: "UTC",
+        bufferMinutes: 15,
+      },
+    };
+
+    setProfileRepositoryForTests({
+      findByUserId: (userId) =>
+        Promise.resolve(
+          userId === profileState.current.id ? { ...profileState.current } : null,
+        ),
+      updateByUserId: (userId, patch) => {
+        if (userId !== profileState.current.id) {
+          return Promise.resolve(null);
+        }
+
+        profileState.current = { ...profileState.current, ...patch };
+
+        return Promise.resolve({ ...profileState.current });
+      },
+    });
+    setSessionRepositoryForTests({
+      findById: (sessionId) =>
+        Promise.resolve(
+          sessionId === "session-1" || sessionId === "session-2"
+            ? {
+                user: {
+                  id: "user-1",
+                  email: "user@example.com",
+                  displayName: "Ada Lovelace",
+                  avatarUrl: null,
+                  shortBio: null,
+                  role: "user",
+                  status: "active",
+                  profileTimezone: "UTC",
+                  bufferMinutes: 15,
+                },
+                csrfToken:
+                  sessionId === "session-1" ? "csrf-token-1" : "csrf-token-2",
+              }
+            : null,
+        ),
+    });
+
+    const firstCookie = await sealSessionCookie({ sessionId: "session-1" });
+    const patchResponse = await PATCH(
+      new Request("http://localhost/me", {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          cookie: firstCookie,
+        },
+        body: JSON.stringify({
+          displayName: "Grace Hopper",
+          avatarUrl: "https://example.com/grace.png",
+          shortBio: "Compiler pioneer",
+          profileTimezone: "America/New_York",
+          bufferMinutes: 30,
+        }),
+      }),
+    );
+
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toEqual({
+      user: {
+        id: "user-1",
+        email: "user@example.com",
+        displayName: "Grace Hopper",
+        avatarUrl: "https://example.com/grace.png",
+        shortBio: "Compiler pioneer",
+        role: "user",
+        status: "active",
+        profileTimezone: "America/New_York",
+        bufferMinutes: 30,
+      },
+      session: { csrfToken: "csrf-token-1" },
+      setup: { complete: false },
+      discoverability: { consented: false },
+      topics: [],
+      topicProposals: [],
+      availabilityWindows: [],
+      calendarConnections: [],
+    });
+
+    const secondCookie = await sealSessionCookie({ sessionId: "session-2" });
+    const getResponse = await GET(
+      new Request("http://localhost/me", {
+        headers: { cookie: secondCookie },
+      }),
+    );
+
+    expect(getResponse.status).toBe(200);
+    await expect(getResponse.json()).resolves.toEqual({
+      user: {
+        id: "user-1",
+        email: "user@example.com",
+        displayName: "Grace Hopper",
+        avatarUrl: "https://example.com/grace.png",
+        shortBio: "Compiler pioneer",
+        role: "user",
+        status: "active",
+        profileTimezone: "America/New_York",
+        bufferMinutes: 30,
+      },
+      session: { csrfToken: "csrf-token-2" },
       setup: { complete: false },
       discoverability: { consented: false },
       topics: [],

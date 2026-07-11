@@ -64,11 +64,6 @@ export function createAdminInvitesHandlers({
       }
 
       const formData = await request.formData();
-      const submission = inviteSubmissionSchema.parse({
-        email: formData.get("email"),
-        role: formData.get("role") ?? undefined,
-      });
-
       const csrfToken = formData.get("_csrf");
       if (typeof csrfToken !== "string" || csrfToken !== session.csrfToken) {
         return htmlResponse(
@@ -80,6 +75,11 @@ export function createAdminInvitesHandlers({
           403,
         );
       }
+
+      const submission = inviteSubmissionSchema.parse({
+        email: formData.get("email"),
+        role: formData.get("role") ?? undefined,
+      });
 
       const result = await inviteRepository.createInvite({
         email: normalizeEmail(submission.email),

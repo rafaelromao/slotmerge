@@ -1,5 +1,9 @@
 # SlotMerge
 
+<a href="https://github.com/rafaelromao/sandman">
+  <img src="https://raw.githubusercontent.com/rafaelromao/sandman/main/assets/badge-built-with-sandman.svg" alt="Built with Sandman" width="154" />
+</a>
+
 Runnable foundation for the SlotMerge MVP.
 
 ## Development

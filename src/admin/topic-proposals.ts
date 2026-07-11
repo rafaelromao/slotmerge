@@ -283,20 +283,24 @@ const databaseTopicProposalRepository: TopicProposalRepository = {
       return { ok: false, reason: "already_processed" };
     }
 
-    const [topic] = await db
-      .insert(topics)
-      .values({
-        name: proposal.candidateName,
-        status: "active",
-      })
-      .returning({ id: topics.id });
+    const result = await db.transaction(async (tx) => {
+      const [topic] = await tx
+        .insert(topics)
+        .values({
+          name: proposal.candidateName,
+          status: "active",
+        })
+        .returning({ id: topics.id });
 
-    await db
-      .update(topicProposals)
-      .set({ status: "approved", updatedAt: new Date() })
-      .where(eq(topicProposals.id, id));
+      await tx
+        .update(topicProposals)
+        .set({ status: "approved", updatedAt: new Date() })
+        .where(eq(topicProposals.id, id));
 
-    return { ok: true, topicId: topic.id };
+      return { topicId: topic.id };
+    });
+
+    return { ok: true, topicId: result.topicId };
   },
 
   reject: async (id: string) => {

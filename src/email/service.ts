@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export type EmailType =
   "invite" | "magic-link" | "calendar-action-required" | "admin-critical";
 
@@ -7,7 +9,7 @@ export type EmailEvent = {
   id: string;
   recipient: string;
   type: EmailType;
-  payload: EmailPayload;
+  payloadReference: string;
   status: "queued" | "sending" | "sent" | "failed";
   attempts: number;
   createdAt: Date;
@@ -22,7 +24,7 @@ export type EmailEvent = {
 export type CreateQueuedEmailEventInput = {
   recipient: string;
   type: EmailType;
-  payload: EmailPayload;
+  payloadReference: string;
   createdAt: Date;
 };
 
@@ -68,6 +70,10 @@ export type EmailDeliveryService = {
   }): Promise<{ emailEvent: EmailEvent }>;
 };
 
+export function createPayloadReference(payload: EmailPayload): string {
+  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
+
 export function createEmailDeliveryService({
   clock = () => new Date(),
   eventRepository,
@@ -76,10 +82,11 @@ export function createEmailDeliveryService({
   return {
     async sendEmail(input) {
       const createdAt = clock();
+      const payloadReference = createPayloadReference(input.payload);
       const emailEvent = await eventRepository.createQueuedEvent({
         recipient: input.recipient,
         type: input.type,
-        payload: input.payload,
+        payloadReference,
         createdAt,
       });
 

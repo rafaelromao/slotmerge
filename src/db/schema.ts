@@ -1,6 +1,5 @@
 import {
   boolean,
-  jsonb,
   integer,
   pgTable,
   text,
@@ -65,7 +64,7 @@ export const emailEvents = pgTable("email_events", {
   id: uuid("id").primaryKey().defaultRandom(),
   recipient: text("recipient").notNull(),
   type: text("type").notNull(),
-  payload: jsonb("payload").notNull(),
+  payloadReference: text("payload_reference").notNull(),
   status: text("status").notNull().default("queued"),
   attempts: integer("attempts").notNull().default(0),
   sentAt: timestamp("sent_at", { withTimezone: true }),

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import { createEmailDeliveryService } from "./service";
@@ -6,6 +8,9 @@ describe("email delivery service", () => {
   it("creates a queued email event and sends it through one transport seam", async () => {
     const events: Array<{ id: string; status: string; attempts: number }> = [];
     const transportCalls: Array<{ eventId: string; recipient: string }> = [];
+    const payloadReference = createHash("sha256")
+      .update(JSON.stringify({ inviteId: "invite-1" }))
+      .digest("hex");
 
     const service = createEmailDeliveryService({
       clock: () => new Date("2026-01-01T00:00:00.000Z"),
@@ -60,6 +65,7 @@ describe("email delivery service", () => {
     expect(events).toEqual([
       { id: "email-event-1", status: "queued", attempts: 0 },
     ]);
+    expect(result.emailEvent.payloadReference).toBe(payloadReference);
     expect(transportCalls).toEqual([
       { eventId: "email-event-1", recipient: "user@example.com" },
     ]);

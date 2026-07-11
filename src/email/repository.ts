@@ -16,7 +16,7 @@ export function createPostgresEmailEventRepository(
         .values({
           recipient: input.recipient,
           type: input.type,
-          payload: input.payload,
+          payloadReference: input.payloadReference,
           status: "queued",
           attempts: 0,
           createdAt: input.createdAt,
@@ -145,7 +145,7 @@ function toEmailEvent(row: EmailEventRow): EmailEvent {
     id: row.id,
     recipient: row.recipient,
     type: row.type as EmailEvent["type"],
-    payload: row.payload as EmailEvent["payload"],
+    payloadReference: row.payloadReference,
     status: row.status as EmailEvent["status"],
     attempts: row.attempts,
     createdAt: row.createdAt,

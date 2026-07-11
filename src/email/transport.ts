@@ -61,6 +61,8 @@ function subjectForEmailType(type: QueueEmailJobInput["type"]): string {
       return "SlotMerge calendar action required";
     case "admin-critical":
       return "SlotMerge admin alert";
+    default:
+      throw new Error(`unsupported email type: ${String(type)}`);
   }
 }
 

@@ -29,19 +29,28 @@ function parseEmailDeliveryJob(payload: unknown): QueueEmailJobInput {
     "payload" in payload &&
     typeof payload.emailEventId === "string" &&
     typeof payload.recipient === "string" &&
-    typeof payload.type === "string" &&
+    isEmailType(payload.type) &&
     typeof payload.payload === "object" &&
     payload.payload !== null
   ) {
     return {
       emailEventId: payload.emailEventId,
       recipient: payload.recipient,
-      type: payload.type as QueueEmailJobInput["type"],
+      type: payload.type,
       payload: payload.payload as QueueEmailJobInput["payload"],
     };
   }
 
   throw new Error(
     "email delivery job requires event, recipient, type, and payload",
+  );
+}
+
+function isEmailType(value: unknown): value is QueueEmailJobInput["type"] {
+  return (
+    value === "invite" ||
+    value === "magic-link" ||
+    value === "calendar-action-required" ||
+    value === "admin-critical"
   );
 }

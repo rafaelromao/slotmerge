@@ -2,7 +2,7 @@ CREATE TABLE "email_events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"recipient" text NOT NULL,
 	"type" text NOT NULL,
-	"payload" jsonb NOT NULL,
+	"payload_reference" text NOT NULL,
 	"status" text DEFAULT 'queued' NOT NULL,
 	"attempts" integer DEFAULT 0 NOT NULL,
 	"sent_at" timestamp with time zone,

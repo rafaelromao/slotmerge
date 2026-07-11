@@ -115,7 +115,7 @@ describe("GET /me", () => {
         bufferMinutes: 15,
       },
       session: { csrfToken: "csrf-token-1" },
-      setup: { complete: false },
+      setup: { complete: true },
       discoverability: { consented: false },
       topics: [],
       topicProposals: [],
@@ -172,6 +172,7 @@ describe("PATCH /me", () => {
         method: "PATCH",
         headers: {
           "content-type": "application/json",
+          "x-csrf-token": "csrf-token-1",
           cookie,
         },
         body: JSON.stringify({ bufferMinutes: -1 }),
@@ -181,6 +182,66 @@ describe("PATCH /me", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
       error: "invalid_profile_update",
+    });
+  });
+
+  it("rejects requests without a matching CSRF token", async () => {
+    setProfileRepositoryForTests({
+      findByUserId: (userId) =>
+        Promise.resolve(
+          userId === "user-1"
+            ? {
+                id: "user-1",
+                email: "user@example.com",
+                displayName: "Ada Lovelace",
+                avatarUrl: null,
+                shortBio: null,
+                role: "user",
+                status: "active",
+                profileTimezone: "UTC",
+                bufferMinutes: 15,
+              }
+            : null,
+        ),
+      updateByUserId: () => Promise.resolve(null),
+    });
+    setSessionRepositoryForTests({
+      findById: (sessionId) =>
+        Promise.resolve(
+          sessionId === "session-1"
+            ? {
+                user: {
+                  id: "user-1",
+                  email: "user@example.com",
+                  displayName: "Ada Lovelace",
+                  avatarUrl: null,
+                  shortBio: null,
+                  role: "user",
+                  status: "active",
+                  profileTimezone: "UTC",
+                  bufferMinutes: 15,
+                },
+                csrfToken: "csrf-token-1",
+              }
+            : null,
+        ),
+    });
+
+    const cookie = await sealSessionCookie({ sessionId: "session-1" });
+    const response = await PATCH(
+      new Request("http://localhost/me", {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          cookie,
+        },
+        body: JSON.stringify({ displayName: "Grace Hopper" }),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "invalid_csrf",
     });
   });
 
@@ -243,6 +304,7 @@ describe("PATCH /me", () => {
         method: "PATCH",
         headers: {
           "content-type": "application/json",
+          "x-csrf-token": "csrf-token-1",
           cookie: firstCookie,
         },
         body: JSON.stringify({
@@ -268,7 +330,7 @@ describe("PATCH /me", () => {
         bufferMinutes: 30,
       },
       session: { csrfToken: "csrf-token-1" },
-      setup: { complete: false },
+      setup: { complete: true },
       discoverability: { consented: false },
       topics: [],
       topicProposals: [],
@@ -297,7 +359,7 @@ describe("PATCH /me", () => {
         bufferMinutes: 30,
       },
       session: { csrfToken: "csrf-token-2" },
-      setup: { complete: false },
+      setup: { complete: true },
       discoverability: { consented: false },
       topics: [],
       topicProposals: [],
@@ -351,6 +413,7 @@ describe("PATCH /me", () => {
         method: "PATCH",
         headers: {
           "content-type": "application/json",
+          "x-csrf-token": "csrf-token-1",
           cookie: firstCookie,
         },
         body: JSON.stringify({ displayName: "Grace Hopper" }),

@@ -16,11 +16,11 @@ export type UserProfile = {
 };
 
 export type UserProfileUpdate = {
-  displayName: string;
-  avatarUrl: string | null;
-  shortBio: string | null;
-  profileTimezone: string | null;
-  bufferMinutes: number;
+  displayName?: string;
+  avatarUrl?: string | null;
+  shortBio?: string | null;
+  profileTimezone?: string | null;
+  bufferMinutes?: number;
 };
 
 export type ProfileRepository = {
@@ -81,14 +81,39 @@ const databaseProfileRepository: ProfileRepository = {
     return row ?? null;
   },
   updateByUserId: async (userId, update) => {
+    const current = await databaseProfileRepository.findByUserId(userId);
+
+    if (!current) {
+      return null;
+    }
+
+    const displayName = update.displayName ?? current.displayName;
+
+    if (!displayName || !displayName.trim()) {
+      return null;
+    }
+
+    const avatarUrl =
+      update.avatarUrl === undefined ? current.avatarUrl : update.avatarUrl;
+    const shortBio =
+      update.shortBio === undefined ? current.shortBio : update.shortBio;
+    const profileTimezone =
+      update.profileTimezone === undefined
+        ? current.profileTimezone
+        : update.profileTimezone;
+    const bufferMinutes =
+      update.bufferMinutes === undefined
+        ? current.bufferMinutes
+        : update.bufferMinutes;
+
     const [row] = await getDb()
       .update(users)
       .set({
-        displayName: update.displayName,
-        avatarUrl: update.avatarUrl,
-        shortBio: update.shortBio,
-        profileTimezone: update.profileTimezone,
-        bufferMinutes: update.bufferMinutes,
+        displayName: displayName.trim(),
+        avatarUrl,
+        shortBio,
+        profileTimezone,
+        bufferMinutes,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))

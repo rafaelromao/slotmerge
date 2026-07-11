@@ -3,15 +3,22 @@ import {
   getProfileByUserId,
   updateProfileByUserId,
 } from "../../src/profile/repository";
+import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+
+const supportedTimeZones = new Set(Intl.supportedValuesOf("timeZone"));
+
+type MeProfile = NonNullable<Awaited<ReturnType<typeof getProfileByUserId>>>;
 
 const profileUpdateSchema = z
   .object({
     displayName: z.string().trim().min(1).optional(),
-    avatarUrl: z.union([z.string().trim().min(1), z.null()]).optional(),
+    avatarUrl: z.union([z.string().trim().url(), z.null()]).optional(),
     shortBio: z.union([z.string().trim().min(1), z.null()]).optional(),
-    profileTimezone: z.union([z.string().trim().min(1), z.null()]).optional(),
-    bufferMinutes: z.number().int().nonnegative().optional(),
+    profileTimezone: z
+      .union([z.string().trim().min(1).refine(isSupportedTimeZone), z.null()])
+      .optional(),
+    bufferMinutes: z.number().int().nonnegative().max(720).optional(),
   })
   .strict();
 
@@ -28,16 +35,7 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
-  return Response.json({
-    user: profile,
-    session: { csrfToken: session.csrfToken },
-    setup: { complete: false },
-    discoverability: { consented: false },
-    topics: [],
-    topicProposals: [],
-    availabilityWindows: [],
-    calendarConnections: [],
-  });
+  return buildMeResponse(profile, session.csrfToken);
 }
 
 export async function PATCH(request: Request): Promise<Response> {
@@ -45,6 +43,10 @@ export async function PATCH(request: Request): Promise<Response> {
 
   if (!session) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });
+  }
+
+  if (!hasValidCsrfToken(request, session.csrfToken)) {
+    return Response.json({ error: "invalid_csrf" }, { status: 403 });
   }
 
   let body: unknown;
@@ -61,51 +63,41 @@ export async function PATCH(request: Request): Promise<Response> {
     return Response.json({ error: "invalid_profile_update" }, { status: 400 });
   }
 
-  const currentProfile = await getProfileByUserId(session.user.id);
-
-  if (!currentProfile) {
-    return Response.json({ error: "profile_not_found" }, { status: 404 });
-  }
-
-  const displayName =
-    parsed.data.displayName ?? currentProfile.displayName?.trim();
-
-  if (!displayName) {
-    return Response.json({ error: "invalid_profile_update" }, { status: 400 });
-  }
-
-  const updatedProfile = await updateProfileByUserId(session.user.id, {
-    displayName,
-    avatarUrl:
-      parsed.data.avatarUrl === undefined
-        ? currentProfile.avatarUrl
-        : parsed.data.avatarUrl,
-    shortBio:
-      parsed.data.shortBio === undefined
-        ? currentProfile.shortBio
-        : parsed.data.shortBio,
-    profileTimezone:
-      parsed.data.profileTimezone === undefined
-        ? currentProfile.profileTimezone
-        : parsed.data.profileTimezone,
-    bufferMinutes:
-      parsed.data.bufferMinutes === undefined
-        ? currentProfile.bufferMinutes
-        : parsed.data.bufferMinutes,
-  });
+  const updatedProfile = await updateProfileByUserId(
+    session.user.id,
+    parsed.data,
+  );
 
   if (!updatedProfile) {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
+  return buildMeResponse(updatedProfile, session.csrfToken);
+}
+
+function buildMeResponse(profile: MeProfile, csrfToken: string): Response {
   return Response.json({
-    user: updatedProfile,
-    session: { csrfToken: session.csrfToken },
-    setup: { complete: false },
+    user: profile,
+    session: { csrfToken },
+    setup: { complete: Boolean(profile.displayName?.trim()) },
     discoverability: { consented: false },
     topics: [],
     topicProposals: [],
     availabilityWindows: [],
     calendarConnections: [],
   });
+}
+
+function hasValidCsrfToken(request: Request, expectedToken: string): boolean {
+  const actualToken = request.headers.get("x-csrf-token");
+
+  if (!actualToken || actualToken.length !== expectedToken.length) {
+    return false;
+  }
+
+  return timingSafeEqual(Buffer.from(actualToken), Buffer.from(expectedToken));
+}
+
+function isSupportedTimeZone(timeZone: string): boolean {
+  return supportedTimeZones.has(timeZone);
 }

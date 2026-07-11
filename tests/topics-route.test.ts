@@ -18,6 +18,8 @@ describe("GET /topics", () => {
                   id: "user-1",
                   email: "user@example.com",
                   displayName: null,
+                  avatarUrl: null,
+                  shortBio: null,
                   role: "user",
                   status: "active",
                   profileTimezone: null,

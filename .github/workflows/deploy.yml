@@ -31,8 +31,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: pnpm
-          corepack: true
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.13.1
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -80,8 +81,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: pnpm
-          corepack: true
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.13.1
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

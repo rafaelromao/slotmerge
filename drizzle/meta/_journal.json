@@ -29,6 +29,13 @@
       "when": 1783780000001,
       "tag": "0002_admin_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783780000002,
+      "tag": "0003_topics",
+      "breakpoints": true
     }
   ]
 }

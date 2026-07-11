@@ -90,7 +90,8 @@ function computeSetupCompleteness(
       key: "hasAvailability",
       label: "At least one Availability source or manual Availability Window",
       required: true,
-      complete: availabilityWindows.length > 0,
+      complete:
+        availabilityWindows.length > 0 || calendarConnections.length > 0,
     },
     {
       key: "hasCalendarConnection",

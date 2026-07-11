@@ -53,8 +53,8 @@ Create separate Secret Manager secrets per environment. Secret names include the
 | `slotmerge-production-google-oauth-client-secret` | Production Google OAuth client secret for Calendar Connections. |
 | `slotmerge-staging-microsoft-oauth-client-secret` | Staging Microsoft OAuth client secret for Calendar Connections. |
 | `slotmerge-production-microsoft-oauth-client-secret` | Production Microsoft OAuth client secret for Calendar Connections. |
-| `slotmerge-staging-email-provider-credential` | Staging Postmark server token. |
-| `slotmerge-production-email-provider-credential` | Production Postmark server token. |
+| `slotmerge-staging-postmark-server-token` | Staging Postmark server token. |
+| `slotmerge-production-postmark-server-token` | Production Postmark server token. |
 | `slotmerge-staging-webhook-verification-secret` | Staging webhook verification material when provider webhook verification requires an application-managed secret. |
 | `slotmerge-production-webhook-verification-secret` | Production webhook verification material when provider webhook verification requires an application-managed secret. |
 
@@ -63,7 +63,7 @@ Secret rules:
 - Never commit secret values to the repository.
 - Do not copy production secret values into staging.
 - Rotate staging and production secrets independently.
-- Create OAuth applications and email provider credentials separately for staging and production when the provider supports it.
+- Create OAuth applications and Postmark server tokens separately for staging and production when the provider supports it.
 - Provider refresh tokens and Calendar Connection tokens are not Secret Manager secrets; they are persisted in PostgreSQL encrypted at rest.
 
 ## Cloud Run Service Identities

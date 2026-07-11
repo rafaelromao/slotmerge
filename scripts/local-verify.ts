@@ -54,11 +54,20 @@ async function runDrizzleMigrations(): Promise<MigrationCheck> {
 
 async function fetchWebHealth(): Promise<WebCheck> {
   const baseUrl = process.env.LOCAL_WEB_URL ?? "http://127.0.0.1:3000";
-  const response = await fetch(`${baseUrl}/api/local/health`);
-  if (!response.ok) {
-    throw new Error(`web health check failed with HTTP ${response.status}`);
+  const deadline =
+    Date.now() + Number(process.env.LOCAL_VERIFY_TIMEOUT_MS ?? 15_000);
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${baseUrl}/api/local/health`);
+      if (response.ok) {
+        return { ok: true };
+      }
+    } catch {
+      // Network error — retry
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  return { ok: true };
+  throw new Error("web health check timed out");
 }
 
 async function requestSmokeJobProcessing(): Promise<WorkerCheck> {

@@ -53,7 +53,9 @@ export function createAdminInvitesHandlers({
       }
 
       const invites = await inviteRepository.listInvites();
-      return htmlResponse(renderAdminInvitesPage({ invites }));
+      return htmlResponse(
+        renderAdminInvitesPage({ invites, csrfToken: session.csrfToken }),
+      );
     },
     POST: async (request: Request): Promise<Response> => {
       const session = await getSession(request);
@@ -67,6 +69,18 @@ export function createAdminInvitesHandlers({
         role: formData.get("role") ?? undefined,
       });
 
+      const csrfToken = formData.get("_csrf");
+      if (typeof csrfToken !== "string" || csrfToken !== session.csrfToken) {
+        return htmlResponse(
+          renderAdminInvitesPage({
+            invites: await inviteRepository.listInvites(),
+            csrfToken: session.csrfToken,
+            errorMessage: "Invalid CSRF token.",
+          }),
+          403,
+        );
+      }
+
       const result = await inviteRepository.createInvite({
         email: normalizeEmail(submission.email),
         role: submission.role,
@@ -77,6 +91,7 @@ export function createAdminInvitesHandlers({
         return htmlResponse(
           renderAdminInvitesPage({
             invites: await inviteRepository.listInvites(),
+            csrfToken: session.csrfToken,
             errorMessage: "An invite already exists for that email.",
           }),
           409,
@@ -110,9 +125,11 @@ function htmlResponse(body: string, status = 200): Response {
 
 function renderAdminInvitesPage({
   invites,
+  csrfToken,
   errorMessage,
 }: {
   invites: InviteListItem[];
+  csrfToken: string;
   errorMessage?: string;
 }): string {
   const rows =
@@ -137,6 +154,7 @@ function renderAdminInvitesPage({
       <h1>Invite users</h1>
       ${errorMessage ? `<p role="alert">${escapeHtml(errorMessage)}</p>` : ""}
       <form method="post">
+        <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}" />
         <label>
           Email
           <input name="email" type="email" required />

@@ -29,6 +29,8 @@ describe("admin invites", () => {
     expect(response.status).toBe(200);
     expect(html).toContain('name="email"');
     expect(html).toContain('name="role"');
+    expect(html).toContain('name="_csrf"');
+    expect(html).toContain('value="csrf-token-1"');
     expect(html).toContain('<option value="user" selected>User</option>');
     expect(html).toContain('<option value="organizer">Organizer</option>');
     expect(html).toContain('<option value="admin">Admin</option>');
@@ -73,7 +75,10 @@ describe("admin invites", () => {
         headers: {
           "content-type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams({ email: " Alice@Example.com " }).toString(),
+        body: new URLSearchParams({
+          _csrf: "csrf-token-1",
+          email: " Alice@Example.com ",
+        }).toString(),
       }),
     );
 
@@ -128,7 +133,10 @@ describe("admin invites", () => {
         headers: {
           "content-type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams({ email: "alice@example.com" }).toString(),
+        body: new URLSearchParams({
+          _csrf: "csrf-token-1",
+          email: "alice@example.com",
+        }).toString(),
       }),
     );
 
@@ -185,5 +193,44 @@ describe("admin invites", () => {
     expect(html).toContain("accepted@example.com");
     expect(html).toContain("Pending");
     expect(html).toContain("Accepted");
+  });
+
+  it("rejects a missing or wrong CSRF token", async () => {
+    const createInvite = vi.fn();
+
+    const { POST } = createAdminInvitesHandlers({
+      getSession: vi.fn().mockResolvedValue({
+        user: {
+          id: "admin-1",
+          email: "admin@example.com",
+          displayName: null,
+          role: "admin",
+          status: "active",
+          profileTimezone: null,
+          bufferMinutes: 0,
+        },
+        csrfToken: "csrf-token-1",
+      }),
+      inviteRepository: {
+        listInvites: vi.fn().mockResolvedValue([]),
+        createInvite,
+      },
+    });
+
+    const response = await POST(
+      new Request("http://localhost/admin/invites", {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ email: "alice@example.com" }).toString(),
+      }),
+    );
+
+    const html = await response.text();
+
+    expect(response.status).toBe(403);
+    expect(html).toContain("Invalid CSRF token.");
+    expect(createInvite).not.toHaveBeenCalled();
   });
 });

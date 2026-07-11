@@ -9,7 +9,7 @@ import { getGoogleCalendarConnectionRepository } from "../../../../src/calendar/
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const session = await getSessionFromRequest(request);
 
@@ -17,7 +17,7 @@ export async function PATCH(
     return Response.json({ error: "unauthenticated" }, { status: 401 });
   }
 
-  const expectedId = params.id;
+  const { id: expectedId } = await params;
   if (!hasValidCsrfToken(request, session.csrfToken)) {
     return Response.json({ error: "invalid_csrf" }, { status: 403 });
   }

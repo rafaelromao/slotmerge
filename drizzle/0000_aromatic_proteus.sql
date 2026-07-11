@@ -1,6 +1,7 @@
 CREATE TABLE "sessions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
+	"csrf_token" text NOT NULL,
 	"expires_at" timestamp with time zone NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -10,6 +11,9 @@ CREATE TABLE "users" (
 	"email" text NOT NULL,
 	"display_name" text,
 	"role" text DEFAULT 'user' NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"profile_timezone" text,
+	"buffer_minutes" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "users_email_unique" UNIQUE("email")

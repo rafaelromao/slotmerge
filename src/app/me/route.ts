@@ -9,7 +9,9 @@ export async function GET(request: Request): Promise<Response> {
 
   return Response.json({
     user: session.user,
+    session: { csrfToken: session.csrfToken },
     setup: { complete: false },
+    discoverability: { consented: false },
     topics: [],
     topicProposals: [],
     availabilityWindows: [],

@@ -2,17 +2,21 @@ import * as Iron from "@hapi/iron";
 import { and, eq, gt } from "drizzle-orm";
 
 import { getDb } from "../db/client";
-import { sessions, users, type UserRole } from "../db/schema";
+import { sessions, users, type UserRole, type UserStatus } from "../db/schema";
 
 export type SessionUser = {
   id: string;
   email: string;
   displayName: string | null;
   role: UserRole;
+  status: UserStatus;
+  profileTimezone: string | null;
+  bufferMinutes: number;
 };
 
 export type Session = {
   user: SessionUser;
+  csrfToken: string;
 };
 
 export type SessionRepository = {
@@ -85,12 +89,20 @@ const databaseSessionRepository: SessionRepository = {
           email: users.email,
           displayName: users.displayName,
           role: users.role,
+          status: users.status,
+          profileTimezone: users.profileTimezone,
+          bufferMinutes: users.bufferMinutes,
         },
+        csrfToken: sessions.csrfToken,
       })
       .from(sessions)
       .innerJoin(users, eq(sessions.userId, users.id))
       .where(
-        and(eq(sessions.id, sessionId), gt(sessions.expiresAt, new Date())),
+        and(
+          eq(sessions.id, sessionId),
+          eq(users.status, "active"),
+          gt(sessions.expiresAt, new Date()),
+        ),
       )
       .limit(1);
 

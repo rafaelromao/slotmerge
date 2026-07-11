@@ -8,5 +8,6 @@ describe("development bootstrap documentation", () => {
 
     expect(readme).toContain("pnpm dev");
     expect(readme).toContain("DATABASE_URL");
+    expect(readme).toContain("SESSION_SECRET");
   });
 });

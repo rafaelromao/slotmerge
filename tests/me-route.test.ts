@@ -59,15 +59,15 @@ describe("GET /me", () => {
   it("returns the current profile state for an authenticated User", async () => {
     const profileState: ProfileStateBox = {
       current: {
-      id: "user-1",
-      email: "user@example.com",
-      displayName: "Ada Lovelace",
-      avatarUrl: "https://example.com/avatar.png",
-      shortBio: "Computing pioneer",
-      role: "user",
-      status: "active",
-      profileTimezone: "UTC",
-      bufferMinutes: 15,
+        id: "user-1",
+        email: "user@example.com",
+        displayName: "Ada Lovelace",
+        avatarUrl: "https://example.com/avatar.png",
+        shortBio: "Computing pioneer",
+        role: "user",
+        status: "active",
+        profileTimezone: "UTC",
+        bufferMinutes: 15,
       },
     };
 

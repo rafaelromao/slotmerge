@@ -23,7 +23,10 @@ describe("local MVP stack contract", () => {
 
     expect(workflow).toContain("local-verify:");
     expect(workflow).toContain("pnpm local:verify");
-    expect(workflow).toMatch(/deploy-staging:[\s\S]*needs: local-verify/);
-    expect(workflow).toMatch(/promote-production:[\s\S]*needs: deploy-staging/);
+    expect(workflow).toMatch(/build-image:[\s\S]*needs:[\s\S]*local-verify/);
+    expect(workflow).toMatch(/deploy-staging:[\s\S]*needs:[\s\S]*build-image/);
+    expect(workflow).toMatch(
+      /deploy-production:[\s\S]*needs:[\s\S]*deploy-staging/,
+    );
   });
 });

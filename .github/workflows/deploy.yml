@@ -4,10 +4,59 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      image-digest:
+        description: "Image digest to promote to production (format: sha256:...)"
+        required: true
+        type: string
+
+env:
+  GCP_PROJECT_ID_STAGING: slotmerge-staging
+  GCP_PROJECT_ID_PRODUCTION: slotmerge-production
+  GCP_REGION: us-central1
+  ARTIFACT_REGISTRY_REPOSITORY: slotmerge
+  IMAGE_NAME: slotmerge
+  CLOUD_RUN_SERVICE_WEB_STAGING: slotmerge-staging-web
+  CLOUD_RUN_SERVICE_WORKER_STAGING: slotmerge-staging-worker
+  CLOUD_RUN_SERVICE_WEB_PRODUCTION: slotmerge-production-web
+  CLOUD_RUN_SERVICE_WORKER_PRODUCTION: slotmerge-production-worker
 
 jobs:
+  ci-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.13.1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
   local-verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [ci-checks]
     services:
       postgres:
         image: postgres:16-alpine
@@ -28,28 +77,228 @@ jobs:
       LOCAL_WEB_URL: http://127.0.0.1:3000
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test
-      - run: pnpm typecheck
-      - run: pnpm build
-      - run: pnpm db:migrate
-      - run: pnpm dev:web & pnpm dev:worker & pnpm local:verify
+          node-version: "22"
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.13.1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run migrations
+        run: pnpm db:migrate
+
+      - name: Run local verification
+        run: |
+          set -euo pipefail
+          pnpm dev:web &
+          WEB_PID=$!
+          pnpm dev:worker &
+          WORKER_PID=$!
+          trap 'kill $WEB_PID $WORKER_PID 2>/dev/null || true' EXIT
+          for i in {1..60}; do
+            if curl -sf http://127.0.0.1:3000 > /dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          pnpm local:verify
+
+  build-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [local-verify]
+    outputs:
+      image-digest: ${{ steps.digest.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_STAGING }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha256-,suffix=,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable=false
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=image,push-by-digest=true,digest=${{ steps.build.outputs.digest }}
 
   deploy-staging:
     runs-on: ubuntu-latest
-    needs: local-verify
-    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 30
+    needs: [build-image]
+    environment: staging
     steps:
-      - run: echo "Build image and deploy staging Cloud Run services after local verification."
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
 
-  promote-production:
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run (web)
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.CLOUD_RUN_SERVICE_WEB_STAGING }}
+          region: ${{ env.GCP_REGION }}
+          image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_STAGING }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}@${{ needs.build-image.outputs.image-digest }}
+          env-vars: |
+            NODE_ENV=production
+            SLOTMERGE_ENV=staging
+            PROCESS_ROLE=web
+            GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID_STAGING }}
+            GCP_REGION=${{ env.GCP_REGION }}
+          secrets: |
+            DATABASE_URL=slotmerge-staging-database-url:latest
+            SESSION_SEAL_KEY=slotmerge-staging-session-seal-key:latest
+            CALENDAR_TOKEN_ENCRYPTION_KEY=slotmerge-staging-calendar-token-encryption-key:latest
+            GOOGLE_OAUTH_CLIENT_ID=slotmerge-staging-google-oauth-client-id:latest
+            GOOGLE_OAUTH_CLIENT_SECRET=slotmerge-staging-google-oauth-client-secret:latest
+            MICROSOFT_OAUTH_CLIENT_ID=slotmerge-staging-microsoft-oauth-client-id:latest
+            MICROSOFT_OAUTH_CLIENT_SECRET=slotmerge-staging-microsoft-oauth-client-secret:latest
+            POSTMARK_SERVER_TOKEN=slotmerge-staging-postmark-server-token:latest
+            GOOGLE_WEBHOOK_SECRET=slotmerge-staging-google-webhook-secret:latest
+            MICROSOFT_WEBHOOK_SECRET=slotmerge-staging-microsoft-webhook-secret:latest
+          flags: --add-cloudsql-instances=${{ env.GCP_PROJECT_ID_STAGING }}:${{ env.GCP_REGION }}:slotmerge-staging-postgres
+
+      - name: Deploy to Cloud Run (worker)
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.CLOUD_RUN_SERVICE_WORKER_STAGING }}
+          region: ${{ env.GCP_REGION }}
+          image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_STAGING }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}@${{ needs.build-image.outputs.image-digest }}
+          env-vars: |
+            NODE_ENV=production
+            SLOTMERGE_ENV=staging
+            PROCESS_ROLE=worker
+            GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID_STAGING }}
+            GCP_REGION=${{ env.GCP_REGION }}
+          secrets: |
+            DATABASE_URL=slotmerge-staging-database-url:latest
+            SESSION_SEAL_KEY=slotmerge-staging-session-seal-key:latest
+            CALENDAR_TOKEN_ENCRYPTION_KEY=slotmerge-staging-calendar-token-encryption-key:latest
+            GOOGLE_OAUTH_CLIENT_ID=slotmerge-staging-google-oauth-client-id:latest
+            GOOGLE_OAUTH_CLIENT_SECRET=slotmerge-staging-google-oauth-client-secret:latest
+            MICROSOFT_OAUTH_CLIENT_ID=slotmerge-staging-microsoft-oauth-client-id:latest
+            MICROSOFT_OAUTH_CLIENT_SECRET=slotmerge-staging-microsoft-oauth-client-secret:latest
+            POSTMARK_SERVER_TOKEN=slotmerge-staging-postmark-server-token:latest
+          flags: --add-cloudsql-instances=${{ env.GCP_PROJECT_ID_STAGING }}:${{ env.GCP_REGION }}:slotmerge-staging-postgres
+
+  deploy-production:
     runs-on: ubuntu-latest
-    needs: deploy-staging
+    timeout-minutes: 30
+    needs: [deploy-staging]
     environment: production
     steps:
-      - run: echo "Promote a verified image digest to production manually."
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+      - name: Pull staging image
+        run: |
+          docker pull ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_STAGING }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}@${{ inputs.image-digest }}
+
+      - name: Push image to production registry
+        run: |
+          docker tag \
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_STAGING }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}@${{ inputs.image-digest }} \
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_PRODUCTION }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}@${{ inputs.image-digest }}
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_PRODUCTION }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}@${{ inputs.image-digest }}
+
+      - name: Run database migrations
+        run: |
+          # TODO: Pin cloud-sql-proxy by digest in production
+          # e.g. gcr.io/cloud-sql-connectors/cloud-sql-proxy@sha256:<digest>
+          docker run \
+            --rm \
+            --network=host \
+            --name cloud-sql-proxy \
+            gcr.io/cloud-sql-connectors/cloud-sql-proxy:v2.11.0 \
+            --port 5433 \
+            ${{ env.GCP_PROJECT_ID_PRODUCTION }}:${{ env.GCP_REGION }}:slotmerge-production-postgres &
+          PROXY_PID=$!
+          sleep 5
+          DATABASE_URL=$(gcloud secrets versions access latest --secret=slotmerge-production-database-url) \
+            docker run --rm \
+              --network=host \
+              -e DATABASE_URL \
+              ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_PRODUCTION }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}@${{ inputs.image-digest }} \
+              pnpm db:migrate
+          MIGRATION_EXIT=$?
+          kill $PROXY_PID 2>/dev/null || true
+          if [ $MIGRATION_EXIT -ne 0 ]; then exit $MIGRATION_EXIT; fi
+
+      - name: Deploy to Cloud Run (web) with no traffic
+        run: |
+          gcloud run deploy ${{ env.CLOUD_RUN_SERVICE_WEB_PRODUCTION }} \
+            --region ${{ env.GCP_REGION }} \
+            --image ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_PRODUCTION }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}@${{ inputs.image-digest }} \
+            --no-traffic \
+            --min-instances=1 \
+            --max-instances=10 \
+            --set-env-vars="NODE_ENV=production,SLOTMERGE_ENV=production,PROCESS_ROLE=web,GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID_PRODUCTION }},GCP_REGION=${{ env.GCP_REGION }}" \
+            --set-secrets="DATABASE_URL=slotmerge-production-database-url:latest,SESSION_SEAL_KEY=slotmerge-production-session-seal-key:latest,CALENDAR_TOKEN_ENCRYPTION_KEY=slotmerge-production-calendar-token-encryption-key:latest,GOOGLE_OAUTH_CLIENT_ID=slotmerge-production-google-oauth-client-id:latest,GOOGLE_OAUTH_CLIENT_SECRET=slotmerge-production-google-oauth-client-secret:latest,MICROSOFT_OAUTH_CLIENT_ID=slotmerge-production-microsoft-oauth-client-id:latest,MICROSOFT_OAUTH_CLIENT_SECRET=slotmerge-production-microsoft-oauth-client-secret:latest,POSTMARK_SERVER_TOKEN=slotmerge-production-postmark-server-token:latest,GOOGLE_WEBHOOK_SECRET=slotmerge-production-google-webhook-secret:latest,MICROSOFT_WEBHOOK_SECRET=slotmerge-production-microsoft-webhook-secret:latest" \
+            --add-cloudsql-instances ${{ env.GCP_PROJECT_ID_PRODUCTION }}:${{ env.GCP_REGION }}:slotmerge-production-postgres
+
+      - name: Deploy to Cloud Run (worker) with no traffic
+        run: |
+          gcloud run deploy ${{ env.CLOUD_RUN_SERVICE_WORKER_PRODUCTION }} \
+            --region ${{ env.GCP_REGION }} \
+            --image ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID_PRODUCTION }}/${{ env.ARTIFACT_REGISTRY_REPOSITORY }}/${{ env.IMAGE_NAME }}@${{ inputs.image-digest }} \
+            --no-traffic \
+            --min-instances=1 \
+            --max-instances=10 \
+            --set-env-vars="NODE_ENV=production,SLOTMERGE_ENV=production,PROCESS_ROLE=worker,GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID_PRODUCTION }},GCP_REGION=${{ env.GCP_REGION }}" \
+            --set-secrets="DATABASE_URL=slotmerge-production-database-url:latest,SESSION_SEAL_KEY=slotmerge-production-session-seal-key:latest,CALENDAR_TOKEN_ENCRYPTION_KEY=slotmerge-production-calendar-token-encryption-key:latest,GOOGLE_OAUTH_CLIENT_ID=slotmerge-production-google-oauth-client-id:latest,GOOGLE_OAUTH_CLIENT_SECRET=slotmerge-production-google-oauth-client-secret:latest,MICROSOFT_OAUTH_CLIENT_ID=slotmerge-production-microsoft-oauth-client-id:latest,MICROSOFT_OAUTH_CLIENT_SECRET=slotmerge-production-microsoft-oauth-client-secret:latest,POSTMARK_SERVER_TOKEN=slotmerge-production-postmark-server-token:latest" \
+            --add-cloudsql-instances ${{ env.GCP_PROJECT_ID_PRODUCTION }}:${{ env.GCP_REGION }}:slotmerge-production-postgres
+
+      - name: Switch traffic to new production revision
+        run: |
+          gcloud run services update-traffic ${{ env.CLOUD_RUN_SERVICE_WEB_PRODUCTION }} \
+            --region ${{ env.GCP_REGION }} \
+            --to-latest
+
+      - name: Switch worker traffic to new production revision
+        run: |
+          gcloud run services update-traffic ${{ env.CLOUD_RUN_SERVICE_WORKER_PRODUCTION }} \
+            --region ${{ env.GCP_REGION }} \
+            --to-latest

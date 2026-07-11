@@ -38,7 +38,6 @@ Enable these APIs in each GCP project before creating runtime resources:
 | IAM API | `iam.googleapis.com` | Manage deploy and runtime service accounts. |
 | IAM Service Account Credentials API | `iamcredentials.googleapis.com` | Allow GitHub Actions to impersonate deploy service accounts. |
 | Security Token Service API | `sts.googleapis.com` | Support Workload Identity Federation from GitHub Actions. |
-| Cloud Build API | `cloudbuild.googleapis.com` | Optional GCP-native image build fallback; GitHub Actions may still build images directly. |
 | Cloud Logging API | `logging.googleapis.com` | Receive pino JSON stdout logs from Cloud Run. |
 | Cloud Monitoring API | `monitoring.googleapis.com` | Use Cloud Run and Cloud SQL metrics and alerting. |
 
@@ -53,7 +52,6 @@ gcloud services enable \
   iam.googleapis.com \
   iamcredentials.googleapis.com \
   sts.googleapis.com \
-  cloudbuild.googleapis.com \
   logging.googleapis.com \
   monitoring.googleapis.com \
   --project "$GCP_PROJECT_ID"
@@ -155,14 +153,11 @@ All environments use the same names where possible. Staging and production injec
 | `APP_BASE_URL` | `http://localhost:3000` | Cloud Run HTTPS URL or staging custom domain | Production HTTPS URL or custom domain | Used for magic links, OAuth redirects, and webhook URLs. |
 | `DATABASE_URL` | Local/disposable PostgreSQL URL | Secret Manager | Secret Manager | Points to Cloud SQL in GCP environments. |
 | `SESSION_SEAL_KEY` | Local generated value | Secret Manager | Secret Manager | Must differ across environments. |
-| `CSRF_SECRET` | Local generated value | Secret Manager if needed | Secret Manager if needed | Include if the session implementation requires a separate CSRF secret. |
 | `CALENDAR_TOKEN_ENCRYPTION_KEY` | Local generated value | Secret Manager | Secret Manager | Encrypts Calendar Connection token material at rest. |
 | `GOOGLE_OAUTH_CLIENT_ID` | Local/test OAuth app value | Secret Manager | Secret Manager | Calendar Connection OAuth only. |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Local/test OAuth app value | Secret Manager | Secret Manager | Calendar Connection OAuth only. |
-| `GOOGLE_OAUTH_REDIRECT_URI` | `http://localhost:3000/api/oauth/google/callback` | `$APP_BASE_URL/api/oauth/google/callback` | `$APP_BASE_URL/api/oauth/google/callback` | Must match provider registration. |
 | `MICROSOFT_OAUTH_CLIENT_ID` | Local/test OAuth app value | Secret Manager | Secret Manager | Microsoft work/school Calendar Connections only. |
 | `MICROSOFT_OAUTH_CLIENT_SECRET` | Local/test OAuth app value | Secret Manager | Secret Manager | Microsoft work/school Calendar Connections only. |
-| `MICROSOFT_OAUTH_REDIRECT_URI` | `http://localhost:3000/api/oauth/microsoft/callback` | `$APP_BASE_URL/api/oauth/microsoft/callback` | `$APP_BASE_URL/api/oauth/microsoft/callback` | Must match provider registration. |
 | `POSTMARK_SERVER_TOKEN` | Local mock or test token | Secret Manager | Secret Manager | Transactional email delivery. |
 | `EMAIL_FROM` | Local sender address | Staging sender address | Production sender address | Must be provider-verified where required. |
 | `ADMIN_ALERT_EMAIL` | Local developer/admin email | Secret Manager | Secret Manager | Receives critical operational email. |

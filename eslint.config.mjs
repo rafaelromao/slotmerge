@@ -5,7 +5,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: [".next/**", "coverage/**", "node_modules/**", "*.mjs"],
+    ignores: [".next/**", "coverage/**", "drizzle/**", "node_modules/**", "*.mjs"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -21,8 +21,15 @@ export default tseslint.config(
       "@next/next": nextPlugin,
     },
     rules: {
+      ...nextPlugin.configs.recommended.rules,
       ...nextPlugin.configs["core-web-vitals"].rules,
     },
   },
   prettier,
+  {
+    files: ["next-env.d.ts"],
+    rules: {
+      "@typescript-eslint/triple-slash-reference": "off",
+    },
+  },
 );

@@ -1,5 +1,5 @@
+import { boolean, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export type UserRole = "user" | "organizer" | "admin";
 export type UserStatus = "active" | "suspended";
@@ -42,3 +42,13 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const localSmokeJobs = pgTable("local_smoke_jobs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  marker: text("marker").notNull(),
+  processed: boolean("processed").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+});

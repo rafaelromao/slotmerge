@@ -1,38 +1,49 @@
 {
   "name": "slotmerge",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.11.0",
   "scripts": {
     "dev": "next dev",
+    "dev:web": "next dev -H 0.0.0.0",
+    "dev:worker": "tsx src/worker/run.ts",
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "format:check": "prettier --check .",
-    "format": "prettier --write .",
-    "db:migrate": "drizzle-kit migrate"
+    "format:check": "prettier --check \"app/**/*.{ts,tsx}\" \"src/**/*.ts\" \"scripts/**/*.ts\" \"docs/local-stack.md\" package.json tsconfig.json vitest.config.ts drizzle.config.ts next.config.ts eslint.config.mjs docker-compose.yml \".github/workflows/*.yml\"",
+    "format": "prettier --write \"app/**/*.{ts,tsx}\" \"src/**/*.ts\" \"scripts/**/*.ts\" \"docs/local-stack.md\" package.json tsconfig.json vitest.config.ts drizzle.config.ts next.config.ts eslint.config.mjs docker-compose.yml \".github/workflows/*.yml\"",
+    "lint": "eslint .",
+    "db:migrate": "drizzle-kit migrate",
+    "local:up": "docker compose up --build",
+    "local:verify": "tsx scripts/local-verify.ts"
   },
   "dependencies": {
     "@hapi/iron": "^7.0.1",
     "@paralleldrive/cuid2": "^2.2.2",
     "drizzle-orm": "^0.44.5",
+    "graphile-worker": "^0.16.6",
     "next": "^16.0.7",
+    "nodemailer": "^6.10.1",
     "pg": "^8.16.3",
     "pino": "^10.1.0",
     "react": "^19.2.1",
-    "react-dom": "^19.2.1"
+    "react-dom": "^19.2.1",
+    "tsx": "^4.20.3",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@next/eslint-plugin-next": "^16.0.7",
     "@types/node": "^24.10.1",
+    "@types/nodemailer": "^6.4.17",
     "@types/pg": "^8.15.6",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "drizzle-kit": "^0.31.8",
     "eslint": "^9.39.1",
+    "eslint-config-next": "^16.0.7",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.7.4",
     "typescript": "^5.9.3",
@@ -41,6 +52,5 @@
   },
   "engines": {
     "node": ">=22.0.0"
-  },
-  "packageManager": "pnpm@11.11.0"
+  }
 }

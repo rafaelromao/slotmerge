@@ -32,7 +32,7 @@ Register these URLs as authorized redirect URIs in the Google Cloud project OAut
 | `staging` | `https://slotmerge-staging-web.[region].a.run.app/me/calendar-connections/callback` |
 | `production` | `https://slotmerge-production-web.[region].a.run.app/me/calendar-connections/callback` |
 
-The callback path is the unified `POST /me/calendar-connections/callback` route (per MVP spec §7.4). The provider type (Google vs Microsoft) is determined from the stored Calendar Connection record during callback handling, not from the URL path. The OAuth state parameter encodes the Calendar Connection ID and any CSRF tokens.
+The callback path is the fixed `POST /me/calendar-connections/callback` route. This path has no dynamic `{id}` segment because OAuth redirect URIs must be registered with the provider as fixed values before any Calendar Connection exists. The OAuth state parameter encodes the Calendar Connection ID and CSRF tokens; the provider type (Google vs Microsoft) is determined from the stored Calendar Connection record during callback handling, not from the URL path.
 
 When creating the Google OAuth client in the Google Cloud Console:
 

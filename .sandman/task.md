@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #26: Provision transactional email delivery and email event log
+Implement GitHub issue #39: Approve, reject, or retire Topics
 
 ## Issue Context
 
@@ -10,60 +10,36 @@ Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmer
 
 ## What to build
 
-A small email delivery service backed by a durable email event log. All product emails (invites, magic links, Calendar Connection action-required, critical Admin operational) flow through this single delivery surface so delivery state and retries are observable.
+Admins can approve or reject pending Topic Proposals and retire active Topics. Retired Topics preserve historical user associations but are not selectable for new ones and cannot be used in new Searches.
 
 ## Acceptance criteria
 
-- [ ] A single email delivery API accepts a recipient, type, and payload.
-- [ ] Each send creates an Email Event record with status and timestamps.
-- [ ] Delivery failures and retries are recorded.
-- [ ] Other sub-PRDs send through this service rather than their own delivery code.
-
-## Plan
-
-### Behaviors to test
-
-- A single `sendEmail(recipient, type, payload)` call creates a durable Email Event with recipient, type, payload reference, initial status, and timestamps before any transport result is known.
-- A successful transport attempt updates that same Email Event to a delivered/sent state and records delivery timestamps and provider metadata.
-- A failed transport attempt records error details on the Email Event and leaves an observable retryable history.
-- Retrying the same logical email preserves the original event history while recording the retry path explicitly.
-- Invite, magic-link, Calendar Connection action-required, and Admin operational email paths all flow through the shared delivery API rather than direct transport calls.
-
-### Testable interfaces
-
-- `EmailDeliveryService.sendEmail(...)` as the only public delivery surface.
-- An injected `EmailTransport` so tests can drive success and failure without real SMTP or Postmark.
-- An injected `EmailEventRepository` so tests can assert durable event and history writes.
-- An injected clock or time source so timestamps are deterministic in tests.
-- A worker task entrypoint for retry execution, not as the primary behavior seam.
-
-### Assumptions / risks
-
-- This work remains blocked by app shell/auth/Postgres bootstrap from issue #20.
-- Email event storage will need schema and migration work before the delivery surface can be wired end to end.
-- Retry policy must be explicit enough for tests to assert recorded history even if the exact provider or queue mechanism stays abstract.
-- No notification inbox or UI surface is implied here; observability means durable data and admin/status integration.
+- [ ] Admin can approve a pending Topic Proposal; it becomes active.
+- [ ] Admin can reject a pending Topic Proposal.
+- [ ] Admin can retire an active Topic.
+- [ ] Retired Topics remain visible on past associations but not selectable for new ones.
+- [ ] Retired Topics do not participate in new Searches.
 
 ## Blocked by
 
-- [Provision app shell, auth, and Postgres bootstrap](https://github.com/rafaelromao/slotmerge/issues/20)
+- [View controlled Topic catalogue](https://github.com/rafaelromao/slotmerge/issues/30)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/26-provision-transactional-email-delivery-and-email-event-log`
-- Source branch: `sandman/26-provision-transactional-email-delivery-and-email-event-log`
+- Current branch: `sandman/39-approve-reject-or-retire-topics`
+- Source branch: `sandman/39-approve-reject-or-retire-topics`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/26-provision-transactional-email-delivery-and-email-event-log` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/39-approve-reject-or-retire-topics` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -73,7 +49,64 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-PR-Review (sandman-pr-review)
+Implement: load sandman-tdd and execute Slice 1 (Schema + migration)
+
+## Plan
+
+### Behaviors to test
+
+1. **Admin can approve a pending Topic Proposal; it becomes active.**
+   - POST /admin/topic-proposals/{id}/approve (action=approve form param) → atomically: TopicProposal status=approved + new Topic status=active created with candidate_name as name
+   - No auto-UserTopic association created on approve; proposing user must explicitly select the new active Topic
+2. **Admin can reject a pending Topic Proposal.**
+   - POST /admin/topic-proposals/{id}/reject (action=reject form param) → TopicProposal status=rejected, no Topic created
+3. **Admin can retire an active Topic.**
+   - POST /admin/topics/{id}/retire (action=retire form param) → Topic status=retired, retiredAt set to now
+4. **Retired Topics retain existing UserTopic associations.**
+   - UserTopic associations with status=active are NOT modified when a Topic is retired; only the Topic's status changes
+5. **Admin can view pending Topic Proposals queue.**
+   - GET /admin/topic-proposals → HTML page listing pending proposals with approve/reject forms
+
+### Testable interfaces
+
+- `TopicProposalRepository`: `listPending()`, `approve(id): Promise<{ topicId: string }>`, `reject(id): Promise<void>`
+- `TopicRepository`: `listActive()`, `retire(id): Promise<void>`
+- `AdminTopicProposalsHandlers`: factory `{ GET, POST }` with DI for session + repository
+- `AdminTopicsHandlers`: factory `{ GET, POST }` with DI for session + repository
+
+### Slices (vertical, execution order)
+
+**Slice 1 — Schema + migration**
+- Add `topic_proposals` table: id, proposed_by_user_id (FK→users), candidate_name, status (pending/approved/rejected), created_at, updated_at
+- Add `topics` table: id, name (unique), status (pending/active/retired), retired_at (nullable), created_at, updated_at
+- Add `user_topics` table: id, user_id (FK→users), topic_id (FK→topics), status (active/pending-retired/historical), created_at, updated_at
+- Add relations to schema.ts; create migration file
+
+**Slice 2 — Repository layer**
+- `TopicProposalRepository` with DB implementation (approve uses a transaction)
+- `TopicRepository` with DB implementation
+
+**Slice 3 — Admin Topic Proposals page+handler**
+- `app/admin/topic-proposals/route.ts` → delegates to `src/admin/topic-proposals.ts`
+- GET: list pending proposals; POST: route approve/reject by action param
+- HTML page with forms, CSRF token
+
+**Slice 4 — Admin Topics page+handler**
+- `app/admin/topics/route.ts` → delegates to `src/admin/topics.ts`
+- GET: list active topics; POST: route retire by action param
+- HTML page with retire forms, CSRF token
+
+**Slice 5 — Unit tests**
+- `src/admin/topic-proposals.test.ts`: mock session + repository, test approve/reject/list
+- `src/admin/topics.test.ts`: mock session + repository, test retire/list
+- `src/admin/topic-proposals.test.ts`: test that approve atomically creates Topic
+
+### Assumptions / risks
+
+- No audit logging infrastructure exists yet; audit logging for admin Topic decisions is noted in mvp-spec §10 but out of scope for this issue.
+- No existing Topic/TopicProposal/UserTopic tables exist in schema; this slice creates them.
+- Retired Topics not participating in Searches requires the Search module to filter by status=active; this AC is enforced by the Search module (separate issue) and not tested here — the AC "Retired Topics do not participate in new Searches" is satisfied by setting status=retired, which the Search module will read.
+- "Retired Topics remain visible on past associations" is satisfied by NOT modifying UserTopic associations when retiring — the association stays at status=active.
 
 ## Already Resolved
 

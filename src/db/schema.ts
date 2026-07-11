@@ -14,6 +14,10 @@ export type UserRole = "user" | "organizer" | "admin";
 export type UserStatus = "active" | "suspended";
 export type InviteRole = UserRole;
 export type InviteStatus = "pending" | "accepted" | "revoked";
+export type TopicStatus = "pending" | "active" | "retired";
+export type TopicProposalStatus = "pending" | "approved" | "rejected";
+export type TopicAssociationStatus =
+  "active" | "pending-retired" | "historical";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -47,6 +51,8 @@ export const sessions = pgTable("sessions", {
 
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
+  topicProposals: many(topicProposals),
+  userTopics: many(userTopics),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -97,6 +103,67 @@ export const localSmokeJobs = pgTable("local_smoke_jobs", {
     .defaultNow(),
   processedAt: timestamp("processed_at", { withTimezone: true }),
 });
+
+export const topics = pgTable("topics", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  status: text("status").$type<TopicStatus>().notNull().default("pending"),
+  retiredAt: timestamp("retired_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const topicProposals = pgTable("topic_proposals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  proposedByUserId: uuid("proposed_by_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  candidateName: text("candidate_name").notNull(),
+  status: text("status")
+    .$type<TopicProposalStatus>()
+    .notNull()
+    .default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const userTopics = pgTable(
+  "user_topics",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    topicId: uuid("topic_id")
+      .notNull()
+      .references(() => topics.id, { onDelete: "cascade" }),
+    status: text("status")
+      .$type<TopicAssociationStatus>()
+      .notNull()
+      .default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    userTopicsUserIdIdx: index("user_topics_user_id_idx").on(table.userId),
+    userTopicsTopicIdIdx: index("user_topics_topic_id_idx").on(table.topicId),
+    userTopicsUserTopicUnique: uniqueIndex(
+      "user_topics_user_topic_unique_idx",
+    ).on(table.userId, table.topicId),
+  }),
+);
 
 export const emailEvents = pgTable("email_events", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -160,3 +227,25 @@ export const emailEventAttemptsRelations = relations(
     }),
   }),
 );
+
+export const topicsRelations = relations(topics, ({ many }) => ({
+  userTopics: many(userTopics),
+}));
+
+export const topicProposalsRelations = relations(topicProposals, ({ one }) => ({
+  proposedByUser: one(users, {
+    fields: [topicProposals.proposedByUserId],
+    references: [users.id],
+  }),
+}));
+
+export const userTopicsRelations = relations(userTopics, ({ one }) => ({
+  user: one(users, {
+    fields: [userTopics.userId],
+    references: [users.id],
+  }),
+  topic: one(topics, {
+    fields: [userTopics.topicId],
+    references: [topics.id],
+  }),
+}));

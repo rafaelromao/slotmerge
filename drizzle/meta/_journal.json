@@ -8,6 +8,13 @@
       "when": 1783789400544,
       "tag": "0000_shiny_the_hunter",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783789542596,
+      "tag": "0000_aromatic_proteus",
+      "breakpoints": true
     }
   ]
 }

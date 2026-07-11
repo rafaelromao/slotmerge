@@ -1,15 +1,27 @@
+import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
-import { loadRuntimeConfig } from "../config/runtime";
+import * as schema from "./schema";
 
-let pool: Pool | undefined;
+let pool: Pool | null = null;
+
+function requireDatabaseUrl(): string {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is required for database access.");
+  }
+  return process.env.DATABASE_URL;
+}
 
 export function getPool(): Pool {
   if (!pool) {
-    const config = loadRuntimeConfig();
-    pool = new Pool({ connectionString: config.databaseUrl });
+    pool = new Pool({ connectionString: requireDatabaseUrl() });
   }
   return pool;
+}
+
+export function getDb() {
+  pool ??= new Pool({ connectionString: requireDatabaseUrl() });
+  return drizzle(pool, { schema });
 }
 
 export async function checkDatabase(): Promise<void> {

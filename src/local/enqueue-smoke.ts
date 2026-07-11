@@ -27,9 +27,11 @@ export async function createEnqueueSmokeResponse(
     return Response.json({ ok: false }, { status: 404 });
   }
 
-  const body = await request.json();
-  const marker =
-    typeof body.marker === "string" ? body.marker : `local-smoke-${Date.now()}`;
+  const body = (await request.json()) as { marker?: string };
+  const marker: string =
+    typeof body.marker === "string"
+      ? body.marker
+      : `local-smoke-${Date.now()}`;
 
   await storeSmokeJob(marker);
   await enqueueSmokeJob(marker);

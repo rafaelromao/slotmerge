@@ -1,9 +1,8 @@
-import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "SlotMerge",
-  description: "Runnable foundation for SlotMerge.",
+  description: "Topic-aware group availability MVP",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

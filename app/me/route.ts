@@ -1,4 +1,4 @@
-import { getSessionFromRequest } from "../../auth/session";
+import { getSessionFromRequest } from "../../src/auth/session";
 
 export async function GET(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);

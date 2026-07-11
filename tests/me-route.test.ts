@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { GET } from "../src/app/me/route";
+import { GET } from "../app/me/route";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,

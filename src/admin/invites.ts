@@ -41,6 +41,8 @@ const inviteSubmissionSchema = z.object({
   role: z.enum(["user", "organizer", "admin"]).default("user"),
 });
 
+const inviteLifetimeDays = 30;
+
 export function createAdminInvitesHandlers({
   getSession = getSessionFromRequest,
   inviteRepository = databaseInviteRepository,
@@ -208,6 +210,10 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+function getDefaultInviteExpiration(): Date {
+  return new Date(Date.now() + inviteLifetimeDays * 24 * 60 * 60 * 1000);
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -243,6 +249,7 @@ const databaseInviteRepository: InviteRepository = {
           role,
           status: "pending",
           invitedByAdminId,
+          expiresAt: getDefaultInviteExpiration(),
         })
         .returning({ id: invites.id });
 

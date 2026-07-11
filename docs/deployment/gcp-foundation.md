@@ -137,7 +137,6 @@ Use environment-scoped secret names. Secret values are never committed to the re
 | Database URL or password | `slotmerge-staging-database-url` | `slotmerge-production-database-url` | `DATABASE_URL` |
 | Google webhook verification secret | `slotmerge-staging-google-webhook-secret` | `slotmerge-production-google-webhook-secret` | `GOOGLE_WEBHOOK_SECRET` |
 | Microsoft webhook verification secret | `slotmerge-staging-microsoft-webhook-secret` | `slotmerge-production-microsoft-webhook-secret` | `MICROSOFT_WEBHOOK_SECRET` |
-| Admin operational email recipient | `slotmerge-staging-admin-alert-email` | `slotmerge-production-admin-alert-email` | `ADMIN_ALERT_EMAIL` |
 
 Provider refresh tokens and Calendar Connection tokens remain in PostgreSQL encrypted at rest. Secret Manager stores the key material and provider/app credentials, not user provider tokens.
 
@@ -160,7 +159,6 @@ All environments use the same names where possible. Staging and production injec
 | `MICROSOFT_OAUTH_CLIENT_SECRET` | Local/test OAuth app value | Secret Manager | Secret Manager | Microsoft work/school Calendar Connections only. |
 | `POSTMARK_SERVER_TOKEN` | Local mock or test token | Secret Manager | Secret Manager | Transactional email delivery. |
 | `EMAIL_FROM` | Local sender address | Staging sender address | Production sender address | Must be provider-verified where required. |
-| `ADMIN_ALERT_EMAIL` | Local developer/admin email | Secret Manager | Secret Manager | Receives critical operational email. |
 | `GOOGLE_WEBHOOK_SECRET` | Optional local value | Secret Manager | Secret Manager | Local mode may use polling/manual refresh instead of public HTTPS webhooks. |
 | `MICROSOFT_WEBHOOK_SECRET` | Optional local value | Secret Manager | Secret Manager | Local mode may use polling/manual refresh instead of public HTTPS webhooks. |
 | `LOG_LEVEL` | `debug` or `info` | `info` | `info` | pino log level. |

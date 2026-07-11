@@ -2,6 +2,7 @@ import {
   boolean,
   integer,
   pgTable,
+  uniqueIndex,
   text,
   timestamp,
   uuid,
@@ -68,25 +69,34 @@ export const topics = pgTable("topics", {
     .defaultNow(),
 });
 
-export const userTopics = pgTable("user_topics", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  topicId: uuid("topic_id")
-    .notNull()
-    .references(() => topics.id, { onDelete: "cascade" }),
-  status: text("status")
-    .$type<TopicAssociationStatus>()
-    .notNull()
-    .default("active"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const userTopics = pgTable(
+  "user_topics",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    topicId: uuid("topic_id")
+      .notNull()
+      .references(() => topics.id, { onDelete: "cascade" }),
+    status: text("status")
+      .$type<TopicAssociationStatus>()
+      .notNull()
+      .default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    userTopicUnique: uniqueIndex("user_topics_user_id_topic_id_unique").on(
+      table.userId,
+      table.topicId,
+    ),
+  }),
+);
 
 export const localSmokeJobs = pgTable("local_smoke_jobs", {
   id: uuid("id").primaryKey().defaultRandom(),

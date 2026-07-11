@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -27,5 +30,14 @@ describe("topic catalogue repository", () => {
       { id: "topic-1", name: "Product strategy", status: "active" },
       { id: "topic-2", name: "AI engineering", status: "active" },
     ]);
+  });
+
+  it("declares a unique association constraint for safe upserts", () => {
+    const migration = readFileSync(
+      resolve(process.cwd(), "drizzle/0003_controlled_topics_unique.sql"),
+      "utf8",
+    );
+
+    expect(migration).toContain("user_topics_user_id_topic_id_unique");
   });
 });

@@ -10,6 +10,9 @@ import { relations } from "drizzle-orm";
 
 export type UserRole = "user" | "organizer" | "admin";
 export type UserStatus = "active" | "suspended";
+export type TopicStatus = "active" | "retired";
+export type TopicAssociationStatus =
+  "active" | "pending-retired" | "historical";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -49,6 +52,39 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const topics = pgTable("topics", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  status: text("status").$type<TopicStatus>().notNull().default("active"),
+  retiredAt: timestamp("retired_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const userTopics = pgTable("user_topics", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  topicId: uuid("topic_id")
+    .notNull()
+    .references(() => topics.id, { onDelete: "cascade" }),
+  status: text("status")
+    .$type<TopicAssociationStatus>()
+    .notNull()
+    .default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 
 export const localSmokeJobs = pgTable("local_smoke_jobs", {
   id: uuid("id").primaryKey().defaultRandom(),

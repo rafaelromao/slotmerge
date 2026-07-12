@@ -38,12 +38,11 @@ export function createMagicLinkRequestHandlers(
       const normalizedEmail = email.trim().toLowerCase();
 
       if (!issuer) {
-        issuer =
-          createMagicLinkTokenIssuer({
-            baseUrl,
-            secret: deps.magicLinkSecret ?? getMagicLinkSecret(),
-            clock,
-          });
+        issuer = createMagicLinkTokenIssuer({
+          baseUrl,
+          secret: deps.magicLinkSecret ?? getMagicLinkSecret(),
+          clock,
+        });
       }
 
       const inviteRepo = deps.inviteRepository ?? defaultInviteRepository;

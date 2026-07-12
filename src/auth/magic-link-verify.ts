@@ -23,10 +23,12 @@ export type TransactionContext = {
 
 export type InviteRepository = {
   findById(id: string): Promise<InviteRecord | null>;
+  findPendingByEmail(email: string): Promise<InviteRecord | null>;
   accept(id: string): Promise<void>;
 };
 
 export type UserRepository = {
+  findById(id: string): Promise<UserRecord | null>;
   findByEmail(email: string): Promise<UserRecord | null>;
   create(data: { email: string; role: string }): Promise<UserRecord>;
 };
@@ -116,12 +118,54 @@ export function createMagicLinkVerifyHandlers(
         return errorResponse("invalid_token", 400);
       }
 
+      const userRepo = deps.userRepository ?? defaultUserRepository;
+
+      if (payload.userId !== undefined) {
+        const user = await userRepo.findById(payload.userId);
+        if (!user || user.status === "suspended") {
+          return errorResponse("invalid_token", 400);
+        }
+        if (user.email !== payload.email) {
+          return errorResponse("email_mismatch", 400);
+        }
+
+        const csrfToken = generateCsrfToken();
+        const expiresAt = new Date(
+          clock().getTime() + sessionLifetimeDays * 24 * 60 * 60 * 1000,
+        );
+
+        const transaction = deps.transaction ?? defaultTransaction;
+
+        let sessionCookie = "";
+        try {
+          await transaction(async (ctx) => {
+            const session = await ctx.sessionRepository.create({
+              userId: user.id,
+              csrfToken,
+              expiresAt,
+            });
+            sessionCookie = await sealSessionCookie({ sessionId: session.id });
+          });
+        } catch {
+          return errorResponse("server_error", 500);
+        }
+
+        const origin = new URL(request.url).origin;
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: `${origin}/`,
+            "Set-Cookie": sessionCookie,
+          },
+        });
+      }
+
       const invite = await (
         deps.inviteRepository ?? defaultInviteRepository
-      ).findById(payload.inviteId);
+      ).findById(payload.inviteId!);
 
       if (!invite) {
-        return errorResponse("invite_not_found", 400);
+        return errorResponse("not_invited", 400);
       }
 
       if (invite.status === "accepted") {
@@ -140,7 +184,6 @@ export function createMagicLinkVerifyHandlers(
         return errorResponse("email_mismatch", 400);
       }
 
-      const userRepo = deps.userRepository ?? defaultUserRepository;
       let user = await userRepo.findByEmail(invite.email);
       if (!user) {
         user = await userRepo.create({
@@ -245,7 +288,7 @@ async function defaultTransaction(
 ): Promise<void> {
   const { getDb } = await import("../db/client");
   const { sessions, invites } = await import("../db/schema");
-  const { eq } = await import("drizzle-orm");
+  const { eq, and } = await import("drizzle-orm");
   const db = getDb();
 
   await db.transaction(async (tx) => {
@@ -275,6 +318,19 @@ async function defaultTransaction(
             .limit(1);
           return row ?? null;
         },
+        findPendingByEmail: async (email) => {
+          const [row] = await tx
+            .select()
+            .from(invites)
+            .where(
+              and(
+                eq(invites.email, email.toLowerCase()),
+                eq(invites.status, "pending"),
+              ),
+            )
+            .limit(1);
+          return row ?? null;
+        },
         accept: async (id) => {
           await tx
             .update(invites)
@@ -299,6 +355,23 @@ const defaultInviteRepository: InviteRepository = {
       .limit(1);
     return row ?? null;
   },
+  findPendingByEmail: async (email) => {
+    const { getDb } = await import("../db/client");
+    const { eq, and } = await import("drizzle-orm");
+    const { invites } = await import("../db/schema");
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(invites)
+      .where(
+        and(
+          eq(invites.email, email.toLowerCase()),
+          eq(invites.status, "pending"),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  },
   accept: async (id) => {
     const { getDb } = await import("../db/client");
     const { eq } = await import("drizzle-orm");
@@ -312,6 +385,18 @@ const defaultInviteRepository: InviteRepository = {
 };
 
 const defaultUserRepository: UserRepository = {
+  findById: async (id) => {
+    const { getDb } = await import("../db/client");
+    const { eq } = await import("drizzle-orm");
+    const { users } = await import("../db/schema");
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+    return row ?? null;
+  },
   findByEmail: async (email) => {
     const { getDb } = await import("../db/client");
     const { eq } = await import("drizzle-orm");

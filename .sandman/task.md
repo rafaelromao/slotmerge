@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #47: Persist normalized imported busy intervals for the rolling 90-day window
+Implement GitHub issue #48: Reconcile Calendar Connection sync and process webhook events
 
 ## Issue Context
 
@@ -10,37 +10,36 @@ Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerg
 
 ## What to build
 
-Calendar sync writes normalized busy intervals per user, connection, provider calendar, status (busy, out-of-office, tentative, free, working-elsewhere), and start/end time for the rolling 90-day future window. Search reads these rows and never calls provider APIs at runtime.
+Calendar Connection sync runs as a background job: provider webhooks update intervals promptly, scheduled reconciliation fills gaps, and transient failures use exponential backoff and provider `Retry-After` semantics. Quota handling avoids spikes.
 
 ## Acceptance criteria
 
-- [ ] Imported busy intervals are stored as normalized rows.
-- [ ] Status is preserved per interval.
-- [ ] Only the rolling 90-day future window is stored.
-- [ ] Search does not call provider APIs at runtime.
-- [ ] Edits apply immediately to future Searches.
+- [ ] Provider webhook events update imported busy intervals.
+- [ ] Scheduled reconciliation refreshes the rolling 90-day window.
+- [ ] Transient failures use exponential backoff and `Retry-After`.
+- [ ] Quotas are respected via randomized traffic patterns.
+- [ ] Sync errors update Calendar Connection status.
 
 ## Blocked by
 
-- [OAuth-connect Microsoft work/school calendar with Calendars.ReadBasic](https://github.com/rafaelromao/slotmerge/issues/44)
-- [Encrypt Calendar Connection OAuth tokens at rest](https://github.com/rafaelromao/slotmerge/issues/45)
+- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/47)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/47-persist-normalized-imported-busy-intervals-for-the-rolling-90-day-window`
-- Source branch: `sandman/47-persist-normalized-imported-busy-intervals-for-the-rolling-90-day-window`
+- Current branch: `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events`
+- Source branch: `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/47-persist-normalized-imported-busy-intervals-for-the-rolling-90-day-window` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -52,128 +51,62 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ### Behaviors to test
 
-1. **Busy intervals can be persisted and retrieved by user**
-   - Given a user with connected calendars
-   - When busy intervals are imported from a calendar provider
-   - Then they are stored in `imported_busy_intervals` table
-   - And can be retrieved by user ID and date range
+1. **Google webhook handler validates and processes calendar notifications** — Given a valid Google calendar webhook payload with proper signature, the handler enqueues a sync job for the affected calendar connection.
 
-2. **Status is preserved per interval**
-   - Given busy intervals with different blocking statuses (busy, out-of-office, tentative)
-   - When stored in the database
-   - Then the exact status is preserved on retrieval
-   - Note: only busy/out-of-office/tentative are stored (free/working-elsewhere are filtered per spec §6.5)
+2. **Microsoft webhook validation token round-trip** — Given a Microsoft webhook POST with a `Validationtoken` query param, the handler responds with `200 OK` and the raw token as `text/plain` per the Graph subscription validation spec.
 
-3. **Only the rolling 90-day future window is stored**
-   - Given intervals with start times beyond 90 days in the future
-   - When attempting to store them
-   - Then they are not persisted (filtered out on upsert)
-   - And only intervals starting within the next 90 days are stored
+3. **Microsoft webhook handler validates and processes calendar notifications** — Given a valid Microsoft calendar webhook notification (not validation), the handler enqueues a sync job for the affected calendar connection.
 
-4. **Search reads persisted busy intervals without provider API calls**
-   - Given stored busy intervals for a user
-   - When Search computes availability
-   - Then no provider API calls are made
-   - And busy intervals from DB are used directly
+4. **Webhook for disconnected connection is a no-op** — Given a webhook notification for a calendar connection with status `disconnected`, no sync job is enqueued.
 
-5. **Edits apply immediately to future Searches**
-   - Given stored busy intervals for a user
-   - When intervals are updated/deleted in the DB
-   - Then subsequent Search queries see the new data immediately
+5. **Calendar sync job fetches free/busy from Google API and stores intervals** — Given a connected Google Calendar Connection, the sync job uses the access token to call Google's FreeBusy API, converts busy blocks to `ImportedBusyIntervalRecord`s, and upserts them via the repository.
+
+6. **Calendar sync job fetches free/busy from Microsoft API and stores intervals** — Given a connected Microsoft Calendar Connection, the sync job uses the access token to call Microsoft Graph's `me/calendar/getSchedule`, converts busy blocks to `ImportedBusyIntervalRecord`s, and upserts them via the repository.
+
+7. **Sync failures record error metadata and update connection status** — Given a sync job that fails with a transient error, the failure is recorded via `recordCalendarConnectionSyncFailure` and the connection's `lastErrorCode`/`lastErrorMessage` are updated.
+
+8. **Transient failures use exponential backoff with Retry-After** — Given a sync job that receives a 429 or 503 response with a `Retry-After` header, the job re-enqueues itself with exponential backoff starting at twice the `Retry-After` value.
+
+9. **Quota errors apply jittered backoff to avoid traffic spikes** — Given a sync job that receives a 429 response without a `Retry-After` header (generic rate limit), the job re-enqueues itself with a random jitter between 30s and 120s.
+
+10. **Scheduled reconciliation enqueues sync jobs for all connected calendar connections** — Given at least one connected calendar connection, the reconciliation scheduler enqueues a sync job for each with a random stagger delay (0–60s) to avoid spikes.
 
 ### Testable interfaces
 
-1. **BusyIntervalStatus** enum — type-safe status values:
-   ```typescript
-   type BusyIntervalStatus = "busy" | "out-of-office" | "tentative";
-   // Note: "free" and "working-elsewhere" are not stored per spec §6.5
-   ```
+1. **`src/calendar/sync-jobs.ts`** — Calendar sync job handlers for Graphile Worker:
+   - `calendarSyncTaskName: string`
+   - `handleCalendarSyncJob(payload: { connectionId: string })` — fetches free/busy, stores intervals, handles errors/backoff
+   - `enqueueCalendarSync(connectionId: string, backoffMs?: number)` — enqueues sync job with optional backoff (injected for tests)
 
-2. **ImportedBusyIntervalRecord** — Type for a stored busy interval:
-   ```typescript
-   type ImportedBusyIntervalRecord = {
-     id: string;
-     userId: string;
-     connectionId: string;
-     providerCalendarId: string;
-     providerEventReference: string | null;
-     status: BusyIntervalStatus;
-     startAt: Date;
-     endAt: Date;
-     importedAt: Date;
-   };
-   ```
+2. **`src/calendar/webhook-handlers.ts`** — Webhook handlers for provider notifications:
+   - `handleGoogleCalendarWebhook(payload: unknown, signature: string, secret: string)` — validates Google signature, returns connectionId or throws
+   - `handleMicrosoftCalendarValidationWebhook(validationToken: string)` — returns `200 OK` with raw token
+   - `handleMicrosoftCalendarWebhook(payload: unknown)` — parses notification payload, returns connectionId or throws
 
-3. **ImportedBusyIntervalRepository** interface:
-   ```typescript
-   type ImportedBusyIntervalRepository = {
-     upsertBatch(intervals: ImportedBusyIntervalRecord[]): Promise<void>;
-     deleteByConnectionId(connectionId: string): Promise<void>;
-     findByUserIdAndDateRange(
-       userId: string,
-       start: Date,
-       end: Date,
-     ): Promise<ImportedBusyIntervalRecord[]>;
-     deleteExpiredBefore(before: Date): Promise<number>;
-   };
-   ```
+3. **`src/calendar/reconciliation-scheduler.ts`** — Reconciliation scheduling:
+   - `reconciliationTaskName: string`
+   - `handleReconciliationJob(payload: unknown)` — finds all connected calendar connections and enqueues sync jobs with stagger
 
-4. **Test override mechanism** (same pattern as `setSearchRepositoryForTests`):
-   ```typescript
-   let importedBusyIntervalRepositoryOverride: ImportedBusyIntervalRepository | null = null;
-   export function setImportedBusyIntervalRepositoryForTests(repo: ImportedBusyIntervalRepository | null);
-   export function getImportedBusyIntervalRepository(): ImportedBusyIntervalRepository;
-   ```
+4. **`src/calendar/sync-failure-recorder.ts`** (existing) — Already exists with `recordCalendarConnectionSyncFailure`. No interface changes needed.
 
-### Implementation slices (TDD order)
+5. **`src/worker/run.ts`** (modified) — Registers `calendarSyncTaskName` and `reconciliationTaskName` in the task list.
 
-**Slice 1: Schema and migration**
-- Add `imported_busy_intervals` table to `src/db/schema.ts` with columns: id, userId, connectionId, providerCalendarId, providerEventReference (nullable), status, startAt, endAt, importedAt
-- Add indexes on (userId, startAt, endAt) for efficient range queries
-- Add foreign key to `calendar_connections` table
-- Create Drizzle migration file `drizzle/0007_imported_busy_intervals.sql`
-- Add relations: `calendarConnection` → `importedBusyIntervals` (one-to-many), `user` → `importedBusyIntervals` (one-to-many)
+### Assumptions / risks
 
-**Slice 2: Repository interface and in-memory implementation**
-- Define `ImportedBusyIntervalRepository` interface in `src/calendar/imported-busy-intervals.ts`
-- Create `InMemoryImportedBusyIntervalRepository` for tests
-- Add `setImportedBusyIntervalRepositoryForTests` and `getImportedBusyIntervalRepository` override mechanism
-- Write tests for all 5 behaviors using in-memory repo
-
-**Slice 3: Postgres repository implementation**
-- Implement `createPostgresImportedBusyIntervalRepository()` in `src/calendar/imported-busy-intervals.repository.ts`
-- `upsertBatch`: delete all existing intervals for the same connectionId, then insert new batch (assumes serialized per-connection sync — concurrent syncs for same connection are not supported in MVP)
-- `findByUserIdAndDateRange`: query by userId + range using the index
-- `deleteExpiredBefore`: cleanup job helper
-- Verify all tests pass against Postgres
-
-**Slice 4: 90-day window enforcement**
-- Add `isWithinRollingWindow(startAt: Date): boolean` pure function
-- Filter intervals in `upsertBatch` — only store if `isWithinRollingWindow(startAt)` is true
-- Write test: intervals beyond 90 days are not stored
-- Note: `deleteExpiredBefore` handles intervals whose startAt has passed the window
-
-**Slice 5: Search integration — seam definition**
-- Add `getImportedBusyIntervalsByUserId(userId, rangeStart, rangeEnd)` testable seam parallel to existing `getAvailabilityWindowsByUserId` pattern
-- `hasAvailabilitySource` check (in `isEligibleForSearchFromProfileSources`) stays true if `calendarConnections.length > 0` — no change needed there
-- The imported busy intervals seam enters downstream at slot-computation time (separate from eligibility check)
-- Write test: given stored busy intervals, they are returned by `getImportedBusyIntervalsByUserId` without any provider API calls
-
-**Slice 5b: Assert no provider API calls during search**
-- In the search integration test, mock the calendar provider client (Google/Microsoft fetch)
-- Assert that during `getImportedBusyIntervalsByUserId` call, zero provider API calls are made
-- This satisfies acceptance criterion "Search does not call provider APIs at runtime"
-
-### Assumptions / Risks
-
-1. Issues #44 and #45 block actual calendar sync, but the persistence layer is built ahead
-2. The sync model is serialized per-connection (delete-all then insert-all for a given connectionId)
-3. Only blocking statuses (busy, out-of-office, tentative) are stored; free/working-elsewhere are filtered at storage time
-4. BufferMinutes subtraction happens at search-time slot computation (not at storage time), after `getImportedBusyIntervalsByUserId` returns
+- Google webhook notifications arrive as POST to `/webhooks/google/calendar` with `Google-Channel-ID`, `Google-Message-ID`, and `Google-RESOURCE-ID` headers plus a JSON body.
+- Microsoft webhook notifications arrive as POST to `/webhooks/microsoft/calendar` with `Validationtoken` (for subscription validation), `X-MS-WEBHOOK-TYPE` (notification), and `X-MS-WEBHOOK-SIGNATURE` headers.
+- Microsoft validation token response must echo back the token as `200 OK text/plain` per Graph spec.
+- Google FreeBusy API: `POST https://www.googleapis.com/calendar/v3/freeBusy` with `timeMin`, `timeMax`, `items`.
+- Microsoft Graph: `POST https://graph.microsoft.com/v1.0/me/calendar/getSchedule` with `schedules`, `startTime`, `endTime`.
+- Token refresh is NOT in scope for this issue; assume valid access tokens exist.
+- The 90-day rolling window enforcement is already in `isWithinRollingWindow()` and `upsertBatch()` filters accordingly.
+- Webhook routes are defined in the spec but NOT yet created in `app/webhooks/`.
+- `upsertBatch` already deletes existing intervals for a connection before inserting (issue #47), so no explicit delete step needed in sync.
+- Only `connected` status connections are synced; `pending` and `disconnected` are skipped.
 
 ## Next Step
 
-Load sandman-implement and execute the TDD plan
+Implement (sandman-implement: execute TDD via sandman-tdd, commit, self-review, back-merge, create PR, delegate review)
 
 ## Already Resolved
 

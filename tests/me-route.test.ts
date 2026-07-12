@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { GET, PATCH } from "../app/me/route";
+import {
+  GET,
+  PATCH,
+  DELETE,
+  clearPerUserLookupStateForTests,
+  setPerUserLookupStateForTests,
+  listTopicsForUserInTests,
+  listAvailabilityWindowsForUserInTests,
+  listCalendarConnectionsForUserInTests,
+} from "../app/me/route";
+import { getProfileByUserId } from "../src/profile/repository";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,
@@ -11,12 +21,12 @@ function setProfileStateForTests(profileState: ProfileStateBox) {
   setProfileRepositoryForTests({
     findByUserId: (userId) =>
       Promise.resolve(
-        userId === profileState.current.id
+        profileState.current && userId === profileState.current.id
           ? { ...profileState.current }
           : null,
       ),
     updateByUserId: (userId, patch) => {
-      if (userId !== profileState.current.id) {
+      if (!profileState.current || userId !== profileState.current.id) {
         return Promise.resolve(null);
       }
 
@@ -26,6 +36,15 @@ function setProfileStateForTests(profileState: ProfileStateBox) {
       };
 
       return Promise.resolve({ ...profileState.current });
+    },
+    deleteByUserId: (userId) => {
+      if (!profileState.current || userId !== profileState.current.id) {
+        return Promise.resolve(false);
+      }
+
+      profileState.current = null as unknown as ProfileState;
+
+      return Promise.resolve(true);
     },
   });
 }
@@ -152,6 +171,7 @@ describe("PATCH /me", () => {
       findByUserId: (userId) =>
         Promise.resolve(userId === profileState.id ? { ...profileState } : null),
       updateByUserId: () => Promise.resolve(null),
+      deleteByUserId: () => Promise.resolve(false),
     });
     setSessionRepositoryForTests({
       findById: (sessionId) =>
@@ -213,6 +233,7 @@ describe("PATCH /me", () => {
             : null,
         ),
       updateByUserId: () => Promise.resolve(null),
+      deleteByUserId: () => Promise.resolve(false),
     });
     setSessionRepositoryForTests({
       findById: (sessionId) =>
@@ -272,16 +293,27 @@ describe("PATCH /me", () => {
     setProfileRepositoryForTests({
       findByUserId: (userId) =>
         Promise.resolve(
-          userId === profileState.current.id ? { ...profileState.current } : null,
+          profileState.current && userId === profileState.current.id
+            ? { ...profileState.current }
+            : null,
         ),
       updateByUserId: (userId, patch) => {
-        if (userId !== profileState.current.id) {
+        if (!profileState.current || userId !== profileState.current.id) {
           return Promise.resolve(null);
         }
 
         profileState.current = { ...profileState.current, ...patch };
 
         return Promise.resolve({ ...profileState.current });
+      },
+      deleteByUserId: (userId) => {
+        if (!profileState.current || userId !== profileState.current.id) {
+          return Promise.resolve(false);
+        }
+
+        profileState.current = null as unknown as ProfileState;
+
+        return Promise.resolve(true);
       },
     });
     setSessionRepositoryForTests({
@@ -450,6 +482,185 @@ describe("PATCH /me", () => {
       user: {
         displayName: "Grace Hopper",
       },
+    });
+  });
+});
+
+describe("DELETE /me", () => {
+  it("rejects requests without a valid session", async () => {
+    const response = await DELETE(new Request("http://localhost/me"));
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      error: "unauthenticated",
+    });
+  });
+
+  it("rejects requests without a matching CSRF token", async () => {
+    setSessionRepositoryForTests({
+      findById: (sessionId) =>
+        Promise.resolve(
+          sessionId === "session-1"
+            ? {
+                user: {
+                  id: "user-1",
+                  email: "user@example.com",
+                  displayName: "Ada Lovelace",
+                  avatarUrl: null,
+                  shortBio: null,
+                  role: "user",
+                  status: "active",
+                  profileTimezone: null,
+                  bufferMinutes: 0,
+                },
+                csrfToken: "csrf-token-1",
+              }
+            : null,
+        ),
+    });
+
+    const cookie = await sealSessionCookie({ sessionId: "session-1" });
+    const response = await DELETE(
+      new Request("http://localhost/me", {
+        method: "DELETE",
+        headers: { cookie },
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "invalid_csrf",
+    });
+  });
+
+  it("removes the authenticated User, clears the session cookie, and empties per-user lookups", async () => {
+    const profileState: ProfileStateBox = {
+      current: {
+        id: "user-1",
+        email: "user@example.com",
+        displayName: "Ada Lovelace",
+        avatarUrl: null,
+        shortBio: null,
+        role: "user",
+        status: "active",
+        profileTimezone: "UTC",
+        bufferMinutes: 15,
+      },
+    };
+
+    setProfileStateForTests(profileState);
+    setSessionRepositoryForTests({
+      findById: (sessionId) =>
+        Promise.resolve(
+          sessionId === "session-1"
+            ? {
+                user: {
+                  id: "user-1",
+                  email: "user@example.com",
+                  displayName: "Ada Lovelace",
+                  avatarUrl: null,
+                  shortBio: null,
+                  role: "user",
+                  status: "active",
+                  profileTimezone: "UTC",
+                  bufferMinutes: 15,
+                },
+                csrfToken: "csrf-token-1",
+              }
+            : null,
+        ),
+    });
+
+    const topics = new Map<string, Array<{ id: string; name: string }>>();
+    topics.set("user-1", [{ id: "topic-1", name: "Compilers" }]);
+    const availability = new Map<
+      string,
+      Array<{ id: string; dayOfWeek: number }>
+    >();
+    availability.set("user-1", [{ id: "win-1", dayOfWeek: 1 }]);
+    const calendar = new Map<
+      string,
+      Array<{ id: string; provider: string }>
+    >();
+    calendar.set("user-1", [{ id: "cal-1", provider: "google" }]);
+
+    setPerUserLookupStateForTests({
+      topicsByUserId: topics,
+      availabilityWindowsByUserId: availability,
+      calendarConnectionsByUserId: calendar,
+    });
+
+    const cookie = await sealSessionCookie({ sessionId: "session-1" });
+    const response = await DELETE(
+      new Request("http://localhost/me", {
+        method: "DELETE",
+        headers: {
+          "x-csrf-token": "csrf-token-1",
+          cookie,
+        },
+      }),
+    );
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("set-cookie")).toContain(
+      "slotmerge_session=",
+    );
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+
+    await expect(getProfileByUserId("user-1")).resolves.toBeNull();
+    await expect(listTopicsForUserInTests("user-1")).resolves.toEqual([]);
+    await expect(
+      listAvailabilityWindowsForUserInTests("user-1"),
+    ).resolves.toEqual([]);
+    await expect(listCalendarConnectionsForUserInTests("user-1")).resolves.toEqual(
+      [],
+    );
+
+    clearPerUserLookupStateForTests();
+  });
+
+  it("responds with 404 user_not_found when the repository reports the user is already gone", async () => {
+    setProfileRepositoryForTests({
+      findByUserId: () => Promise.resolve(null),
+      updateByUserId: () => Promise.resolve(null),
+      deleteByUserId: () => Promise.resolve(false),
+    });
+    setSessionRepositoryForTests({
+      findById: (sessionId) =>
+        Promise.resolve(
+          sessionId === "session-1"
+            ? {
+                user: {
+                  id: "user-1",
+                  email: "user@example.com",
+                  displayName: "Ada Lovelace",
+                  avatarUrl: null,
+                  shortBio: null,
+                  role: "user",
+                  status: "active",
+                  profileTimezone: "UTC",
+                  bufferMinutes: 15,
+                },
+                csrfToken: "csrf-token-1",
+              }
+            : null,
+        ),
+    });
+
+    const cookie = await sealSessionCookie({ sessionId: "session-1" });
+    const response = await DELETE(
+      new Request("http://localhost/me", {
+        method: "DELETE",
+        headers: {
+          "x-csrf-token": "csrf-token-1",
+          cookie,
+        },
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "user_not_found",
     });
   });
 });

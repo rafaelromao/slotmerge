@@ -1,107 +1,94 @@
 # Task
 
-Implement GitHub issue #133: Containerize web and worker runtimes
+Implement GitHub issue #29: Self-delete account
 
 ## Issue Context
 
 ## Parent
 
-Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14). Hosting decision: [Choose MVP hosting and deployment](https://github.com/rafaelromao/slotmerge/issues/131).
+Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Add the Docker build and runtime command shape needed to run the same application image locally and in Cloud Run as two services: `web` for the Next.js app and `worker` for Graphile Worker jobs and scheduler/tick logic.
-
-This ticket is a prerequisite for both local full-stack verification and GCP deployment.
+A User can self-delete their account. Personal profile, Availability, Topic associations, and Calendar Connection tokens are removed. Non-personal audit history (such as Admin actions on Topics) is preserved.
 
 ## Acceptance criteria
 
-- [ ] A production Docker image builds from the locked pnpm + Next.js + Node stack.
-- [ ] The same image can run in `web` mode and `worker` mode via command or environment selection.
-- [ ] The `web` runtime serves the Next.js app on the Cloud Run-provided port.
-- [ ] The `worker` runtime starts Graphile Worker without exposing public product routes.
-- [ ] The image can also run locally with local PostgreSQL and non-production environment variables.
-- [ ] The image does not require development-only dependencies at runtime.
-- [ ] The runtime expects configuration from environment variables and Secret Manager injection in GCP, while allowing local `.env`/compose-style configuration outside GCP.
+- [ ] User can trigger self-delete from `My availability`.
+- [ ] Self-delete removes personal profile, Availability, and Calendar Connection tokens.
+- [ ] Self-delete removes the user from Search eligibility.
+- [ ] Audit history that does not require personal data is preserved.
 
 ## Blocked by
 
-- [Provision app shell, auth, and Postgres bootstrap](https://github.com/rafaelromao/slotmerge/issues/20)
-- [Provision GCP project and deployment foundation](https://github.com/rafaelromao/slotmerge/issues/132)
+- [Edit profile attributes](https://github.com/rafaelromao/slotmerge/issues/27)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/133-containerize-web-and-worker-runtimes`
-- Source branch: `sandman/133-containerize-web-and-worker-runtimes`
+- Current branch: `sandman/29-self-delete-account`
+- Source branch: `sandman/29-self-delete-account`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/133-containerize-web-and-worker-runtimes` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/29-self-delete-account` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
-
-Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
-
-After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
 ## Plan
 
 ### Behaviors to test
 
-- Prerequisite gate: the repository contains the locked runtime scaffold needed for containerization: `package.json`, `pnpm-lock.yaml`, a Next.js production start/build path, and a real Graphile Worker entrypoint. If absent, stop as blocked by #20/#132 and do not create placeholders.
-- Tracer bullet: once the scaffold exists, the repository exposes one public container runtime contract that selects `web` or `worker` mode through command/env input and fails fast for unknown modes.
-- The production image builds from the locked pnpm + Next.js + Node stack using the repository lockfile.
-- The production runtime image contains only production/runtime artifacts and does not require development-only dependencies to start.
-- In `web` mode, the container starts the Next.js server bound to `0.0.0.0` and the Cloud Run-provided `PORT`.
-- In `worker` mode, the container starts the real Graphile Worker process/scheduler boundary and does not start the public web route surface.
-- Local execution accepts local PostgreSQL and non-production env vars through `.env`/compose-style environment injection.
-- Production configuration is expressed as environment variables suitable for Cloud Run Secret Manager injection, without hard-coding final GCP resource names while #132 is open.
+In execution order (tracer bullet first). Each slice asserts an observable outcome at the public boundary (`DELETE /me` HTTP route + repository override seam), not internal FK mechanics.
+
+1. **`DELETE /me` requires authentication.** Without a valid session cookie, the endpoint responds with `401 { error: "unauthenticated" }` and no per-user lookup function is invoked.
+2. **`DELETE /me` requires a matching CSRF token.** With a valid session but missing/mismatched `x-csrf-token`, the endpoint responds with `403 { error: "invalid_csrf" }` and no per-user lookup function is invoked.
+3. **`DELETE /me` removes the authenticated User.** With a valid session and CSRF token, the endpoint invokes the profile repository's delete seam, then responds with `204` and a `Set-Cookie` header that clears the `slotmerge_session` cookie. After the call:
+   - `getProfileByUserId(userId)` returns `null`.
+   - `getTopicsByUserId(userId)`, `getAvailabilityWindowsByUserId(userId)`, and `getCalendarConnectionsByUserId(userId)` each return an empty list for that userId.
+4. **Search eligibility is removed as a consequence of #3.** Because the user row no longer exists, no future query against `users` (or a join through it) can include them. The same observable check from slice #3 (the four lookup functions all return empty/null for that userId) is the proof at this boundary; Search itself is not yet implemented.
+5. **Non-personal audit history is preserved.** When a User who has invited other Users (i.e., is referenced by `invites.invited_by_admin_id`) self-deletes, the resulting `invites` rows remain in the database. Concretely:
+   - Before the test, seed: 1 inviter User (the deleter), 1 invite row referencing the inviter.
+   - Invoke `DELETE /me` as the inviter.
+   - Assert that the invite row count is unchanged AND the invite row's `invited_by_admin_id` is now `NULL` (the personal reference is dropped, the audit artifact — the email, role, status, timestamps — is preserved).
+6. **Boundary idempotency.** If the user record is already gone when the request arrives (e.g., session cookie still valid in browser, but user already deleted by a concurrent request), the endpoint returns `404 { error: "user_not_found" }` rather than throwing. (Sessions are FK-cascaded with users, so the more common race is "session is gone", which short-circuits at `getSessionFromRequest` to `401`. We cover both branches.)
 
 ### Testable interfaces
 
-- Prerequisite artifact seam: repository-level existence checks for the locked app scaffold and real worker entrypoint.
-- Runtime command seam: a single Docker `CMD`/entrypoint or package script with `RUNTIME_MODE=web|worker` or equivalent CLI selection.
-- Image/build seam: `docker build` plus image inspection/smoke checks against the built production image.
-- Process boundary seam: observable start command output, bind address/port behavior, and absence of web startup in worker mode.
-- Environment contract seam: checked-in env template/docs for local and production variable names, with final GCP binding deferred to #132.
+We use the seam patterns already established in this repo (`setProfileRepositoryForTests`, `setSessionRepositoryForTests`). No new test-only abstractions.
+
+- **`app/me/route.ts`** — add a `DELETE` handler in the same file as `GET`/`PATCH`, so the existing file-local `hasValidCsrfToken` helper is reusable. The handler:
+  - Resolves session via `getSessionFromRequest`.
+  - Validates CSRF token via the existing `hasValidCsrfToken`.
+  - Calls `deleteProfileByUserId(session.user.id)` from the profile repository.
+  - If the repository returns `null` (user not found), responds `404 { error: "user_not_found" }`.
+  - Otherwise responds `204` with `Set-Cookie: slotmerge_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`.
+- **`src/profile/repository.ts`** — extend the `ProfileRepository` interface with a new method `deleteByUserId(userId): Promise<boolean>`. The override hook (`setProfileRepositoryForTests`) already exists; tests plug a fake that flips a state bit and returns `true`. The DB implementation deletes from `users` and returns whether a row was affected.
+- **Test fixtures** — the existing `getTopicsByUserId` / `getAvailabilityWindowsByUserId` / `getCalendarConnectionsByUserId` in `app/me/route.ts` are local placeholder functions returning empty arrays. We lift them behind a small module-level registry that a test helper can seed and reset, so a test can: (a) seed a topic/availability/calendar connection for `user-1`, (b) call `DELETE /me`, (c) assert those lookups return empty for `user-1`. Same pattern as the existing `setProfileStateForTests` helper at the top of `tests/me-route.test.ts`.
+- **Drizzle migration** — add a new migration that changes the `invites.invited_by_admin_id` FK from `ON DELETE RESTRICT` to `ON DELETE SET NULL` and makes the column nullable. The migration filename will be the next free number in `drizzle/` (currently `0003_topics.sql` is the latest on `main`; the implementor will verify at execution time). The schema (`src/db/schema.ts`) is updated in the same change to match (`invitedByAdminId: uuid(...).references(() => users.id, { onDelete: "set null" })` and the column type made nullable). When `users` row is deleted, `invites.invited_by_admin_id` is set to `NULL`; the invite row (email, role, status, timestamps) stays — preserving non-personal audit history per spec §3.8 / §12.1.
 
 ### Assumptions / risks
 
-- Full implementation is blocked until #20 provides the real locked app scaffold and Graphile Worker code.
-- Final Cloud Run, Artifact Registry, Cloud SQL, and Secret Manager wiring is blocked until #132.
-- Do not create a fake Next app, fake Graphile Worker, fake lockfile, or fake deployment foundation to satisfy this ticket.
-- If prerequisites are absent during `sandman-tdd`, the correct automated outcome is a blocked stop/report, not speculative implementation.
+- **AC #1 ("User can trigger self-delete from `My availability`") is partially delivered in this slice.** The MVP spec (`docs/mvp-spec.md` §7.1) defines the self-delete surface as `DELETE /me`. The "from My availability" UI affordance belongs to a downstream UI ticket in the Availability sub-PRD (no Availability page exists yet — `getAvailabilityWindowsByUserId` is a stub). For #29, this slice ships the API + repository behaviour; the UI affordance on the Availability page is tracked as a follow-up by the Availability sub-PRD owner. We will explicitly note this on the PR body so reviewers and the next ticket know.
+- **Spec §10 audit-log requirement is deferred.** §10 mandates audit logging for self-delete events, but the codebase has no audit-log subscriber yet (the `email_events` table is for transactional email delivery, not audit). Emitting an audit row would require opening a parallel ticket to define the audit-log table and enqueue seam. For #29, the deletion itself is the audit artifact: the invites row stays, with the personal reference nulled. A follow-up ticket must add the audit-log pipeline; we will surface this gap in the PR body.
+- **Availability is currently mocked.** There is no `availability_windows` table yet. The deletion of the `users` row covers `sessions`, `calendar_connections`, `topic_proposals`, `user_topics` via existing cascade FKs. When the Availability data model lands in a future ticket, the same `deleteByUserId` cascade will need to be extended; this is out of scope for #29.
+- **Discoverability consent is mocked.** `me/route.ts` returns `discoverability: { consented: false }`. Removing the user removes them from Search eligibility by definition; no separate discoverability-table change is needed.
+- **`invites.invited_by_admin_id` → `SET NULL`.** The PR #146 invite ticket (`Admin invites a User with email and role`) defines an invite flow but does not assert any runtime constraint about deleting an inviter with outstanding invites — the only thing protecting it today is the FK `RESTRICT`. Switching to `SET NULL` keeps the invite row intact (the non-personal email/role/status/timestamps are the audit artifact) and drops only the personal inviter reference, which matches the spec wording "non-personal audit references are preserved". We will note this trade-off in the PR body and reference this concern explicitly.
+- **`204` vs `200`.** We pick `204 No Content` for `DELETE /me` — Next.js route handlers treat `Response(null, { status: 204 })` as the canonical DELETE response, the response includes the cookie-clearing `Set-Cookie` header (which `200` could also carry but is uncommon), and no body is required by the spec. The cookie-clearing header is the only signal the client needs.
+- **Migration number.** Implementor will pick the next free number at execution time; do not hard-code in the plan.
+- **`hasValidCsrfToken` is file-local.** Putting `DELETE` in `app/me/route.ts` keeps it reusable without extraction.
+- **Sandbox / no real DB.** All assertions go through the override pattern; no live DB queries.
 
 ## Next Step
 
-REVIEW_TIMEOUT: PR #151 has CI passing (SUCCESS) and mergeable (CLEAN) state. `/sandman review` comment posted but PR Review Agent did not respond within 15-minute polling budget. Implementation verified: multi-stage Dockerfile with web/worker RUNTIME_MODE selection, docker-entrypoint.sh with fail-fast for unknown modes, production-only dependencies in runtime stage. PR review loop exhausted without response.
-
-## Prerequisite Status Update
-
-- Issue #20 (BLOCKS #133): OPEN — PR #140 "Provision app shell, auth, and Postgres bootstrap" exists and is mergeable (CLEAN) but not yet merged.
-- Issue #132 (BLOCKED #133): CLOSED — GCP project and deployment foundation resolved.
-- No containerization artifacts exist anywhere: no Dockerfile, no package.json, no pnpm-lock.yaml, no Next.js source, no Graphile Worker entrypoint.
-- Current branch `sandman/133-containerize-web-and-worker-runtimes` is 2 commits BEHIND origin/main (which added GCP foundation docs).
-
-## Blocked Finding (re-confirmed)
-
-Prerequisite gate re-executed. Still blocked: `package.json`, `pnpm-lock.yaml`, Next.js source, and Graphile Worker entrypoint absent from repository. Issue #20 remains open (PR #140 pending). Issue #132 is now closed. Per plan: "do not create placeholder app, lockfile, or worker code to satisfy this ticket."
-
-## Stop Condition Reached
-
-Prerequisite gate failed: no `package.json`, no `pnpm-lock.yaml`, no Next.js source files, no Graphile Worker entrypoint exist in the repository. Issue #20 is still open. Implementation cannot proceed without the locked runtime scaffold from #20.
-
-## Blocked Finding
-
-The prerequisite gate was executed on `sandman/133-containerize-web-and-worker-runtimes`. The repository currently contains no `package.json`, no `pnpm-lock.yaml`, no Next.js source files, and no real Graphile Worker entrypoint. Per the plan, do not create placeholder app, lockfile, or worker code to satisfy this ticket. Issue #20 remains open.
+Run `sandman-tdd` against the plan above. First red test: `DELETE /me` rejects with `401` when no session is present.
 
 ## Already Resolved
 

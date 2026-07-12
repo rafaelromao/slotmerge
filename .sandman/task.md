@@ -1,37 +1,40 @@
 # Task
 
-Implement GitHub issue #32: List pending Topic Proposals on profile
+Implement GitHub issue #47: Persist normalized imported busy intervals for the rolling 90-day window
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerge/issues/17). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-A User sees the list of their pending Topic Proposals on `My Topics`, including their current state. Pending Topic Proposals count toward setup completion but do not make the user match Searches.
+Calendar sync writes normalized busy intervals per user, connection, provider calendar, status (busy, out-of-office, tentative, free, working-elsewhere), and start/end time for the rolling 90-day future window. Search reads these rows and never calls provider APIs at runtime.
 
 ## Acceptance criteria
 
-- [ ] User sees pending proposals with their current state.
-- [ ] Pending proposals count toward setup completion.
-- [ ] User can identify which proposals are awaiting Admin review.
+- [ ] Imported busy intervals are stored as normalized rows.
+- [ ] Status is preserved per interval.
+- [ ] Only the rolling 90-day future window is stored.
+- [ ] Search does not call provider APIs at runtime.
+- [ ] Edits apply immediately to future Searches.
 
 ## Blocked by
 
-- [Propose a new Topic](https://github.com/rafaelromao/slotmerge/issues/29)
+- [OAuth-connect Microsoft work/school calendar with Calendars.ReadBasic](https://github.com/rafaelromao/slotmerge/issues/44)
+- [Encrypt Calendar Connection OAuth tokens at rest](https://github.com/rafaelromao/slotmerge/issues/45)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/32-list-pending-topic-proposals-on-profile`
-- Source branch: `sandman/32-list-pending-topic-proposals-on-profile`
+- Current branch: `sandman/47-persist-normalized-imported-busy-intervals-for-the-rolling-90-day-window`
+- Source branch: `sandman/47-persist-normalized-imported-busy-intervals-for-the-rolling-90-day-window`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/32-list-pending-topic-proposals-on-profile` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/47-persist-normalized-imported-busy-intervals-for-the-rolling-90-day-window` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -45,39 +48,132 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Next Step
-
-The registered next step is **Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)**.
-
 ## Plan
 
 ### Behaviors to test
 
-1. **GET /me returns topicProposals with status field (AC1 + AC3)**: When a user has topic proposals, the GET /me response includes those proposals with their `status` field (`"pending"` | `"approved"` | `"rejected"`). The `status: "pending"` value is how users identify which proposals are awaiting Admin review — no additional UI logic required beyond surfacing the field.
-2. **TopicProposal type includes status field**: The `TopicProposal` type in `app/me/route.ts` reflects `{ id: string; name: string; status: TopicProposalStatus }` — matching the DB schema.
-3. **Pending proposals count toward setup completion (AC2)**: A user with only pending topic proposals (no approved topics) still has `hasTopic` setup item marked complete — this already works at line 65 of `route.ts`.
+1. **Busy intervals can be persisted and retrieved by user**
+   - Given a user with connected calendars
+   - When busy intervals are imported from a calendar provider
+   - Then they are stored in `imported_busy_intervals` table
+   - And can be retrieved by user ID and date range
+
+2. **Status is preserved per interval**
+   - Given busy intervals with different blocking statuses (busy, out-of-office, tentative)
+   - When stored in the database
+   - Then the exact status is preserved on retrieval
+   - Note: only busy/out-of-office/tentative are stored (free/working-elsewhere are filtered per spec §6.5)
+
+3. **Only the rolling 90-day future window is stored**
+   - Given intervals with start times beyond 90 days in the future
+   - When attempting to store them
+   - Then they are not persisted (filtered out on upsert)
+   - And only intervals starting within the next 90 days are stored
+
+4. **Search reads persisted busy intervals without provider API calls**
+   - Given stored busy intervals for a user
+   - When Search computes availability
+   - Then no provider API calls are made
+   - And busy intervals from DB are used directly
+
+5. **Edits apply immediately to future Searches**
+   - Given stored busy intervals for a user
+   - When intervals are updated/deleted in the DB
+   - Then subsequent Search queries see the new data immediately
 
 ### Testable interfaces
 
-- `app/me/route.ts` — `TopicProposal` type, `buildMeResponse()` return shape, `computeSetupCompleteness()` logic
-- `tests/me-route.test.ts` — existing test fixtures using `setPerUserLookupStateForTests({ topicProposalsByUserId: Map<string, TopicProposal[]> })`
+1. **BusyIntervalStatus** enum — type-safe status values:
+   ```typescript
+   type BusyIntervalStatus = "busy" | "out-of-office" | "tentative";
+   // Note: "free" and "working-elsewhere" are not stored per spec §6.5
+   ```
 
-### Changes required
+2. **ImportedBusyIntervalRecord** — Type for a stored busy interval:
+   ```typescript
+   type ImportedBusyIntervalRecord = {
+     id: string;
+     userId: string;
+     connectionId: string;
+     providerCalendarId: string;
+     providerEventReference: string | null;
+     status: BusyIntervalStatus;
+     startAt: Date;
+     endAt: Date;
+     importedAt: Date;
+   };
+   ```
 
-**`app/me/route.ts`**:
-- Import `TopicProposalStatus` from `../../src/db/schema`
-- Add `status: TopicProposalStatus` to the `TopicProposal` type (line 24)
-- Existing `getTopicProposalsByUserId` already returns `TopicProposal[]` — the in-memory store holds full objects, no seam change needed
+3. **ImportedBusyIntervalRepository** interface:
+   ```typescript
+   type ImportedBusyIntervalRepository = {
+     upsertBatch(intervals: ImportedBusyIntervalRecord[]): Promise<void>;
+     deleteByConnectionId(connectionId: string): Promise<void>;
+     findByUserIdAndDateRange(
+       userId: string,
+       start: Date,
+       end: Date,
+     ): Promise<ImportedBusyIntervalRecord[]>;
+     deleteExpiredBefore(before: Date): Promise<number>;
+   };
+   ```
 
-**`tests/me-route.test.ts`**:
-- All existing test assertions use `topicProposals: []` (empty) — no assertion updates required
-- Add a new test: seed `topicProposalsByUserId` with mixed statuses (`"pending"`, `"approved"`, `"rejected"`), assert all three are returned with correct `status` values, and assert `hasTopic` setup item is `complete: true` when only pending proposals exist
+4. **Test override mechanism** (same pattern as `setSearchRepositoryForTests`):
+   ```typescript
+   let importedBusyIntervalRepositoryOverride: ImportedBusyIntervalRepository | null = null;
+   export function setImportedBusyIntervalRepositoryForTests(repo: ImportedBusyIntervalRepository | null);
+   export function getImportedBusyIntervalRepository(): ImportedBusyIntervalRepository;
+   ```
 
-### Assumptions / risks
+### Implementation slices (TDD order)
 
-- The blocking issue #31 (Propose a new Topic) defines the creation side; this change only affects the viewing/listing side and is safe to implement independently.
-- `candidateName` in the DB schema maps to `name` in the API — existing mapping is preserved.
-- `TopicProposalStatus` type already exists in `src/db/schema` — no new type needed.
+**Slice 1: Schema and migration**
+- Add `imported_busy_intervals` table to `src/db/schema.ts` with columns: id, userId, connectionId, providerCalendarId, providerEventReference (nullable), status, startAt, endAt, importedAt
+- Add indexes on (userId, startAt, endAt) for efficient range queries
+- Add foreign key to `calendar_connections` table
+- Create Drizzle migration file `drizzle/0007_imported_busy_intervals.sql`
+- Add relations: `calendarConnection` → `importedBusyIntervals` (one-to-many), `user` → `importedBusyIntervals` (one-to-many)
+
+**Slice 2: Repository interface and in-memory implementation**
+- Define `ImportedBusyIntervalRepository` interface in `src/calendar/imported-busy-intervals.ts`
+- Create `InMemoryImportedBusyIntervalRepository` for tests
+- Add `setImportedBusyIntervalRepositoryForTests` and `getImportedBusyIntervalRepository` override mechanism
+- Write tests for all 5 behaviors using in-memory repo
+
+**Slice 3: Postgres repository implementation**
+- Implement `createPostgresImportedBusyIntervalRepository()` in `src/calendar/imported-busy-intervals.repository.ts`
+- `upsertBatch`: delete all existing intervals for the same connectionId, then insert new batch (assumes serialized per-connection sync — concurrent syncs for same connection are not supported in MVP)
+- `findByUserIdAndDateRange`: query by userId + range using the index
+- `deleteExpiredBefore`: cleanup job helper
+- Verify all tests pass against Postgres
+
+**Slice 4: 90-day window enforcement**
+- Add `isWithinRollingWindow(startAt: Date): boolean` pure function
+- Filter intervals in `upsertBatch` — only store if `isWithinRollingWindow(startAt)` is true
+- Write test: intervals beyond 90 days are not stored
+- Note: `deleteExpiredBefore` handles intervals whose startAt has passed the window
+
+**Slice 5: Search integration — seam definition**
+- Add `getImportedBusyIntervalsByUserId(userId, rangeStart, rangeEnd)` testable seam parallel to existing `getAvailabilityWindowsByUserId` pattern
+- `hasAvailabilitySource` check (in `isEligibleForSearchFromProfileSources`) stays true if `calendarConnections.length > 0` — no change needed there
+- The imported busy intervals seam enters downstream at slot-computation time (separate from eligibility check)
+- Write test: given stored busy intervals, they are returned by `getImportedBusyIntervalsByUserId` without any provider API calls
+
+**Slice 5b: Assert no provider API calls during search**
+- In the search integration test, mock the calendar provider client (Google/Microsoft fetch)
+- Assert that during `getImportedBusyIntervalsByUserId` call, zero provider API calls are made
+- This satisfies acceptance criterion "Search does not call provider APIs at runtime"
+
+### Assumptions / Risks
+
+1. Issues #44 and #45 block actual calendar sync, but the persistence layer is built ahead
+2. The sync model is serialized per-connection (delete-all then insert-all for a given connectionId)
+3. Only blocking statuses (busy, out-of-office, tentative) are stored; free/working-elsewhere are filtered at storage time
+4. BufferMinutes subtraction happens at search-time slot computation (not at storage time), after `getImportedBusyIntervalsByUserId` returns
+
+## Next Step
+
+Load sandman-implement and execute the TDD plan
 
 ## Already Resolved
 

@@ -67,6 +67,7 @@ export type EmailDeliveryService = {
     recipient: string;
     type: EmailType;
     payload: EmailPayload;
+    payloadReference?: string;
   }): Promise<{ emailEvent: EmailEvent }>;
 };
 
@@ -82,7 +83,8 @@ export function createEmailDeliveryService({
   return {
     async sendEmail(input) {
       const createdAt = clock();
-      const payloadReference = createPayloadReference(input.payload);
+      const payloadReference =
+        input.payloadReference ?? createPayloadReference(input.payload);
       const emailEvent = await eventRepository.createQueuedEvent({
         recipient: input.recipient,
         type: input.type,

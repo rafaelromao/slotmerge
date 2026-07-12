@@ -61,10 +61,12 @@ function createTransaction(
   inviteRepo: ReturnType<typeof createMockInviteRepository>,
 ) {
   return vi.fn<
-    (fn: (ctx: {
-      sessionRepository: ReturnType<typeof createMockSessionRepository>;
-      inviteRepository: ReturnType<typeof createMockInviteRepository>;
-    }) => Promise<void>) => Promise<void>
+    (
+      fn: (ctx: {
+        sessionRepository: ReturnType<typeof createMockSessionRepository>;
+        inviteRepository: ReturnType<typeof createMockInviteRepository>;
+      }) => Promise<void>,
+    ) => Promise<void>
   >(async (fn) => {
     await fn({
       sessionRepository: sessionRepo,
@@ -72,8 +74,6 @@ function createTransaction(
     });
   });
 }
-
-
 
 describe("magic link verify handler", () => {
   describe("POST", () => {

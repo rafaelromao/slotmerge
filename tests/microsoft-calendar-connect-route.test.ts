@@ -1,7 +1,10 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 
 import { POST } from "../app/me/calendar-connections/microsoft/connect/route";
-import { sealSessionCookie, setSessionRepositoryForTests } from "../src/auth/session";
+import {
+  sealSessionCookie,
+  setSessionRepositoryForTests,
+} from "../src/auth/session";
 import { setMicrosoftCalendarConnectionRepositoryForTests } from "../src/calendar/repository";
 
 describe("POST /me/calendar-connections/microsoft/connect", () => {
@@ -53,13 +56,16 @@ describe("POST /me/calendar-connections/microsoft/connect", () => {
 
     const cookie = await sealSessionCookie({ sessionId: "session-1" });
     const response = await POST(
-      new Request("http://localhost/me/calendar-connections/microsoft/connect", {
-        method: "POST",
-        headers: {
-          cookie,
-          "x-csrf-token": "csrf-token-1",
+      new Request(
+        "http://localhost/me/calendar-connections/microsoft/connect",
+        {
+          method: "POST",
+          headers: {
+            cookie,
+            "x-csrf-token": "csrf-token-1",
+          },
         },
-      }),
+      ),
     );
 
     expect(response.status).toBe(200);
@@ -93,13 +99,18 @@ describe("POST /me/calendar-connections/microsoft/connect", () => {
     });
 
     const response = await POST(
-      new Request("http://localhost/me/calendar-connections/microsoft/connect", {
-        method: "POST",
-      }),
+      new Request(
+        "http://localhost/me/calendar-connections/microsoft/connect",
+        {
+          method: "POST",
+        },
+      ),
     );
 
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: "unauthenticated" });
+    await expect(response.json()).resolves.toEqual({
+      error: "unauthenticated",
+    });
   });
 
   it("returns 403 when the CSRF token is invalid", async () => {
@@ -127,13 +138,16 @@ describe("POST /me/calendar-connections/microsoft/connect", () => {
 
     const cookie = await sealSessionCookie({ sessionId: "session-1" });
     const response = await POST(
-      new Request("http://localhost/me/calendar-connections/microsoft/connect", {
-        method: "POST",
-        headers: {
-          cookie,
-          "x-csrf-token": "wrong-csrf-token",
+      new Request(
+        "http://localhost/me/calendar-connections/microsoft/connect",
+        {
+          method: "POST",
+          headers: {
+            cookie,
+            "x-csrf-token": "wrong-csrf-token",
+          },
         },
-      }),
+      ),
     );
 
     expect(response.status).toBe(403);
@@ -166,13 +180,16 @@ describe("POST /me/calendar-connections/microsoft/connect", () => {
 
     const cookie = await sealSessionCookie({ sessionId: "session-1" });
     const response = await POST(
-      new Request("http://localhost/me/calendar-connections/microsoft/connect", {
-        method: "POST",
-        headers: {
-          cookie,
-          "x-csrf-token": "csrf-token-1",
+      new Request(
+        "http://localhost/me/calendar-connections/microsoft/connect",
+        {
+          method: "POST",
+          headers: {
+            cookie,
+            "x-csrf-token": "csrf-token-1",
+          },
         },
-      }),
+      ),
     );
 
     expect(response.status).toBe(500);

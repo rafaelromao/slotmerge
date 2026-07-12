@@ -70,14 +70,14 @@ describe("PATCH /me/calendar-connections/[id] - action-required email wiring", (
       recipient: USER.email,
       type: "calendar-action-required",
     });
-    expect(firstCall.payload.reconnectUrl).toEqual(expect.stringContaining("/me/calendar-connections"));
+    expect(firstCall.payload.reconnectUrl).toEqual(
+      expect.stringContaining("/me/calendar-connections"),
+    );
   });
 
   it("still returns 200 to the user even when the action-required email enqueue fails", async () => {
     const stored = buildGoogleConnection();
-    const sendEmail = vi
-      .fn()
-      .mockRejectedValue(new Error("queue unavailable"));
+    const sendEmail = vi.fn().mockRejectedValue(new Error("queue unavailable"));
     setEmailDeliveryServiceForTests({ sendEmail });
     setConnectionActionRequiredDispatchLookupForTests({
       findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(null),
@@ -95,7 +95,9 @@ describe("PATCH /me/calendar-connections/[id] - action-required email wiring", (
     // falls inside the default 60-minute dedup window.
     const recentDispatch = new Date(Date.now() - 5 * 60 * 1000);
     setConnectionActionRequiredDispatchLookupForTests({
-      findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(recentDispatch),
+      findMostRecentConnectionDispatch: vi
+        .fn()
+        .mockResolvedValue(recentDispatch),
     });
     const response = await revoke(stored);
     expect(response.status).toBe(200);

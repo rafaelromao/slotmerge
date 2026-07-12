@@ -14,9 +14,7 @@ import {
   type CreateWeeklyAvailabilityWindow,
 } from "../src/profile/availability-windows";
 
-class InMemoryAvailabilityWindowsRepository
-  implements WeeklyAvailabilityWindowRepository
-{
+class InMemoryAvailabilityWindowsRepository implements WeeklyAvailabilityWindowRepository {
   private readonly state = new Map<string, WeeklyAvailabilityWindow>();
   private nextId = 1;
 
@@ -120,11 +118,13 @@ function authedHeaders(
   };
 }
 
-function makeSessionRecord(overrides: {
-  profileTimezone?: string | null;
-  userId?: string;
-  csrfToken?: string;
-} = {}) {
+function makeSessionRecord(
+  overrides: {
+    profileTimezone?: string | null;
+    userId?: string;
+    csrfToken?: string;
+  } = {},
+) {
   const userId = overrides.userId ?? "user-1";
   const csrfToken = overrides.csrfToken ?? "csrf-token-1";
   return {
@@ -143,11 +143,13 @@ function makeSessionRecord(overrides: {
   };
 }
 
-function setSessionRecord(overrides: {
-  profileTimezone?: string | null;
-  userId?: string;
-  csrfToken?: string;
-} = {}) {
+function setSessionRecord(
+  overrides: {
+    profileTimezone?: string | null;
+    userId?: string;
+    csrfToken?: string;
+  } = {},
+) {
   const userId = overrides.userId ?? "user-1";
   const csrfToken = overrides.csrfToken ?? "csrf-token-1";
   const sessionRecord = makeSessionRecord({ ...overrides, userId, csrfToken });
@@ -223,7 +225,7 @@ describe("GET /me/availability-windows", () => {
     );
 
     expect(response.status).toBe(200);
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       availabilityWindows: Array<{ dayOfWeek: number }>;
     };
     expect(data.availabilityWindows).toHaveLength(2);
@@ -242,7 +244,11 @@ describe("POST /me/availability-windows", () => {
       new Request("http://localhost/me/availability-windows", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ dayOfWeek: 1, startTime: "09:00", endTime: "10:00" }),
+        body: JSON.stringify({
+          dayOfWeek: 1,
+          startTime: "09:00",
+          endTime: "10:00",
+        }),
       }),
     );
 
@@ -260,7 +266,11 @@ describe("POST /me/availability-windows", () => {
       new Request("http://localhost/me/availability-windows", {
         method: "POST",
         headers: { cookie, "content-type": "application/json" },
-        body: JSON.stringify({ dayOfWeek: 1, startTime: "09:00", endTime: "10:00" }),
+        body: JSON.stringify({
+          dayOfWeek: 1,
+          startTime: "09:00",
+          endTime: "10:00",
+        }),
       }),
     );
 
@@ -290,7 +300,9 @@ describe("POST /me/availability-windows", () => {
           sessionId === `session-for-${userId}` ? sessionRecord : null,
         ),
     });
-    const cookie = await sealSessionCookie({ sessionId: `session-for-${userId}` });
+    const cookie = await sealSessionCookie({
+      sessionId: `session-for-${userId}`,
+    });
     setWeeklyAvailabilityWindowRepositoryForTests(
       new InMemoryAvailabilityWindowsRepository(),
     );
@@ -299,7 +311,11 @@ describe("POST /me/availability-windows", () => {
       new Request("http://localhost/me/availability-windows", {
         method: "POST",
         headers: authedHeaders(cookie, "csrf-token-tz"),
-        body: JSON.stringify({ dayOfWeek: 1, startTime: "09:00", endTime: "10:00" }),
+        body: JSON.stringify({
+          dayOfWeek: 1,
+          startTime: "09:00",
+          endTime: "10:00",
+        }),
       }),
     );
 
@@ -320,7 +336,11 @@ describe("POST /me/availability-windows", () => {
       new Request("http://localhost/me/availability-windows", {
         method: "POST",
         headers: authedHeaders(cookie),
-        body: JSON.stringify({ dayOfWeek: 7, startTime: "09:00", endTime: "10:00" }),
+        body: JSON.stringify({
+          dayOfWeek: 7,
+          startTime: "09:00",
+          endTime: "10:00",
+        }),
       }),
     );
 
@@ -341,7 +361,11 @@ describe("POST /me/availability-windows", () => {
       new Request("http://localhost/me/availability-windows", {
         method: "POST",
         headers: authedHeaders(cookie),
-        body: JSON.stringify({ dayOfWeek: 1, startTime: "10:00", endTime: "09:00" }),
+        body: JSON.stringify({
+          dayOfWeek: 1,
+          startTime: "10:00",
+          endTime: "09:00",
+        }),
       }),
     );
 
@@ -362,7 +386,11 @@ describe("POST /me/availability-windows", () => {
       new Request("http://localhost/me/availability-windows", {
         method: "POST",
         headers: authedHeaders(cookie),
-        body: JSON.stringify({ dayOfWeek: 1, startTime: "9am", endTime: "10:00" }),
+        body: JSON.stringify({
+          dayOfWeek: 1,
+          startTime: "9am",
+          endTime: "10:00",
+        }),
       }),
     );
 
@@ -382,12 +410,16 @@ describe("POST /me/availability-windows", () => {
       new Request("http://localhost/me/availability-windows", {
         method: "POST",
         headers: authedHeaders(cookie),
-        body: JSON.stringify({ dayOfWeek: 1, startTime: "09:00", endTime: "10:00" }),
+        body: JSON.stringify({
+          dayOfWeek: 1,
+          startTime: "09:00",
+          endTime: "10:00",
+        }),
       }),
     );
 
     expect(response.status).toBe(201);
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       availabilityWindow: {
         id: string;
         dayOfWeek: number;
@@ -455,7 +487,10 @@ describe("PATCH /me/availability-windows/:id", () => {
     const response = await PATCH(
       new Request("http://localhost/me/availability-windows/window-1", {
         method: "PATCH",
-        headers: { ...authedHeaders(cookie, "wrong-token"), "content-type": "application/json" },
+        headers: {
+          ...authedHeaders(cookie, "wrong-token"),
+          "content-type": "application/json",
+        },
         body: JSON.stringify({ dayOfWeek: 3 }),
       }),
       { params: Promise.resolve({ id: "window-1" }) },
@@ -527,14 +562,22 @@ describe("PATCH /me/availability-windows/:id", () => {
       new Request(`http://localhost/me/availability-windows/${created.id}`, {
         method: "PATCH",
         headers: authedHeaders(cookie),
-        body: JSON.stringify({ dayOfWeek: 5, startTime: "16:00", endTime: "17:00" }),
+        body: JSON.stringify({
+          dayOfWeek: 5,
+          startTime: "16:00",
+          endTime: "17:00",
+        }),
       }),
       { params: Promise.resolve({ id: created.id }) },
     );
 
     expect(response.status).toBe(200);
-    const data = await response.json() as {
-      availabilityWindow: { dayOfWeek: number; startTime: string; endTime: string };
+    const data = (await response.json()) as {
+      availabilityWindow: {
+        dayOfWeek: number;
+        startTime: string;
+        endTime: string;
+      };
     };
     expect(data.availabilityWindow.dayOfWeek).toBe(5);
     expect(data.availabilityWindow.startTime).toBe("16:00");

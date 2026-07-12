@@ -18,6 +18,19 @@ export type MagicLinkToken = {
   expiresAt: Date;
 };
 
+export type MagicLinkTokenPayload = {
+  inviteId: string;
+  email: string;
+  expiresAt: string;
+};
+
+export class MagicLinkTokenError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MagicLinkTokenError";
+  }
+}
+
 export function createMagicLinkTokenIssuer({
   baseUrl,
   clock = () => new Date(),
@@ -62,13 +75,53 @@ function base64UrlEncode(value: string): string {
   return Buffer.from(value, "utf8").toString("base64url");
 }
 
-/**
- * Downstream-only seam: the `/auth/magic-link/verify` endpoint (issue out of
- * scope for #22, delivered in a later ticket) compares the signed token
- * signature against an HMAC computed over the wire payload using the same
- * `MAGIC_LINK_SECRET`. Kept here so the verifier ships next to the issuer
- * and the constant-time comparison lives in one place.
- */
+export function verifyMagicLinkToken(
+  token: string,
+  secret: string,
+  clock: () => Date = () => new Date(),
+): MagicLinkTokenPayload {
+  const parts = token.split(".");
+  if (parts.length !== 2) {
+    throw new MagicLinkTokenError("invalid_token");
+  }
+
+  const [payloadEncoded, signature] = parts;
+
+  const expectedSignature = signPayload({ payloadEncoded, secret });
+  if (!timingSafeStringEquals(signature, expectedSignature)) {
+    throw new MagicLinkTokenError("invalid_token");
+  }
+
+  let payloadJson: string;
+  try {
+    payloadJson = Buffer.from(payloadEncoded, "base64url").toString("utf8");
+  } catch {
+    throw new MagicLinkTokenError("invalid_token");
+  }
+
+  let payload: MagicLinkTokenPayload;
+  try {
+    payload = JSON.parse(payloadJson) as MagicLinkTokenPayload;
+  } catch {
+    throw new MagicLinkTokenError("invalid_token");
+  }
+
+  if (
+    typeof payload.inviteId !== "string" ||
+    typeof payload.email !== "string" ||
+    typeof payload.expiresAt !== "string"
+  ) {
+    throw new MagicLinkTokenError("invalid_token");
+  }
+
+  const expiresAt = new Date(payload.expiresAt);
+  if (isNaN(expiresAt.getTime()) || expiresAt <= clock()) {
+    throw new MagicLinkTokenError("token_expired");
+  }
+
+  return payload;
+}
+
 export function timingSafeStringEquals(a: string, b: string): boolean {
   const aBuf = Buffer.from(a, "utf8");
   const bBuf = Buffer.from(b, "utf8");

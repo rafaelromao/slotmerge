@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PATCH } from "../app/me/calendar-connections/[id]/route";
 import { GET } from "../app/me/calendar-connections/route";
-import { sealSessionCookie, setSessionRepositoryForTests } from "../src/auth/session";
+import {
+  sealSessionCookie,
+  setSessionRepositoryForTests,
+} from "../src/auth/session";
 import { encryptCalendarToken } from "../src/calendar/token-encryption";
 import type { GoogleCalendarConnectionRecord } from "../src/calendar/google-calendar-connections";
 import {
@@ -13,7 +16,8 @@ import {
 describe("calendar connection management routes", () => {
   beforeEach(() => {
     process.env.SESSION_SECRET = "0123456789abcdef0123456789abcdef";
-    process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef";
+    process.env.CALENDAR_TOKEN_ENCRYPTION_KEY =
+      "0123456789abcdef0123456789abcdef";
   });
 
   afterEach(() => {
@@ -150,7 +154,8 @@ describe("calendar connection management routes", () => {
     setGoogleCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([stored]),
-      findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+      findById: (id) =>
+        Promise.resolve(id === stored.id ? { ...stored } : null),
       updateById: (id, patch) => {
         if (id !== stored.id) {
           return Promise.resolve(null);

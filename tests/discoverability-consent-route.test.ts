@@ -12,9 +12,7 @@ import {
   type DiscoverabilityConsentRepository,
 } from "../src/profile/discoverability-consent";
 
-class InMemoryDiscoverabilityConsentRepository
-  implements DiscoverabilityConsentRepository
-{
+class InMemoryDiscoverabilityConsentRepository implements DiscoverabilityConsentRepository {
   private readonly state = new Map<string, DiscoverabilityConsentRecord>();
 
   async findByUserId(
@@ -116,9 +114,7 @@ describe("POST /me/discoverability-consent", () => {
   it("rejects requests with a valid session but mismatched CSRF token", async () => {
     setSessionRepositoryForTests({
       findById: (sessionId) =>
-        Promise.resolve(
-          sessionId === "session-1" ? sessionRecord : null,
-        ),
+        Promise.resolve(sessionId === "session-1" ? sessionRecord : null),
     });
 
     const cookie = await authedSession();
@@ -141,9 +137,7 @@ describe("POST /me/discoverability-consent", () => {
   it("rejects a body that does not affirmatively confirm consent", async () => {
     setSessionRepositoryForTests({
       findById: (sessionId) =>
-        Promise.resolve(
-          sessionId === "session-1" ? sessionRecord : null,
-        ),
+        Promise.resolve(sessionId === "session-1" ? sessionRecord : null),
     });
 
     const cookie = await authedSession();
@@ -168,9 +162,7 @@ describe("POST /me/discoverability-consent", () => {
   it("rejects unexpected extra fields in the body", async () => {
     setSessionRepositoryForTests({
       findById: (sessionId) =>
-        Promise.resolve(
-          sessionId === "session-1" ? sessionRecord : null,
-        ),
+        Promise.resolve(sessionId === "session-1" ? sessionRecord : null),
     });
 
     const cookie = await authedSession();
@@ -193,14 +185,11 @@ describe("POST /me/discoverability-consent", () => {
   });
 
   it("records granted consent and replies with the granted timestamp", async () => {
-    const repository =
-      new InMemoryDiscoverabilityConsentRepository();
+    const repository = new InMemoryDiscoverabilityConsentRepository();
     setDiscoverabilityConsentRepositoryForTests(repository);
     setSessionRepositoryForTests({
       findById: (sessionId) =>
-        Promise.resolve(
-          sessionId === "session-1" ? sessionRecord : null,
-        ),
+        Promise.resolve(sessionId === "session-1" ? sessionRecord : null),
     });
 
     const request = await authedPostRequest();
@@ -237,9 +226,7 @@ describe("DELETE /me/discoverability-consent", () => {
   it("rejects requests with mismatched CSRF token", async () => {
     setSessionRepositoryForTests({
       findById: (sessionId) =>
-        Promise.resolve(
-          sessionId === "session-1" ? sessionRecord : null,
-        ),
+        Promise.resolve(sessionId === "session-1" ? sessionRecord : null),
     });
 
     const cookie = await authedSession();
@@ -263,9 +250,7 @@ describe("DELETE /me/discoverability-consent", () => {
     );
     setSessionRepositoryForTests({
       findById: (sessionId) =>
-        Promise.resolve(
-          sessionId === "session-1" ? sessionRecord : null,
-        ),
+        Promise.resolve(sessionId === "session-1" ? sessionRecord : null),
     });
 
     const cookie = await authedSession();
@@ -286,15 +271,12 @@ describe("DELETE /me/discoverability-consent", () => {
   });
 
   it("removes a previously granted record on revoke", async () => {
-    const repository =
-      new InMemoryDiscoverabilityConsentRepository();
+    const repository = new InMemoryDiscoverabilityConsentRepository();
     await repository.grant("user-1");
     setDiscoverabilityConsentRepositoryForTests(repository);
     setSessionRepositoryForTests({
       findById: (sessionId) =>
-        Promise.resolve(
-          sessionId === "session-1" ? sessionRecord : null,
-        ),
+        Promise.resolve(sessionId === "session-1" ? sessionRecord : null),
     });
 
     const cookie = await authedSession();

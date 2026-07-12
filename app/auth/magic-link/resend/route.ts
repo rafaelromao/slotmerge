@@ -1,5 +1,10 @@
 import { createMagicLinkResendHandler } from "../../../../src/auth/magic-link-resend";
 
-const handlers = createMagicLinkResendHandler();
+export const dynamic = "force-dynamic";
 
-export const POST = (request: Request) => handlers.POST(request);
+let handlers: ReturnType<typeof createMagicLinkResendHandler> | undefined;
+
+export const POST = (request: Request) => {
+  handlers ??= createMagicLinkResendHandler();
+  return handlers.POST(request);
+};

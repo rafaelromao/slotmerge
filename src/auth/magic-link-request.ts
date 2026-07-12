@@ -56,6 +56,11 @@ export function createMagicLinkRequestHandlers(
         deps.emailDeliveryService ??
         createDefaultEmailDeliveryService({ clock });
 
+      const existingUser = await userRepo.findByEmail(normalizedEmail);
+      if (existingUser?.status === "suspended") {
+        return jsonResponse({ error: "not_invited" }, 400);
+      }
+
       const pendingInvite =
         await inviteRepo.findPendingByEmail(normalizedEmail);
       if (pendingInvite) {
@@ -67,11 +72,7 @@ export function createMagicLinkRequestHandlers(
         });
       }
 
-      const existingUser = await userRepo.findByEmail(normalizedEmail);
       if (existingUser) {
-        if (existingUser.status === "suspended") {
-          return jsonResponse({ error: "not_invited" }, 400);
-        }
         return handleExistingUser({
           user: existingUser,
           issuer,

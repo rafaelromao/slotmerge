@@ -181,6 +181,48 @@ describe("magic link request handler", () => {
       expect(body).toEqual({ error: "not_invited" });
     });
 
+    it("returns not_invited for suspended user even with pending invite", async () => {
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findPendingByEmail.mockResolvedValue({
+        id: "invite-1",
+        email: "suspended@example.com",
+        role: "user",
+        status: "pending",
+        invitedByAdminId: "admin-1",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      });
+
+      const mockUserRepo = createMockUserRepository();
+      mockUserRepo.findByEmail.mockResolvedValue({
+        id: "user-1",
+        email: "suspended@example.com",
+        role: "user",
+        status: "suspended",
+      });
+
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "suspended@example.com" }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as {
+        error?: string;
+        sent?: boolean;
+      };
+      expect(body).toEqual({ error: "not_invited" });
+      expect(mockInviteRepo.findPendingByEmail).not.toHaveBeenCalled();
+    });
+
     it("returns invalid_email for missing email", async () => {
       const { POST } = createMagicLinkRequestHandlers({
         clock: () => new Date("2026-07-15T00:00:00.000Z"),
@@ -434,8 +476,8 @@ describe("magic link request handler", () => {
       };
       expect(body).toEqual({ sent: true });
 
+      expect(mockUserRepo.findByEmail).toHaveBeenCalledWith("both@example.com");
       expect(mockInviteRepo.findPendingByEmail).toHaveBeenCalled();
-      expect(mockUserRepo.findByEmail).not.toHaveBeenCalled();
       expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           recipient: "both@example.com",

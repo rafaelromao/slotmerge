@@ -49,7 +49,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-sandman-self-review (then sandman-back-merge, then push and create PR)
+sandman-pr-review (PR #162)
 
 ## Already Resolved
 

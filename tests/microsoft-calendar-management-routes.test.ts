@@ -122,8 +122,6 @@ describe("calendar connection management routes (Google + Microsoft)", () => {
       accessTokenExpiresAt: "2026-01-01T00:00:00.000Z",
       lastErrorCode: null,
       lastErrorMessage: null,
-      lastErrorCode: null,
-      lastErrorMessage: null,
     });
     expect(googleView).not.toHaveProperty("refreshTokenEncrypted");
     expect(googleView).not.toHaveProperty("accessTokenEncrypted");
@@ -136,8 +134,6 @@ describe("calendar connection management routes (Google + Microsoft)", () => {
       scopes: "offline_access Calendars.ReadBasic",
       status: "connected",
       accessTokenExpiresAt: "2026-02-01T00:00:00.000Z",
-      lastErrorCode: null,
-      lastErrorMessage: null,
       lastErrorCode: null,
       lastErrorMessage: null,
     });

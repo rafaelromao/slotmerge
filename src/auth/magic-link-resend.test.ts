@@ -35,13 +35,14 @@ function createMockInviteRepository() {
 
 function createMockEmailDeliveryService() {
   return {
-    sendEmail: vi.fn<
-      (input: {
-        recipient: string;
-        type: string;
-        payload: Record<string, unknown>;
-      }) => Promise<{ emailEvent: unknown }>
-    >(),
+    sendEmail:
+      vi.fn<
+        (input: {
+          recipient: string;
+          type: string;
+          payload: Record<string, unknown>;
+        }) => Promise<{ emailEvent: unknown }>
+      >(),
   };
 }
 

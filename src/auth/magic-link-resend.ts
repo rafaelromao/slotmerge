@@ -149,8 +149,7 @@ export function createMagicLinkResendHandler(
   const clock = deps.clock ?? (() => new Date());
   const magicLinkSecret = deps.magicLinkSecret ?? getMagicLinkSecret();
   const baseUrl = deps.baseUrl ?? getDefaultBaseUrl();
-  const magicLinkLifetimeDays =
-    getDefaultMagicLinkLifetimeDays();
+  const magicLinkLifetimeDays = getDefaultMagicLinkLifetimeDays();
 
   return {
     POST: async (request: Request): Promise<Response> => {
@@ -385,9 +384,8 @@ const defaultInviteRepository: InviteRepositoryForResend = {
 const defaultEmailDeliveryService: EmailDeliveryServiceForResend = {
   sendEmail: async (input) => {
     const { createEmailDeliveryService } = await import("../email/service");
-    const { createPostgresEmailEventRepository } = await import(
-      "../email/repository"
-    );
+    const { createPostgresEmailEventRepository } =
+      await import("../email/repository");
     const { enqueueInviteEmailJob } = await import("../email/invite-jobs");
     const service = createEmailDeliveryService({
       clock: () => new Date(),

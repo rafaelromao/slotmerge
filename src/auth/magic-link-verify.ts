@@ -108,12 +108,12 @@ export function createMagicLinkVerifyHandlers(
         payload = verifyMagicLinkToken(token, magicLinkSecret, clock);
       } catch (err) {
         if (err instanceof Error && err.message === "invalid_token") {
-          return errorResponse("invalid_token", 400);
+          return errorResponse("invalid_token", 400, token);
         }
         if (err instanceof Error && err.message === "token_expired") {
-          return errorResponse("token_expired", 400);
+          return errorResponse("token_expired", 400, token);
         }
-        return errorResponse("invalid_token", 400);
+        return errorResponse("invalid_token", 400, token);
       }
 
       const invite = await (
@@ -121,7 +121,7 @@ export function createMagicLinkVerifyHandlers(
       ).findById(payload.inviteId);
 
       if (!invite) {
-        return errorResponse("invite_not_found", 400);
+        return errorResponse("invite_not_found", 400, token);
       }
 
       if (invite.status === "accepted") {
@@ -133,11 +133,11 @@ export function createMagicLinkVerifyHandlers(
       }
 
       if (invite.expiresAt <= clock()) {
-        return errorResponse("invite_expired", 400);
+        return errorResponse("invite_expired", 400, token);
       }
 
       if (invite.email !== payload.email) {
-        return errorResponse("email_mismatch", 400);
+        return errorResponse("email_mismatch", 400, token);
       }
 
       const userRepo = deps.userRepository ?? defaultUserRepository;
@@ -205,7 +205,28 @@ function renderConfirmPage(token: string): string {
 </html>`;
 }
 
-function errorResponse(reason: string, status: number): Response {
+const RETRYABLE_ERRORS = new Set([
+  "invalid_token",
+  "token_expired",
+  "invite_not_found",
+  "invite_expired",
+  "email_mismatch",
+]);
+
+function errorResponse(
+  reason: string,
+  status: number,
+  token?: string,
+): Response {
+  const retryable = RETRYABLE_ERRORS.has(reason);
+  const resendForm =
+    retryable && token
+      ? `<form method="POST" action="/auth/magic-link/resend" style="margin-top:1em">
+          <input type="hidden" name="token" value="${escapeHtml(token)}" />
+          <button type="submit">Request a new sign-in link</button>
+        </form>`
+      : "";
+
   const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -215,6 +236,7 @@ function errorResponse(reason: string, status: number): Response {
   <body>
     <h1>Sign in failed</h1>
     <p>Reason: ${escapeHtml(reason)}</p>
+    ${resendForm}
     <p>Please contact an administrator if you believe this is an error.</p>
   </body>
 </html>`;

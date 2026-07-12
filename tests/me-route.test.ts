@@ -22,6 +22,7 @@ import {
   type DiscoverabilityConsentRepository,
 } from "../src/profile/discoverability-consent";
 import { setProfileRepositoryForTests } from "../src/profile/repository";
+import { type TopicProposalStatus } from "../src/db/schema";
 
 function setProfileStateForTests(profileState: ProfileStateBox) {
   setProfileRepositoryForTests({
@@ -234,6 +235,7 @@ describe("GET /me", () => {
 
   afterEach(() => {
     clearDiscoverabilityConsentOverride();
+    clearPerUserLookupStateForTests();
   });
   it("rejects requests without a valid session", async () => {
     const response = await GET(new Request("http://localhost/me"));
@@ -312,6 +314,74 @@ describe("GET /me", () => {
       searchEligibility: { eligible: false },
     });
   });
+
+  it("returns topicProposals with their status and marks hasTopic complete for pending proposals", async () => {
+    const profileState: ProfileStateBox = {
+      current: {
+        id: "user-1",
+        email: "user@example.com",
+        displayName: "Ada Lovelace",
+        avatarUrl: null,
+        shortBio: null,
+        role: "user",
+        status: "active",
+        profileTimezone: "UTC",
+        bufferMinutes: 15,
+      },
+    };
+
+    setProfileStateForTests(profileState);
+    setSessionRepositoryForTests({
+      findById: (sessionId) =>
+        Promise.resolve(
+          sessionId === "session-1"
+            ? {
+                user: {
+                  id: "user-1",
+                  email: "user@example.com",
+                  displayName: "Ada Lovelace",
+                  avatarUrl: null,
+                  shortBio: null,
+                  role: "user",
+                  status: "active",
+                  profileTimezone: null,
+                  bufferMinutes: 0,
+                },
+                csrfToken: "csrf-token-1",
+              }
+            : null,
+        ),
+    });
+
+    const topicProposals = new Map<string, Array<{ id: string; name: string; status: TopicProposalStatus }>>();
+    topicProposals.set("user-1", [
+      { id: "proposal-1", name: "Compilers", status: "pending" },
+      { id: "proposal-2", name: "Type Theory", status: "approved" },
+      { id: "proposal-3", name: "Parsing", status: "rejected" },
+    ]);
+    setPerUserLookupStateForTests({
+      topicProposalsByUserId: topicProposals,
+    });
+
+    const cookie = await sealSessionCookie({ sessionId: "session-1" });
+    const response = await GET(
+      new Request("http://localhost/me", {
+        headers: { cookie },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      topicProposals: Array<{ id: string; name: string; status: string }>;
+      setup: { items: Array<{ key: string; complete: boolean }> };
+    };
+    expect(body.topicProposals).toContainEqual({ id: "proposal-1", name: "Compilers", status: "pending" });
+    expect(body.topicProposals).toContainEqual({ id: "proposal-2", name: "Type Theory", status: "approved" });
+    expect(body.topicProposals).toContainEqual({ id: "proposal-3", name: "Parsing", status: "rejected" });
+
+    const hasTopicItem = body.setup.items.find((item) => item.key === "hasTopic");
+    expect(hasTopicItem?.complete).toBe(true);
+  });
 });
 
 describe("PATCH /me", () => {
@@ -323,6 +393,7 @@ describe("PATCH /me", () => {
 
   afterEach(() => {
     clearDiscoverabilityConsentOverride();
+    clearPerUserLookupStateForTests();
   });
   it("rejects invalid profile updates without mutating the stored profile", async () => {
     const profileState: ProfileState = {

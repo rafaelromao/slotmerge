@@ -28,10 +28,9 @@ describe("processCalendarConnectionSync", () => {
           upserts.push(intervals);
           return Promise.resolve();
         },
-        deleteByConnectionId: (_connectionId: string) => Promise.resolve(),
-        deleteExpiredBefore: (_before: Date) => Promise.resolve(0),
-        findByUserIdAndDateRange: (_userId: string, _start: Date, _end: Date) =>
-          Promise.resolve([]),
+        deleteByConnectionId: () => Promise.resolve(),
+        deleteExpiredBefore: () => Promise.resolve(0),
+        findByUserIdAndDateRange: () => Promise.resolve([]),
       },
       now: new Date("2026-07-12T12:00:00.000Z"),
       providerClient: {
@@ -50,9 +49,9 @@ describe("processCalendarConnectionSync", () => {
         ]),
       },
       connectionRepository: {
-        createPending: (record: never) => Promise.resolve(record),
-        listByUserId: (_userId: string) => Promise.resolve([]),
-        findById: (_id: string) => Promise.resolve(null),
+        createPending: () => Promise.resolve(connection as never),
+        listByUserId: () => Promise.resolve([]),
+        findById: () => Promise.resolve(null),
         updateById: (id: string, patch: Record<string, unknown>) => {
           updates.push({ id, ...patch });
           return Promise.resolve({ ...connection, ...patch } as never);
@@ -96,11 +95,10 @@ describe("processCalendarConnectionSync", () => {
       attempt: 2,
       connection,
       importedBusyIntervalRepository: {
-        upsertBatch: (_intervals: unknown[]) => Promise.resolve(),
-        deleteByConnectionId: (_connectionId: string) => Promise.resolve(),
-        deleteExpiredBefore: (_before: Date) => Promise.resolve(0),
-        findByUserIdAndDateRange: (_userId: string, _start: Date, _end: Date) =>
-          Promise.resolve([]),
+        upsertBatch: () => Promise.resolve(),
+        deleteByConnectionId: () => Promise.resolve(),
+        deleteExpiredBefore: () => Promise.resolve(0),
+        findByUserIdAndDateRange: () => Promise.resolve([]),
       },
       now: new Date("2026-07-12T12:00:00.000Z"),
       providerClient: {
@@ -112,9 +110,9 @@ describe("processCalendarConnectionSync", () => {
         }),
       },
       connectionRepository: {
-        createPending: (record: never) => Promise.resolve(record),
-        listByUserId: (_userId: string) => Promise.resolve([]),
-        findById: (_id: string) => Promise.resolve(null),
+        createPending: () => Promise.resolve(connection as never),
+        listByUserId: () => Promise.resolve([]),
+        findById: () => Promise.resolve(null),
         updateById: (id: string, patch: Record<string, unknown>) => {
           updates.push({ id, ...patch });
           return Promise.resolve({ ...connection, ...patch } as never);

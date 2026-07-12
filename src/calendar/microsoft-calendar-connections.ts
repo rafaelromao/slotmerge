@@ -215,6 +215,12 @@ export async function completeMicrosoftCalendarConnection({
     fetchImpl,
   );
 
+  if (!primaryCalendarId) {
+    throw new Error(
+      "Could not determine the primary calendar for the Microsoft account. Please try again.",
+    );
+  }
+
   const accessTokenEncrypted = encryptCalendarToken({
     plaintext: tokenPayload.access_token,
     key: tokenEncryptionKey,

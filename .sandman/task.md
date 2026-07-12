@@ -1,50 +1,43 @@
 # Task
 
-Implement GitHub issue #133: Containerize web and worker runtimes
+Implement GitHub issue #41: Send critical Admin operational email
 
 ## Issue Context
 
 ## Parent
 
-Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14). Hosting decision: [Choose MVP hosting and deployment](https://github.com/rafaelromao/slotmerge/issues/131).
+Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmerge/issues/18). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Add the Docker build and runtime command shape needed to run the same application image locally and in Cloud Run as two services: `web` for the Next.js app and `worker` for Graphile Worker jobs and scheduler/tick logic.
-
-This ticket is a prerequisite for both local full-stack verification and GCP deployment.
+Critical operational issues, such as broad provider sync failures or transactional email delivery failures, trigger email to all Admins through the transactional email delivery service.
 
 ## Acceptance criteria
 
-- [ ] A production Docker image builds from the locked pnpm + Next.js + Node stack.
-- [ ] The same image can run in `web` mode and `worker` mode via command or environment selection.
-- [ ] The `web` runtime serves the Next.js app on the Cloud Run-provided port.
-- [ ] The `worker` runtime starts Graphile Worker without exposing public product routes.
-- [ ] The image can also run locally with local PostgreSQL and non-production environment variables.
-- [ ] The image does not require development-only dependencies at runtime.
-- [ ] The runtime expects configuration from environment variables and Secret Manager injection in GCP, while allowing local `.env`/compose-style configuration outside GCP.
+- [ ] Critical operational events trigger Admin emails.
+- [ ] Email delivery state is recorded.
+- [ ] Repeat events within a short window do not spam Admins.
 
 ## Blocked by
 
-- [Provision app shell, auth, and Postgres bootstrap](https://github.com/rafaelromao/slotmerge/issues/20)
-- [Provision GCP project and deployment foundation](https://github.com/rafaelromao/slotmerge/issues/132)
+- [Provision transactional email delivery and email event log](https://github.com/rafaelromao/slotmerge/issues/26)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/133-containerize-web-and-worker-runtimes`
-- Source branch: `sandman/133-containerize-web-and-worker-runtimes`
+- Current branch: `sandman/41-send-critical-admin-operational-email`
+- Source branch: `sandman/41-send-critical-admin-operational-email`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/133-containerize-web-and-worker-runtimes` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/41-send-critical-admin-operational-email` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -53,55 +46,46 @@ Before moving on, check which checklist items are already complete in `.sandman/
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
 ## Plan
+### Behaviors to test (vertical red-green ordering)
 
-### Behaviors to test
+1. **Empty admin list is a no-op.** With zero active admins returned by the directory, `triggerAdminCriticalEmail` returns without throwing and without invoking the email delivery service.
+2. **Trigger queues an admin-critical email per active admin.** Given an active-admin list of N admins and an empty dedup history, `triggerAdminCriticalEmail` invokes the email delivery service N times with `type: "admin-critical"`, each admin's email as the recipient, and a payload containing the operational event details (`kind`, `summary`, `occurredAt`, plus any event-specific details).
+3. **Suspended and non-admin users are skipped.** `triggerAdminCriticalEmail` only delivers to users with `role === "admin"` AND `status === "active"`. The directory dependency is the single seam for that filter.
+4. **Repeat events within a short window are deduplicated per event kind.** Given a prior dispatch of the same kind within the dedup window, `triggerAdminCriticalEmail` invokes the delivery service zero times. Given a prior dispatch older than the window (or a different kind), the dispatch still fires.
+5. **The dedup path performs no state writes.** When the dedup window short-circuits the dispatch, the function does not invoke the email delivery service (no email event row is created).
+6. **Email delivery failure does not throw to the caller.** If queueing one admin's email fails (the existing delivery service throws after marking the event failed), the trigger records the per-recipient failure and continues for the remaining admins so a single bad recipient does not block the alert. The function returns a per-recipient result array.
+7. **Existing email delivery state recording is reused.** No new persistence is required for state — the existing `emailEvents` / `emailEventAttempts` rows from the email delivery service serve as both the recorded delivery state and the dedup source of truth. (Verified by reading `service.ts:84-91`: `createQueuedEvent` is the recording step.)
 
-- Prerequisite gate: the repository contains the locked runtime scaffold needed for containerization: `package.json`, `pnpm-lock.yaml`, a Next.js production start/build path, and a real Graphile Worker entrypoint. If absent, stop as blocked by #20/#132 and do not create placeholders.
-- Tracer bullet: once the scaffold exists, the repository exposes one public container runtime contract that selects `web` or `worker` mode through command/env input and fails fast for unknown modes.
-- The production image builds from the locked pnpm + Next.js + Node stack using the repository lockfile.
-- The production runtime image contains only production/runtime artifacts and does not require development-only dependencies to start.
-- In `web` mode, the container starts the Next.js server bound to `0.0.0.0` and the Cloud Run-provided `PORT`.
-- In `worker` mode, the container starts the real Graphile Worker process/scheduler boundary and does not start the public web route surface.
-- Local execution accepts local PostgreSQL and non-production env vars through `.env`/compose-style environment injection.
-- Production configuration is expressed as environment variables suitable for Cloud Run Secret Manager injection, without hard-coding final GCP resource names while #132 is open.
+### Testable interfaces / seams
 
-### Testable interfaces
-
-- Prerequisite artifact seam: repository-level existence checks for the locked app scaffold and real worker entrypoint.
-- Runtime command seam: a single Docker `CMD`/entrypoint or package script with `RUNTIME_MODE=web|worker` or equivalent CLI selection.
-- Image/build seam: `docker build` plus image inspection/smoke checks against the built production image.
-- Process boundary seam: observable start command output, bind address/port behavior, and absence of web startup in worker mode.
-- Environment contract seam: checked-in env template/docs for local and production variable names, with final GCP binding deferred to #132.
+- New module: `src/admin/critical-email.ts` exporting `triggerAdminCriticalEmail(input, deps)`. Dependency interface:
+  - `clock?: () => Date`
+  - `adminDirectory: { listActiveAdmins(): Promise<Array<{ id: string; email: string }>> }`
+  - `emailDeliveryService: { sendEmail(input: { recipient; type; payload }): Promise<{ emailEvent }> }`
+  - `lastDispatchLookup: { findMostRecentKindDispatch(kind: string, since: Date): Promise<Date | null> }`
+  - `dedupWindowMs?: number` (default `15 * 60 * 1000`)
+  - `now?: () => Date` (alias for `clock` to make intent clear at the call site)
+- Pure helpers exported for direct unit testing:
+  - `createOperationalEvent({ kind, summary, occurredAt, details? })` — validates/normalises the event shape used in the payload.
+  - `createKindDedupReference(kind: string)` — SHA-256 of `{ kind }` JSON; used both as the dedup lookup key and as a `payloadReference` argument so the existing `emailEvents.payload_reference` column serves as the dedup index without migration.
+  - `isCriticalEmailType(type)` — narrows `"admin-critical"` for the delivery service contract.
+- Postgres-backed implementations (wired only when the trigger is used from a real DB context — production wiring is out of scope for this ticket):
+  - `createPostgresAdminDirectory(db = getDb())` — `SELECT id, email FROM users WHERE role = 'admin' AND status = 'active' ORDER BY email`.
+  - `createPostgresAdminCriticalDispatchLookup(db = getDb())` — `SELECT created_at FROM email_events WHERE type = 'admin-critical' AND payload_reference = $1 AND created_at >= $2 ORDER BY created_at DESC LIMIT 1`.
+- New unit test file: `src/admin/critical-email.test.ts` — covers all seven behaviors with stubbed dependencies (no DB).
 
 ### Assumptions / risks
 
-- Full implementation is blocked until #20 provides the real locked app scaffold and Graphile Worker code.
-- Final Cloud Run, Artifact Registry, Cloud SQL, and Secret Manager wiring is blocked until #132.
-- Do not create a fake Next app, fake Graphile Worker, fake lockfile, or fake deployment foundation to satisfy this ticket.
-- If prerequisites are absent during `sandman-tdd`, the correct automated outcome is a blocked stop/report, not speculative implementation.
+- "Short window" is interpreted as **15 minutes**, exposed as `dedupWindowMs` so tests can pin it to e.g. `1000` ms.
+- Dedup is keyed by the event `kind` string. Two operational issues with different kinds each get their own alert.
+- The `payloadReference` written by the delivery service for `admin-critical` events is derived from `{ kind }` (not from the full event payload) so the dedup lookup can match rows purely on `payload_reference`. The full event details (summary, occurredAt, details) ride inside the delivery `payload` and are written to the worker logs / Postmark transport, not indexed in the DB. No schema migration is required.
+- Behavior 5 (no writes on dedup) is implicit but called out explicitly so the test pins it.
+- Risk: the `emailEvents.payload_reference` column will, going forward, exclusively hold dedup keys for `admin-critical` rows. This ticket does not introduce prior data, but any future caller must respect the same convention; comment this in the module.
+- Risk: the deliverability service throws when queueing fails. The trigger must isolate per-recipient failures so one bad recipient does not block the rest (covered by behavior 6).
 
 ## Next Step
 
-REVIEW_TIMEOUT: PR #151 has CI passing (SUCCESS) and mergeable (CLEAN) state. `/sandman review` comment posted but PR Review Agent did not respond within 15-minute polling budget. Implementation verified: multi-stage Dockerfile with web/worker RUNTIME_MODE selection, docker-entrypoint.sh with fail-fast for unknown modes, production-only dependencies in runtime stage. PR review loop exhausted without response.
-
-## Prerequisite Status Update
-
-- Issue #20 (BLOCKS #133): OPEN — PR #140 "Provision app shell, auth, and Postgres bootstrap" exists and is mergeable (CLEAN) but not yet merged.
-- Issue #132 (BLOCKED #133): CLOSED — GCP project and deployment foundation resolved.
-- No containerization artifacts exist anywhere: no Dockerfile, no package.json, no pnpm-lock.yaml, no Next.js source, no Graphile Worker entrypoint.
-- Current branch `sandman/133-containerize-web-and-worker-runtimes` is 2 commits BEHIND origin/main (which added GCP foundation docs).
-
-## Blocked Finding (re-confirmed)
-
-Prerequisite gate re-executed. Still blocked: `package.json`, `pnpm-lock.yaml`, Next.js source, and Graphile Worker entrypoint absent from repository. Issue #20 remains open (PR #140 pending). Issue #132 is now closed. Per plan: "do not create placeholder app, lockfile, or worker code to satisfy this ticket."
-
-## Stop Condition Reached
-
-Prerequisite gate failed: no `package.json`, no `pnpm-lock.yaml`, no Next.js source files, no Graphile Worker entrypoint exist in the repository. Issue #20 is still open. Implementation cannot proceed without the locked runtime scaffold from #20.
-
-## Blocked Finding
-
-The prerequisite gate was executed on `sandman/133-containerize-web-and-worker-runtimes`. The repository currently contains no `package.json`, no `pnpm-lock.yaml`, no Next.js source files, and no real Graphile Worker entrypoint. Per the plan, do not create placeholder app, lockfile, or worker code to satisfy this ticket. Issue #20 remains open.
+Plan consensus reached. Run `sandman-implement` starting with the first TDD slice: behavior 1 (empty admin list is a no-op).
 
 ## Already Resolved
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const envSchema = z.object({
+  APP_BASE_URL: z.string().optional(),
   APP_ENV: z.enum(["local", "test", "staging", "production"]).default("local"),
   APP_PUBLIC_URL: z.string().url().optional(),
   CALENDAR_PROVIDER_MODE: z.enum(["mock", "oauth"]).optional(),
@@ -9,6 +10,7 @@ const envSchema = z.object({
   EMAIL_ADAPTER: z.enum(["mock", "postmark"]).optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  MAGIC_LINK_SECRET: z.string().optional(),
   MICROSOFT_OAUTH_CLIENT_ID: z.string().optional(),
   MICROSOFT_OAUTH_CLIENT_SECRET: z.string().optional(),
   NODE_ENV: z.string().optional(),
@@ -17,12 +19,14 @@ const envSchema = z.object({
 });
 
 export type RuntimeConfig = {
+  appBaseUrl: string;
   appEnv: "local" | "test" | "staging" | "production";
   appPublicUrl: string;
   calendarProviderMode: "mock" | "oauth";
   calendarTokenEncryptionKey: string;
   databaseUrl: string;
   emailAdapter: "mock" | "postmark";
+  magicLinkSecret: string;
   requirePublicWebhookHttps: boolean;
   sessionSecret: string;
   usesGcpSecretManager: false;
@@ -37,6 +41,7 @@ export function loadRuntimeConfig(
   const isLocal = parsed.APP_ENV === "local" || parsed.APP_ENV === "test";
 
   const config: RuntimeConfig = {
+    appBaseUrl: parsed.APP_BASE_URL ?? "http://localhost:3000",
     appEnv: parsed.APP_ENV,
     appPublicUrl: parsed.APP_PUBLIC_URL ?? "http://localhost",
     calendarProviderMode:
@@ -46,6 +51,9 @@ export function loadRuntimeConfig(
       "local-calendar-token-encryption-key-do-not-use-in-production",
     databaseUrl: parsed.DATABASE_URL,
     emailAdapter: parsed.EMAIL_ADAPTER ?? (isLocal ? "mock" : "postmark"),
+    magicLinkSecret:
+      parsed.MAGIC_LINK_SECRET ??
+      "local-magic-link-secret-do-not-use-in-production",
     requirePublicWebhookHttps: !isLocal,
     sessionSecret:
       parsed.SESSION_SECRET ?? "local-session-secret-do-not-use-in-production",
@@ -53,6 +61,8 @@ export function loadRuntimeConfig(
   };
 
   if (!isLocal) {
+    requireEnv(parsed.APP_BASE_URL, "APP_BASE_URL");
+    requireEnv(parsed.MAGIC_LINK_SECRET, "MAGIC_LINK_SECRET");
     requireEnv(parsed.SESSION_SECRET, "SESSION_SECRET");
     requireEnv(
       parsed.CALENDAR_TOKEN_ENCRYPTION_KEY,

@@ -2,6 +2,8 @@ import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { getSessionFromRequest, type Session } from "../auth/session";
+import { createMagicLinkTokenIssuer } from "../auth/magic-link";
+import { loadRuntimeConfig } from "../config/runtime";
 import { getDb } from "../db/client";
 import {
   invites,
@@ -9,6 +11,9 @@ import {
   type InviteStatus,
   users,
 } from "../db/schema";
+import { createEmailDeliveryService } from "../email/service";
+import { createPostgresEmailEventRepository } from "../email/repository";
+import { enqueueInviteEmailJob } from "../email/invite-jobs";
 
 export type InviteListItem = {
   id: string;
@@ -19,21 +24,29 @@ export type InviteListItem = {
   invitedByAdminEmail: string | null;
 };
 
+export type InviteRecord = InviteListItem & {
+  expiresAt: Date;
+};
+
 export type InviteRepository = {
   listInvites(): Promise<InviteListItem[]>;
   createInvite(input: {
     email: string;
     role: InviteRole;
     invitedByAdminId: string;
+    now?: Date;
   }): Promise<CreateInviteResult>;
 };
 
 export type CreateInviteResult =
-  { ok: true } | { ok: false; reason: "duplicate" };
+  { ok: true; invite: InviteRecord } | { ok: false; reason: "duplicate" };
 
 export type AdminInvitesDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
   inviteRepository?: InviteRepository;
+  magicLinkTokenIssuer?: ReturnType<typeof createMagicLinkTokenIssuer>;
+  emailDeliveryService?: ReturnType<typeof createEmailDeliveryService>;
+  clock?: () => Date;
 };
 
 const inviteSubmissionSchema = z.object({
@@ -46,6 +59,9 @@ const inviteLifetimeDays = 30;
 export function createAdminInvitesHandlers({
   getSession = getSessionFromRequest,
   inviteRepository = databaseInviteRepository,
+  magicLinkTokenIssuer,
+  emailDeliveryService,
+  clock = () => new Date(),
 }: AdminInvitesDependencies = {}) {
   return {
     GET: async (request: Request): Promise<Response> => {
@@ -101,6 +117,7 @@ export function createAdminInvitesHandlers({
         email: normalizeEmail(submission.data.email),
         role: submission.data.role,
         invitedByAdminId: session.user.id,
+        now: clock(),
       });
 
       if (!result.ok) {
@@ -111,6 +128,43 @@ export function createAdminInvitesHandlers({
             errorMessage: "An invite already exists for that email.",
           }),
           409,
+        );
+      }
+
+      const magicLink = (
+        magicLinkTokenIssuer ?? createDefaultMagicLinkTokenIssuer()
+      ).issueMagicLinkToken({
+        inviteId: result.invite.id,
+        email: result.invite.email,
+        expiresAt: result.invite.expiresAt,
+      });
+
+      const service =
+        emailDeliveryService ?? loadDefaultEmailDeliveryService({ clock });
+      try {
+        await service.sendEmail({
+          recipient: result.invite.email,
+          type: "invite",
+          payload: {
+            inviteId: result.invite.id,
+            email: result.invite.email,
+            role: result.invite.role,
+            invitedByAdminId: result.invite.invitedByAdminId,
+            magicLinkUrl: magicLink.magicLinkUrl,
+            magicLinkToken: magicLink.token,
+            expiresAt: magicLink.expiresAt.toISOString(),
+          },
+        });
+      } catch (error) {
+        return htmlResponse(
+          renderAdminInvitesPage({
+            inviteRows: await inviteRepository.listInvites(),
+            csrfToken: session.csrfToken,
+            errorMessage: `Invitation created but the email failed to enqueue: ${
+              error instanceof Error ? error.message : "unknown error"
+            }`,
+          }),
+          502,
         );
       }
 
@@ -224,8 +278,30 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function getDefaultInviteExpiration(): Date {
-  return new Date(Date.now() + inviteLifetimeDays * 24 * 60 * 60 * 1000);
+function getDefaultInviteExpiration(now: Date): Date {
+  return new Date(now.getTime() + inviteLifetimeDays * 24 * 60 * 60 * 1000);
+}
+
+function createDefaultMagicLinkTokenIssuer(): ReturnType<
+  typeof createMagicLinkTokenIssuer
+> {
+  const config = loadRuntimeConfig();
+  return createMagicLinkTokenIssuer({
+    baseUrl: config.appBaseUrl,
+    secret: config.magicLinkSecret,
+  });
+}
+
+function loadDefaultEmailDeliveryService({
+  clock,
+}: {
+  clock: () => Date;
+}): ReturnType<typeof createEmailDeliveryService> {
+  return createEmailDeliveryService({
+    clock,
+    eventRepository: createPostgresEmailEventRepository(),
+    queueJob: (job) => enqueueInviteEmailJob(job),
+  });
 }
 
 function escapeHtml(value: string): string {
@@ -254,20 +330,49 @@ const databaseInviteRepository: InviteRepository = {
 
     return rows;
   },
-  createInvite: async ({ email, role, invitedByAdminId }) => {
+  createInvite: async ({ email, role, invitedByAdminId, now }) => {
+    const db = getDb();
     try {
-      await getDb()
+      const [row] = await db
         .insert(invites)
         .values({
           email,
           role,
           status: "pending",
           invitedByAdminId,
-          expiresAt: getDefaultInviteExpiration(),
+          expiresAt: getDefaultInviteExpiration(now ?? new Date()),
         })
-        .returning({ id: invites.id });
+        .returning({
+          id: invites.id,
+          email: invites.email,
+          role: invites.role,
+          status: invites.status,
+          invitedByAdminId: invites.invitedByAdminId,
+          expiresAt: invites.expiresAt,
+        });
 
-      return { ok: true };
+      if (!row) {
+        throw new Error("invite insert returned no row");
+      }
+
+      const [admin] = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, invitedByAdminId))
+        .limit(1);
+
+      return {
+        ok: true,
+        invite: {
+          id: row.id,
+          email: row.email,
+          role: row.role,
+          status: row.status,
+          invitedByAdminId: row.invitedByAdminId,
+          invitedByAdminEmail: admin?.email ?? "",
+          expiresAt: row.expiresAt,
+        },
+      };
     } catch (error) {
       if (isUniqueViolation(error)) {
         return { ok: false, reason: "duplicate" };

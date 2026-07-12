@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PATCH } from "../app/me/calendar-connections/[id]/route";
 import { GET } from "../app/me/calendar-connections/route";
-import { sealSessionCookie, setSessionRepositoryForTests } from "../src/auth/session";
+import {
+  sealSessionCookie,
+  setSessionRepositoryForTests,
+} from "../src/auth/session";
 import { encryptCalendarToken } from "../src/calendar/token-encryption";
 import type { GoogleCalendarConnectionRecord } from "../src/calendar/google-calendar-connections";
 import type { MicrosoftCalendarConnectionRecord } from "../src/calendar/microsoft-calendar-connections";
@@ -14,7 +17,8 @@ import {
 describe("calendar connection management routes (Google + Microsoft)", () => {
   beforeEach(() => {
     process.env.SESSION_SECRET = "0123456789abcdef0123456789abcdef";
-    process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef";
+    process.env.CALENDAR_TOKEN_ENCRYPTION_KEY =
+      "0123456789abcdef0123456789abcdef";
   });
 
   afterEach(() => {
@@ -107,9 +111,7 @@ describe("calendar connection management routes (Google + Microsoft)", () => {
     };
 
     expect(body.connections).toHaveLength(2);
-    const googleView = body.connections.find(
-      (c) => c.provider === "google",
-    );
+    const googleView = body.connections.find((c) => c.provider === "google");
     const microsoftView = body.connections.find(
       (c) => c.provider === "microsoft",
     );
@@ -230,13 +232,16 @@ describe("calendar connection management routes (Google + Microsoft)", () => {
 
     const cookie = await sealSessionCookie({ sessionId: "session-1" });
     const response = await PATCH(
-      new Request("http://localhost/me/calendar-connections/microsoft-connection-1", {
-        method: "PATCH",
-        headers: {
-          cookie,
-          "x-csrf-token": "csrf-token-1",
+      new Request(
+        "http://localhost/me/calendar-connections/microsoft-connection-1",
+        {
+          method: "PATCH",
+          headers: {
+            cookie,
+            "x-csrf-token": "csrf-token-1",
+          },
         },
-      }),
+      ),
       { params: Promise.resolve({ id: "microsoft-connection-1" }) },
     );
 

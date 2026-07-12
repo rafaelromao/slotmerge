@@ -8,6 +8,8 @@ describe("app shell", () => {
 
     expect(page.type).toBe("main");
     expect(JSON.stringify(page.props)).toContain("SlotMerge");
-    expect(JSON.stringify(page.props)).toContain("Local MVP runtime scaffold is ready");
+    expect(JSON.stringify(page.props)).toContain(
+      "Local MVP runtime scaffold is ready",
+    );
   });
 });

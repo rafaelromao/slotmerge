@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { decryptCalendarToken, encryptCalendarToken } from "../src/calendar/token-encryption";
+import {
+  decryptCalendarToken,
+  encryptCalendarToken,
+} from "../src/calendar/token-encryption";
 
 describe("calendar token encryption", () => {
   it("round-trips tokens without exposing plaintext", () => {

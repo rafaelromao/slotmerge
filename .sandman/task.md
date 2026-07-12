@@ -1,39 +1,39 @@
 # Task
 
-Implement GitHub issue #48: Reconcile Calendar Connection sync and process webhook events
+Implement GitHub issue #23: Sign in via magic link
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerge/issues/17). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Auth & Invites](https://github.com/rafaelromao/slotmerge/issues/16). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Calendar Connection sync runs as a background job: provider webhooks update intervals promptly, scheduled reconciliation fills gaps, and transient failures use exponential backoff and provider `Retry-After` semantics. Quota handling avoids spikes.
+Clicking a valid, unused, unexpired magic link authenticates the recipient, creates a session, accepts the invite, and redirects into the app. Used or expired links produce a clear error screen.
 
 ## Acceptance criteria
 
-- [ ] Provider webhook events update imported busy intervals.
-- [ ] Scheduled reconciliation refreshes the rolling 90-day window.
-- [ ] Transient failures use exponential backoff and `Retry-After`.
-- [ ] Quotas are respected via randomized traffic patterns.
-- [ ] Sync errors update Calendar Connection status.
+- [ ] A valid magic link creates a session and accepts the invite.
+- [ ] A used magic link is rejected on second use.
+- [ ] An expired magic link is rejected.
+- [ ] The error screen explains the failure and offers the next step (covered by the next ticket).
+- [ ] Sessions have a defined lifetime and can be ended.
 
 ## Blocked by
 
-- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/47)
+- [Send invitation email with magic link](https://github.com/rafaelromao/slotmerge/issues/22)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events`
-- Source branch: `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events`
+- Current branch: `sandman/23-sign-in-via-magic-link`
+- Source branch: `sandman/23-sign-in-via-magic-link`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/23-sign-in-via-magic-link` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -47,66 +47,9 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Plan
-
-### Behaviors to test
-
-1. **Google webhook handler validates and processes calendar notifications** — Given a valid Google calendar webhook payload with proper signature, the handler enqueues a sync job for the affected calendar connection.
-
-2. **Microsoft webhook validation token round-trip** — Given a Microsoft webhook POST with a `Validationtoken` query param, the handler responds with `200 OK` and the raw token as `text/plain` per the Graph subscription validation spec.
-
-3. **Microsoft webhook handler validates and processes calendar notifications** — Given a valid Microsoft calendar webhook notification (not validation), the handler enqueues a sync job for the affected calendar connection.
-
-4. **Webhook for disconnected connection is a no-op** — Given a webhook notification for a calendar connection with status `disconnected`, no sync job is enqueued.
-
-5. **Calendar sync job fetches free/busy from Google API and stores intervals** — Given a connected Google Calendar Connection, the sync job uses the access token to call Google's FreeBusy API, converts busy blocks to `ImportedBusyIntervalRecord`s, and upserts them via the repository.
-
-6. **Calendar sync job fetches free/busy from Microsoft API and stores intervals** — Given a connected Microsoft Calendar Connection, the sync job uses the access token to call Microsoft Graph's `me/calendar/getSchedule`, converts busy blocks to `ImportedBusyIntervalRecord`s, and upserts them via the repository.
-
-7. **Sync failures record error metadata and update connection status** — Given a sync job that fails with a transient error, the failure is recorded via `recordCalendarConnectionSyncFailure` and the connection's `lastErrorCode`/`lastErrorMessage` are updated.
-
-8. **Transient failures use exponential backoff with Retry-After** — Given a sync job that receives a 429 or 503 response with a `Retry-After` header, the job re-enqueues itself with exponential backoff starting at twice the `Retry-After` value.
-
-9. **Quota errors apply jittered backoff to avoid traffic spikes** — Given a sync job that receives a 429 response without a `Retry-After` header (generic rate limit), the job re-enqueues itself with a random jitter between 30s and 120s.
-
-10. **Scheduled reconciliation enqueues sync jobs for all connected calendar connections** — Given at least one connected calendar connection, the reconciliation scheduler enqueues a sync job for each with a random stagger delay (0–60s) to avoid spikes.
-
-### Testable interfaces
-
-1. **`src/calendar/sync-jobs.ts`** — Calendar sync job handlers for Graphile Worker:
-   - `calendarSyncTaskName: string`
-   - `handleCalendarSyncJob(payload: { connectionId: string })` — fetches free/busy, stores intervals, handles errors/backoff
-   - `enqueueCalendarSync(connectionId: string, backoffMs?: number)` — enqueues sync job with optional backoff (injected for tests)
-
-2. **`src/calendar/webhook-handlers.ts`** — Webhook handlers for provider notifications:
-   - `handleGoogleCalendarWebhook(payload: unknown, signature: string, secret: string)` — validates Google signature, returns connectionId or throws
-   - `handleMicrosoftCalendarValidationWebhook(validationToken: string)` — returns `200 OK` with raw token
-   - `handleMicrosoftCalendarWebhook(payload: unknown)` — parses notification payload, returns connectionId or throws
-
-3. **`src/calendar/reconciliation-scheduler.ts`** — Reconciliation scheduling:
-   - `reconciliationTaskName: string`
-   - `handleReconciliationJob(payload: unknown)` — finds all connected calendar connections and enqueues sync jobs with stagger
-
-4. **`src/calendar/sync-failure-recorder.ts`** (existing) — Already exists with `recordCalendarConnectionSyncFailure`. No interface changes needed.
-
-5. **`src/worker/run.ts`** (modified) — Registers `calendarSyncTaskName` and `reconciliationTaskName` in the task list.
-
-### Assumptions / risks
-
-- Google webhook notifications arrive as POST to `/webhooks/google/calendar` with `Google-Channel-ID`, `Google-Message-ID`, and `Google-RESOURCE-ID` headers plus a JSON body.
-- Microsoft webhook notifications arrive as POST to `/webhooks/microsoft/calendar` with `Validationtoken` (for subscription validation), `X-MS-WEBHOOK-TYPE` (notification), and `X-MS-WEBHOOK-SIGNATURE` headers.
-- Microsoft validation token response must echo back the token as `200 OK text/plain` per Graph spec.
-- Google FreeBusy API: `POST https://www.googleapis.com/calendar/v3/freeBusy` with `timeMin`, `timeMax`, `items`.
-- Microsoft Graph: `POST https://graph.microsoft.com/v1.0/me/calendar/getSchedule` with `schedules`, `startTime`, `endTime`.
-- Token refresh is NOT in scope for this issue; assume valid access tokens exist.
-- The 90-day rolling window enforcement is already in `isWithinRollingWindow()` and `upsertBatch()` filters accordingly.
-- Webhook routes are defined in the spec but NOT yet created in `app/webhooks/`.
-- `upsertBatch` already deletes existing intervals for a connection before inserting (issue #47), so no explicit delete step needed in sync.
-- Only `connected` status connections are synced; `pending` and `disconnected` are skipped.
-
 ## Next Step
 
-PR-Review (sandman-pr-review)
+sandman-pr-review (PR #162)
 
 ## Already Resolved
 
@@ -225,3 +168,98 @@ Before final response, verify and report:
 - Test/format commands run and outcomes.
 - PR URL and review status, if a PR was created.
 - Whether PR merge was performed or skipped, with reason.
+
+## Plan
+
+### Behaviors to test
+
+1. **Valid magic link creates session and accepts invite**
+   - Given a valid unexpired magic link token, pending invite, and matching email
+   - When POST /auth/magic-link/verify is called
+   - Then user is upserted (created with invite role if not exists), session is created, invite is marked accepted, session cookie is set, and redirect to app root `/`
+
+2. **Used magic link is rejected on second use**
+   - Given a magic link token whose invite is already accepted
+   - When POST /auth/magic-link/verify is called
+   - Then error page with "invite_already_accepted" reason
+
+3. **Expired token is rejected**
+   - Given a magic link token whose embedded expiresAt has passed
+   - When POST /auth/magic-link/verify is called
+   - Then error page with "token_expired" reason
+
+4. **Expired invite is rejected**
+   - Given a magic link token whose associated invite record has expiresAt in the past
+   - When POST /auth/magic-link/verify is called
+   - Then error page with "invite_expired" reason
+
+5. **Invalid signature is rejected**
+   - Given a magic link token with invalid HMAC signature
+   - When POST /auth/magic-link/verify is called
+   - Then error page with "invalid_token" reason
+
+6. **Email mismatch is rejected**
+   - Given a magic link token whose email does not match the invite's email
+   - When POST /auth/magic-link/verify is called
+   - Then error page with "email_mismatch" reason
+
+7. **Non-existent invite is rejected**
+   - Given a magic link token with non-existent inviteId
+   - When POST /auth/magic-link/verify is called
+   - Then error page with "invite_not_found" reason
+
+### Testable interfaces
+
+1. **`verifyMagicLinkToken(token, secret, clock?)`** in `src/auth/magic-link.ts`:
+   - Parses `payload.signature` format, verifies HMAC, checks token-level expiration
+   - Returns decoded payload or throws typed error (InvalidToken | TokenExpired)
+   - Pure function, easily unit-tested
+
+2. **`MagicLinkVerifyHandler`** factory in a new `src/auth/magic-link-verify.ts`:
+   - `createMagicLinkVerifyHandlers({clock?, db?, tokenVerifier?})`
+   - Returns `{GET, POST}` handlers
+   - Encapsulates: token verification → invite lookup → email match check → invite expiration check → user upsert → session creation → invite acceptance → redirect
+   - All dependencies injectable for tests
+
+3. **`app/auth/magic-link/verify/route.ts`**:
+   - Thin Next.js route that delegates to `MagicLinkVerifyHandler`
+   - GET: renders confirmation page with auto-submitting form (prevents token in server logs/URLs)
+   - POST: processes the verification
+
+### Execution order (vertical slices)
+
+**Slice 1 — Token verifier**
+- Add `verifyMagicLinkToken` to `src/auth/magic-link.ts`
+- Add unit tests in `src/auth/magic-link.test.ts`
+- Verifies HMAC signature, parses payload, checks token expiration
+
+**Slice 2 — Route + handler**
+- Create `src/auth/magic-link-verify.ts` with handler factory
+- Create `app/auth/magic-link/verify/route.ts` with GET (confirmation form) and POST handlers
+- GET renders an auto-post form to POST with the token (security: keeps token out of URL logs)
+
+**Slice 3 — Accept invite + create user + create session**
+- When token valid + invite pending + email matches + invite not expired:
+  1. Upsert user by email (create if not exists, role from invite; if exists, keep existing role)
+  2. Create session record in DB with expiresAt (e.g., 30 days from now)
+  3. Set session cookie via `sealSessionCookie`
+  4. Update invite status to "accepted"
+  5. Redirect to app root `/`
+
+**Slice 4 — Error responses**
+- For each failure mode, return HTML error page with error code
+- Error screen UI (next ticket) will enhance these with better UX
+
+### Key design decisions
+
+- **GET form auto-submit**: GET with `?token=` in URL exposes token in server logs. Instead, GET renders a small HTML page with an auto-submitting form (method="POST", action includes token). Token only appears in POST body, not in server logs or browser URL bar.
+- **User upsert role semantics**: If user already exists, their role is preserved (not overwritten by invite role). Invite role only applies to newly created users.
+- **Session lifetime**: 30 days default (configurable). Already modeled in schema with `expiresAt`.
+- **Invite vs token expiration**: Both checked — token's embedded `expiresAt` for quick rejection of forged tokens, invite record's `expiresAt` for actual business rule.
+
+### Assumptions / risks
+
+1. Token's `expiresAt` and invite's `expiresAt` are checked independently.
+2. Redirect URL after success: app root `/`.
+3. Error screen rendering: simple HTML error page now; enhanced by next ticket.
+4. CSRF: magic link token serves as the secret; auto-submit form pattern prevents URL exposure.

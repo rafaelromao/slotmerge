@@ -51,7 +51,8 @@ describe("revokeMicrosoftCalendarConnection", () => {
       repository: {
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([]),
-        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        findById: (id) =>
+          Promise.resolve(id === stored.id ? { ...stored } : null),
         updateById: (id, patch) => {
           if (id !== stored.id) {
             return Promise.resolve(null);
@@ -91,7 +92,9 @@ describe("revokeMicrosoftCalendarConnection", () => {
       contributingCalendarIds: [],
     };
 
-    const fetchMock = vi.fn(() => Promise.resolve(new Response(null, { status: 200 })));
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(new Response(null, { status: 200 })),
+    );
 
     const result = await revokeMicrosoftCalendarConnection({
       connectionId: stored.id,
@@ -99,7 +102,8 @@ describe("revokeMicrosoftCalendarConnection", () => {
       repository: {
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([]),
-        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        findById: (id) =>
+          Promise.resolve(id === stored.id ? { ...stored } : null),
         updateById: (id, patch) => {
           if (id !== stored.id) {
             return Promise.resolve(null);
@@ -147,7 +151,8 @@ describe("revokeMicrosoftCalendarConnection", () => {
       repository: {
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([]),
-        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        findById: (id) =>
+          Promise.resolve(id === stored.id ? { ...stored } : null),
         updateById: (id, patch) => {
           if (id !== stored.id) {
             return Promise.resolve(null);

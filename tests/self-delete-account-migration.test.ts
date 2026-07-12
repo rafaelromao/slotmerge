@@ -26,9 +26,7 @@ describe("self-delete-account migration", () => {
     ) as { entries: Array<{ tag: string }> };
 
     expect(
-      journal.entries.some(
-        (entry) => entry.tag === "0005_self_delete_account",
-      ),
+      journal.entries.some((entry) => entry.tag === "0005_self_delete_account"),
     ).toBe(true);
   });
 });

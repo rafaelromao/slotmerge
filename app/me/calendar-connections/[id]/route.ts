@@ -61,9 +61,7 @@ export async function PATCH(
   const body = (await request
     .json()
     .catch(() => null)) as CalendarConnectionPatchBody;
-  const wantsDisconnect =
-    body?.disconnect === true ||
-    (body !== null && Object.keys(body).length === 0);
+  const wantsDisconnect = body?.disconnect === true || body == null;
 
   if (body?.contributingCalendarIds !== undefined) {
     const calendarIds = body.contributingCalendarIds;

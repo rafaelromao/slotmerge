@@ -614,5 +614,79 @@ describe("contributing calendars selection", () => {
       const body = (await response.json()) as { connection: GoogleCalendarConnectionRecord };
       expect(body.connection.status).toBe("disconnected");
     });
+
+    it("does not disconnect on empty object body", async () => {
+      const stored: GoogleCalendarConnectionRecord = {
+        id: "google-connection-1",
+        userId: "user-1",
+        provider: "google",
+        providerAccountKey: "google:google-connection-1",
+        accountIdentifier: "google:google-connection-1",
+        scopes: "https://www.googleapis.com/auth/calendar.freebusy",
+        status: "connected",
+        refreshTokenEncrypted: encryptCalendarToken({
+          plaintext: "refresh-token-123",
+          key: "0123456789abcdef0123456789abcdef",
+        }),
+        accessTokenEncrypted: encryptCalendarToken({
+          plaintext: "access-token-123",
+          key: "0123456789abcdef0123456789abcdef",
+        }),
+        accessTokenExpiresAt: new Date("2026-01-01T00:00:00.000Z"),
+        lastErrorCode: null,
+        lastErrorMessage: null,
+        contributingCalendarIds: ["primary"],
+      };
+
+      setSessionRepositoryForTests({
+        findById: (sessionId) =>
+          Promise.resolve(
+            sessionId === "session-1"
+              ? {
+                  user: {
+                    id: "user-1",
+                    email: "user@example.com",
+                    displayName: "Ada Lovelace",
+                    avatarUrl: null,
+                    shortBio: null,
+                    role: "user",
+                    status: "active",
+                    profileTimezone: null,
+                    bufferMinutes: 0,
+                  },
+                  csrfToken: "csrf-token-1",
+                }
+              : null,
+          ),
+      });
+      setGoogleCalendarConnectionRepositoryForTests({
+        createPending: (record) => Promise.resolve(record),
+        listByUserId: () => Promise.resolve([stored]),
+        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        updateById: () => Promise.resolve(null),
+      });
+      setMicrosoftCalendarConnectionRepositoryForTests({
+        createPending: (record) => Promise.resolve(record),
+        listByUserId: () => Promise.resolve([]),
+        findById: () => Promise.resolve(null),
+        updateById: () => Promise.resolve(null),
+      });
+
+      const cookie = await sealSessionCookie({ sessionId: "session-1" });
+      const response = await PATCH(
+        new Request("http://localhost/me/calendar-connections/google-connection-1", {
+          method: "PATCH",
+          headers: {
+            cookie,
+            "x-csrf-token": "csrf-token-1",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}),
+        }),
+        { params: Promise.resolve({ id: "google-connection-1" }) },
+      );
+
+      expect(response.status).toBe(400);
+    });
   });
 });

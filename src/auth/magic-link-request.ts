@@ -21,6 +21,11 @@ export type MagicLinkRequestDependencies = {
   magicLinkTokenIssuer?: MagicLinkTokenIssuer;
   emailDeliveryService?: EmailDeliveryService;
   baseUrl?: string;
+  rateLimiter?: MagicLinkRequestRateLimiter;
+};
+
+export type MagicLinkRequestRateLimiter = {
+  take(request: Request): boolean;
 };
 
 const magicLinkLifetimeHours = 1;
@@ -29,9 +34,14 @@ export function createMagicLinkRequestHandlers(
   deps: MagicLinkRequestDependencies = {},
 ) {
   const clock = deps.clock ?? (() => new Date());
+  const rateLimiter = deps.rateLimiter ?? createInMemoryRateLimiter();
 
   return {
     POST: async (request: Request): Promise<Response> => {
+      if (!rateLimiter.take(request)) {
+        return jsonResponse({ error: "rate_limited" }, 429);
+      }
+
       const formData = await request.formData();
       const email = formData.get("email");
 
@@ -163,6 +173,46 @@ function jsonResponse(data: unknown, status: number): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function createInMemoryRateLimiter({
+  clock = () => new Date(),
+  limit = 5,
+  windowMs = 60_000,
+}: {
+  clock?: () => Date;
+  limit?: number;
+  windowMs?: number;
+} = {}): MagicLinkRequestRateLimiter {
+  const state = new Map<string, { windowStart: number; count: number }>();
+
+  return {
+    take(request: Request): boolean {
+      const now = clock().getTime();
+      const key = getRequestKey(request);
+      const current = state.get(key);
+
+      if (!current || now - current.windowStart >= windowMs) {
+        state.set(key, { windowStart: now, count: 1 });
+        return true;
+      }
+
+      if (current.count >= limit) {
+        return false;
+      }
+
+      current.count += 1;
+      return true;
+    },
+  };
+}
+
+function getRequestKey(request: Request): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "anonymous"
+  );
 }
 
 function createDefaultEmailDeliveryService({

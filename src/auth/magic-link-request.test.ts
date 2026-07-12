@@ -223,6 +223,37 @@ describe("magic link request handler", () => {
       expect(mockInviteRepo.findPendingByEmail).not.toHaveBeenCalled();
     });
 
+    it("rate limits repeated request attempts from the same client", async () => {
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findPendingByEmail.mockResolvedValue(null);
+
+      const mockUserRepo = createMockUserRepository();
+      mockUserRepo.findByEmail.mockResolvedValue(null);
+
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+      });
+
+      const request = () =>
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "unknown@example.com" }),
+        });
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const response = await POST(request());
+        expect(response.status).toBe(400);
+      }
+
+      const response = await POST(request());
+      expect(response.status).toBe(429);
+      const body = (await response.json()) as { error?: string };
+      expect(body).toEqual({ error: "rate_limited" });
+    });
+
     it("returns invalid_email for missing email", async () => {
       const { POST } = createMagicLinkRequestHandlers({
         clock: () => new Date("2026-07-15T00:00:00.000Z"),

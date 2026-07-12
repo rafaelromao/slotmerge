@@ -38,7 +38,7 @@ The worktree MUST be checked out on `sandman/44-oauth-connect-microsoft-workscho
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Implement (sandman-implement: TDD done + self-review done; remaining: back-merge + PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 

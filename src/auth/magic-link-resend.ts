@@ -361,22 +361,24 @@ const defaultInviteRepository: InviteRepositoryForResend = {
     const { invites } = await import("../db/schema");
     const db = getDb();
 
-    await db
-      .update(invites)
-      .set({ status: "revoked", updatedAt: new Date() })
-      .where(eq(invites.email, email));
+    return db.transaction(async (tx) => {
+      await tx
+        .update(invites)
+        .set({ status: "revoked", updatedAt: new Date() })
+        .where(eq(invites.email, email));
 
-    const [row] = await db
-      .insert(invites)
-      .values({
-        email,
-        role,
-        status: "pending",
-        invitedByAdminId: null,
-        expiresAt: newExpiresAt,
-      })
-      .returning();
-    return row;
+      const [row] = await tx
+        .insert(invites)
+        .values({
+          email,
+          role,
+          status: "pending",
+          invitedByAdminId: null,
+          expiresAt: newExpiresAt,
+        })
+        .returning();
+      return row;
+    });
   },
 };
 

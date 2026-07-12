@@ -1,8 +1,13 @@
 import { getSessionFromRequest } from "../../src/auth/session";
+import { getDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
 import {
   getProfileByUserId,
   updateProfileByUserId,
 } from "../../src/profile/repository";
+import {
+  isEligibleForSearch,
+  type ProfileInputs,
+} from "../../src/search/eligibility";
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
@@ -33,6 +38,7 @@ function computeSetupCompleteness(
   topicProposals: TopicProposal[],
   availabilityWindows: AvailabilityWindow[],
   calendarConnections: CalendarConnection[],
+  discoverabilityConsentGranted: boolean,
 ): SetupState {
   const items: SetupItem[] = [
     {
@@ -45,7 +51,7 @@ function computeSetupCompleteness(
       key: "discoverabilityConsent",
       label: "Discoverability consent",
       required: true,
-      complete: false,
+      complete: discoverabilityConsentGranted,
     },
     {
       key: "hasTopic",
@@ -127,14 +133,13 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
-  const topics = await getTopicsByUserId(session.user.id);
-  const topicProposals = await getTopicProposalsByUserId(session.user.id);
-  const availabilityWindows = await getAvailabilityWindowsByUserId(
-    session.user.id,
-  );
-  const calendarConnections = await getCalendarConnectionsByUserId(
-    session.user.id,
-  );
+  const [topics, topicProposals, availabilityWindows, calendarConnections] =
+    await Promise.all([
+      getTopicsByUserId(session.user.id),
+      getTopicProposalsByUserId(session.user.id),
+      getAvailabilityWindowsByUserId(session.user.id),
+      getCalendarConnectionsByUserId(session.user.id),
+    ]);
 
   return buildMeResponse(
     profile,
@@ -180,14 +185,13 @@ export async function PATCH(request: Request): Promise<Response> {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
-  const topics = await getTopicsByUserId(session.user.id);
-  const topicProposals = await getTopicProposalsByUserId(session.user.id);
-  const availabilityWindows = await getAvailabilityWindowsByUserId(
-    session.user.id,
-  );
-  const calendarConnections = await getCalendarConnectionsByUserId(
-    session.user.id,
-  );
+  const [topics, topicProposals, availabilityWindows, calendarConnections] =
+    await Promise.all([
+      getTopicsByUserId(session.user.id),
+      getTopicProposalsByUserId(session.user.id),
+      getAvailabilityWindowsByUserId(session.user.id),
+      getCalendarConnectionsByUserId(session.user.id),
+    ]);
 
   return buildMeResponse(
     updatedProfile,
@@ -199,34 +203,50 @@ export async function PATCH(request: Request): Promise<Response> {
   );
 }
 
-function buildMeResponse(
+async function buildMeResponse(
   profile: MeProfile,
   csrfToken: string,
   topics: Topic[],
   topicProposals: TopicProposal[],
   availabilityWindows: AvailabilityWindow[],
   calendarConnections: CalendarConnection[],
-): Response {
+): Promise<Response> {
+  const consent = await getDiscoverabilityConsent(profile.id);
+  const consented = consent !== null;
+  const grantedAtIso = consented ? consent.grantedAt.toISOString() : null;
+
   const setup = computeSetupCompleteness(
     profile,
     topics,
     topicProposals,
     availabilityWindows,
     calendarConnections,
+    consented,
   );
+
+  const profileInputs: ProfileInputs = {
+    hasDisplayName: Boolean(profile.displayName?.trim()),
+    hasTopicOrProposal: topics.length > 0 || topicProposals.length > 0,
+    hasAvailabilitySource:
+      availabilityWindows.length > 0 || calendarConnections.length > 0,
+    isActive: profile.status === "active",
+  };
+
+  const eligible = isEligibleForSearch(profileInputs, consented);
 
   return Response.json({
     user: profile,
     session: { csrfToken },
     setup,
-    discoverability: { consented: false },
+    discoverability:
+      grantedAtIso === null
+        ? { consented: false, grantedAt: null }
+        : { consented: true, grantedAt: grantedAtIso },
     topics,
     topicProposals,
     availabilityWindows,
     calendarConnections,
-    searchEligibility: {
-      eligible: setup.complete,
-    },
+    searchEligibility: { eligible },
   });
 }
 

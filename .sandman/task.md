@@ -39,7 +39,7 @@ The worktree MUST be checked out on `sandman/41-send-critical-admin-operational-
 - [x] Plan (sandman-plan)
 - [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [x] PR-Review (sandman-pr-review)
-- [ ] PR-Merge (sandman-pr-merge)
+- [x] PR-Merge (sandman-pr-merge)
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
 
@@ -85,7 +85,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-PR review approved by the PR Review Agent. Run `sandman-pr-merge`.
+PR #156 merged via squash on 2026-07-12. Issue #41 closed automatically. Run complete.
 
 ## Already Resolved
 

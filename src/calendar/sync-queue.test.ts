@@ -41,17 +41,11 @@ describe("scheduleCalendarConnectionSyncJobs", () => {
       source: "reconciliation",
     });
     const firstJob = enqueueJob.mock.calls[0]?.[0] as
-      | { runAt: Date }
-      | undefined;
+      { runAt: Date } | undefined;
     const secondJob = enqueueJob.mock.calls[1]?.[0] as
-      | { runAt: Date }
-      | undefined;
+      { runAt: Date } | undefined;
 
-    expect(firstJob?.runAt.toISOString()).toBe(
-      "2026-07-12T12:00:00.000Z",
-    );
-    expect(secondJob?.runAt.toISOString()).toBe(
-      "2026-07-12T12:01:15.000Z",
-    );
+    expect(firstJob?.runAt.toISOString()).toBe("2026-07-12T12:00:00.000Z");
+    expect(secondJob?.runAt.toISOString()).toBe("2026-07-12T12:01:15.000Z");
   });
 });

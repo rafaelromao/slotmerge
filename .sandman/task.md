@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #40: Show operational status to Admins
+Implement GitHub issue #41: Send critical Admin operational email
 
 ## Issue Context
 
@@ -10,79 +10,82 @@ Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmer
 
 ## What to build
 
-Admins see an operational status screen that summarizes transactional email delivery health, Calendar Connection sync health, and other infrastructure-level signals so they can act before users notice.
+Critical operational issues, such as broad provider sync failures or transactional email delivery failures, trigger email to all Admins through the transactional email delivery service.
 
 ## Acceptance criteria
 
-- [ ] Admin status screen summarizes email delivery health.
-- [ ] Admin status screen summarizes Calendar Connection sync health.
-- [ ] Status data comes from existing Email Event and Calendar Connection records.
+- [ ] Critical operational events trigger Admin emails.
+- [ ] Email delivery state is recorded.
+- [ ] Repeat events within a short window do not spam Admins.
 
 ## Blocked by
 
 - [Provision transactional email delivery and email event log](https://github.com/rafaelromao/slotmerge/issues/26)
-- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/36)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/40-show-operational-status-to-admins`
-- Source branch: `sandman/40-show-operational-status-to-admins`
+- Current branch: `sandman/41-send-critical-admin-operational-email`
+- Source branch: `sandman/41-send-critical-admin-operational-email`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/40-show-operational-status-to-admins` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/41-send-critical-admin-operational-email` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
-- [ ] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
-- [ ] PR-Review (sandman-pr-review)
+- [x] Plan (sandman-plan)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
-
-## Plan
-
-### Behaviors to test
-- An admin who GETs `/admin/status` receives an HTML page whose `<h1>` is "Operational status", and which lists `<section>` headings for "Transactional email delivery" and "Calendar Connections" alongside their health summaries.
-- The page reports email delivery counts per status (`queued`, `sending`, `sent`, `failed`) for the last 24 hours, plus the five most-recent failures with `code`, `message`, `recipient`, and `failedAt` rendered; the window label is shown on the page so admins know what they are looking at, and an empty window ("No email events recorded yet") is explicitly rendered when all counts are zero.
-- The page reports the number of Calendar Connections grouped by status (`pending`, `connected`, `disconnected`), and surfaces a "Tokens needing refresh" section distinguishing connections whose `accessTokenExpiresAt` is already past `now` (expired), within the next five minutes (expiring soon), and not set (unset — possible data shape on legacy rows). Each row shows `connectionId`, `userId`, `provider`, `accountIdentifier`, and `accessTokenExpiresAt` in UTC.
-- The handler enforces the existing admin session/role guard: a non-admin or unauthenticated request returns 401/403 instead of the status HTML, matching the other admin route handlers (`invites`, `topics`, `topic-proposals`).
-- Status values come from a single `loadOperationalStatus({ now })` factory that pulls counts from existing `emailEvents`/`calendarConnections` tables — no schema migration, no new infrastructure fields.
-- The page renders an empty-state copy ("No failures in the last 24 hours.") when there are zero failed events in the window, and a constant cap of `RECENT_FAILURE_LIMIT = 5` is applied to the recent-failures list; the database-backed implementation does a `LIMIT 5` ordered by `failedAt` desc, matching the renderer contract.
-
-### Testable interfaces
-- `createAdminStatusHandlers({ getSession?, statusRepository? })` -> `{ GET }`, mirroring `createAdminTopicsHandlers`/`createAdminInvitesHandlers`. The repository dependency is injected so tests can stub counts without touching Postgres.
-- `OperationalStatusRepository` exposes two read methods returning numeric rollups:
-  - `summarizeEmailDelivery({ since })`: counts per status, plus the most-recent failures capped at `RECENT_FAILURE_LIMIT = 5`.
-  - `summarizeCalendarConnections({ now })`: counts per status, plus a list of "tokens needing refresh" rows bucketed into `expired` / `expiring_soon` / `unset`.
-- Implementation lives in a new `src/admin/operational-status-repository.ts` (owning both summary queries) so the admin module owns its own read model; `src/email/repository.ts` and `src/calendar/repository.ts` are **not** modified and keep their existing write-oriented surface.
-- `app/admin/status/route.ts` re-exports `{ GET }` from the factory, matching the existing admin-route pattern.
-- Renderer `renderOperationalStatusPage(...)` returns a string containing the `<h1>Operational status</h1>` heading, the two `<section>` headings, summary numbers, recent failure rows, and the calendar token-refresh table — exactly the observable contract `invites.test.ts` already exercises.
-
-### Assumptions / risks
-- The AC says "Status data comes from existing Email Event and Calendar Connection records" — we explicitly reuse `emailEvents` and `calendarConnections` rather than adding new tables or columns. No Drizzle migration.
-- "Other infrastructure-level signals" is interpreted as a forward-compat note, not a hard requirement. MVP ships exactly two read sources — `emailEvents` and `calendarConnections`. Queue depth (Graphile Worker), DB pool stats, and external uptime pings are deliberately **out of scope** for issue #40 and not part of this slice; the page's renderer is composable so additional sections can be appended later without breaking the route shape.
-- "Sync health" is inferred from `calendarConnections.status` plus a derived bucketing of `accessTokenExpiresAt` against `now`: `expired` (≤ now), `expiring_soon` (now < t ≤ now + 5 min), and `unset` (column is null on a `connected` row). This is the strongest signal available without a schema migration. "Recent provider errors" would be a stronger signal but no `lastSyncErrorAt` column exists today, so it is out of scope.
-- This surface is read-only — a `GET` handler is sufficient; no CSRF-protected POST is needed.
-- The renderer must `escapeHtml` any dynamic string (error message, recipient email, account identifier) before emitting HTML — same helper used in `src/admin/invites.ts` and `src/admin/topics.ts`.
-
-## Next Step
-
-Begin implementing the first vertical slice: TDD the `OperationalStatusRepository` contract using in-memory fakes, then the `createAdminStatusHandlers` GET behaviors — access-denied for non-admins/unauthenticated first, then admin GET with empty summaries, then non-zero email counts and recent failures, then calendar counts and the token-refresh section.
-
-## Next Step
-
-Begin implementing the first vertical slice: TDD the `OperationalStatusRepository` contract using in-memory fakes, and the `createAdminStatusHandlers` GET behavior for admins, non-admins, and unauthenticated requests.
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Plan
+### Behaviors to test (vertical red-green ordering)
+
+1. **Empty admin list is a no-op.** With zero active admins returned by the directory, `triggerAdminCriticalEmail` returns without throwing and without invoking the email delivery service.
+2. **Trigger queues an admin-critical email per active admin.** Given an active-admin list of N admins and an empty dedup history, `triggerAdminCriticalEmail` invokes the email delivery service N times with `type: "admin-critical"`, each admin's email as the recipient, and a payload containing the operational event details (`kind`, `summary`, `occurredAt`, plus any event-specific details).
+3. **Suspended and non-admin users are skipped.** `triggerAdminCriticalEmail` only delivers to users with `role === "admin"` AND `status === "active"`. The directory dependency is the single seam for that filter.
+4. **Repeat events within a short window are deduplicated per event kind.** Given a prior dispatch of the same kind within the dedup window, `triggerAdminCriticalEmail` invokes the delivery service zero times. Given a prior dispatch older than the window (or a different kind), the dispatch still fires.
+5. **The dedup path performs no state writes.** When the dedup window short-circuits the dispatch, the function does not invoke the email delivery service (no email event row is created).
+6. **Email delivery failure does not throw to the caller.** If queueing one admin's email fails (the existing delivery service throws after marking the event failed), the trigger records the per-recipient failure and continues for the remaining admins so a single bad recipient does not block the alert. The function returns a per-recipient result array.
+7. **Existing email delivery state recording is reused.** No new persistence is required for state — the existing `emailEvents` / `emailEventAttempts` rows from the email delivery service serve as both the recorded delivery state and the dedup source of truth. (Verified by reading `service.ts:84-91`: `createQueuedEvent` is the recording step.)
+
+### Testable interfaces / seams
+
+- New module: `src/admin/critical-email.ts` exporting `triggerAdminCriticalEmail(input, deps)`. Dependency interface:
+  - `clock?: () => Date`
+  - `adminDirectory: { listActiveAdmins(): Promise<Array<{ id: string; email: string }>> }`
+  - `emailDeliveryService: { sendEmail(input: { recipient; type; payload }): Promise<{ emailEvent }> }`
+  - `lastDispatchLookup: { findMostRecentKindDispatch(kind: string, since: Date): Promise<Date | null> }`
+  - `dedupWindowMs?: number` (default `15 * 60 * 1000`)
+  - `now?: () => Date` (alias for `clock` to make intent clear at the call site)
+- Pure helpers exported for direct unit testing:
+  - `createOperationalEvent({ kind, summary, occurredAt, details? })` — validates/normalises the event shape used in the payload.
+  - `createKindDedupReference(kind: string)` — SHA-256 of `{ kind }` JSON; used both as the dedup lookup key and as a `payloadReference` argument so the existing `emailEvents.payload_reference` column serves as the dedup index without migration.
+  - `isCriticalEmailType(type)` — narrows `"admin-critical"` for the delivery service contract.
+- Postgres-backed implementations (wired only when the trigger is used from a real DB context — production wiring is out of scope for this ticket):
+  - `createPostgresAdminDirectory(db = getDb())` — `SELECT id, email FROM users WHERE role = 'admin' AND status = 'active' ORDER BY email`.
+  - `createPostgresAdminCriticalDispatchLookup(db = getDb())` — `SELECT created_at FROM email_events WHERE type = 'admin-critical' AND payload_reference = $1 AND created_at >= $2 ORDER BY created_at DESC LIMIT 1`.
+- New unit test file: `src/admin/critical-email.test.ts` — covers all seven behaviors with stubbed dependencies (no DB).
+
+### Assumptions / risks
+
+- "Short window" is interpreted as **15 minutes**, exposed as `dedupWindowMs` so tests can pin it to e.g. `1000` ms.
+- Dedup is keyed by the event `kind` string. Two operational issues with different kinds each get their own alert.
+- The `payloadReference` written by the delivery service for `admin-critical` events is derived from `{ kind }` (not from the full event payload) so the dedup lookup can match rows purely on `payload_reference`. The full event details (summary, occurredAt, details) ride inside the delivery `payload` and are written to the worker logs / Postmark transport, not indexed in the DB. No schema migration is required.
+- Behavior 5 (no writes on dedup) is implicit but called out explicitly so the test pins it.
+- Risk: the `emailEvents.payload_reference` column will, going forward, exclusively hold dedup keys for `admin-critical` rows. This ticket does not introduce prior data, but any future caller must respect the same convention; comment this in the module.
+- Risk: the deliverability service throws when queueing fails. The trigger must isolate per-recipient failures so one bad recipient does not block the rest (covered by behavior 6).
+
 ## Next Step
 
-The registered next step is the first unchecked item in the Execution Checklist.
+PR review approved by the PR Review Agent. Run `sandman-pr-merge`.
 
 ## Already Resolved
 

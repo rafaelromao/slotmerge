@@ -64,6 +64,13 @@
       "when": 1783780000007,
       "tag": "0007_imported_busy_intervals",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783780000008,
+      "tag": "0008_availability_windows",
+      "breakpoints": true
     }
   ]
 }

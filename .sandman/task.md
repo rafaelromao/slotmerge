@@ -39,7 +39,7 @@ The worktree MUST be checked out on `sandman/55-define-search-query-parameters-a
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -49,7 +49,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Run sandman-implement: execute TDD on the planned vertical slices (builder → validator → repository contract → migration → drizzle implementation), commit per slice, then run self-review, back-merge main, push, and create the PR with a `Closes #55` body.
+Push the branch and create the PR with a closing-reference body (`Closes #55`). Then delegate review via sandman-pr-review.
 
 ## Plan
 

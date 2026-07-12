@@ -3,16 +3,46 @@ import { describe, expect, it, vi } from "vitest";
 import { createMagicLinkRequestHandlers } from "./magic-link-request";
 import { createMagicLinkTokenIssuer } from "./magic-link";
 
+type MockInvite = {
+  id: string;
+  email: string;
+  role: string;
+  status: "pending" | "accepted" | "revoked";
+  invitedByAdminId: string | null;
+  expiresAt: Date;
+  magicLinkGeneration: number;
+};
+
+type MagicLinkEmailPayload = {
+  inviteId: string;
+  email: string;
+  role: string;
+  magicLinkUrl: string;
+  magicLinkToken: string;
+  generation: number;
+  expiresAt: string;
+};
+
+type MagicLinkEmailInput = {
+  recipient: string;
+  type: "magic-link";
+  payload: MagicLinkEmailPayload;
+};
+
 function createMockInviteRepository() {
   return {
-    findById: vi.fn(),
-    setMagicLinkGeneration: vi.fn(),
+    findById: vi.fn<(id: string) => Promise<MockInvite | null>>(),
+    setMagicLinkGeneration:
+      vi.fn<(id: string, generation: number) => Promise<MockInvite | null>>(),
   };
 }
 
 function createMockEmailDeliveryService() {
   return {
-    sendEmail: vi.fn(),
+    sendEmail:
+      vi.fn<
+        (input: MagicLinkEmailInput) => Promise<{ emailEvent: { id: string } }>
+      >(),
   };
 }
 
@@ -30,11 +60,12 @@ describe("magic link request handler", () => {
       generation: 0,
     });
 
-    const invite = {
+    const invite: MockInvite = {
       id: "invite-1",
       email: "alice@example.com",
       role: "user",
-      status: "pending" as const,
+      status: "pending",
+      invitedByAdminId: null,
       magicLinkGeneration: 0,
       expiresAt: new Date("2026-08-11T00:00:00.000Z"),
     };
@@ -47,8 +78,10 @@ describe("magic link request handler", () => {
     });
 
     const mockEmailService = createMockEmailDeliveryService();
-    mockEmailService.sendEmail.mockResolvedValue({
-      emailEvent: { id: "email-event-1" },
+    let sentEmail: MagicLinkEmailInput | undefined;
+    mockEmailService.sendEmail.mockImplementation((input) => {
+      sentEmail = input;
+      return Promise.resolve({ emailEvent: { id: "email-event-1" } });
     });
 
     const { POST } = createMagicLinkRequestHandlers({
@@ -76,16 +109,17 @@ describe("magic link request handler", () => {
       1,
     );
     expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recipient: "alice@example.com",
-        type: "magic-link",
-        payload: expect.objectContaining({
-          inviteId: "invite-1",
-          email: "alice@example.com",
-          generation: 1,
-        }),
-      }),
+      expect.objectContaining({ recipient: "alice@example.com" }),
     );
+    expect(sentEmail).toMatchObject({
+      recipient: "alice@example.com",
+      type: "magic-link",
+      payload: {
+        inviteId: "invite-1",
+        email: "alice@example.com",
+        generation: 1,
+      },
+    });
   });
 
   it("rotates the magic-link generation on repeated requests", async () => {
@@ -102,27 +136,30 @@ describe("magic link request handler", () => {
     });
 
     let currentGeneration = 0;
-    const invite = {
+    const invite: MockInvite = {
       id: "invite-1",
       email: "alice@example.com",
       role: "user",
-      status: "pending" as const,
+      status: "pending",
+      invitedByAdminId: null,
       magicLinkGeneration: 0,
       expiresAt: new Date("2026-08-11T00:00:00.000Z"),
     };
 
     const mockInviteRepo = createMockInviteRepository();
-    mockInviteRepo.findById.mockImplementation(async () => ({
-      ...invite,
-      magicLinkGeneration: currentGeneration,
-    }));
+    mockInviteRepo.findById.mockImplementation(() =>
+      Promise.resolve({
+        ...invite,
+        magicLinkGeneration: currentGeneration,
+      }),
+    );
     mockInviteRepo.setMagicLinkGeneration.mockImplementation(
-      async (_id, nextGeneration) => {
+      (_id, nextGeneration) => {
         currentGeneration = nextGeneration;
-        return {
+        return Promise.resolve({
           ...invite,
           magicLinkGeneration: nextGeneration,
-        };
+        });
       },
     );
 
@@ -152,12 +189,10 @@ describe("magic link request handler", () => {
       }),
     );
 
-    expect(
-      mockEmailService.sendEmail.mock.calls[0]?.[0]?.payload,
-    ).toMatchObject({ generation: 1 });
-    expect(
-      mockEmailService.sendEmail.mock.calls[1]?.[0]?.payload,
-    ).toMatchObject({ generation: 2 });
+    const firstPayload = mockEmailService.sendEmail.mock.calls[0]?.[0].payload;
+    const secondPayload = mockEmailService.sendEmail.mock.calls[1]?.[0].payload;
+    expect(firstPayload).toMatchObject({ generation: 1 });
+    expect(secondPayload).toMatchObject({ generation: 2 });
   });
 
   it("returns a rate-limited response without sending email", async () => {
@@ -179,6 +214,7 @@ describe("magic link request handler", () => {
       email: "alice@example.com",
       role: "user",
       status: "pending",
+      invitedByAdminId: null,
       magicLinkGeneration: 0,
       expiresAt: new Date("2026-08-11T00:00:00.000Z"),
     });
@@ -219,27 +255,30 @@ describe("magic link request handler", () => {
     });
 
     let currentGeneration = 0;
-    const invite = {
+    const invite: MockInvite = {
       id: "invite-1",
       email: "alice@example.com",
       role: "user",
-      status: "pending" as const,
+      status: "pending",
+      invitedByAdminId: null,
       magicLinkGeneration: 0,
       expiresAt: new Date("2026-08-11T00:00:00.000Z"),
     };
 
     const mockInviteRepo = createMockInviteRepository();
-    mockInviteRepo.findById.mockImplementation(async () => ({
-      ...invite,
-      magicLinkGeneration: currentGeneration,
-    }));
+    mockInviteRepo.findById.mockImplementation(() =>
+      Promise.resolve({
+        ...invite,
+        magicLinkGeneration: currentGeneration,
+      }),
+    );
     mockInviteRepo.setMagicLinkGeneration.mockImplementation(
-      async (_id, nextGeneration) => {
+      (_id, nextGeneration) => {
         currentGeneration = nextGeneration;
-        return {
+        return Promise.resolve({
           ...invite,
           magicLinkGeneration: nextGeneration,
-        };
+        });
       },
     );
 

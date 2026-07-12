@@ -29,6 +29,7 @@ export type ProfileRepository = {
     userId: string,
     update: UserProfileUpdate,
   ): Promise<UserProfile | null>;
+  deleteByUserId(userId: string): Promise<boolean>;
 };
 
 let repositoryOverride: ProfileRepository | null = null;
@@ -50,6 +51,10 @@ export async function updateProfileByUserId(
   update: UserProfileUpdate,
 ): Promise<UserProfile | null> {
   return getProfileRepository().updateByUserId(userId, update);
+}
+
+export async function deleteProfileByUserId(userId: string): Promise<boolean> {
+  return getProfileRepository().deleteByUserId(userId);
 }
 
 function getProfileRepository(): ProfileRepository {
@@ -130,5 +135,13 @@ const databaseProfileRepository: ProfileRepository = {
       });
 
     return row ?? null;
+  },
+  deleteByUserId: async (userId) => {
+    const deleted = await getDb()
+      .delete(users)
+      .where(eq(users.id, userId))
+      .returning({ id: users.id });
+
+    return deleted.length > 0;
   },
 };

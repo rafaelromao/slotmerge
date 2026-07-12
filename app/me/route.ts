@@ -1,9 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
-import { getSessionFromRequest } from "../../src/auth/session";
+import {
+  clearSessionCookie,
+  getSessionFromRequest,
+} from "../../src/auth/session";
 import { getDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
 import {
+  deleteProfileByUserId,
   getProfileByUserId,
   updateProfileByUserId,
 } from "../../src/profile/repository";
@@ -85,28 +89,93 @@ function computeSetupCompleteness(
   };
 }
 
+type PerUserLookupSeam = {
+  topicsByUserId: Map<string, Topic[]>;
+  topicProposalsByUserId: Map<string, TopicProposal[]>;
+  availabilityWindowsByUserId: Map<string, AvailabilityWindow[]>;
+  calendarConnectionsByUserId: Map<string, CalendarConnection[]>;
+};
+
+const perUserLookupState: PerUserLookupSeam = {
+  topicsByUserId: new Map(),
+  topicProposalsByUserId: new Map(),
+  availabilityWindowsByUserId: new Map(),
+  calendarConnectionsByUserId: new Map(),
+};
+
+export function setPerUserLookupStateForTests(
+  state: Partial<PerUserLookupSeam>,
+) {
+  if (state.topicsByUserId) {
+    perUserLookupState.topicsByUserId = state.topicsByUserId;
+  }
+  if (state.topicProposalsByUserId) {
+    perUserLookupState.topicProposalsByUserId = state.topicProposalsByUserId;
+  }
+  if (state.availabilityWindowsByUserId) {
+    perUserLookupState.availabilityWindowsByUserId =
+      state.availabilityWindowsByUserId;
+  }
+  if (state.calendarConnectionsByUserId) {
+    perUserLookupState.calendarConnectionsByUserId =
+      state.calendarConnectionsByUserId;
+  }
+}
+
+export function clearPerUserLookupStateForTests() {
+  perUserLookupState.topicsByUserId.clear();
+  perUserLookupState.topicProposalsByUserId.clear();
+  perUserLookupState.availabilityWindowsByUserId.clear();
+  perUserLookupState.calendarConnectionsByUserId.clear();
+}
+
+function deletePerUserData(userId: string) {
+  perUserLookupState.topicsByUserId.delete(userId);
+  perUserLookupState.topicProposalsByUserId.delete(userId);
+  perUserLookupState.availabilityWindowsByUserId.delete(userId);
+  perUserLookupState.calendarConnectionsByUserId.delete(userId);
+}
+
 function getTopicsByUserId(userId: string): Promise<Topic[]> {
-  void userId;
-  return Promise.resolve([]);
+  return Promise.resolve(perUserLookupState.topicsByUserId.get(userId) ?? []);
 }
 
 function getTopicProposalsByUserId(userId: string): Promise<TopicProposal[]> {
-  void userId;
-  return Promise.resolve([]);
+  return Promise.resolve(
+    perUserLookupState.topicProposalsByUserId.get(userId) ?? [],
+  );
 }
 
 function getAvailabilityWindowsByUserId(
   userId: string,
 ): Promise<AvailabilityWindow[]> {
-  void userId;
-  return Promise.resolve([]);
+  return Promise.resolve(
+    perUserLookupState.availabilityWindowsByUserId.get(userId) ?? [],
+  );
 }
 
 function getCalendarConnectionsByUserId(
   userId: string,
 ): Promise<CalendarConnection[]> {
-  void userId;
-  return Promise.resolve([]);
+  return Promise.resolve(
+    perUserLookupState.calendarConnectionsByUserId.get(userId) ?? [],
+  );
+}
+
+export function listTopicsForUserInTests(userId: string): Promise<Topic[]> {
+  return getTopicsByUserId(userId);
+}
+
+export function listAvailabilityWindowsForUserInTests(
+  userId: string,
+): Promise<AvailabilityWindow[]> {
+  return getAvailabilityWindowsByUserId(userId);
+}
+
+export function listCalendarConnectionsForUserInTests(
+  userId: string,
+): Promise<CalendarConnection[]> {
+  return getCalendarConnectionsByUserId(userId);
 }
 
 const profileUpdateSchema = z
@@ -263,4 +332,31 @@ function hasValidCsrfToken(request: Request, expectedToken: string): boolean {
 
 function isSupportedTimeZone(timeZone: string): boolean {
   return supportedTimeZones.has(timeZone);
+}
+
+export async function DELETE(request: Request): Promise<Response> {
+  const session = await getSessionFromRequest(request);
+
+  if (!session) {
+    return Response.json({ error: "unauthenticated" }, { status: 401 });
+  }
+
+  if (!hasValidCsrfToken(request, session.csrfToken)) {
+    return Response.json({ error: "invalid_csrf" }, { status: 403 });
+  }
+
+  const deleted = await deleteProfileByUserId(session.user.id);
+
+  if (!deleted) {
+    return Response.json({ error: "user_not_found" }, { status: 404 });
+  }
+
+  deletePerUserData(session.user.id);
+
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Set-Cookie": clearSessionCookie(),
+    },
+  });
 }

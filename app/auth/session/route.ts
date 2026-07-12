@@ -3,25 +3,13 @@ import { eq } from "drizzle-orm";
 
 import { getDb } from "../../../src/db/client";
 import { sessions } from "../../../src/db/schema";
-import {
-  clearSessionCookie,
-  getSessionSecret,
-} from "../../../src/auth/session";
-
-let sessionDeleteOverride: ((id: string) => Promise<void>) | null = null;
-
-export function setSessionDeleteForTests(
-  fn: ((id: string) => Promise<void>) | null,
-) {
-  sessionDeleteOverride = fn;
-}
+import { clearSessionCookie, getSessionSecret } from "../../../src/auth/session";
 
 export async function DELETE(request: Request): Promise<Response> {
   const sessionId = await extractSessionId(request);
 
   if (sessionId) {
-    const deleteFn = sessionDeleteOverride ?? defaultDeleteSession;
-    await deleteFn(sessionId);
+    await deleteSession(sessionId);
   }
 
   const origin = new URL(request.url).origin;
@@ -68,7 +56,7 @@ async function extractSessionId(request: Request): Promise<string | null> {
   }
 }
 
-async function defaultDeleteSession(sessionId: string): Promise<void> {
+async function deleteSession(sessionId: string): Promise<void> {
   const db = getDb();
   await db.delete(sessions).where(eq(sessions.id, sessionId));
 }

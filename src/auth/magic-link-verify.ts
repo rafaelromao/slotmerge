@@ -2,7 +2,6 @@ import { createHmac } from "node:crypto";
 
 import { verifyMagicLinkToken, type MagicLinkTokenPayload } from "./magic-link";
 import { sealSessionCookie, getSessionSecret } from "./session";
-import { loadRuntimeConfig } from "../config/runtime";
 import type { UserRole } from "../db/schema";
 
 export type MagicLinkVerifyDependencies = {

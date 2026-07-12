@@ -1,7 +1,7 @@
 import { getSessionFromRequest, type Session } from "../auth/session";
 import { getDb } from "../db/client";
 import { users, type UserRole, type UserStatus } from "../db/schema";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 export type UserListItem = {
@@ -44,14 +44,6 @@ export type AdminUsersDependencies = {
   userRepository?: AdminUserRepository;
 };
 
-let repositoryOverride: AdminUserRepository | null = null;
-
-export function setAdminUserRepositoryForTests(
-  repository: AdminUserRepository | null,
-) {
-  repositoryOverride = repository;
-}
-
 const userActionSchema = z.object({
   action: z.enum(["change-role", "suspend", "reinstate"]),
   _csrf: z.string(),
@@ -75,7 +67,7 @@ const reinstateSubmissionSchema = z.object({
 
 export function createAdminUsersHandlers({
   getSession = getSessionFromRequest,
-  userRepository = getDefaultUserRepository(),
+  userRepository = databaseAdminUserRepository,
 }: AdminUsersDependencies = {}) {
   return {
     GET: async (request: Request): Promise<Response> => {
@@ -314,7 +306,7 @@ function renderUserRow(u: UserListItem, csrfToken: string): string {
   return `
     <tr>
       <td>${escapeHtml(u.email)}</td>
-      <td>${escapeHtml(u.displayName ?? "")}</td>
+      <td>${escapeHtml(u.displayName ?? "—")}</td>
       <td>${escapeHtml(labelRole(u.role))}</td>
       <td>${escapeHtml(labelStatus(u.status))}</td>
       <td>
@@ -369,13 +361,6 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-function getDefaultUserRepository(): AdminUserRepository {
-  if (repositoryOverride) {
-    return repositoryOverride;
-  }
-  return databaseAdminUserRepository;
-}
-
 const databaseAdminUserRepository: AdminUserRepository = {
   listUsers: async () => {
     const rows = await getDb()
@@ -397,22 +382,15 @@ const databaseAdminUserRepository: AdminUserRepository = {
       return { ok: false, reason: "self" };
     }
 
-    const db = getDb();
-
-    const [target] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (!target) {
-      return { ok: false, reason: "not_found" };
-    }
-
-    await db
+    const updated = await getDb()
       .update(users)
       .set({ role, updatedAt: new Date() })
-      .where(eq(users.id, userId));
+      .where(eq(users.id, userId))
+      .returning({ id: users.id });
+
+    if (updated.length === 0) {
+      return { ok: false, reason: "not_found" };
+    }
 
     return { ok: true };
   },
@@ -424,24 +402,22 @@ const databaseAdminUserRepository: AdminUserRepository = {
 
     const db = getDb();
 
-    const [target] = await db
-      .select({ status: users.status })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (!target) {
-      return { ok: false, reason: "not_found" };
-    }
-
-    if (target.status === "suspended") {
-      return { ok: false, reason: "already_suspended" };
-    }
-
-    await db
+    const updated = await db
       .update(users)
       .set({ status: "suspended", updatedAt: new Date() })
-      .where(eq(users.id, userId));
+      .where(and(eq(users.id, userId), eq(users.status, "active")))
+      .returning({ id: users.id });
+
+    if (updated.length === 0) {
+      const exists = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      return exists.length === 0
+        ? { ok: false, reason: "not_found" }
+        : { ok: false, reason: "already_suspended" };
+    }
 
     return { ok: true };
   },
@@ -453,24 +429,22 @@ const databaseAdminUserRepository: AdminUserRepository = {
 
     const db = getDb();
 
-    const [target] = await db
-      .select({ status: users.status })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (!target) {
-      return { ok: false, reason: "not_found" };
-    }
-
-    if (target.status === "active") {
-      return { ok: false, reason: "already_active" };
-    }
-
-    await db
+    const updated = await db
       .update(users)
       .set({ status: "active", updatedAt: new Date() })
-      .where(eq(users.id, userId));
+      .where(and(eq(users.id, userId), eq(users.status, "suspended")))
+      .returning({ id: users.id });
+
+    if (updated.length === 0) {
+      const exists = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      return exists.length === 0
+        ? { ok: false, reason: "not_found" }
+        : { ok: false, reason: "already_active" };
+    }
 
     return { ok: true };
   },

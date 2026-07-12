@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createAdminUsersHandlers } from "./users";
 
 describe("admin users", () => {
-  it("renders every user with their email, role, and status for an Admin session", async () => {
+  it("lists every user with their email, role, and status for an Admin session", async () => {
     const { GET } = createAdminUsersHandlers({
       getSession: vi.fn().mockResolvedValue({
         user: {

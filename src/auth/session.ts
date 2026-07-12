@@ -73,13 +73,39 @@ export async function getSessionFromRequest(
       Iron.defaults,
     )) as { sessionId: string };
 
-    return getSessionRepository().findById(payload.sessionId);
+    const session = await getSessionRepository().findById(payload.sessionId);
+    return session;
   } catch {
     return null;
   }
 }
 
-function getSessionRepository(): SessionRepository {
+export async function extractSessionIdFromRequest(
+  request: Request,
+): Promise<string | null> {
+  const sessionToken = getCookie(
+    request.headers.get("cookie"),
+    sessionCookieName,
+  );
+
+  if (!sessionToken) {
+    return null;
+  }
+
+  try {
+    const payload = (await Iron.unseal(
+      decodeURIComponent(sessionToken),
+      getSessionSecret(),
+      Iron.defaults,
+    )) as { sessionId: string };
+
+    return payload.sessionId;
+  } catch {
+    return null;
+  }
+}
+
+export function getSessionRepository(): SessionRepository {
   if (repositoryOverride) {
     return repositoryOverride;
   }

@@ -1,131 +1,43 @@
 # Task
 
-Implement GitHub issue #42: Send Calendar Connection action-required email
+Implement GitHub issue #33: Define weekly Availability Windows in profile timezone
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmerge/issues/18). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-When a user's Calendar Connection enters an action-required state (token revoked, reconnect needed, persistent sync failure), the system sends an email to the affected user with a clear next step.
+A User defines recurring weekly Availability Windows in their profile timezone. Windows are stored timezone-aware so recurring rules behave correctly across DST.
 
 ## Acceptance criteria
 
-- [ ] Token revocation triggers a reconnect email.
-- [ ] Persistent sync failure triggers an action-required email.
-- [ ] Email includes a link to the Calendar Connection page.
-- [ ] Email delivery state is recorded.
+- [ ] User can add, edit, and remove weekly Availability Windows.
+- [ ] Windows are stored in the user's profile timezone.
+- [ ] Windows correctly handle DST transitions.
+- [ ] At least one Availability Window or override satisfies setup-completion availability.
 
 ## Blocked by
 
-- [Provision transactional email delivery and email event log](https://github.com/rafaelromao/slotmerge/issues/26)
-- [Encrypt Calendar Connection OAuth tokens at rest](https://github.com/rafaelromao/slotmerge/issues/45)
-
+- [Edit profile attributes](https://github.com/rafaelromao/slotmerge/issues/27) — CLOSED
 
 ## Runtime Context
 
-## Plan
-
-Issue #42 sends a transactional email to a User whenever their Calendar Connection enters an action-required state (token revoked, persistent sync failure). Delivery state must be recorded through the existing single Email delivery service module (`src/email/service.ts`).
-
-### Pre-flight
-
-- [x] `gh issue view 42` confirms issue is OPEN with 4 acceptance criteria.
-- [x] Both blockers (`#26`, `#45`) are CLOSED.
-- [x] `origin/main` is up to date and the branch is an ancestor of `origin/main`.
-- [x] No open PR for the current branch.
-- [x] No existing implementation in `origin/main` matches the acceptance criteria.
-
-### Subagent review summary
-
-Subagent reviewed the initial plan and produced four concrete revisions, all adopted here:
-
-1. **Ownership check on revoke route.** Before wiring the email, ensure `app/me/calendar-connections/[id]/route.ts` rejects requests where `found.record.userId !== session.user.id`. Otherwise any logged-in user could disconnect someone else's connection and trigger an email to a third party.
-2. **Sync-failure wiring is internal, not a new POST route.** The spec's API surface (`docs/mvp-spec.md:282-287`) does not list a `POST .../sync-failure` endpoint, and the trigger origin is the sync engine, not the user. Expose `recordCalendarConnectionSyncFailure(connectionId, error)` as an internal function in `src/calendar/repository.ts` that calls the trigger module. The actual sync engine is a separate issue.
-3. **Drop `lastSyncAt` / drop the transport-rendering slice.** The transport already stringifies the payload. Put `reconnectUrl` in the payload so it appears in the body without touching `src/email/transport.ts`.
-4. **Use the real `EmailDeliveryService` type, not a narrowed one.** Mirror the singleton + test-override pattern used by `getGoogleCalendarConnectionRepository` (`src/calendar/repository.ts:30-38`).
-
-### Tracer bullet
-
-End-to-end flow that exercises every layer:
-
-1. Connection's revoke or sync-failure entry-point calls the action-required trigger module with `(connectionId, reason, user.email)`.
-2. Trigger module looks up a prior dispatch (Postgres), dedups if within window, otherwise builds the payload (including `reconnectUrl`) and hands it to the singleton `EmailDeliveryService`.
-3. `EmailDeliveryService` records the `EmailEvent` (delivery state), enqueues the worker, the worker renders the body (which now includes the `reconnectUrl`), and the transport sends it.
-
-### Behaviors to test (vertical slices)
-
-**Slice 1 — schema migration (`drizzle/0006_calendar_connection_sync_failure.sql` + `src/db/schema.ts`)**
-- Adds nullable `last_error_code` / `last_error_message` columns to `calendar_connections`.
-- Drizzle schema and `findById`/`listByUserId`/`updateById` selects include the new columns.
-
-**Slice 2 — action-required trigger module (`src/calendar/action-required-email.ts`)**
-- For `token-revoked` and `sync-failure` reasons, calls `emailDeliveryService.sendEmail` exactly once with `type: "calendar-action-required"`, the user email as recipient, a payload containing `connectionId`, `provider`, `reason`, `reconnectUrl`, `occurredAt` (ISO), and a deterministic `payloadReference` derived from `(connectionId, reason)`.
-- Skips dispatch when `findMostRecentConnectionDispatch(connectionId, reason, since)` returns a non-null timestamp inside the dedup window.
-- Returns `{ status: "sent" | "skipped", emailEventId?: string }`.
-- Uses `dedupWindowMs` from deps with a default of 60 minutes (twice admin-critical's 15-minute window because user-initiated `token-revoked` should not re-fire on every page reload, and `sync-failure` should not re-fire while a previous one is being acted on).
-- Reuses `EmailDeliveryService` from `src/email/service.ts` directly (not a narrowed duplicate).
-
-**Slice 3 — dispatch lookup repository (`src/calendar/action-required-email.repository.ts`)**
-- Postgres-backed `findMostRecentConnectionDispatch(connectionId, reason, since)` mirrors `createPostgresAdminCriticalDispatchLookup` (`src/admin/critical-email.repository.ts:29-51`).
-- `createConnectionActionRequiredDedupReference(connectionId, reason)` returns a pure-function SHA-256 hash of `{"connectionId","reason"}` (mirrors `createKindDedupReference` in `src/admin/critical-email.ts:66-68`).
-- Repository is wired through a `setConnectionActionRequiredDispatchLookupForTests` test override (mirrors the calendar repository pattern at `src/calendar/repository.ts:18-28`).
-
-**Slice 4 — singleton accessor for the email delivery service (`src/email/service.ts` / new factory)**
-- Add `getEmailDeliveryService()` that constructs a default `EmailDeliveryService` backed by the Postgres repository + Graphile enqueue, plus `setEmailDeliveryServiceForTests(...)` for the route tests.
-- Mirror the existing `getGoogleCalendarConnectionRepository` / `setGoogleCalendarConnectionRepositoryForTests` pattern (`src/calendar/repository.ts:18-38`).
-
-**Slice 5 — ownership check + wire revoke routes (`app/me/calendar-connections/[id]/route.ts`)**
-- After `findCalendarConnectionById(expectedId)`, return 404 if `found.record.userId !== session.user.id`.
-- After a successful revoke (Google or Microsoft), call `triggerCalendarActionRequiredEmail` with `{ connectionId, provider, reason: "token-revoked", user: { id, email } }`.
-- The revoke HTTP response stays 200 even if the email enqueue fails (email failures are observable through the `email_events` table, not the HTTP response).
-- The trigger is awaited only long enough to record the `EmailEvent`; the actual send runs in the worker. The route never blocks the HTTP response on transport success.
-
-**Slice 6 — internal sync-failure recorder (`src/calendar/repository.ts` + `src/calendar/action-required-email.ts`)**
-- Add `recordCalendarConnectionSyncFailure(connectionId, { code, message })` that updates `last_error_code`, `last_error_message`, and `updated_at` on the row.
-- The recorder calls `triggerCalendarActionRequiredEmail` with `reason: "sync-failure"` after the update succeeds.
-- Connection status stays `connected` while the error columns are populated. The follow-up `needs-reconnect` status value (per `docs/mvp-spec.md:143`) is filed as a separate issue and explicitly tracked in the slice description below.
-
-### Out of scope
-
-- The actual sync engine, webhooks, and reconciliation scheduler — separate issues.
-- A user-callable POST `/me/calendar-connections/{id}/sync-failure` route — the spec API surface (`docs/mvp-spec.md:282-287`) does not list it; the trigger origin is the sync engine, not the user. The internal recorder is the slice boundary.
-- Changing the connection status enum to include `needs-reconnect`. Today's schema has only `pending`/`connected`/`disconnected`. The spec calls for `needs reconnect` (`docs/mvp-spec.md:143`) and that belongs in a follow-up issue, not this one. The current slice writes error columns on a still-`connected` row and is honest about that limitation.
-- A proper HTML email template — the existing transport JSON-stringifies the payload (`src/email/transport.ts:69-75`), so a `reconnectUrl` field in the payload is enough to satisfy "Email includes a link to the Calendar Connection page" (`docs/mvp-spec.md:435`). A real HTML template is a separate slice.
-- Sending a real email in tests — `EMAIL_ADAPTER=mock` returns `mock-<eventId>` for any `EmailTransport.send`.
-
-### Schema additions
-
-- `calendar_connections.last_error_code` (text, nullable)
-- `calendar_connections.last_error_message` (text, nullable)
-- No enum change in this issue (deferred; see "Out of scope").
-
-### Risks
-
-- The spec calls for a `needs-reconnect` status value (`docs/mvp-spec.md:143`) that the current schema does not have. This issue records the failure via columns, not status, and explicitly defers the enum change to a follow-up. The trigger module is structured so a future status change will not require changes to email logic.
-- The revoke route currently does not check ownership. Without that fix, an authenticated user could disconnect someone else's connection and trigger an email to a third party. Slice 5 ships the ownership check as part of the same change so we never ship the email wiring without it.
-- Dedup window default (60 min) is twice the admin-critical window (15 min). This is intentional: the recipient is the user (not an admin) and a re-trigger while the previous email is still likely unread would be noise. If product feedback says otherwise, the dedup window is a single constant.
-
-### Subagent review
-
-A subagent reviewed the first draft and produced four revisions, all adopted above. Plan consensus reached.
-
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/42-send-calendar-connection-action-required-email`
-- Source branch: `sandman/42-send-calendar-connection-action-required-email`
+- Current branch: `sandman/33-define-weekly-availability-windows-in-profile-timezone`
+- Source branch: `sandman/33-define-weekly-availability-windows-in-profile-timezone`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/42-send-calendar-connection-action-required-email` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/33-define-weekly-availability-windows-in-profile-timezone` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
-- [x] Create branch (`sandman/42-send-calendar-connection-action-required-email` created from `main`).
-- [x] Plan (sandman-plan) — drafted above, subagent reviewed, consensus reached on four revisions (ownership check, internal recorder not new route, drop transport slice, use real `EmailDeliveryService` type).
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Create branch
+- [x] Plan (sandman-plan) — subagent-reviewed plan approved
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review) — see self-review findings below
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -133,15 +45,78 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Plan
+
+### Behaviors to test
+
+1. **Add weekly Availability Window**: User can create a weekly recurring window with day-of-week (0=Sun–6=Sat), start time (HH:MM), end time (HH:MM) stored in their profile timezone. Returns the created window with its ID. Rejects creation if user has no profile timezone.
+
+2. **List Availability Windows**: User can list all their own weekly availability windows.
+
+3. **Edit Availability Window**: User can update an existing window's day-of-week, start time, or end time. Validates ownership before editing. Returns 404 if window not found or not owned.
+
+4. **Remove Availability Window**: User can delete an existing window by ID. Validates ownership before deleting. Returns 404 if window not found or not owned.
+
+5. **Setup completeness satisfied by Availability Windows**: When user has ≥1 availability window, `hasAvailabilitySource` is true in setup completeness. This already works via existing `computeSetupCompleteness` — repo must return windows to satisfy it.
+
+6. **Reject when profileTimezone is null**: Window creation fails with a `profile_timezone_required` error if the user has no `profileTimezone` set.
+
+7. **Input validation**: dayOfWeek must be 0–6; startTime and endTime must be valid HH:MM with endTime > startTime.
+
+8. **DST expansion utility**: `expandWeeklyWindowToUtcRange(window, timezone, rangeStart, rangeEnd)` returns UTC Date[] intervals for a weekly window across a date range, correctly shifting hours across DST boundaries using `Intl.DateTimeFormat` with `timeZone` option.
+
+### Testable interfaces
+
+- `WeeklyAvailabilityWindowRepository` interface in `src/profile/availability-windows.ts`:
+  - `add(userId: string, window: NewWeeklyAvailabilityWindow): Promise<WeeklyAvailabilityWindow>`
+  - `listByUserId(userId: string): Promise<WeeklyAvailabilityWindow[]>`
+  - `updateById(id: string, userId: string, updates: WeeklyAvailabilityWindowUpdate): Promise<WeeklyAvailabilityWindow | null>`
+  - `removeById(id: string, userId: string): Promise<boolean>`
+- `WeeklyAvailabilityWindow` type: `{ id: string; userId: string; dayOfWeek: number; startTime: string; endTime: string; profileTimezone: string; createdAt: Date; updatedAt: Date }`
+- `NewWeeklyAvailabilityWindow`: `{ dayOfWeek: number; startTime: string; endTime: string }`
+- `WeeklyAvailabilityWindowUpdate`: partial of `NewWeeklyAvailabilityWindow`
+- REST endpoints: `POST/GET/DELETE /me/availability-windows` and `PATCH /me/availability-windows/:id`
+- Profile timezone read from `users.profileTimezone` at creation time; validated to be non-null
+
+### Assumptions / risks
+
+- **Timezone library**: No third-party timezone library in dependencies. DST expansion uses native `Date` + `Intl.DateTimeFormat` with `timeZone` option. If this proves insufficient during TDD, raise as blocker before adding a dependency.
+- **No one-off overrides**: This issue covers only weekly recurring windows. One-off overrides are a separate future issue.
+- **Unique constraint**: DB migration enforces unique `(userId, dayOfWeek, startTime)` per user. Repo layer maps DB unique-violation errors to a `duplicate_window` API error.
+- **Route location**: New `app/me/availability-windows/` route segment following the same auth+CSRF pattern as `app/me/discoverability-consent/`.
+
+### TDD execution order
+
+1. Repository interface + in-memory test double (enables all route tests)
+2. DB migration `0007_availability_windows.sql` — schema + indexes
+3. DB-backed repository implementation
+4. Route-level tests + implementation: POST (add), GET (list)
+5. Route-level tests + implementation: PATCH (edit), DELETE (remove)
+6. DST expansion utility + unit tests
+
 ## Next Step
 
-Implement the plan via vertical-slice TDD: schema migration → trigger module → dispatch lookup repository → email delivery service accessor → ownership check + revoke wiring → sync-failure recorder. One commit per slice.
+The registered next step is the first unchecked item in the Execution Checklist: **PR-Review** (sandman-pr-review).
+
+## Self-Review Findings (addressed before commit)
+
+### Standards
+- Removed unnecessary defensive `if (!row)` check after insert
+- Duplicated `hasValidCsrfToken` and `formatWindow` in two routes — accepted as existing pattern
+
+### Spec
+- Fixed PATCH partial-update validation bug: added `findById` to repo interface and validation in PATCH handler to ensure `endTime > startTime` when doing partial updates
+- Added `findById` method to in-memory test doubles
+
+### Tests
+- DST test: corrected to use January (EST) vs June (EDT) instead of March 9 vs 16 (both EDT)
+- DST expansion formula: fixed sign from `-offsetMs` to `+offsetMs` (UTC = local + offset for positive offsets)
 
 ## Already Resolved
 
 If the issue is already implemented on `main`, after fetching and checking the current `origin/main` HEAD against the issue acceptance criteria, update `.sandman/task.md` so it contains the exact line `## Status: already resolved`.
 
-Do not use issue closure, a matching local branch, or unmerged worktree changes as proof that the issue is already resolved. If any acceptance criterion is missing or you are not certain, continue with Plan.
+Do not use issue closure, a matching local branch, or unmerged worktree changes as proof that the issue is already resolved. If any acceptance criterion is missing or you are not certain, continue to Plan.
 
 Do not paraphrase this line. Do not use `already implemented`, `no action required`, or any other wording for this marker.
 
@@ -203,7 +178,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 
@@ -226,7 +201,7 @@ If `codeindex.json` exists in the repository root, use `codeindex` before `grep`
 
 Never run grep, rg, find, or any recursive content/file search against directories outside the current working directory (e.g. /tmp, /var, /usr, /etc, /opt, /home, node_modules, .git, target, dist, build, vendor). Such searches return massive output that floods the context window. Restrict searches to the cwd or explicit sub-paths within it; use the Glob/Grep tools which already scope to the project by default.
 
-This restriction applies to the current agent and to every subagent invoked in the current session, including subagents launched directly and subagents launched by any Sandman or other skill loaded during the run. When spawning, delegating to, or handing work off to a subagent, pass this Search Scope Restriction into the subagent's instructions verbatim, or reference this section by name, so the subagent obeys the same rule.
+This restriction applies to the current agent and to every subagent invoked in the current session, including subagents launched directly and subagents launched by any Sandman or other skill loaded during the run. When spawning, delegating to, or handing off to a subagent, pass this Search Scope Restriction into the subagent's instructions verbatim, or reference this section by name, so the subagent obeys the same rule.
 
 ## Required Skill Chain
 

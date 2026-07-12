@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PATCH } from "../app/me/calendar-connections/[id]/route";
 import { GET as GET_CALENDARS } from "../app/me/calendar-connections/[id]/calendars/route";
-import { sealSessionCookie, setSessionRepositoryForTests } from "../src/auth/session";
+import {
+  sealSessionCookie,
+  setSessionRepositoryForTests,
+} from "../src/auth/session";
 import { encryptCalendarToken } from "../src/calendar/token-encryption";
 import type { GoogleCalendarConnectionRecord } from "../src/calendar/google-calendar-connections";
 import type { MicrosoftCalendarConnectionRecord } from "../src/calendar/microsoft-calendar-connections";
@@ -14,7 +17,8 @@ import {
 describe("contributing calendars selection", () => {
   beforeEach(() => {
     process.env.SESSION_SECRET = "0123456789abcdef0123456789abcdef";
-    process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef";
+    process.env.CALENDAR_TOKEN_ENCRYPTION_KEY =
+      "0123456789abcdef0123456789abcdef";
   });
 
   afterEach(() => {
@@ -74,7 +78,8 @@ describe("contributing calendars selection", () => {
       setGoogleCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([connection]),
-        findById: (id) => Promise.resolve(id === connection.id ? { ...connection } : null),
+        findById: (id) =>
+          Promise.resolve(id === connection.id ? { ...connection } : null),
         updateById: () => Promise.resolve(null),
       });
       setMicrosoftCalendarConnectionRepositoryForTests({
@@ -86,9 +91,12 @@ describe("contributing calendars selection", () => {
 
       const cookie = await sealSessionCookie({ sessionId: "session-1" });
       const response = await GET_CALENDARS(
-        new Request("http://localhost/me/calendar-connections/google-connection-1/calendars", {
-          headers: { cookie },
-        }),
+        new Request(
+          "http://localhost/me/calendar-connections/google-connection-1/calendars",
+          {
+            headers: { cookie },
+          },
+        ),
         { params: Promise.resolve({ id: "google-connection-1" }) },
       );
 
@@ -155,7 +163,8 @@ describe("contributing calendars selection", () => {
       setMicrosoftCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([connection]),
-        findById: (id) => Promise.resolve(id === connection.id ? { ...connection } : null),
+        findById: (id) =>
+          Promise.resolve(id === connection.id ? { ...connection } : null),
         updateById: () => Promise.resolve(null),
       });
 
@@ -169,13 +178,24 @@ describe("contributing calendars selection", () => {
                 ? input.toString()
                 : input.url;
 
-          if (requestUrl === "https://graph.microsoft.com/v1.0/me/calendars?$select=id,name,isPrimaryCalendar") {
+          if (
+            requestUrl ===
+            "https://graph.microsoft.com/v1.0/me/calendars?$select=id,name,isPrimaryCalendar"
+          ) {
             return Promise.resolve(
               new Response(
                 JSON.stringify({
                   value: [
-                    { id: "calendar-1", name: "Work Calendar", isPrimaryCalendar: true },
-                    { id: "calendar-2", name: "Personal Calendar", isPrimaryCalendar: false },
+                    {
+                      id: "calendar-1",
+                      name: "Work Calendar",
+                      isPrimaryCalendar: true,
+                    },
+                    {
+                      id: "calendar-2",
+                      name: "Personal Calendar",
+                      isPrimaryCalendar: false,
+                    },
                   ],
                 }),
                 { status: 200 },
@@ -188,17 +208,30 @@ describe("contributing calendars selection", () => {
 
       const cookie = await sealSessionCookie({ sessionId: "session-1" });
       const response = await GET_CALENDARS(
-        new Request("http://localhost/me/calendar-connections/microsoft-connection-1/calendars", {
-          headers: { cookie },
-        }),
+        new Request(
+          "http://localhost/me/calendar-connections/microsoft-connection-1/calendars",
+          {
+            headers: { cookie },
+          },
+        ),
         { params: Promise.resolve({ id: "microsoft-connection-1" }) },
       );
 
       expect(response.status).toBe(200);
       await expect(response.json()).resolves.toEqual({
         calendars: [
-          { id: "calendar-1", name: "Work Calendar", isPrimary: true, isIncluded: true },
-          { id: "calendar-2", name: "Personal Calendar", isPrimary: false, isIncluded: false },
+          {
+            id: "calendar-1",
+            name: "Work Calendar",
+            isPrimary: true,
+            isIncluded: true,
+          },
+          {
+            id: "calendar-2",
+            name: "Personal Calendar",
+            isPrimary: false,
+            isIncluded: false,
+          },
         ],
       });
     });
@@ -236,9 +269,12 @@ describe("contributing calendars selection", () => {
 
       const cookie = await sealSessionCookie({ sessionId: "session-1" });
       const response = await GET_CALENDARS(
-        new Request("http://localhost/me/calendar-connections/nonexistent/calendars", {
-          headers: { cookie },
-        }),
+        new Request(
+          "http://localhost/me/calendar-connections/nonexistent/calendars",
+          {
+            headers: { cookie },
+          },
+        ),
         { params: Promise.resolve({ id: "nonexistent" }) },
       );
 
@@ -288,7 +324,8 @@ describe("contributing calendars selection", () => {
       setGoogleCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([stored]),
-        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        findById: (id) =>
+          Promise.resolve(id === stored.id ? { ...stored } : null),
         updateById: (id, patch) => {
           if (id !== stored.id) {
             return Promise.resolve(null);
@@ -306,21 +343,31 @@ describe("contributing calendars selection", () => {
 
       const cookie = await sealSessionCookie({ sessionId: "session-1" });
       const response = await PATCH(
-        new Request("http://localhost/me/calendar-connections/google-connection-1", {
-          method: "PATCH",
-          headers: {
-            cookie,
-            "x-csrf-token": "csrf-token-1",
-            "Content-Type": "application/json",
+        new Request(
+          "http://localhost/me/calendar-connections/google-connection-1",
+          {
+            method: "PATCH",
+            headers: {
+              cookie,
+              "x-csrf-token": "csrf-token-1",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              contributingCalendarIds: ["primary", "another-cal"],
+            }),
           },
-          body: JSON.stringify({ contributingCalendarIds: ["primary", "another-cal"] }),
-        }),
+        ),
         { params: Promise.resolve({ id: "google-connection-1" }) },
       );
 
       expect(response.status).toBe(200);
-      const body = (await response.json()) as { connection: GoogleCalendarConnectionRecord };
-      expect(body.connection.contributingCalendarIds).toEqual(["primary", "another-cal"]);
+      const body = (await response.json()) as {
+        connection: GoogleCalendarConnectionRecord;
+      };
+      expect(body.connection.contributingCalendarIds).toEqual([
+        "primary",
+        "another-cal",
+      ]);
     });
 
     it("updates contributing calendar IDs for Microsoft", async () => {
@@ -373,7 +420,8 @@ describe("contributing calendars selection", () => {
       setMicrosoftCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([stored]),
-        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        findById: (id) =>
+          Promise.resolve(id === stored.id ? { ...stored } : null),
         updateById: (id, patch) => {
           if (id !== stored.id) {
             return Promise.resolve(null);
@@ -385,21 +433,31 @@ describe("contributing calendars selection", () => {
 
       const cookie = await sealSessionCookie({ sessionId: "session-1" });
       const response = await PATCH(
-        new Request("http://localhost/me/calendar-connections/microsoft-connection-1", {
-          method: "PATCH",
-          headers: {
-            cookie,
-            "x-csrf-token": "csrf-token-1",
-            "Content-Type": "application/json",
+        new Request(
+          "http://localhost/me/calendar-connections/microsoft-connection-1",
+          {
+            method: "PATCH",
+            headers: {
+              cookie,
+              "x-csrf-token": "csrf-token-1",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              contributingCalendarIds: ["calendar-1", "calendar-2"],
+            }),
           },
-          body: JSON.stringify({ contributingCalendarIds: ["calendar-1", "calendar-2"] }),
-        }),
+        ),
         { params: Promise.resolve({ id: "microsoft-connection-1" }) },
       );
 
       expect(response.status).toBe(200);
-      const body = (await response.json()) as { connection: MicrosoftCalendarConnectionRecord };
-      expect(body.connection.contributingCalendarIds).toEqual(["calendar-1", "calendar-2"]);
+      const body = (await response.json()) as {
+        connection: MicrosoftCalendarConnectionRecord;
+      };
+      expect(body.connection.contributingCalendarIds).toEqual([
+        "calendar-1",
+        "calendar-2",
+      ]);
     });
 
     it("returns 400 for invalid contributingCalendarIds payload", async () => {
@@ -443,7 +501,8 @@ describe("contributing calendars selection", () => {
       setGoogleCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([stored]),
-        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        findById: (id) =>
+          Promise.resolve(id === stored.id ? { ...stored } : null),
         updateById: () => Promise.resolve(null),
       });
       setMicrosoftCalendarConnectionRepositoryForTests({
@@ -455,15 +514,18 @@ describe("contributing calendars selection", () => {
 
       const cookie = await sealSessionCookie({ sessionId: "session-1" });
       const response = await PATCH(
-        new Request("http://localhost/me/calendar-connections/google-connection-1", {
-          method: "PATCH",
-          headers: {
-            cookie,
-            "x-csrf-token": "csrf-token-1",
-            "Content-Type": "application/json",
+        new Request(
+          "http://localhost/me/calendar-connections/google-connection-1",
+          {
+            method: "PATCH",
+            headers: {
+              cookie,
+              "x-csrf-token": "csrf-token-1",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ contributingCalendarIds: ["valid", 123] }),
           },
-          body: JSON.stringify({ contributingCalendarIds: ["valid", 123] }),
-        }),
+        ),
         { params: Promise.resolve({ id: "google-connection-1" }) },
       );
 
@@ -569,7 +631,8 @@ describe("contributing calendars selection", () => {
       setGoogleCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([stored]),
-        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        findById: (id) =>
+          Promise.resolve(id === stored.id ? { ...stored } : null),
         updateById: (id, patch) => {
           if (id !== stored.id) {
             return Promise.resolve(null);
@@ -600,18 +663,23 @@ describe("contributing calendars selection", () => {
 
       const cookie = await sealSessionCookie({ sessionId: "session-1" });
       const response = await PATCH(
-        new Request("http://localhost/me/calendar-connections/google-connection-1", {
-          method: "PATCH",
-          headers: {
-            cookie,
-            "x-csrf-token": "csrf-token-1",
+        new Request(
+          "http://localhost/me/calendar-connections/google-connection-1",
+          {
+            method: "PATCH",
+            headers: {
+              cookie,
+              "x-csrf-token": "csrf-token-1",
+            },
           },
-        }),
+        ),
         { params: Promise.resolve({ id: "google-connection-1" }) },
       );
 
       expect(response.status).toBe(200);
-      const body = (await response.json()) as { connection: GoogleCalendarConnectionRecord };
+      const body = (await response.json()) as {
+        connection: GoogleCalendarConnectionRecord;
+      };
       expect(body.connection.status).toBe("disconnected");
     });
 
@@ -662,7 +730,8 @@ describe("contributing calendars selection", () => {
       setGoogleCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([stored]),
-        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        findById: (id) =>
+          Promise.resolve(id === stored.id ? { ...stored } : null),
         updateById: () => Promise.resolve(null),
       });
       setMicrosoftCalendarConnectionRepositoryForTests({
@@ -674,15 +743,18 @@ describe("contributing calendars selection", () => {
 
       const cookie = await sealSessionCookie({ sessionId: "session-1" });
       const response = await PATCH(
-        new Request("http://localhost/me/calendar-connections/google-connection-1", {
-          method: "PATCH",
-          headers: {
-            cookie,
-            "x-csrf-token": "csrf-token-1",
-            "Content-Type": "application/json",
+        new Request(
+          "http://localhost/me/calendar-connections/google-connection-1",
+          {
+            method: "PATCH",
+            headers: {
+              cookie,
+              "x-csrf-token": "csrf-token-1",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({}),
           },
-          body: JSON.stringify({}),
-        }),
+        ),
         { params: Promise.resolve({ id: "google-connection-1" }) },
       );
 

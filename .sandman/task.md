@@ -1,107 +1,88 @@
 # Task
 
-Implement GitHub issue #133: Containerize web and worker runtimes
+Implement GitHub issue #40: Show operational status to Admins
 
 ## Issue Context
 
 ## Parent
 
-Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14). Hosting decision: [Choose MVP hosting and deployment](https://github.com/rafaelromao/slotmerge/issues/131).
+Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmerge/issues/18). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Add the Docker build and runtime command shape needed to run the same application image locally and in Cloud Run as two services: `web` for the Next.js app and `worker` for Graphile Worker jobs and scheduler/tick logic.
-
-This ticket is a prerequisite for both local full-stack verification and GCP deployment.
+Admins see an operational status screen that summarizes transactional email delivery health, Calendar Connection sync health, and other infrastructure-level signals so they can act before users notice.
 
 ## Acceptance criteria
 
-- [ ] A production Docker image builds from the locked pnpm + Next.js + Node stack.
-- [ ] The same image can run in `web` mode and `worker` mode via command or environment selection.
-- [ ] The `web` runtime serves the Next.js app on the Cloud Run-provided port.
-- [ ] The `worker` runtime starts Graphile Worker without exposing public product routes.
-- [ ] The image can also run locally with local PostgreSQL and non-production environment variables.
-- [ ] The image does not require development-only dependencies at runtime.
-- [ ] The runtime expects configuration from environment variables and Secret Manager injection in GCP, while allowing local `.env`/compose-style configuration outside GCP.
+- [ ] Admin status screen summarizes email delivery health.
+- [ ] Admin status screen summarizes Calendar Connection sync health.
+- [ ] Status data comes from existing Email Event and Calendar Connection records.
 
 ## Blocked by
 
-- [Provision app shell, auth, and Postgres bootstrap](https://github.com/rafaelromao/slotmerge/issues/20)
-- [Provision GCP project and deployment foundation](https://github.com/rafaelromao/slotmerge/issues/132)
+- [Provision transactional email delivery and email event log](https://github.com/rafaelromao/slotmerge/issues/26)
+- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/36)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/133-containerize-web-and-worker-runtimes`
-- Source branch: `sandman/133-containerize-web-and-worker-runtimes`
+- Current branch: `sandman/40-show-operational-status-to-admins`
+- Source branch: `sandman/40-show-operational-status-to-admins`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/133-containerize-web-and-worker-runtimes` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/40-show-operational-status-to-admins` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
-- [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Plan (sandman-plan)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
+
+## Plan
+
+### Behaviors to test
+- An admin who GETs `/admin/status` receives an HTML page whose `<h1>` is "Operational status", and which lists `<section>` headings for "Transactional email delivery" and "Calendar Connections" alongside their health summaries.
+- The page reports email delivery counts per status (`queued`, `sending`, `sent`, `failed`) for the last 24 hours, plus the five most-recent failures with `code`, `message`, `recipient`, and `failedAt` rendered; the window label is shown on the page so admins know what they are looking at, and an empty window ("No email events recorded yet") is explicitly rendered when all counts are zero.
+- The page reports the number of Calendar Connections grouped by status (`pending`, `connected`, `disconnected`), and surfaces a "Tokens needing refresh" section distinguishing connections whose `accessTokenExpiresAt` is already past `now` (expired), within the next five minutes (expiring soon), and not set (unset — possible data shape on legacy rows). Each row shows `connectionId`, `userId`, `provider`, `accountIdentifier`, and `accessTokenExpiresAt` in UTC.
+- The handler enforces the existing admin session/role guard: a non-admin or unauthenticated request returns 401/403 instead of the status HTML, matching the other admin route handlers (`invites`, `topics`, `topic-proposals`).
+- Status values come from a single `loadOperationalStatus({ now })` factory that pulls counts from existing `emailEvents`/`calendarConnections` tables — no schema migration, no new infrastructure fields.
+- The page renders an empty-state copy ("No failures in the last 24 hours.") when there are zero failed events in the window, and a constant cap of `RECENT_FAILURE_LIMIT = 5` is applied to the recent-failures list; the database-backed implementation does a `LIMIT 5` ordered by `failedAt` desc, matching the renderer contract.
+
+### Testable interfaces
+- `createAdminStatusHandlers({ getSession?, statusRepository? })` -> `{ GET }`, mirroring `createAdminTopicsHandlers`/`createAdminInvitesHandlers`. The repository dependency is injected so tests can stub counts without touching Postgres.
+- `OperationalStatusRepository` exposes two read methods returning numeric rollups:
+  - `summarizeEmailDelivery({ since })`: counts per status, plus the most-recent failures capped at `RECENT_FAILURE_LIMIT = 5`.
+  - `summarizeCalendarConnections({ now })`: counts per status, plus a list of "tokens needing refresh" rows bucketed into `expired` / `expiring_soon` / `unset`.
+- Implementation lives in a new `src/admin/operational-status-repository.ts` (owning both summary queries) so the admin module owns its own read model; `src/email/repository.ts` and `src/calendar/repository.ts` are **not** modified and keep their existing write-oriented surface.
+- `app/admin/status/route.ts` re-exports `{ GET }` from the factory, matching the existing admin-route pattern.
+- Renderer `renderOperationalStatusPage(...)` returns a string containing the `<h1>Operational status</h1>` heading, the two `<section>` headings, summary numbers, recent failure rows, and the calendar token-refresh table — exactly the observable contract `invites.test.ts` already exercises.
+
+### Assumptions / risks
+- The AC says "Status data comes from existing Email Event and Calendar Connection records" — we explicitly reuse `emailEvents` and `calendarConnections` rather than adding new tables or columns. No Drizzle migration.
+- "Other infrastructure-level signals" is interpreted as a forward-compat note, not a hard requirement. MVP ships exactly two read sources — `emailEvents` and `calendarConnections`. Queue depth (Graphile Worker), DB pool stats, and external uptime pings are deliberately **out of scope** for issue #40 and not part of this slice; the page's renderer is composable so additional sections can be appended later without breaking the route shape.
+- "Sync health" is inferred from `calendarConnections.status` plus a derived bucketing of `accessTokenExpiresAt` against `now`: `expired` (≤ now), `expiring_soon` (now < t ≤ now + 5 min), and `unset` (column is null on a `connected` row). This is the strongest signal available without a schema migration. "Recent provider errors" would be a stronger signal but no `lastSyncErrorAt` column exists today, so it is out of scope.
+- This surface is read-only — a `GET` handler is sufficient; no CSRF-protected POST is needed.
+- The renderer must `escapeHtml` any dynamic string (error message, recipient email, account identifier) before emitting HTML — same helper used in `src/admin/invites.ts` and `src/admin/topics.ts`.
+
+## Next Step
+
+Begin implementing the first vertical slice: TDD the `OperationalStatusRepository` contract using in-memory fakes, then the `createAdminStatusHandlers` GET behaviors — access-denied for non-admins/unauthenticated first, then admin GET with empty summaries, then non-zero email counts and recent failures, then calendar counts and the token-refresh section.
+
+## Next Step
+
+Begin implementing the first vertical slice: TDD the `OperationalStatusRepository` contract using in-memory fakes, and the `createAdminStatusHandlers` GET behavior for admins, non-admins, and unauthenticated requests.
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Plan
-
-### Behaviors to test
-
-- Prerequisite gate: the repository contains the locked runtime scaffold needed for containerization: `package.json`, `pnpm-lock.yaml`, a Next.js production start/build path, and a real Graphile Worker entrypoint. If absent, stop as blocked by #20/#132 and do not create placeholders.
-- Tracer bullet: once the scaffold exists, the repository exposes one public container runtime contract that selects `web` or `worker` mode through command/env input and fails fast for unknown modes.
-- The production image builds from the locked pnpm + Next.js + Node stack using the repository lockfile.
-- The production runtime image contains only production/runtime artifacts and does not require development-only dependencies to start.
-- In `web` mode, the container starts the Next.js server bound to `0.0.0.0` and the Cloud Run-provided `PORT`.
-- In `worker` mode, the container starts the real Graphile Worker process/scheduler boundary and does not start the public web route surface.
-- Local execution accepts local PostgreSQL and non-production env vars through `.env`/compose-style environment injection.
-- Production configuration is expressed as environment variables suitable for Cloud Run Secret Manager injection, without hard-coding final GCP resource names while #132 is open.
-
-### Testable interfaces
-
-- Prerequisite artifact seam: repository-level existence checks for the locked app scaffold and real worker entrypoint.
-- Runtime command seam: a single Docker `CMD`/entrypoint or package script with `RUNTIME_MODE=web|worker` or equivalent CLI selection.
-- Image/build seam: `docker build` plus image inspection/smoke checks against the built production image.
-- Process boundary seam: observable start command output, bind address/port behavior, and absence of web startup in worker mode.
-- Environment contract seam: checked-in env template/docs for local and production variable names, with final GCP binding deferred to #132.
-
-### Assumptions / risks
-
-- Full implementation is blocked until #20 provides the real locked app scaffold and Graphile Worker code.
-- Final Cloud Run, Artifact Registry, Cloud SQL, and Secret Manager wiring is blocked until #132.
-- Do not create a fake Next app, fake Graphile Worker, fake lockfile, or fake deployment foundation to satisfy this ticket.
-- If prerequisites are absent during `sandman-tdd`, the correct automated outcome is a blocked stop/report, not speculative implementation.
-
 ## Next Step
 
-REVIEW_TIMEOUT: PR #151 has CI passing (SUCCESS) and mergeable (CLEAN) state. `/sandman review` comment posted but PR Review Agent did not respond within 15-minute polling budget. Implementation verified: multi-stage Dockerfile with web/worker RUNTIME_MODE selection, docker-entrypoint.sh with fail-fast for unknown modes, production-only dependencies in runtime stage. PR review loop exhausted without response.
-
-## Prerequisite Status Update
-
-- Issue #20 (BLOCKS #133): OPEN — PR #140 "Provision app shell, auth, and Postgres bootstrap" exists and is mergeable (CLEAN) but not yet merged.
-- Issue #132 (BLOCKED #133): CLOSED — GCP project and deployment foundation resolved.
-- No containerization artifacts exist anywhere: no Dockerfile, no package.json, no pnpm-lock.yaml, no Next.js source, no Graphile Worker entrypoint.
-- Current branch `sandman/133-containerize-web-and-worker-runtimes` is 2 commits BEHIND origin/main (which added GCP foundation docs).
-
-## Blocked Finding (re-confirmed)
-
-Prerequisite gate re-executed. Still blocked: `package.json`, `pnpm-lock.yaml`, Next.js source, and Graphile Worker entrypoint absent from repository. Issue #20 remains open (PR #140 pending). Issue #132 is now closed. Per plan: "do not create placeholder app, lockfile, or worker code to satisfy this ticket."
-
-## Stop Condition Reached
-
-Prerequisite gate failed: no `package.json`, no `pnpm-lock.yaml`, no Next.js source files, no Graphile Worker entrypoint exist in the repository. Issue #20 is still open. Implementation cannot proceed without the locked runtime scaffold from #20.
-
-## Blocked Finding
-
-The prerequisite gate was executed on `sandman/133-containerize-web-and-worker-runtimes`. The repository currently contains no `package.json`, no `pnpm-lock.yaml`, no Next.js source files, and no real Graphile Worker entrypoint. Per the plan, do not create placeholder app, lockfile, or worker code to satisfy this ticket. Issue #20 remains open.
+The registered next step is the first unchecked item in the Execution Checklist.
 
 ## Already Resolved
 

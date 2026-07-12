@@ -23,6 +23,7 @@ export type Session = {
 
 export type SessionRepository = {
   findById(sessionId: string): Promise<Session | null>;
+  delete?(sessionId: string): Promise<void>;
 };
 
 const sessionCookieName = "slotmerge_session";
@@ -87,6 +88,10 @@ function getSessionRepository(): SessionRepository {
 }
 
 const databaseSessionRepository: SessionRepository = {
+  delete: async (sessionId) => {
+    await getDb().delete(sessions).where(eq(sessions.id, sessionId));
+  },
+
   findById: async (sessionId) => {
     const [row] = await getDb()
       .select({

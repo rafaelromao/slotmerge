@@ -157,17 +157,21 @@ export function createMagicLinkVerifyHandlers(
       const transaction = deps.transaction ?? defaultTransaction;
 
       let sessionCookie = "";
-      await transaction(async (ctx) => {
-        const session = await ctx.sessionRepository.create({
-          userId: user.id,
-          csrfToken,
-          expiresAt,
+      try {
+        await transaction(async (ctx) => {
+          const session = await ctx.sessionRepository.create({
+            userId: user.id,
+            csrfToken,
+            expiresAt,
+          });
+
+          await ctx.inviteRepository.accept(invite.id);
+
+          sessionCookie = await sealSessionCookie({ sessionId: session.id });
         });
-
-        await ctx.inviteRepository.accept(invite.id);
-
-        sessionCookie = await sealSessionCookie({ sessionId: session.id });
-      });
+      } catch {
+        return errorResponse("server_error", 500);
+      }
 
       const origin = new URL(request.url).origin;
       return new Response(null, {

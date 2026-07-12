@@ -20,47 +20,62 @@ import {
 
 export { calendarSyncTaskName };
 
-export async function handleCalendarSyncTask(
-  payload: unknown,
-): Promise<void> {
+export async function handleCalendarSyncTask(payload: unknown): Promise<void> {
   const job = parseCalendarSyncPayload(payload);
   const config = loadRuntimeConfig();
 
-  const wrappedRecordSyncFailure: typeof recordCalendarConnectionSyncFailure = async (
-    input,
-    deps,
-  ) => {
-    const adaptedLookup: CalendarConnectionUserLookup = async (connectionId) => {
-      const result = await findCalendarConnectionById(connectionId);
-      if (!result) return null;
-      return {
-        id: result.record.id,
-        userId: result.record.userId,
-        provider: result.provider,
-        user: { email: "", displayName: null },
+  const wrappedRecordSyncFailure: typeof recordCalendarConnectionSyncFailure =
+    async (input, deps) => {
+      const adaptedLookup: CalendarConnectionUserLookup = async (
+        connectionId,
+      ) => {
+        const result = await findCalendarConnectionById(connectionId);
+        if (!result) return null;
+        return {
+          id: result.record.id,
+          userId: result.record.userId,
+          provider: result.provider,
+          user: { email: "", displayName: null },
+        };
       };
+      return recordCalendarConnectionSyncFailure(input, {
+        ...deps,
+        connectionLookup: adaptedLookup,
+      });
     };
-    return recordCalendarConnectionSyncFailure(input, {
-      ...deps,
-      connectionLookup: adaptedLookup,
-    });
-  };
 
   const result = await handleCalendarSyncJob(job, {
     findConnectionById: findCalendarConnectionById,
     decryptAccessToken: (encrypted: string) =>
-      decryptCalendarToken({ ciphertext: encrypted, key: config.calendarTokenEncryptionKey }),
+      decryptCalendarToken({
+        ciphertext: encrypted,
+        key: config.calendarTokenEncryptionKey,
+      }),
     fetchGoogleFreeBusy: (params) =>
-      fetchGoogleFreeBusyRaw(params.accessToken, params.calendarIds, params.timeMin, params.timeMax),
+      fetchGoogleFreeBusyRaw(
+        params.accessToken,
+        params.calendarIds,
+        params.timeMin,
+        params.timeMax,
+      ),
     fetchMicrosoftFreeBusy: (params) =>
-      fetchMicrosoftFreeBusyRaw(params.accessToken, params.calendarIds, params.timeMin, params.timeMax),
+      fetchMicrosoftFreeBusyRaw(
+        params.accessToken,
+        params.calendarIds,
+        params.timeMin,
+        params.timeMax,
+      ),
     upsertBusyIntervals: async (intervals) => {
       const repo = getImportedBusyIntervalRepository();
       await repo.upsertBatch(intervals);
     },
     recordSyncFailure: wrappedRecordSyncFailure,
     enqueueSync: async (connectionId: string, backoffMs?: number) => {
-      await enqueueCalendarSyncTask(connectionId, config.databaseUrl, backoffMs);
+      await enqueueCalendarSyncTask(
+        connectionId,
+        config.databaseUrl,
+        backoffMs,
+      );
     },
     clock: () => new Date(),
   });

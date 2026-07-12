@@ -3,9 +3,7 @@ import { randomInt } from "node:crypto";
 import type { BusyIntervalStatus } from "../db/schema";
 import { type GoogleCalendarConnectionRecord } from "./google-calendar-connections";
 import { type MicrosoftCalendarConnectionRecord } from "./microsoft-calendar-connections";
-import {
-  type ImportedBusyIntervalRecord,
-} from "./imported-busy-intervals";
+import { type ImportedBusyIntervalRecord } from "./imported-busy-intervals";
 import { recordCalendarConnectionSyncFailure } from "./sync-failure-recorder";
 
 export const calendarSyncTaskName = "calendar_sync";
@@ -115,9 +113,7 @@ export async function handleCalendarSyncJob(
   const { record: connection } = connectionResult;
 
   const timeMin = resolvedDeps.clock();
-  const timeMax = new Date(
-    timeMin.getTime() + 90 * 24 * 60 * 60 * 1000,
-  );
+  const timeMax = new Date(timeMin.getTime() + 90 * 24 * 60 * 60 * 1000);
 
   let busyIntervals: ImportedBusyIntervalRecord[];
 
@@ -171,7 +167,9 @@ export async function handleCalendarSyncJob(
   } catch (error) {
     if (error instanceof RateLimitError) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const depsArg = { connectionLookup: resolvedDeps.findConnectionById as any };
+      const depsArg = {
+        connectionLookup: resolvedDeps.findConnectionById as any,
+      };
       await resolvedDeps.recordSyncFailure(
         {
           connectionId,
@@ -192,7 +190,9 @@ export async function handleCalendarSyncJob(
 
     const err = error instanceof Error ? error : new Error(String(error));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const depsArg = { connectionLookup: resolvedDeps.findConnectionById as any };
+    const depsArg = {
+      connectionLookup: resolvedDeps.findConnectionById as any,
+    };
     await resolvedDeps.recordSyncFailure(
       {
         connectionId,
@@ -239,14 +239,15 @@ export async function fetchGoogleFreeBusyRaw(
 
   if (response.status === 429) {
     const retryAfter = response.headers.get("Retry-After");
-    throw new RateLimitError(
-      retryAfter ? parseInt(retryAfter, 10) : undefined,
-    );
+    throw new RateLimitError(retryAfter ? parseInt(retryAfter, 10) : undefined);
   }
 
   if (!response.ok) {
-    const body = await response.json().catch(() => ({})) as { error?: { message?: string } };
-    const message = body?.error?.message ?? `Google API error: ${response.status}`;
+    const body = (await response.json().catch(() => ({}))) as {
+      error?: { message?: string };
+    };
+    const message =
+      body?.error?.message ?? `Google API error: ${response.status}`;
     throw new ApiError(
       response.status === 401 ? "unauthorized" : "api_error",
       message,
@@ -254,10 +255,7 @@ export async function fetchGoogleFreeBusyRaw(
   }
 
   const data = (await response.json()) as {
-    calendars?: Record<
-      string,
-      { busy?: { start: string; end: string }[] }
-    >;
+    calendars?: Record<string, { busy?: { start: string; end: string }[] }>;
   };
 
   const intervals: GoogleBusyInterval[] = [];
@@ -309,14 +307,15 @@ export async function fetchMicrosoftFreeBusyRaw(
 
   if (response.status === 429) {
     const retryAfter = response.headers.get("Retry-After");
-    throw new RateLimitError(
-      retryAfter ? parseInt(retryAfter, 10) : undefined,
-    );
+    throw new RateLimitError(retryAfter ? parseInt(retryAfter, 10) : undefined);
   }
 
   if (!response.ok) {
-    const body = await response.json().catch(() => ({})) as { error?: { message?: string } };
-    const message = body?.error?.message ?? `Microsoft API error: ${response.status}`;
+    const body = (await response.json().catch(() => ({}))) as {
+      error?: { message?: string };
+    };
+    const message =
+      body?.error?.message ?? `Microsoft API error: ${response.status}`;
     throw new ApiError(
       response.status === 401 ? "unauthorized" : "api_error",
       message,

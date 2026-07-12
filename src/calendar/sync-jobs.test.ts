@@ -65,7 +65,9 @@ describe("handleCalendarSyncJob", () => {
 
       const result = await handleCalendarSyncJob({ connectionId }, deps);
 
-      expect(result).toEqual({ status: "success" } satisfies CalendarSyncResult);
+      expect(result).toEqual({
+        status: "success",
+      } satisfies CalendarSyncResult);
       expect(deps.fetchGoogleFreeBusy).toHaveBeenCalledWith({
         accessToken,
         calendarIds: ["primary"],
@@ -74,7 +76,8 @@ describe("handleCalendarSyncJob", () => {
       });
       expect(deps.upsertBusyIntervals).toHaveBeenCalled();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const calledIntervals = (deps.upsertBusyIntervals as any).mock.calls[0]?.[0] as typeof busyIntervals;
+      const calledIntervals = (deps.upsertBusyIntervals as any).mock
+        .calls[0]?.[0] as typeof busyIntervals;
       expect(calledIntervals).toHaveLength(1);
       expect(calledIntervals[0]?.providerCalendarId).toBe("primary");
       expect(calledIntervals[0]?.status).toBe("busy");
@@ -93,9 +96,15 @@ describe("handleCalendarSyncJob", () => {
 
       setCalendarSyncJobForTests(deps);
 
-      const result = await handleCalendarSyncJob({ connectionId: "google-conn-1" }, deps);
+      const result = await handleCalendarSyncJob(
+        { connectionId: "google-conn-1" },
+        deps,
+      );
 
-      expect(result).toEqual({ status: "skipped", reason: "not_connected" } satisfies CalendarSyncResult);
+      expect(result).toEqual({
+        status: "skipped",
+        reason: "not_connected",
+      } satisfies CalendarSyncResult);
       expect(deps.fetchGoogleFreeBusy).not.toHaveBeenCalled();
       expect(deps.upsertBusyIntervals).not.toHaveBeenCalled();
     });
@@ -111,23 +120,27 @@ describe("handleCalendarSyncJob", () => {
         },
       });
       deps.decryptAccessToken = vi.fn().mockReturnValue("access-token");
-      deps.fetchGoogleFreeBusy = vi.fn().mockRejectedValue(new RateLimitError(60));
-      deps.recordSyncFailure = vi.fn().mockResolvedValue({ status: "recorded" });
+      deps.fetchGoogleFreeBusy = vi
+        .fn()
+        .mockRejectedValue(new RateLimitError(60));
+      deps.recordSyncFailure = vi
+        .fn()
+        .mockResolvedValue({ status: "recorded" });
       deps.enqueueSync = vi.fn().mockResolvedValue(undefined);
 
       setCalendarSyncJobForTests(deps);
 
-      const result = await handleCalendarSyncJob({ connectionId: "google-conn-1" }, deps);
+      const result = await handleCalendarSyncJob(
+        { connectionId: "google-conn-1" },
+        deps,
+      );
 
       expect(result).toEqual({
         status: "retry_scheduled",
         retryAfterMs: 120000,
       } satisfies CalendarSyncResult);
       expect(deps.recordSyncFailure).toHaveBeenCalled();
-      expect(deps.enqueueSync).toHaveBeenCalledWith(
-        "google-conn-1",
-        120000,
-      );
+      expect(deps.enqueueSync).toHaveBeenCalledWith("google-conn-1", 120000);
     });
 
     it("records failure and re-enqueues with jitter on 429 without Retry-After", async () => {
@@ -141,13 +154,20 @@ describe("handleCalendarSyncJob", () => {
         },
       });
       deps.decryptAccessToken = vi.fn().mockReturnValue("access-token");
-      deps.fetchGoogleFreeBusy = vi.fn().mockRejectedValue(new RateLimitError());
-      deps.recordSyncFailure = vi.fn().mockResolvedValue({ status: "recorded" });
+      deps.fetchGoogleFreeBusy = vi
+        .fn()
+        .mockRejectedValue(new RateLimitError());
+      deps.recordSyncFailure = vi
+        .fn()
+        .mockResolvedValue({ status: "recorded" });
       deps.enqueueSync = vi.fn().mockResolvedValue(undefined);
 
       setCalendarSyncJobForTests(deps);
 
-      const result = await handleCalendarSyncJob({ connectionId: "google-conn-1" }, deps);
+      const result = await handleCalendarSyncJob(
+        { connectionId: "google-conn-1" },
+        deps,
+      );
 
       expect(result).toEqual({
         status: "retry_scheduled",
@@ -170,12 +190,19 @@ describe("handleCalendarSyncJob", () => {
         },
       });
       deps.decryptAccessToken = vi.fn().mockReturnValue("access-token");
-      deps.fetchGoogleFreeBusy = vi.fn().mockRejectedValue(new ApiError("unauthorized", "Token expired"));
-      deps.recordSyncFailure = vi.fn().mockResolvedValue({ status: "recorded" });
+      deps.fetchGoogleFreeBusy = vi
+        .fn()
+        .mockRejectedValue(new ApiError("unauthorized", "Token expired"));
+      deps.recordSyncFailure = vi
+        .fn()
+        .mockResolvedValue({ status: "recorded" });
 
       setCalendarSyncJobForTests(deps);
 
-      const result = await handleCalendarSyncJob({ connectionId: "google-conn-1" }, deps);
+      const result = await handleCalendarSyncJob(
+        { connectionId: "google-conn-1" },
+        deps,
+      );
 
       expect(result).toEqual({ status: "failed" } satisfies CalendarSyncResult);
       expect(deps.recordSyncFailure).toHaveBeenCalledWith(
@@ -225,7 +252,9 @@ describe("handleCalendarSyncJob", () => {
 
       const result = await handleCalendarSyncJob({ connectionId }, deps);
 
-      expect(result).toEqual({ status: "success" } satisfies CalendarSyncResult);
+      expect(result).toEqual({
+        status: "success",
+      } satisfies CalendarSyncResult);
       expect(deps.fetchMicrosoftFreeBusy).toHaveBeenCalledWith({
         accessToken,
         calendarIds: ["user@example.com"],
@@ -234,7 +263,8 @@ describe("handleCalendarSyncJob", () => {
       });
       expect(deps.upsertBusyIntervals).toHaveBeenCalled();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const calledIntervals = (deps.upsertBusyIntervals as any).mock.calls[0]?.[0] as typeof busyIntervals;
+      const calledIntervals = (deps.upsertBusyIntervals as any).mock
+        .calls[0]?.[0] as typeof busyIntervals;
       expect(calledIntervals).toHaveLength(1);
       expect(calledIntervals[0]?.providerCalendarId).toBe("user@example.com");
       expect(calledIntervals[0]?.status).toBe("busy");

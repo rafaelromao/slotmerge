@@ -11,7 +11,9 @@ export type MicrosoftWebhookDeps = {
 let googleDepsOverride: GoogleWebhookDeps | null = null;
 let microsoftDepsOverride: MicrosoftWebhookDeps | null = null;
 
-export function setGoogleWebhookHandlerForTests(deps: GoogleWebhookDeps | null) {
+export function setGoogleWebhookHandlerForTests(
+  deps: GoogleWebhookDeps | null,
+) {
   googleDepsOverride = deps;
 }
 

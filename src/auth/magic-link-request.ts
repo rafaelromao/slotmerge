@@ -2,9 +2,16 @@ import {
   createMagicLinkTokenIssuer,
   type MagicLinkTokenIssuer,
 } from "./magic-link";
+import { and, eq, gt } from "drizzle-orm";
 import type { InviteRecord, InviteRepository } from "./magic-link-verify";
 import type { UserRecord, UserRepository } from "./magic-link-verify";
 import type { EmailDeliveryService } from "../email/service";
+import { createEmailDeliveryService } from "../email/service";
+import { createPostgresEmailEventRepository } from "../email/repository";
+import { enqueueInviteEmailJob } from "../email/invite-jobs";
+import { loadRuntimeConfig } from "../config/runtime";
+import { getDb } from "../db/client";
+import { invites, users } from "../db/schema";
 
 export type MagicLinkRequestDependencies = {
   clock?: () => Date;
@@ -22,9 +29,6 @@ export function createMagicLinkRequestHandlers(
   deps: MagicLinkRequestDependencies = {},
 ) {
   const clock = deps.clock ?? (() => new Date());
-  const baseUrl = deps.baseUrl ?? "http://localhost";
-
-  let issuer: MagicLinkTokenIssuer | undefined = deps.magicLinkTokenIssuer;
 
   return {
     POST: async (request: Request): Promise<Response> => {
@@ -37,16 +41,20 @@ export function createMagicLinkRequestHandlers(
 
       const normalizedEmail = email.trim().toLowerCase();
 
-      if (!issuer) {
-        issuer = createMagicLinkTokenIssuer({
-          baseUrl,
-          secret: deps.magicLinkSecret ?? getMagicLinkSecret(),
+      const issuer =
+        deps.magicLinkTokenIssuer ??
+        createMagicLinkTokenIssuer({
+          baseUrl: deps.baseUrl ?? loadRuntimeConfig().appBaseUrl,
+          secret: deps.magicLinkSecret ?? loadRuntimeConfig().magicLinkSecret,
           clock,
         });
-      }
 
-      const inviteRepo = deps.inviteRepository ?? defaultInviteRepository;
-      const userRepo = deps.userRepository ?? defaultUserRepository;
+      const inviteRepo =
+        deps.inviteRepository ?? createDatabaseInviteRepository(clock);
+      const userRepo = deps.userRepository ?? createDatabaseUserRepository();
+      const emailService =
+        deps.emailDeliveryService ??
+        createDefaultEmailDeliveryService({ clock });
 
       const pendingInvite =
         await inviteRepo.findPendingByEmail(normalizedEmail);
@@ -54,7 +62,7 @@ export function createMagicLinkRequestHandlers(
         return handlePendingInvite({
           invite: pendingInvite,
           issuer,
-          emailService: deps.emailDeliveryService,
+          emailService,
           clock,
         });
       }
@@ -67,7 +75,7 @@ export function createMagicLinkRequestHandlers(
         return handleExistingUser({
           user: existingUser,
           issuer,
-          emailService: deps.emailDeliveryService,
+          emailService,
           clock,
         });
       }
@@ -149,21 +157,6 @@ async function handleExistingUser({
   return jsonResponse({ sent: true }, 200);
 }
 
-function getMagicLinkSecret(): string {
-  if (process.env.MAGIC_LINK_SECRET) {
-    return process.env.MAGIC_LINK_SECRET;
-  }
-  if (process.env.NODE_ENV === "test") {
-    return "test-magic-link-secret";
-  }
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "MAGIC_LINK_SECRET must be set in production. Did you forget to add it to the environment?",
-    );
-  }
-  return "local-magic-link-secret-do-not-use-in-production";
-}
-
 function jsonResponse(data: unknown, status: number): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -171,14 +164,115 @@ function jsonResponse(data: unknown, status: number): Response {
   });
 }
 
-const defaultInviteRepository: InviteRepository = {
-  findById: () => Promise.resolve(null),
-  findPendingByEmail: () => Promise.resolve(null),
-  accept: () => Promise.resolve(),
-};
+function createDefaultEmailDeliveryService({
+  clock,
+}: {
+  clock: () => Date;
+}): EmailDeliveryService {
+  return createEmailDeliveryService({
+    clock,
+    eventRepository: createPostgresEmailEventRepository(),
+    queueJob: (job) => enqueueInviteEmailJob(job),
+  });
+}
 
-const defaultUserRepository: UserRepository = {
-  findById: () => Promise.resolve(null),
-  findByEmail: () => Promise.resolve(null),
-  create: () => Promise.reject(new Error("not implemented")),
-};
+function createDatabaseInviteRepository(clock: () => Date): InviteRepository {
+  return {
+    findById: async (id) => {
+      const [row] = await getDb()
+        .select({
+          id: invites.id,
+          email: invites.email,
+          role: invites.role,
+          status: invites.status,
+          expiresAt: invites.expiresAt,
+        })
+        .from(invites)
+        .where(eq(invites.id, id))
+        .limit(1);
+
+      return row ?? null;
+    },
+    findPendingByEmail: async (email) => {
+      const [row] = await getDb()
+        .select({
+          id: invites.id,
+          email: invites.email,
+          role: invites.role,
+          status: invites.status,
+          expiresAt: invites.expiresAt,
+        })
+        .from(invites)
+        .where(
+          and(
+            eq(invites.email, email),
+            eq(invites.status, "pending"),
+            gt(invites.expiresAt, clock()),
+          ),
+        )
+        .limit(1);
+
+      return row ?? null;
+    },
+    accept: async (id) => {
+      await getDb()
+        .update(invites)
+        .set({ status: "accepted", updatedAt: clock() })
+        .where(eq(invites.id, id));
+    },
+  };
+}
+
+function createDatabaseUserRepository(): UserRepository {
+  return {
+    findById: async (id) => {
+      const [row] = await getDb()
+        .select({
+          id: users.id,
+          email: users.email,
+          role: users.role,
+          status: users.status,
+        })
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1);
+
+      return row ?? null;
+    },
+    findByEmail: async (email) => {
+      const [row] = await getDb()
+        .select({
+          id: users.id,
+          email: users.email,
+          role: users.role,
+          status: users.status,
+        })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      return row ?? null;
+    },
+    create: async ({ email, role }) => {
+      const [row] = await getDb()
+        .insert(users)
+        .values({
+          email,
+          role: role as UserRecord["role"],
+          status: "active",
+        })
+        .returning({
+          id: users.id,
+          email: users.email,
+          role: users.role,
+          status: users.status,
+        });
+
+      if (!row) {
+        throw new Error("user insert returned no row");
+      }
+
+      return row;
+    },
+  };
+}

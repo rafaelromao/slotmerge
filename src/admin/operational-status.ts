@@ -388,8 +388,3 @@ const databaseOperationalStatusRepository: OperationalStatusRepository = {
     };
   },
 };
-
-export const __testing = {
-  RECENT_FAILURE_LIMIT,
-  TOKEN_EXPIRING_SOON_MS,
-};

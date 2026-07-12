@@ -86,6 +86,10 @@ export const calendarConnections = pgTable("calendar_connections", {
   }),
   lastErrorCode: text("last_error_code"),
   lastErrorMessage: text("last_error_message"),
+  contributingCalendarIds: jsonb("contributing_calendar_ids")
+    .$type<string[]>()
+    .notNull()
+    .default([]),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

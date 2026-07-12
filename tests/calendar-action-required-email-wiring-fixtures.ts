@@ -48,6 +48,7 @@ export function buildGoogleConnection(
     accessTokenExpiresAt: null,
     lastErrorCode: null,
     lastErrorMessage: null,
+    contributingCalendarIds: [],
     ...overrides,
   };
 }

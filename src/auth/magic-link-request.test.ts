@@ -204,4 +204,74 @@ describe("magic link request handler", () => {
     expect(mockInviteRepo.setMagicLinkGeneration).not.toHaveBeenCalled();
     expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
   });
+
+  it("rolls back the generation if email delivery fails", async () => {
+    const issuer = createMagicLinkTokenIssuer({
+      clock: () => new Date("2026-07-12T00:00:00.000Z"),
+      baseUrl: "https://slotmerge.example.com",
+      secret: "test-secret",
+    });
+    const token = issuer.issueMagicLinkToken({
+      inviteId: "invite-1",
+      email: "alice@example.com",
+      expiresAt: new Date("2026-07-10T00:00:00.000Z"),
+      generation: 0,
+    });
+
+    let currentGeneration = 0;
+    const invite = {
+      id: "invite-1",
+      email: "alice@example.com",
+      role: "user",
+      status: "pending" as const,
+      magicLinkGeneration: 0,
+      expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+    };
+
+    const mockInviteRepo = createMockInviteRepository();
+    mockInviteRepo.findById.mockImplementation(async () => ({
+      ...invite,
+      magicLinkGeneration: currentGeneration,
+    }));
+    mockInviteRepo.setMagicLinkGeneration.mockImplementation(
+      async (_id, nextGeneration) => {
+        currentGeneration = nextGeneration;
+        return {
+          ...invite,
+          magicLinkGeneration: nextGeneration,
+        };
+      },
+    );
+
+    const mockEmailService = createMockEmailDeliveryService();
+    mockEmailService.sendEmail.mockRejectedValue(new Error("queue failed"));
+
+    const { POST } = createMagicLinkRequestHandlers({
+      clock: () => new Date("2026-07-15T00:00:00.000Z"),
+      magicLinkSecret: "test-secret",
+      inviteRepository: mockInviteRepo,
+      emailDeliveryService: mockEmailService,
+      rateLimiter: { allow: () => true },
+    });
+
+    const response = await POST(
+      new Request("http://localhost/auth/magic-link/request", {
+        method: "POST",
+        body: new URLSearchParams({ token: token.token }),
+      }),
+    );
+
+    expect(response.status).toBe(502);
+    expect(mockInviteRepo.setMagicLinkGeneration).toHaveBeenNthCalledWith(
+      1,
+      "invite-1",
+      1,
+    );
+    expect(mockInviteRepo.setMagicLinkGeneration).toHaveBeenNthCalledWith(
+      2,
+      "invite-1",
+      0,
+    );
+    expect(currentGeneration).toBe(0);
+  });
 });

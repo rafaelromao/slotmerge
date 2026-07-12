@@ -176,10 +176,15 @@ describe("magic link verify handler", () => {
       const mockInviteRepo = createMockInviteRepository();
       mockInviteRepo.findById.mockResolvedValue(null);
 
+      const mockUserRepo = createMockUserRepository();
+      const mockSessionRepo = createMockSessionRepository();
+
       const { POST } = createMagicLinkVerifyHandlers({
         clock: () => new Date("2026-07-15T00:00:00.000Z"),
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+        sessionRepository: mockSessionRepo,
       });
 
       const response = await POST(
@@ -191,7 +196,11 @@ describe("magic link verify handler", () => {
 
       expect(response.status).toBe(400);
       const html = await response.text();
-      expect(html).toContain("invite_not_found");
+      expect(html).toContain("not_invited");
+      expect(mockUserRepo.findByEmail).not.toHaveBeenCalled();
+      expect(mockUserRepo.create).not.toHaveBeenCalled();
+      expect(mockSessionRepo.create).not.toHaveBeenCalled();
+      expect(mockInviteRepo.accept).not.toHaveBeenCalled();
     });
 
     it("returns error for already-accepted invite", async () => {

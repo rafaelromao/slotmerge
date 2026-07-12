@@ -121,7 +121,7 @@ export function createMagicLinkVerifyHandlers(
       ).findById(payload.inviteId);
 
       if (!invite) {
-        return errorResponse("invite_not_found", 400);
+        return errorResponse("not_invited", 400);
       }
 
       if (invite.status === "accepted") {

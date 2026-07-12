@@ -1,12 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { InMemorySearchRepository } from "./in-memory-repository";
-import {
-  clearSearchRepositoryOverride,
-  getSearchRepository,
-  setSearchRepositoryForTests,
-} from "./repository";
-import type { SearchRecord } from "./drizzle-repository";
+import { getSearchRepository, setSearchRepositoryForTests } from "./repository";
+import type { SearchRecord } from "./repository";
 
 const fixedGeneratedAt = new Date("2026-07-08T15:00:00.000Z");
 
@@ -93,7 +89,7 @@ describe("SearchRepository contract", () => {
 
 describe("SearchRepository override wiring", () => {
   afterEach(() => {
-    clearSearchRepositoryOverride();
+    setSearchRepositoryForTests(null);
   });
 
   it("returns the override repository when set", () => {
@@ -104,7 +100,7 @@ describe("SearchRepository override wiring", () => {
   });
 
   it("returns a working repository even when no override is set (Postgres-backed)", () => {
-    clearSearchRepositoryOverride();
+    setSearchRepositoryForTests(null);
 
     const repository = getSearchRepository();
     expect(repository).toBeDefined();

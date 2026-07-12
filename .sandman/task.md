@@ -1,91 +1,123 @@
 # Task
 
-Implement GitHub issue #41: Send critical Admin operational email
+Implement GitHub issue #55: Define Search query parameters and validate them
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmerge/issues/18). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Search & Matching](https://github.com/rafaelromao/slotmerge/issues/15). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Critical operational issues, such as broad provider sync failures or transactional email delivery failures, trigger email to all Admins through the transactional email delivery service.
+The Search model captures selected active Topics, minimum matching Users, meeting duration, date range, and organizer-facing timezone. Validation rejects invalid combinations before running a Search.
 
 ## Acceptance criteria
 
-- [ ] Critical operational events trigger Admin emails.
-- [ ] Email delivery state is recorded.
-- [ ] Repeat events within a short window do not spam Admins.
+- [ ] Search accepts selected active Topics, minimum, duration, date range, and timezone.
+- [ ] Minimum defaults to 2 and is configurable per Search.
+- [ ] Date range defaults to current week plus next four weeks.
+- [ ] Duration is configurable per Search.
+- [ ] Invalid combinations are rejected with clear errors.
 
 ## Blocked by
 
-- [Provision transactional email delivery and email event log](https://github.com/rafaelromao/slotmerge/issues/26)
+- [Provision app shell, auth, and Postgres bootstrap](https://github.com/rafaelromao/slotmerge/issues/20)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/41-send-critical-admin-operational-email`
-- Source branch: `sandman/41-send-critical-admin-operational-email`
+- Current branch: `sandman/55-define-search-query-parameters-and-validate-them`
+- Source branch: `sandman/55-define-search-query-parameters-and-validate-them`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/41-send-critical-admin-operational-email` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/55-define-search-query-parameters-and-validate-them` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
-- [x] PR-Review (sandman-pr-review)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Next Step
+
+Run sandman-implement: execute TDD on the planned vertical slices (builder → validator → repository contract → migration → drizzle implementation), commit per slice, then run self-review, back-merge main, push, and create the PR with a `Closes #55` body.
+
 ## Plan
-### Behaviors to test (vertical red-green ordering)
 
-1. **Empty admin list is a no-op.** With zero active admins returned by the directory, `triggerAdminCriticalEmail` returns without throwing and without invoking the email delivery service.
-2. **Trigger queues an admin-critical email per active admin.** Given an active-admin list of N admins and an empty dedup history, `triggerAdminCriticalEmail` invokes the email delivery service N times with `type: "admin-critical"`, each admin's email as the recipient, and a payload containing the operational event details (`kind`, `summary`, `occurredAt`, plus any event-specific details).
-3. **Suspended and non-admin users are skipped.** `triggerAdminCriticalEmail` only delivers to users with `role === "admin"` AND `status === "active"`. The directory dependency is the single seam for that filter.
-4. **Repeat events within a short window are deduplicated per event kind.** Given a prior dispatch of the same kind within the dedup window, `triggerAdminCriticalEmail` invokes the delivery service zero times. Given a prior dispatch older than the window (or a different kind), the dispatch still fires.
-5. **The dedup path performs no state writes.** When the dedup window short-circuits the dispatch, the function does not invoke the email delivery service (no email event row is created).
-6. **Email delivery failure does not throw to the caller.** If queueing one admin's email fails (the existing delivery service throws after marking the event failed), the trigger records the per-recipient failure and continues for the remaining admins so a single bad recipient does not block the alert. The function returns a per-recipient result array.
-7. **Existing email delivery state recording is reused.** No new persistence is required for state — the existing `emailEvents` / `emailEventAttempts` rows from the email delivery service serve as both the recorded delivery state and the dedup source of truth. (Verified by reading `service.ts:84-91`: `createQueuedEvent` is the recording step.)
+### Behaviors to test (ordered vertical slices)
 
-### Testable interfaces / seams
+1. **`buildSearchInput` returns sensible defaults**
+   - With a `Clock` pinned at a known date, an active-Topics repository, and a profile repository exposing an organizer timezone: returns empty `selectedTopicIds`, `minimumMatchingUsers = 2`, `durationMinutes = null`, `dateRangeStart = startOfWeek(clock.now(), organizerTimezone)` (Monday 00:00 in that timezone), `dateRangeEnd = dateRangeStart + 5 weeks` (current week + next four), `organizerTimezone` from the profile (fallback `UTC`).
 
-- New module: `src/admin/critical-email.ts` exporting `triggerAdminCriticalEmail(input, deps)`. Dependency interface:
-  - `clock?: () => Date`
-  - `adminDirectory: { listActiveAdmins(): Promise<Array<{ id: string; email: string }>> }`
-  - `emailDeliveryService: { sendEmail(input: { recipient; type; payload }): Promise<{ emailEvent }> }`
-  - `lastDispatchLookup: { findMostRecentKindDispatch(kind: string, since: Date): Promise<Date | null> }`
-  - `dedupWindowMs?: number` (default `15 * 60 * 1000`)
-  - `now?: () => Date` (alias for `clock` to make intent clear at the call site)
-- Pure helpers exported for direct unit testing:
-  - `createOperationalEvent({ kind, summary, occurredAt, details? })` — validates/normalises the event shape used in the payload.
-  - `createKindDedupReference(kind: string)` — SHA-256 of `{ kind }` JSON; used both as the dedup lookup key and as a `payloadReference` argument so the existing `emailEvents.payload_reference` column serves as the dedup index without migration.
-  - `isCriticalEmailType(type)` — narrows `"admin-critical"` for the delivery service contract.
-- Postgres-backed implementations (wired only when the trigger is used from a real DB context — production wiring is out of scope for this ticket):
-  - `createPostgresAdminDirectory(db = getDb())` — `SELECT id, email FROM users WHERE role = 'admin' AND status = 'active' ORDER BY email`.
-  - `createPostgresAdminCriticalDispatchLookup(db = getDb())` — `SELECT created_at FROM email_events WHERE type = 'admin-critical' AND payload_reference = $1 AND created_at >= $2 ORDER BY created_at DESC LIMIT 1`.
-- New unit test file: `src/admin/critical-email.test.ts` — covers all seven behaviors with stubbed dependencies (no DB).
+2. **`buildSearchInput` honors overrides**
+   - Override values supplied by the Organizer (selected topic ids, `minimumMatchingUsers`, `durationMinutes`, explicit date range, explicit timezone) replace only the corresponding defaults; the rest of the default shape is preserved.
+
+3. **`validateSearchInput` rejects invalid combinations with field-keyed errors**
+   - Rejects when no active Topic is selected.
+   - Rejects when `minimumMatchingUsers` is less than 2.
+   - Rejects when `minimumMatchingUsers` is greater than the supplied `matchingPoolSize` (sourced from the eligibility seam, not computed inside the validator).
+   - Rejects when `durationMinutes` is `null` or non-positive.
+   - Rejects when `dateRangeEnd` is before or equal to `dateRangeStart`.
+   - Rejects when `dateRangeStart` or `dateRangeEnd` carries non-zero minutes/seconds (must be minute-aligned — not hour-of-engine-grid; the engine computes its own hourly grid later).
+   - Rejects when `organizerTimezone` is not a valid IANA zone (validated by both `Intl.DateTimeFormat` round-trip and a strict allowlist pattern).
+   - Each rejection returns `{ ok: false, errors: Array<{ field, message }> }` keyed by the input field name so callers can surface clear messages.
+
+4. **`validateSearchInput` accepts the canonical valid input**
+   - With one or more active Topic ids, `minimumMatchingUsers = 2`, `durationMinutes = 60`, a valid current-week+4-weeks range, and a valid timezone, returns `{ ok: true }`.
+
+5. **Builder happy path: built defaults pass validation without further inputs**
+   - `validateSearchInput(buildSearchInput(deps), { matchingPoolSize })` returns `{ ok: true }` when the active-Topics repository yields at least one Topic and the matching pool is large enough.
+
+6. **Active-Topic lookup is the only source of truth**
+   - `buildSearchInput` returns empty `selectedTopicIds` when the active Topics repository yields an empty list.
+   - `buildSearchInput` rejects (does not silently drop) any seed topic id passed to it that is not in the active list.
+
+7. **`SearchRepository` contract (in-memory tests only)**
+   - `save(input)` returns the persisted record with an assigned id and `generatedAt === clock.now()`.
+   - `findById(id)` returns the saved record or `null`.
+   - `listByOrganizer(organizerId)` returns prior searches for an organizer ordered by `generatedAt desc`.
+   - The repository is dependency-injectable via `setSearchRepositoryForTests(repository | null)`, matching the existing discoverability-consent and profile patterns. Snapshot reference is **never** written by `save`; it is left for a downstream issue that computes results.
+
+8. **Drizzle migration + schema introduce the `searches` table**
+   - Migration `0006_searches.sql` creates the table with columns matching the spec in `docs/mvp-spec.md` §6.6: `id`, `organizer_id` (FK to `users`), `selected_topic_ids` (jsonb array of UUIDs), `minimum_matching_users`, `duration_minutes`, `range_start`, `range_end`, `organizer_timezone`, `generated_at`, `snapshot_reference` (nullable).
+   - The Drizzle schema and snapshot reflect the new table.
+   - The migration is idempotent and applies cleanly on a fresh database.
+
+9. **Drizzle-backed `SearchRepository` implementation**
+   - The default `searchRepository` reads/writes through `getDb()` and is exercised end-to-end against an in-memory Drizzle repo in tests. The seam established in slice 7 is unchanged.
+
+### Testable interfaces (seams)
+
+- **`SearchInput` (pure data type)** — the parsed, validated input that the search engine will eventually consume. Defined in a new module under `src/search/`.
+- **`SearchInputBuilder` factory** — `createSearchInputBuilder({ activeTopicsRepository, profileRepository, clock })` returns `{ build(overrides), validate(input, deps) }`. `build` produces a candidate without running cross-field validation; `validate` is the single rejection gate. Pure functions; all side effects live behind injected seams.
+- **`validateSearchInput(input, { matchingPoolSize })`** — pure validator. Returns `{ ok: true } | { ok: false, errors: Array<{ field: string; message: string }> }`. No I/O.
+- **`SearchRepository` interface** — `save(input)`, `findById(id)`, `listByOrganizer(organizerId)`. In-memory implementation provided for tests through a `setSearchRepositoryForTests` override. Drizzle-backed implementation lives alongside. Snapshot reference is set by a separate downstream method (not in this ticket).
+- **`Clock` seam** — interface returning `now()`; tests pin the date so "current week + next four weeks" is deterministic. `rangeStart` is `startOfWeek(clock.now(), organizerTimezone)` with `weekStartsOn: "monday"`.
+- **`matchingPoolSize` seam** — supplied to `validateSearchInput` by the caller (sourced from the existing eligibility/TopicMatch count, not computed inside the validator). This keeps the matching boundary out of this ticket.
+- **IANA timezone validation** — dual check: `Intl.DateTimeFormat(candidate).resolvedOptions().timeZone` round-trips back to `candidate`, plus a strict regex allowlist matching `^[A-Za-z][A-Za-z0-9_+\-/]*$`. Avoids relying on Node ICU build quirks.
 
 ### Assumptions / risks
 
-- "Short window" is interpreted as **15 minutes**, exposed as `dedupWindowMs` so tests can pin it to e.g. `1000` ms.
-- Dedup is keyed by the event `kind` string. Two operational issues with different kinds each get their own alert.
-- The `payloadReference` written by the delivery service for `admin-critical` events is derived from `{ kind }` (not from the full event payload) so the dedup lookup can match rows purely on `payload_reference`. The full event details (summary, occurredAt, details) ride inside the delivery `payload` and are written to the worker logs / Postmark transport, not indexed in the DB. No schema migration is required.
-- Behavior 5 (no writes on dedup) is implicit but called out explicitly so the test pins it.
-- Risk: the `emailEvents.payload_reference` column will, going forward, exclusively hold dedup keys for `admin-critical` rows. This ticket does not introduce prior data, but any future caller must respect the same convention; comment this in the module.
-- Risk: the deliverability service throws when queueing fails. The trigger must isolate per-recipient failures so one bad recipient does not block the rest (covered by behavior 6).
+- **Slot computation is out of scope for this issue.** The Search model captures parameters and persists them; actual Slot generation lives in a downstream issue (#15 sub-PRD). This slice must not implement matching — only capture and validate parameters.
+- **`generatedAt`, not `createdAt`.** MVP spec §6.6 names the timestamp `generated timestamp`; we use `generatedAt` to stay aligned with the spec. The same `Clock` seam drives it.
+- **Snapshot reference is nullable and never set in this ticket.** `SearchRepository.save` writes only parameters + `generatedAt`. A downstream issue (results computation) populates `snapshot_reference` via a separate method.
+- **Selected topic ids are stored as a JSONB array of UUIDs.** Matches the immutable Search Result JSON pattern used elsewhere in the spec.
+- **No new third-party dependency.** IANA timezone validation reuses `Intl.DateTimeFormat` (already available in Node LTS). Validation errors are hand-rolled `{ field, message }[]` rather than zod issues — keeps the public surface stable for UI form rendering. (zod remains in use elsewhere; this is a local choice.)
+- **No frontend slice in this ticket.** The acceptance criteria describe the Search model and validation; the Search form UI is a separate ticket downstream of the search engine.
+- **Minute alignment, not engine-grid alignment.** The validator enforces minute-zero (`xx:00:00.000`) boundaries. The hourly Slot grid is computed by the search engine in a later ticket; this validator does not encode that engine's grid.
 
 ## Next Step
 
-PR review approved by the PR Review Agent. Run `sandman-pr-merge`.
+Begin TDD on the first vertical slice: `buildSearchInput` returns sensible defaults from a pinned `Clock` and the active-Topics/profile repositories. Move to the next slice after each RED→GREEN cycle; commit one commit per finished slice per Hard Rule 2.
 
 ## Already Resolved
 

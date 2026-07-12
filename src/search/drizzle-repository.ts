@@ -3,24 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "../db/client";
 import { searches } from "../db/schema";
 
-export type SearchRecord = {
-  id?: string;
-  organizerId: string;
-  selectedTopicIds: string[];
-  minimumMatchingUsers: number;
-  durationMinutes: number | null;
-  dateRangeStart: Date;
-  dateRangeEnd: Date;
-  organizerTimezone: string;
-  generatedAt: Date;
-  snapshotReference?: string;
-};
-
-export type SearchRepository = {
-  save(record: SearchRecord): Promise<SearchRecord>;
-  findById(id: string): Promise<SearchRecord | null>;
-  listByOrganizer(organizerId: string): Promise<SearchRecord[]>;
-};
+import type { SearchRecord, SearchRepository } from "./repository";
 
 export function createPostgresSearchRepository(): SearchRepository {
   return {

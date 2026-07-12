@@ -90,7 +90,7 @@ export function createSearchInputBuilder(
         organizerId: deps.organizerId,
         selectedTopicIds: requestedTopicIds,
         minimumMatchingUsers: overrides.minimumMatchingUsers ?? 2,
-        durationMinutes: overrides.durationMinutes ?? null,
+        durationMinutes: overrides.durationMinutes ?? 60,
         dateRangeStart: startOfRange,
         dateRangeEnd: endOfRange,
         organizerTimezone: timezone,
@@ -143,13 +143,6 @@ export function startOfWeekInTimezone(date: Date, timezone: string): Date {
   const daysSinceMonday = weekdayIndex === 0 ? 6 : weekdayIndex - 1;
 
   return new Date(localMidnightAsUtc - daysSinceMonday * 86400000);
-}
-
-export function buildSearchInput(
-  deps: SearchInputBuilderDeps,
-  overrides: SearchInputOverrides = {},
-): Promise<SearchInput> {
-  return createSearchInputBuilder(deps).build(overrides);
 }
 
 export type SearchInputError = {

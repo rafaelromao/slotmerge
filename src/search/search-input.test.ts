@@ -12,10 +12,7 @@ import {
   submitSearch,
   validateSearchInput,
 } from "./search-input";
-import {
-  clearSearchRepositoryOverride,
-  setSearchRepositoryForTests,
-} from "./repository";
+import { setSearchRepositoryForTests } from "./repository";
 
 class InMemoryActiveTopicsRepository implements ActiveTopicsRepository {
   constructor(
@@ -81,7 +78,7 @@ describe("buildSearchInput", () => {
     expect(input.organizerId).toBe("organizer-1");
     expect(input.selectedTopicIds).toEqual([]);
     expect(input.minimumMatchingUsers).toBe(2);
-    expect(input.durationMinutes).toBeNull();
+    expect(input.durationMinutes).toBe(60);
     expect(input.organizerTimezone).toBe("America/Sao_Paulo");
     expect(input.dateRangeStart.toISOString()).toBe("2026-07-06T03:00:00.000Z");
     expect(input.dateRangeEnd.toISOString()).toBe("2026-08-10T03:00:00.000Z");
@@ -143,7 +140,7 @@ describe("buildSearchInput", () => {
     const input = await builder.build({ minimumMatchingUsers: 4 });
 
     expect(input.minimumMatchingUsers).toBe(4);
-    expect(input.durationMinutes).toBeNull();
+    expect(input.durationMinutes).toBe(60);
     expect(input.selectedTopicIds).toEqual([]);
     expect(input.organizerTimezone).toBe("America/Sao_Paulo");
   });
@@ -354,7 +351,7 @@ describe("buildSearchInput integration with validateSearchInput", () => {
 
 describe("submitSearch", () => {
   afterEach(() => {
-    clearSearchRepositoryOverride();
+    setSearchRepositoryForTests(null);
   });
 
   it("persists a validated Search and returns the stored record", async () => {

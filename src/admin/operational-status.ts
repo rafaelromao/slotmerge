@@ -1,5 +1,15 @@
 import { getSessionFromRequest, type Session } from "../auth/session";
-import { and, count, desc, eq, gte, isNotNull, isNull, lte } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gt,
+  gte,
+  isNotNull,
+  isNull,
+  lte,
+} from "drizzle-orm";
 import { getDb } from "../db/client";
 import { calendarConnections, emailEvents } from "../db/schema";
 
@@ -343,7 +353,7 @@ const databaseOperationalStatusRepository: OperationalStatusRepository = {
         and(
           eq(calendarConnections.status, "connected"),
           isNotNull(calendarConnections.accessTokenExpiresAt),
-          gte(calendarConnections.accessTokenExpiresAt, now),
+          gt(calendarConnections.accessTokenExpiresAt, now),
           lte(calendarConnections.accessTokenExpiresAt, expiringSoon),
         ),
       );

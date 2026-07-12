@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export type MagicLinkTokenIssuerOptions = {
   baseUrl: string;
   clock?: () => Date;
-  secret?: string;
+  secret: string;
 };
 
 export type MagicLinkTokenInput = {
@@ -33,10 +33,7 @@ export function createMagicLinkTokenIssuer({
         issuedAt: issuedAt.toISOString(),
       };
       const payloadEncoded = base64UrlEncode(JSON.stringify(payload));
-      const signature = signPayload({
-        payloadEncoded,
-        secret: secret ?? resolveMagicLinkSecret(),
-      });
+      const signature = signPayload({ payloadEncoded, secret });
       const token = `${payloadEncoded}.${signature}`;
       const url = new URL("/auth/magic-link/verify", baseUrl);
       url.searchParams.set("token", token);
@@ -65,6 +62,13 @@ function base64UrlEncode(value: string): string {
   return Buffer.from(value, "utf8").toString("base64url");
 }
 
+/**
+ * Downstream-only seam: the `/auth/magic-link/verify` endpoint (issue out of
+ * scope for #22, delivered in a later ticket) compares the signed token
+ * signature against an HMAC computed over the wire payload using the same
+ * `MAGIC_LINK_SECRET`. Kept here so the verifier ships next to the issuer
+ * and the constant-time comparison lives in one place.
+ */
 export function timingSafeStringEquals(a: string, b: string): boolean {
   const aBuf = Buffer.from(a, "utf8");
   const bBuf = Buffer.from(b, "utf8");
@@ -72,15 +76,4 @@ export function timingSafeStringEquals(a: string, b: string): boolean {
     return false;
   }
   return timingSafeEqual(aBuf, bBuf);
-}
-
-function resolveMagicLinkSecret(): string {
-  const envSecret = process.env.MAGIC_LINK_SECRET;
-  if (envSecret) {
-    return envSecret;
-  }
-  if (process.env.NODE_ENV === "test") {
-    return "test-magic-link-secret-do-not-use-in-production";
-  }
-  throw new Error("MAGIC_LINK_SECRET is required outside local/test runtime");
 }

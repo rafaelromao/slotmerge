@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { getSessionFromRequest, type Session } from "../auth/session";
 import { createMagicLinkTokenIssuer } from "../auth/magic-link";
+import { loadRuntimeConfig } from "../config/runtime";
 import { getDb } from "../db/client";
 import {
   invites,
@@ -58,9 +59,7 @@ const inviteLifetimeDays = 30;
 export function createAdminInvitesHandlers({
   getSession = getSessionFromRequest,
   inviteRepository = databaseInviteRepository,
-  magicLinkTokenIssuer = createMagicLinkTokenIssuer({
-    baseUrl: process.env.APP_BASE_URL ?? "http://localhost:3000",
-  }),
+  magicLinkTokenIssuer = createDefaultMagicLinkTokenIssuer(),
   emailDeliveryService,
   clock = () => new Date(),
 }: AdminInvitesDependencies = {}) {
@@ -279,6 +278,16 @@ function normalizeEmail(email: string): string {
 
 function getDefaultInviteExpiration(now: Date): Date {
   return new Date(now.getTime() + inviteLifetimeDays * 24 * 60 * 60 * 1000);
+}
+
+function createDefaultMagicLinkTokenIssuer(): ReturnType<
+  typeof createMagicLinkTokenIssuer
+> {
+  const config = loadRuntimeConfig();
+  return createMagicLinkTokenIssuer({
+    baseUrl: config.appBaseUrl,
+    secret: config.magicLinkSecret,
+  });
 }
 
 function loadDefaultEmailDeliveryService({

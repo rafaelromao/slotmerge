@@ -7,6 +7,7 @@ describe("magic link token issuer", () => {
     const issuer = createMagicLinkTokenIssuer({
       clock: () => new Date("2026-07-12T00:00:00.000Z"),
       baseUrl: "https://slotmerge.example.com",
+      secret: "test-magic-link-secret",
     });
 
     const expiresAt = new Date("2026-08-11T00:00:00.000Z");
@@ -28,6 +29,7 @@ describe("magic link token issuer", () => {
     const issuer = createMagicLinkTokenIssuer({
       clock: () => new Date("2026-07-12T00:00:00.000Z"),
       baseUrl: "https://slotmerge.example.com",
+      secret: "test-magic-link-secret",
     });
 
     const expiresAt = new Date("2026-08-11T00:00:00.000Z");

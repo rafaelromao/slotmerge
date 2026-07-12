@@ -23,7 +23,6 @@ export function createMagicLinkTokenIssuer({
   clock = () => new Date(),
   secret,
 }: MagicLinkTokenIssuerOptions) {
-  const signingSecret = secret ?? resolveMagicLinkSecret();
   return {
     issueMagicLinkToken(input: MagicLinkTokenInput): MagicLinkToken {
       const issuedAt = clock();
@@ -36,7 +35,7 @@ export function createMagicLinkTokenIssuer({
       const payloadEncoded = base64UrlEncode(JSON.stringify(payload));
       const signature = signPayload({
         payloadEncoded,
-        secret: signingSecret,
+        secret: secret ?? resolveMagicLinkSecret(),
       });
       const token = `${payloadEncoded}.${signature}`;
       const url = new URL("/auth/magic-link/verify", baseUrl);

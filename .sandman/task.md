@@ -39,7 +39,7 @@ The worktree MUST be checked out on `sandman/48-reconcile-calendar-connection-sy
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -106,7 +106,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Implement (sandman-implement: execute TDD via sandman-tdd, commit, self-review, back-merge, create PR, delegate review)
+PR-Review (sandman-pr-review)
 
 ## Already Resolved
 

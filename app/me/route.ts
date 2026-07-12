@@ -1,10 +1,20 @@
-import { getSessionFromRequest } from "../../src/auth/session";
+import { timingSafeEqual } from "node:crypto";
+import { z } from "zod";
+
 import {
+  clearSessionCookie,
+  getSessionFromRequest,
+} from "../../src/auth/session";
+import { getDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
+import {
+  deleteProfileByUserId,
   getProfileByUserId,
   updateProfileByUserId,
 } from "../../src/profile/repository";
-import { timingSafeEqual } from "node:crypto";
-import { z } from "zod";
+import {
+  isEligibleForSearch,
+  type ProfileInputs,
+} from "../../src/search/eligibility";
 
 const supportedTimeZones = new Set(Intl.supportedValuesOf("timeZone"));
 
@@ -33,6 +43,7 @@ function computeSetupCompleteness(
   topicProposals: TopicProposal[],
   availabilityWindows: AvailabilityWindow[],
   calendarConnections: CalendarConnection[],
+  discoverabilityConsentGranted: boolean,
 ): SetupState {
   const items: SetupItem[] = [
     {
@@ -45,7 +56,7 @@ function computeSetupCompleteness(
       key: "discoverabilityConsent",
       label: "Discoverability consent",
       required: true,
-      complete: false,
+      complete: discoverabilityConsentGranted,
     },
     {
       key: "hasTopic",
@@ -78,28 +89,93 @@ function computeSetupCompleteness(
   };
 }
 
+type PerUserLookupSeam = {
+  topicsByUserId: Map<string, Topic[]>;
+  topicProposalsByUserId: Map<string, TopicProposal[]>;
+  availabilityWindowsByUserId: Map<string, AvailabilityWindow[]>;
+  calendarConnectionsByUserId: Map<string, CalendarConnection[]>;
+};
+
+const perUserLookupState: PerUserLookupSeam = {
+  topicsByUserId: new Map(),
+  topicProposalsByUserId: new Map(),
+  availabilityWindowsByUserId: new Map(),
+  calendarConnectionsByUserId: new Map(),
+};
+
+export function setPerUserLookupStateForTests(
+  state: Partial<PerUserLookupSeam>,
+) {
+  if (state.topicsByUserId) {
+    perUserLookupState.topicsByUserId = state.topicsByUserId;
+  }
+  if (state.topicProposalsByUserId) {
+    perUserLookupState.topicProposalsByUserId = state.topicProposalsByUserId;
+  }
+  if (state.availabilityWindowsByUserId) {
+    perUserLookupState.availabilityWindowsByUserId =
+      state.availabilityWindowsByUserId;
+  }
+  if (state.calendarConnectionsByUserId) {
+    perUserLookupState.calendarConnectionsByUserId =
+      state.calendarConnectionsByUserId;
+  }
+}
+
+export function clearPerUserLookupStateForTests() {
+  perUserLookupState.topicsByUserId.clear();
+  perUserLookupState.topicProposalsByUserId.clear();
+  perUserLookupState.availabilityWindowsByUserId.clear();
+  perUserLookupState.calendarConnectionsByUserId.clear();
+}
+
+function deletePerUserData(userId: string) {
+  perUserLookupState.topicsByUserId.delete(userId);
+  perUserLookupState.topicProposalsByUserId.delete(userId);
+  perUserLookupState.availabilityWindowsByUserId.delete(userId);
+  perUserLookupState.calendarConnectionsByUserId.delete(userId);
+}
+
 function getTopicsByUserId(userId: string): Promise<Topic[]> {
-  void userId;
-  return Promise.resolve([]);
+  return Promise.resolve(perUserLookupState.topicsByUserId.get(userId) ?? []);
 }
 
 function getTopicProposalsByUserId(userId: string): Promise<TopicProposal[]> {
-  void userId;
-  return Promise.resolve([]);
+  return Promise.resolve(
+    perUserLookupState.topicProposalsByUserId.get(userId) ?? [],
+  );
 }
 
 function getAvailabilityWindowsByUserId(
   userId: string,
 ): Promise<AvailabilityWindow[]> {
-  void userId;
-  return Promise.resolve([]);
+  return Promise.resolve(
+    perUserLookupState.availabilityWindowsByUserId.get(userId) ?? [],
+  );
 }
 
 function getCalendarConnectionsByUserId(
   userId: string,
 ): Promise<CalendarConnection[]> {
-  void userId;
-  return Promise.resolve([]);
+  return Promise.resolve(
+    perUserLookupState.calendarConnectionsByUserId.get(userId) ?? [],
+  );
+}
+
+export function listTopicsForUserInTests(userId: string): Promise<Topic[]> {
+  return getTopicsByUserId(userId);
+}
+
+export function listAvailabilityWindowsForUserInTests(
+  userId: string,
+): Promise<AvailabilityWindow[]> {
+  return getAvailabilityWindowsByUserId(userId);
+}
+
+export function listCalendarConnectionsForUserInTests(
+  userId: string,
+): Promise<CalendarConnection[]> {
+  return getCalendarConnectionsByUserId(userId);
 }
 
 const profileUpdateSchema = z
@@ -127,14 +203,13 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
-  const topics = await getTopicsByUserId(session.user.id);
-  const topicProposals = await getTopicProposalsByUserId(session.user.id);
-  const availabilityWindows = await getAvailabilityWindowsByUserId(
-    session.user.id,
-  );
-  const calendarConnections = await getCalendarConnectionsByUserId(
-    session.user.id,
-  );
+  const [topics, topicProposals, availabilityWindows, calendarConnections] =
+    await Promise.all([
+      getTopicsByUserId(session.user.id),
+      getTopicProposalsByUserId(session.user.id),
+      getAvailabilityWindowsByUserId(session.user.id),
+      getCalendarConnectionsByUserId(session.user.id),
+    ]);
 
   return buildMeResponse(
     profile,
@@ -180,14 +255,13 @@ export async function PATCH(request: Request): Promise<Response> {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
-  const topics = await getTopicsByUserId(session.user.id);
-  const topicProposals = await getTopicProposalsByUserId(session.user.id);
-  const availabilityWindows = await getAvailabilityWindowsByUserId(
-    session.user.id,
-  );
-  const calendarConnections = await getCalendarConnectionsByUserId(
-    session.user.id,
-  );
+  const [topics, topicProposals, availabilityWindows, calendarConnections] =
+    await Promise.all([
+      getTopicsByUserId(session.user.id),
+      getTopicProposalsByUserId(session.user.id),
+      getAvailabilityWindowsByUserId(session.user.id),
+      getCalendarConnectionsByUserId(session.user.id),
+    ]);
 
   return buildMeResponse(
     updatedProfile,
@@ -199,34 +273,50 @@ export async function PATCH(request: Request): Promise<Response> {
   );
 }
 
-function buildMeResponse(
+async function buildMeResponse(
   profile: MeProfile,
   csrfToken: string,
   topics: Topic[],
   topicProposals: TopicProposal[],
   availabilityWindows: AvailabilityWindow[],
   calendarConnections: CalendarConnection[],
-): Response {
+): Promise<Response> {
+  const consent = await getDiscoverabilityConsent(profile.id);
+  const consented = consent !== null;
+  const grantedAtIso = consented ? consent.grantedAt.toISOString() : null;
+
   const setup = computeSetupCompleteness(
     profile,
     topics,
     topicProposals,
     availabilityWindows,
     calendarConnections,
+    consented,
   );
+
+  const profileInputs: ProfileInputs = {
+    hasDisplayName: Boolean(profile.displayName?.trim()),
+    hasTopicOrProposal: topics.length > 0 || topicProposals.length > 0,
+    hasAvailabilitySource:
+      availabilityWindows.length > 0 || calendarConnections.length > 0,
+    isActive: profile.status === "active",
+  };
+
+  const eligible = isEligibleForSearch(profileInputs, consented);
 
   return Response.json({
     user: profile,
     session: { csrfToken },
     setup,
-    discoverability: { consented: false },
+    discoverability:
+      grantedAtIso === null
+        ? { consented: false, grantedAt: null }
+        : { consented: true, grantedAt: grantedAtIso },
     topics,
     topicProposals,
     availabilityWindows,
     calendarConnections,
-    searchEligibility: {
-      eligible: setup.complete,
-    },
+    searchEligibility: { eligible },
   });
 }
 
@@ -242,4 +332,31 @@ function hasValidCsrfToken(request: Request, expectedToken: string): boolean {
 
 function isSupportedTimeZone(timeZone: string): boolean {
   return supportedTimeZones.has(timeZone);
+}
+
+export async function DELETE(request: Request): Promise<Response> {
+  const session = await getSessionFromRequest(request);
+
+  if (!session) {
+    return Response.json({ error: "unauthenticated" }, { status: 401 });
+  }
+
+  if (!hasValidCsrfToken(request, session.csrfToken)) {
+    return Response.json({ error: "invalid_csrf" }, { status: 403 });
+  }
+
+  const deleted = await deleteProfileByUserId(session.user.id);
+
+  if (!deleted) {
+    return Response.json({ error: "user_not_found" }, { status: 404 });
+  }
+
+  deletePerUserData(session.user.id);
+
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Set-Cookie": clearSessionCookie(),
+    },
+  });
 }

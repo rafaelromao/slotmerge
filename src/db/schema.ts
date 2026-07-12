@@ -108,9 +108,9 @@ export const invites = pgTable(
     email: text("email").notNull().unique(),
     role: text("role").$type<InviteRole>().notNull().default("user"),
     status: text("status").$type<InviteStatus>().notNull().default("pending"),
-    invitedByAdminId: uuid("invited_by_admin_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "restrict" }),
+    invitedByAdminId: uuid("invited_by_admin_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -288,3 +288,12 @@ export const userTopicsRelations = relations(userTopics, ({ one }) => ({
     references: [topics.id],
   }),
 }));
+
+export const discoverabilityConsents = pgTable("discoverability_consents", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  grantedAt: timestamp("granted_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});

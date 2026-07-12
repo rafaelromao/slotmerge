@@ -19,8 +19,8 @@ export type InviteListItem = {
   email: string;
   role: InviteRole;
   status: InviteStatus;
-  invitedByAdminId: string;
-  invitedByAdminEmail: string;
+  invitedByAdminId: string | null;
+  invitedByAdminEmail: string | null;
 };
 
 export type InviteRecord = InviteListItem & {
@@ -210,7 +210,7 @@ function renderAdminInvitesPage({
                 <td>${escapeHtml(invite.email)}</td>
                 <td>${escapeHtml(labelInviteRole(invite.role))}</td>
                 <td>${escapeHtml(labelInviteStatus(invite.status))}</td>
-                <td>${escapeHtml(invite.invitedByAdminEmail)}</td>
+                <td>${escapeHtml(invite.invitedByAdminEmail ?? "(deleted Admin)")}</td>
               </tr>`,
           )
           .join("")
@@ -314,7 +314,7 @@ const databaseInviteRepository: InviteRepository = {
         invitedByAdminEmail: users.email,
       })
       .from(invites)
-      .innerJoin(users, eq(invites.invitedByAdminId, users.id))
+      .leftJoin(users, eq(invites.invitedByAdminId, users.id))
       .orderBy(desc(invites.createdAt));
 
     return rows;

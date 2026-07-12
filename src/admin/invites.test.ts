@@ -395,4 +395,41 @@ describe("admin invites", () => {
       "https://slotmerge.example.com/auth/magic-link/verify?token=payload.signature",
     );
   });
+
+  it("renders '(deleted Admin)' when the inviter has been self-deleted", async () => {
+    const { GET } = createAdminInvitesHandlers({
+      getSession: vi.fn().mockResolvedValue({
+        user: {
+          id: "admin-1",
+          email: "admin@example.com",
+          displayName: null,
+          role: "admin",
+          status: "active",
+          profileTimezone: null,
+          bufferMinutes: 0,
+        },
+        csrfToken: "csrf-token-1",
+      }),
+      inviteRepository: {
+        listInvites: vi.fn().mockResolvedValue([
+          {
+            id: "invite-1",
+            email: "orphan@example.com",
+            role: "user",
+            status: "pending",
+            invitedByAdminId: null,
+            invitedByAdminEmail: null,
+          },
+        ]),
+        createInvite: vi.fn(),
+      },
+    });
+
+    const response = await GET(new Request("http://localhost/admin/invites"));
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain("orphan@example.com");
+    expect(html).toContain("(deleted Admin)");
+  });
 });

@@ -87,13 +87,14 @@ describe("admin invites", () => {
       },
       magicLinkTokenIssuer: {
         issueMagicLinkToken: vi.fn().mockReturnValue({
-          token: "payload.nonce.signature",
+          token: "payload.signature",
           magicLinkUrl:
-            "https://slotmerge.example.com/auth/magic-link/verify?token=payload.nonce.signature",
+            "https://slotmerge.example.com/auth/magic-link/verify?token=payload.signature",
           expiresAt: new Date("2026-08-11T00:00:00.000Z"),
         }),
       },
       emailDeliveryService: { sendEmail },
+      clock: () => new Date("2026-07-12T00:00:00.000Z"),
     });
 
     const response = await POST(
@@ -117,6 +118,7 @@ describe("admin invites", () => {
       email: "alice@example.com",
       role: "user",
       invitedByAdminId: "admin-1",
+      now: new Date("2026-07-12T00:00:00.000Z"),
     });
   });
 
@@ -353,9 +355,9 @@ describe("admin invites", () => {
       },
       magicLinkTokenIssuer: {
         issueMagicLinkToken: vi.fn().mockReturnValue({
-          token: "payload.nonce.signature",
+          token: "payload.signature",
           magicLinkUrl:
-            "https://slotmerge.example.com/auth/magic-link/verify?token=payload.nonce.signature",
+            "https://slotmerge.example.com/auth/magic-link/verify?token=payload.signature",
           expiresAt: new Date("2026-08-11T00:00:00.000Z"),
         }),
       },
@@ -390,7 +392,7 @@ describe("admin invites", () => {
       role: "user",
     });
     expect(sent.payload.magicLinkUrl).toBe(
-      "https://slotmerge.example.com/auth/magic-link/verify?token=payload.nonce.signature",
+      "https://slotmerge.example.com/auth/magic-link/verify?token=payload.signature",
     );
   });
 });

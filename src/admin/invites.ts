@@ -10,7 +10,9 @@ import {
   type InviteStatus,
   users,
 } from "../db/schema";
-import type { EmailDeliveryService } from "../email/service";
+import { createEmailDeliveryService } from "../email/service";
+import { createPostgresEmailEventRepository } from "../email/repository";
+import { enqueueInviteEmailJob } from "../email/invite-jobs";
 
 export type InviteListItem = {
   id: string;
@@ -31,6 +33,7 @@ export type InviteRepository = {
     email: string;
     role: InviteRole;
     invitedByAdminId: string;
+    now?: Date;
   }): Promise<CreateInviteResult>;
 };
 
@@ -41,7 +44,7 @@ export type AdminInvitesDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
   inviteRepository?: InviteRepository;
   magicLinkTokenIssuer?: ReturnType<typeof createMagicLinkTokenIssuer>;
-  emailDeliveryService?: EmailDeliveryService;
+  emailDeliveryService?: ReturnType<typeof createEmailDeliveryService>;
   clock?: () => Date;
 };
 
@@ -115,6 +118,7 @@ export function createAdminInvitesHandlers({
         email: normalizeEmail(submission.data.email),
         role: submission.data.role,
         invitedByAdminId: session.user.id,
+        now: clock(),
       });
 
       if (!result.ok) {
@@ -135,8 +139,7 @@ export function createAdminInvitesHandlers({
       });
 
       const service =
-        emailDeliveryService ??
-        (await loadDefaultEmailDeliveryService({ clock }));
+        emailDeliveryService ?? loadDefaultEmailDeliveryService({ clock });
       try {
         await service.sendEmail({
           recipient: result.invite.email,
@@ -274,19 +277,15 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function getDefaultInviteExpiration(now: () => Date): Date {
-  return new Date(now().getTime() + inviteLifetimeDays * 24 * 60 * 60 * 1000);
+function getDefaultInviteExpiration(now: Date): Date {
+  return new Date(now.getTime() + inviteLifetimeDays * 24 * 60 * 60 * 1000);
 }
 
-async function loadDefaultEmailDeliveryService({
+function loadDefaultEmailDeliveryService({
   clock,
 }: {
   clock: () => Date;
-}): Promise<EmailDeliveryService> {
-  const { createEmailDeliveryService } = await import("../email/service");
-  const { createPostgresEmailEventRepository } =
-    await import("../email/repository");
-  const { enqueueInviteEmailJob } = await import("../email/invite-jobs");
+}): ReturnType<typeof createEmailDeliveryService> {
   return createEmailDeliveryService({
     clock,
     eventRepository: createPostgresEmailEventRepository(),
@@ -320,7 +319,7 @@ const databaseInviteRepository: InviteRepository = {
 
     return rows;
   },
-  createInvite: async ({ email, role, invitedByAdminId }) => {
+  createInvite: async ({ email, role, invitedByAdminId, now }) => {
     const db = getDb();
     try {
       const [row] = await db
@@ -330,7 +329,7 @@ const databaseInviteRepository: InviteRepository = {
           role,
           status: "pending",
           invitedByAdminId,
-          expiresAt: getDefaultInviteExpiration(() => new Date()),
+          expiresAt: getDefaultInviteExpiration(now ?? new Date()),
         })
         .returning({
           id: invites.id,

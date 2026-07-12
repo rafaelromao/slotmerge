@@ -44,7 +44,7 @@ The worktree MUST be checked out on `sandman/133-containerize-web-and-worker-run
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: TDD + commit `996048a` landed, full suite 68 tests green, typecheck/lint/format clean)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 

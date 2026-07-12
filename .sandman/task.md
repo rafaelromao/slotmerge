@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #23: Sign in via magic link
+Implement GitHub issue #24: Request new magic link after invalid or expired link
 
 ## Issue Context
 
@@ -10,30 +10,29 @@ Sub-PRD: [Sub-PRD: Auth & Invites](https://github.com/rafaelromao/slotmerge/issu
 
 ## What to build
 
-Clicking a valid, unused, unexpired magic link authenticates the recipient, creates a session, accepts the invite, and redirects into the app. Used or expired links produce a clear error screen.
+From the magic-link error screen, a user requests a fresh magic link. The prior unused link is invalidated, and the new link is sent only to the email associated with the original invite.
 
 ## Acceptance criteria
 
-- [ ] A valid magic link creates a session and accepts the invite.
-- [ ] A used magic link is rejected on second use.
-- [ ] An expired magic link is rejected.
-- [ ] The error screen explains the failure and offers the next step (covered by the next ticket).
-- [ ] Sessions have a defined lifetime and can be ended.
+- [ ] The error screen offers a "send a new link" action.
+- [ ] The prior unused magic link is invalidated.
+- [ ] A new magic-link email is sent to the invited email only.
+- [ ] Repeated requests do not silently spawn multiple valid links.
 
 ## Blocked by
 
-- [Send invitation email with magic link](https://github.com/rafaelromao/slotmerge/issues/22)
+- [Sign in via magic link](https://github.com/rafaelromao/slotmerge/issues/23)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/23-sign-in-via-magic-link`
-- Source branch: `sandman/23-sign-in-via-magic-link`
+- Current branch: `sandman/24-request-new-magic-link-after-invalid-or-expired-link`
+- Source branch: `sandman/24-request-new-magic-link-after-invalid-or-expired-link`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/23-sign-in-via-magic-link` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/24-request-new-magic-link-after-invalid-or-expired-link` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -49,7 +48,24 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-sandman-pr-review (PR #162)
+PR-Review (sandman-pr-review)
+
+## Plan
+### Behaviors to test
+- A magic-link failure screen for an expired invite link offers a safe "send a new link" action, while a malformed token still shows only a generic failure.
+- A resend request uses the invite record as the source of truth, sends a fresh magic-link email to the invited email only, and advances persisted invite state so only the newest link can verify.
+- After a resend, the prior unused magic-link token is rejected by verification.
+- Repeated resend requests keep only the latest token valid, and the resend endpoint is rate-limited.
+
+### Testable interfaces
+- `createMagicLinkVerifyHandlers` should expose an error view that can carry a recoverable resend action for expired-but-parseable tokens.
+- A new resend handler should accept only the original token/invite reference, resolve the invite from storage, and inject email delivery and rate-limiting dependencies.
+- The invite persistence shape should include a resend generation or nonce that the token issuer embeds and the verifier compares.
+
+### Assumptions / risks
+- Invalid tokens remain generic because they cannot safely identify an invite.
+- The resend path needs a small persistence migration and a matching verifier change; without both, old links cannot be invalidated safely.
+- Repeated requests may still enqueue multiple emails, but only one token should remain valid at a time.
 
 ## Already Resolved
 
@@ -168,98 +184,3 @@ Before final response, verify and report:
 - Test/format commands run and outcomes.
 - PR URL and review status, if a PR was created.
 - Whether PR merge was performed or skipped, with reason.
-
-## Plan
-
-### Behaviors to test
-
-1. **Valid magic link creates session and accepts invite**
-   - Given a valid unexpired magic link token, pending invite, and matching email
-   - When POST /auth/magic-link/verify is called
-   - Then user is upserted (created with invite role if not exists), session is created, invite is marked accepted, session cookie is set, and redirect to app root `/`
-
-2. **Used magic link is rejected on second use**
-   - Given a magic link token whose invite is already accepted
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "invite_already_accepted" reason
-
-3. **Expired token is rejected**
-   - Given a magic link token whose embedded expiresAt has passed
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "token_expired" reason
-
-4. **Expired invite is rejected**
-   - Given a magic link token whose associated invite record has expiresAt in the past
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "invite_expired" reason
-
-5. **Invalid signature is rejected**
-   - Given a magic link token with invalid HMAC signature
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "invalid_token" reason
-
-6. **Email mismatch is rejected**
-   - Given a magic link token whose email does not match the invite's email
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "email_mismatch" reason
-
-7. **Non-existent invite is rejected**
-   - Given a magic link token with non-existent inviteId
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "invite_not_found" reason
-
-### Testable interfaces
-
-1. **`verifyMagicLinkToken(token, secret, clock?)`** in `src/auth/magic-link.ts`:
-   - Parses `payload.signature` format, verifies HMAC, checks token-level expiration
-   - Returns decoded payload or throws typed error (InvalidToken | TokenExpired)
-   - Pure function, easily unit-tested
-
-2. **`MagicLinkVerifyHandler`** factory in a new `src/auth/magic-link-verify.ts`:
-   - `createMagicLinkVerifyHandlers({clock?, db?, tokenVerifier?})`
-   - Returns `{GET, POST}` handlers
-   - Encapsulates: token verification → invite lookup → email match check → invite expiration check → user upsert → session creation → invite acceptance → redirect
-   - All dependencies injectable for tests
-
-3. **`app/auth/magic-link/verify/route.ts`**:
-   - Thin Next.js route that delegates to `MagicLinkVerifyHandler`
-   - GET: renders confirmation page with auto-submitting form (prevents token in server logs/URLs)
-   - POST: processes the verification
-
-### Execution order (vertical slices)
-
-**Slice 1 — Token verifier**
-- Add `verifyMagicLinkToken` to `src/auth/magic-link.ts`
-- Add unit tests in `src/auth/magic-link.test.ts`
-- Verifies HMAC signature, parses payload, checks token expiration
-
-**Slice 2 — Route + handler**
-- Create `src/auth/magic-link-verify.ts` with handler factory
-- Create `app/auth/magic-link/verify/route.ts` with GET (confirmation form) and POST handlers
-- GET renders an auto-post form to POST with the token (security: keeps token out of URL logs)
-
-**Slice 3 — Accept invite + create user + create session**
-- When token valid + invite pending + email matches + invite not expired:
-  1. Upsert user by email (create if not exists, role from invite; if exists, keep existing role)
-  2. Create session record in DB with expiresAt (e.g., 30 days from now)
-  3. Set session cookie via `sealSessionCookie`
-  4. Update invite status to "accepted"
-  5. Redirect to app root `/`
-
-**Slice 4 — Error responses**
-- For each failure mode, return HTML error page with error code
-- Error screen UI (next ticket) will enhance these with better UX
-
-### Key design decisions
-
-- **GET form auto-submit**: GET with `?token=` in URL exposes token in server logs. Instead, GET renders a small HTML page with an auto-submitting form (method="POST", action includes token). Token only appears in POST body, not in server logs or browser URL bar.
-- **User upsert role semantics**: If user already exists, their role is preserved (not overwritten by invite role). Invite role only applies to newly created users.
-- **Session lifetime**: 30 days default (configurable). Already modeled in schema with `expiresAt`.
-- **Invite vs token expiration**: Both checked — token's embedded `expiresAt` for quick rejection of forged tokens, invite record's `expiresAt` for actual business rule.
-
-### Assumptions / risks
-
-1. Token's `expiresAt` and invite's `expiresAt` are checked independently.
-2. Redirect URL after success: app root `/`.
-3. Error screen rendering: simple HTML error page now; enhanced by next ticket.
-4. CSRF: magic link token serves as the secret; auto-submit form pattern prevents URL exposure.

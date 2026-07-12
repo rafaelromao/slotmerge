@@ -15,6 +15,7 @@ function createMockInviteRepository() {
         status: "pending" | "accepted" | "revoked";
         invitedByAdminId: string | null;
         expiresAt: Date;
+        magicLinkGeneration?: number;
       } | null>
     >(),
     accept: vi.fn<(id: string) => Promise<void>>(),
@@ -159,6 +160,8 @@ describe("magic link verify handler", () => {
       expect(response.status).toBe(400);
       const html = await response.text();
       expect(html).toContain("token_expired");
+      expect(html).toContain("Send a new link");
+      expect(html).toContain("/auth/magic-link/request");
     });
 
     it("returns error for non-existent invite", async () => {
@@ -381,6 +384,49 @@ describe("magic link verify handler", () => {
       });
       expect(mockSessionRepo.create).toHaveBeenCalled();
       expect(mockInviteRepo.accept).toHaveBeenCalledWith("invite-1");
+    });
+
+    it("rejects a token from an older magic-link generation", async () => {
+      const issuer = createMagicLinkTokenIssuer({
+        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        baseUrl: "https://slotmerge.example.com",
+        secret: "test-secret",
+      });
+      const token = issuer.issueMagicLinkToken({
+        inviteId: "invite-1",
+        email: "alice@example.com",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+        generation: 0,
+      });
+
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findById.mockResolvedValue({
+        id: "invite-1",
+        email: "alice@example.com",
+        role: "user",
+        status: "pending",
+        invitedByAdminId: "admin-1",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+        magicLinkGeneration: 1,
+      });
+
+      const { POST } = createMagicLinkVerifyHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/verify", {
+          method: "POST",
+          body: new URLSearchParams({ token: token.token }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const html = await response.text();
+      expect(html).toContain("invalid_token");
+      expect(mockInviteRepo.accept).not.toHaveBeenCalled();
     });
 
     it("rolls back session if invite.accept fails", async () => {

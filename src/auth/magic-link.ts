@@ -10,6 +10,7 @@ export type MagicLinkTokenInput = {
   inviteId: string;
   email: string;
   expiresAt: Date;
+  generation?: number;
 };
 
 export type MagicLinkToken = {
@@ -22,6 +23,7 @@ export type MagicLinkTokenPayload = {
   inviteId: string;
   email: string;
   expiresAt: string;
+  generation?: number;
 };
 
 export class MagicLinkTokenError extends Error {
@@ -43,6 +45,7 @@ export function createMagicLinkTokenIssuer({
         inviteId: input.inviteId,
         email: input.email,
         expiresAt: input.expiresAt.toISOString(),
+        generation: input.generation ?? 0,
         issuedAt: issuedAt.toISOString(),
       };
       const payloadEncoded = base64UrlEncode(JSON.stringify(payload));
@@ -80,6 +83,20 @@ export function verifyMagicLinkToken(
   secret: string,
   clock: () => Date = () => new Date(),
 ): MagicLinkTokenPayload {
+  const payload = decodeMagicLinkTokenPayload(token, secret);
+
+  const expiresAt = new Date(payload.expiresAt);
+  if (isNaN(expiresAt.getTime()) || expiresAt <= clock()) {
+    throw new MagicLinkTokenError("token_expired");
+  }
+
+  return payload;
+}
+
+export function decodeMagicLinkTokenPayload(
+  token: string,
+  secret: string,
+): MagicLinkTokenPayload {
   const parts = token.split(".");
   if (parts.length !== 2) {
     throw new MagicLinkTokenError("invalid_token");
@@ -114,9 +131,11 @@ export function verifyMagicLinkToken(
     throw new MagicLinkTokenError("invalid_token");
   }
 
-  const expiresAt = new Date(payload.expiresAt);
-  if (isNaN(expiresAt.getTime()) || expiresAt <= clock()) {
-    throw new MagicLinkTokenError("token_expired");
+  if (
+    payload.generation !== undefined &&
+    typeof payload.generation !== "number"
+  ) {
+    throw new MagicLinkTokenError("invalid_token");
   }
 
   return payload;

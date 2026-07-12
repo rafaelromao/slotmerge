@@ -46,6 +46,7 @@ export type InviteRecord = {
   role: string;
   status: "pending" | "accepted" | "revoked";
   expiresAt: Date;
+  magicLinkGeneration?: number;
 };
 
 export type UserRecord = {
@@ -111,7 +112,7 @@ export function createMagicLinkVerifyHandlers(
           return errorResponse("invalid_token", 400);
         }
         if (err instanceof Error && err.message === "token_expired") {
-          return errorResponse("token_expired", 400);
+          return errorResponse("token_expired", 400, token);
         }
         return errorResponse("invalid_token", 400);
       }
@@ -138,6 +139,10 @@ export function createMagicLinkVerifyHandlers(
 
       if (invite.email !== payload.email) {
         return errorResponse("email_mismatch", 400);
+      }
+
+      if ((payload.generation ?? 0) !== (invite.magicLinkGeneration ?? 0)) {
+        return errorResponse("invalid_token", 400);
       }
 
       const userRepo = deps.userRepository ?? defaultUserRepository;
@@ -205,7 +210,11 @@ function renderConfirmPage(token: string): string {
 </html>`;
 }
 
-function errorResponse(reason: string, status: number): Response {
+function errorResponse(
+  reason: string,
+  status: number,
+  resendToken?: string,
+): Response {
   const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -216,6 +225,14 @@ function errorResponse(reason: string, status: number): Response {
     <h1>Sign in failed</h1>
     <p>Reason: ${escapeHtml(reason)}</p>
     <p>Please contact an administrator if you believe this is an error.</p>
+    ${
+      resendToken
+        ? `<form method="POST" action="/auth/magic-link/request">
+      <input type="hidden" name="token" value="${escapeHtml(resendToken)}" />
+      <button type="submit">Send a new link</button>
+    </form>`
+        : ""
+    }
   </body>
 </html>`;
 

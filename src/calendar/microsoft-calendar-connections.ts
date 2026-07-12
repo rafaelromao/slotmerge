@@ -1,4 +1,10 @@
 import Iron from "@hapi/iron";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+
+import {
+  buildMicrosoftCalendarAuthorizationUrl,
+  getMicrosoftCalendarScopes,
+} from "./microsoft-oauth";
 
 export type MicrosoftCalendarConnectionStatus =
   | "pending"
@@ -57,6 +63,70 @@ export async function sealMicrosoftCalendarConnectionState({
     secret,
     Iron.defaults,
   );
+}
+
+export async function startMicrosoftCalendarConnection({
+  baseUrl,
+  clientId,
+  csrfToken,
+  generateId = () => randomUUID(),
+  repository,
+  sessionSecret,
+  userId,
+}: {
+  baseUrl: string;
+  clientId: string;
+  csrfToken: string;
+  generateId?: () => string;
+  repository: MicrosoftCalendarConnectionRepository;
+  sessionSecret: string;
+  userId: string;
+}): Promise<{
+  authorizationUrl: string;
+  connection: MicrosoftCalendarConnectionRecord;
+  codeVerifier: string;
+  state: string;
+}> {
+  const connectionId = generateId();
+  const codeVerifier = generatePkceVerifier();
+  const connection = await repository.createPending({
+    id: connectionId,
+    userId,
+    provider: "microsoft",
+    providerAccountKey: `microsoft:${connectionId}`,
+    accountIdentifier: `microsoft:${connectionId}`,
+    scopes: getMicrosoftCalendarScopes(),
+    status: "pending",
+    refreshTokenEncrypted: null,
+    accessTokenEncrypted: null,
+    accessTokenExpiresAt: null,
+  });
+  const state = await sealMicrosoftCalendarConnectionState({
+    connectionId: connection.id,
+    csrfToken,
+    codeVerifier,
+    secret: sessionSecret,
+  });
+
+  return {
+    authorizationUrl: buildMicrosoftCalendarAuthorizationUrl({
+      baseUrl,
+      clientId,
+      codeChallenge: generatePkceChallenge(codeVerifier),
+      state,
+    }),
+    connection,
+    codeVerifier,
+    state,
+  };
+}
+
+function generatePkceVerifier(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+function generatePkceChallenge(verifier: string): string {
+  return createHash("sha256").update(verifier).digest("base64url");
 }
 
 export function presentMicrosoftCalendarConnection(

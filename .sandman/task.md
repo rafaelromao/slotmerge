@@ -37,7 +37,7 @@ The worktree MUST be checked out on `sandman/41-send-critical-admin-operational-
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -85,7 +85,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Plan consensus reached. Run `sandman-implement` starting with the first TDD slice: behavior 1 (empty admin list is a no-op).
+PR created: https://github.com/rafaelromao/slotmerge/pull/156 — run `sandman-pr-review` to delegate review to the PR Review Agent.
 
 ## Already Resolved
 

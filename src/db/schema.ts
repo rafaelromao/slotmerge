@@ -60,7 +60,6 @@ export const usersRelations = relations(users, ({ many }) => ({
   userTopics: many(userTopics),
   availabilityWindows: many(availabilityWindows),
   importedBusyIntervals: many(importedBusyIntervals),
-
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({

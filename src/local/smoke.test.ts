@@ -24,6 +24,8 @@ describe("local smoke web endpoints", () => {
       env: {
         APP_ENV: "production",
         DATABASE_URL: "postgres://slotmerge:slotmerge@localhost:5432/slotmerge",
+        APP_BASE_URL: "https://slotmerge.example.com",
+        MAGIC_LINK_SECRET: "production-magic-link-secret",
         SESSION_SECRET: "production-session-secret",
         CALENDAR_TOKEN_ENCRYPTION_KEY: "production-calendar-token-key",
         POSTMARK_SERVER_TOKEN: "postmark-token",

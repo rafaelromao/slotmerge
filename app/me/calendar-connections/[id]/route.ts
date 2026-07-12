@@ -53,45 +53,105 @@ export async function PATCH(
     );
   }
 
-  if (found.provider === "microsoft") {
-    const connection = await revokeMicrosoftCalendarConnection({
+  type CalendarConnectionPatchBody = {
+    contributingCalendarIds?: string[];
+    disconnect?: boolean;
+  } | null;
+
+  const body = (await request
+    .json()
+    .catch(() => null)) as CalendarConnectionPatchBody;
+  const wantsDisconnect = body?.disconnect === true;
+
+  if (body?.contributingCalendarIds !== undefined) {
+    const calendarIds = body.contributingCalendarIds;
+    if (
+      !Array.isArray(calendarIds) ||
+      !calendarIds.every((id) => typeof id === "string")
+    ) {
+      return Response.json(
+        { error: "invalid_contributing_calendar_ids" },
+        { status: 400 },
+      );
+    }
+
+    if (found.provider === "google") {
+      const repository = getGoogleCalendarConnectionRepository();
+      const updated = await repository.updateById(expectedId, {
+        contributingCalendarIds: calendarIds,
+      });
+      if (!updated) {
+        return Response.json(
+          { error: "calendar_connection_not_found" },
+          { status: 404 },
+        );
+      }
+      return Response.json({
+        connection: presentGoogleCalendarConnection(updated),
+      });
+    }
+
+    const repository = getMicrosoftCalendarConnectionRepository();
+    const updated = await repository.updateById(expectedId, {
+      contributingCalendarIds: calendarIds,
+    });
+    if (!updated) {
+      return Response.json(
+        { error: "calendar_connection_not_found" },
+        { status: 404 },
+      );
+    }
+    return Response.json({
+      connection: presentMicrosoftCalendarConnection(updated),
+    });
+  }
+
+  if (wantsDisconnect || body === null) {
+    if (found.provider === "microsoft") {
+      const connection = await revokeMicrosoftCalendarConnection({
+        connectionId: expectedId,
+        fetchImpl: fetch,
+        repository: getMicrosoftCalendarConnectionRepository(),
+        tokenEncryptionKey,
+      });
+      await safelyTriggerActionRequiredEmail({
+        id: connection.id,
+        userId: connection.userId,
+        provider: "microsoft",
+        user: {
+          email: session.user.email,
+          displayName: session.user.displayName,
+        },
+        occurredAt: new Date(),
+      });
+      return Response.json({
+        connection: presentMicrosoftCalendarConnection(connection),
+      });
+    }
+
+    const connection = await revokeGoogleCalendarConnection({
       connectionId: expectedId,
       fetchImpl: fetch,
-      repository: getMicrosoftCalendarConnectionRepository(),
+      repository: getGoogleCalendarConnectionRepository(),
       tokenEncryptionKey,
     });
     await safelyTriggerActionRequiredEmail({
       id: connection.id,
       userId: connection.userId,
-      provider: "microsoft",
+      provider: "google",
       user: {
         email: session.user.email,
         displayName: session.user.displayName,
       },
       occurredAt: new Date(),
     });
+
     return Response.json({
-      connection: presentMicrosoftCalendarConnection(connection),
+      connection: presentGoogleCalendarConnection(connection),
     });
   }
 
-  const connection = await revokeGoogleCalendarConnection({
-    connectionId: expectedId,
-    fetchImpl: fetch,
-    repository: getGoogleCalendarConnectionRepository(),
-    tokenEncryptionKey,
-  });
-  await safelyTriggerActionRequiredEmail({
-    id: connection.id,
-    userId: connection.userId,
-    provider: "google",
-    user: { email: session.user.email, displayName: session.user.displayName },
-    occurredAt: new Date(),
-  });
-
-  return Response.json({
-    connection: presentGoogleCalendarConnection(connection),
-  });
+  return Response.json({ error: "nothing_to_update" }, { status: 400 });
 }
 
 async function safelyTriggerActionRequiredEmail(args: {

@@ -22,6 +22,7 @@ import {
   type DiscoverabilityConsentRepository,
 } from "../src/profile/discoverability-consent";
 import { setProfileRepositoryForTests } from "../src/profile/repository";
+import { type TopicProposalStatus } from "../src/db/schema";
 
 function setProfileStateForTests(profileState: ProfileStateBox) {
   setProfileRepositoryForTests({
@@ -352,7 +353,7 @@ describe("GET /me", () => {
         ),
     });
 
-    const topicProposals = new Map<string, Array<{ id: string; name: string; status: "pending" | "approved" | "rejected" }>>();
+    const topicProposals = new Map<string, Array<{ id: string; name: string; status: TopicProposalStatus }>>();
     topicProposals.set("user-1", [
       { id: "proposal-1", name: "Compilers", status: "pending" },
       { id: "proposal-2", name: "Type Theory", status: "approved" },

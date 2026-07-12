@@ -61,8 +61,6 @@ const utcProfile: UserProfile = {
 };
 
 describe("buildSearchInput", () => {
-  afterEach(() => {});
-
   it("returns the documented defaults when no overrides are supplied", async () => {
     const builder = createSearchInputBuilder({
       organizerId: "organizer-1",

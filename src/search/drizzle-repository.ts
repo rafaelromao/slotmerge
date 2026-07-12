@@ -18,18 +18,8 @@ export function createPostgresSearchRepository(): SearchRepository {
         rangeEnd: record.dateRangeEnd,
         organizerTimezone: record.organizerTimezone,
         generatedAt: record.generatedAt,
+        snapshotReference: record.snapshotReference ?? null,
       };
-      if (record.id) {
-        const [row] = await db
-          .update(searches)
-          .set({
-            ...values,
-            snapshotReference: record.snapshotReference ?? null,
-          })
-          .where(eq(searches.id, record.id))
-          .returning();
-        return toRecord(row);
-      }
       const [row] = await db.insert(searches).values(values).returning();
       return toRecord(row);
     },

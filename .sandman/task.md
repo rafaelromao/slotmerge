@@ -1,94 +1,88 @@
 # Task
 
-Implement GitHub issue #29: Self-delete account
+Implement GitHub issue #40: Show operational status to Admins
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmerge/issues/18). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-A User can self-delete their account. Personal profile, Availability, Topic associations, and Calendar Connection tokens are removed. Non-personal audit history (such as Admin actions on Topics) is preserved.
+Admins see an operational status screen that summarizes transactional email delivery health, Calendar Connection sync health, and other infrastructure-level signals so they can act before users notice.
 
 ## Acceptance criteria
 
-- [ ] User can trigger self-delete from `My availability`.
-- [ ] Self-delete removes personal profile, Availability, and Calendar Connection tokens.
-- [ ] Self-delete removes the user from Search eligibility.
-- [ ] Audit history that does not require personal data is preserved.
+- [ ] Admin status screen summarizes email delivery health.
+- [ ] Admin status screen summarizes Calendar Connection sync health.
+- [ ] Status data comes from existing Email Event and Calendar Connection records.
 
 ## Blocked by
 
-- [Edit profile attributes](https://github.com/rafaelromao/slotmerge/issues/27)
+- [Provision transactional email delivery and email event log](https://github.com/rafaelromao/slotmerge/issues/26)
+- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/36)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/29-self-delete-account`
-- Source branch: `sandman/29-self-delete-account`
+- Current branch: `sandman/40-show-operational-status-to-admins`
+- Source branch: `sandman/40-show-operational-status-to-admins`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/29-self-delete-account` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/40-show-operational-status-to-admins` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
-- [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Plan (sandman-plan)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
 ## Plan
 
 ### Behaviors to test
-
-In execution order (tracer bullet first). Each slice asserts an observable outcome at the public boundary (`DELETE /me` HTTP route + repository override seam), not internal FK mechanics.
-
-1. **`DELETE /me` requires authentication.** Without a valid session cookie, the endpoint responds with `401 { error: "unauthenticated" }` and no per-user lookup function is invoked.
-2. **`DELETE /me` requires a matching CSRF token.** With a valid session but missing/mismatched `x-csrf-token`, the endpoint responds with `403 { error: "invalid_csrf" }` and no per-user lookup function is invoked.
-3. **`DELETE /me` removes the authenticated User.** With a valid session and CSRF token, the endpoint invokes the profile repository's delete seam, then responds with `204` and a `Set-Cookie` header that clears the `slotmerge_session` cookie. After the call:
-   - `getProfileByUserId(userId)` returns `null`.
-   - `getTopicsByUserId(userId)`, `getAvailabilityWindowsByUserId(userId)`, and `getCalendarConnectionsByUserId(userId)` each return an empty list for that userId.
-4. **Search eligibility is removed as a consequence of #3.** Because the user row no longer exists, no future query against `users` (or a join through it) can include them. The same observable check from slice #3 (the four lookup functions all return empty/null for that userId) is the proof at this boundary; Search itself is not yet implemented.
-5. **Non-personal audit history is preserved.** When a User who has invited other Users (i.e., is referenced by `invites.invited_by_admin_id`) self-deletes, the resulting `invites` rows remain in the database. Concretely:
-   - Before the test, seed: 1 inviter User (the deleter), 1 invite row referencing the inviter.
-   - Invoke `DELETE /me` as the inviter.
-   - Assert that the invite row count is unchanged AND the invite row's `invited_by_admin_id` is now `NULL` (the personal reference is dropped, the audit artifact — the email, role, status, timestamps — is preserved).
-6. **Boundary idempotency.** If the user record is already gone when the request arrives (e.g., session cookie still valid in browser, but user already deleted by a concurrent request), the endpoint returns `404 { error: "user_not_found" }` rather than throwing. (Sessions are FK-cascaded with users, so the more common race is "session is gone", which short-circuits at `getSessionFromRequest` to `401`. We cover both branches.)
+- An admin who GETs `/admin/status` receives an HTML page whose `<h1>` is "Operational status", and which lists `<section>` headings for "Transactional email delivery" and "Calendar Connections" alongside their health summaries.
+- The page reports email delivery counts per status (`queued`, `sending`, `sent`, `failed`) for the last 24 hours, plus the five most-recent failures with `code`, `message`, `recipient`, and `failedAt` rendered; the window label is shown on the page so admins know what they are looking at, and an empty window ("No email events recorded yet") is explicitly rendered when all counts are zero.
+- The page reports the number of Calendar Connections grouped by status (`pending`, `connected`, `disconnected`), and surfaces a "Tokens needing refresh" section distinguishing connections whose `accessTokenExpiresAt` is already past `now` (expired), within the next five minutes (expiring soon), and not set (unset — possible data shape on legacy rows). Each row shows `connectionId`, `userId`, `provider`, `accountIdentifier`, and `accessTokenExpiresAt` in UTC.
+- The handler enforces the existing admin session/role guard: a non-admin or unauthenticated request returns 401/403 instead of the status HTML, matching the other admin route handlers (`invites`, `topics`, `topic-proposals`).
+- Status values come from a single `loadOperationalStatus({ now })` factory that pulls counts from existing `emailEvents`/`calendarConnections` tables — no schema migration, no new infrastructure fields.
+- The page renders an empty-state copy ("No failures in the last 24 hours.") when there are zero failed events in the window, and a constant cap of `RECENT_FAILURE_LIMIT = 5` is applied to the recent-failures list; the database-backed implementation does a `LIMIT 5` ordered by `failedAt` desc, matching the renderer contract.
 
 ### Testable interfaces
-
-We use the seam patterns already established in this repo (`setProfileRepositoryForTests`, `setSessionRepositoryForTests`). No new test-only abstractions.
-
-- **`app/me/route.ts`** — add a `DELETE` handler in the same file as `GET`/`PATCH`, so the existing file-local `hasValidCsrfToken` helper is reusable. The handler:
-  - Resolves session via `getSessionFromRequest`.
-  - Validates CSRF token via the existing `hasValidCsrfToken`.
-  - Calls `deleteProfileByUserId(session.user.id)` from the profile repository.
-  - If the repository returns `null` (user not found), responds `404 { error: "user_not_found" }`.
-  - Otherwise responds `204` with `Set-Cookie: slotmerge_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`.
-- **`src/profile/repository.ts`** — extend the `ProfileRepository` interface with a new method `deleteByUserId(userId): Promise<boolean>`. The override hook (`setProfileRepositoryForTests`) already exists; tests plug a fake that flips a state bit and returns `true`. The DB implementation deletes from `users` and returns whether a row was affected.
-- **Test fixtures** — the existing `getTopicsByUserId` / `getAvailabilityWindowsByUserId` / `getCalendarConnectionsByUserId` in `app/me/route.ts` are local placeholder functions returning empty arrays. We lift them behind a small module-level registry that a test helper can seed and reset, so a test can: (a) seed a topic/availability/calendar connection for `user-1`, (b) call `DELETE /me`, (c) assert those lookups return empty for `user-1`. Same pattern as the existing `setProfileStateForTests` helper at the top of `tests/me-route.test.ts`.
-- **Drizzle migration** — add a new migration that changes the `invites.invited_by_admin_id` FK from `ON DELETE RESTRICT` to `ON DELETE SET NULL` and makes the column nullable. The migration filename will be the next free number in `drizzle/` (currently `0003_topics.sql` is the latest on `main`; the implementor will verify at execution time). The schema (`src/db/schema.ts`) is updated in the same change to match (`invitedByAdminId: uuid(...).references(() => users.id, { onDelete: "set null" })` and the column type made nullable). When `users` row is deleted, `invites.invited_by_admin_id` is set to `NULL`; the invite row (email, role, status, timestamps) stays — preserving non-personal audit history per spec §3.8 / §12.1.
+- `createAdminStatusHandlers({ getSession?, statusRepository? })` -> `{ GET }`, mirroring `createAdminTopicsHandlers`/`createAdminInvitesHandlers`. The repository dependency is injected so tests can stub counts without touching Postgres.
+- `OperationalStatusRepository` exposes two read methods returning numeric rollups:
+  - `summarizeEmailDelivery({ since })`: counts per status, plus the most-recent failures capped at `RECENT_FAILURE_LIMIT = 5`.
+  - `summarizeCalendarConnections({ now })`: counts per status, plus a list of "tokens needing refresh" rows bucketed into `expired` / `expiring_soon` / `unset`.
+- Implementation lives in a new `src/admin/operational-status-repository.ts` (owning both summary queries) so the admin module owns its own read model; `src/email/repository.ts` and `src/calendar/repository.ts` are **not** modified and keep their existing write-oriented surface.
+- `app/admin/status/route.ts` re-exports `{ GET }` from the factory, matching the existing admin-route pattern.
+- Renderer `renderOperationalStatusPage(...)` returns a string containing the `<h1>Operational status</h1>` heading, the two `<section>` headings, summary numbers, recent failure rows, and the calendar token-refresh table — exactly the observable contract `invites.test.ts` already exercises.
 
 ### Assumptions / risks
-
-- **AC #1 ("User can trigger self-delete from `My availability`") is partially delivered in this slice.** The MVP spec (`docs/mvp-spec.md` §7.1) defines the self-delete surface as `DELETE /me`. The "from My availability" UI affordance belongs to a downstream UI ticket in the Availability sub-PRD (no Availability page exists yet — `getAvailabilityWindowsByUserId` is a stub). For #29, this slice ships the API + repository behaviour; the UI affordance on the Availability page is tracked as a follow-up by the Availability sub-PRD owner. We will explicitly note this on the PR body so reviewers and the next ticket know.
-- **Spec §10 audit-log requirement is deferred.** §10 mandates audit logging for self-delete events, but the codebase has no audit-log subscriber yet (the `email_events` table is for transactional email delivery, not audit). Emitting an audit row would require opening a parallel ticket to define the audit-log table and enqueue seam. For #29, the deletion itself is the audit artifact: the invites row stays, with the personal reference nulled. A follow-up ticket must add the audit-log pipeline; we will surface this gap in the PR body.
-- **Availability is currently mocked.** There is no `availability_windows` table yet. The deletion of the `users` row covers `sessions`, `calendar_connections`, `topic_proposals`, `user_topics` via existing cascade FKs. When the Availability data model lands in a future ticket, the same `deleteByUserId` cascade will need to be extended; this is out of scope for #29.
-- **Discoverability consent is mocked.** `me/route.ts` returns `discoverability: { consented: false }`. Removing the user removes them from Search eligibility by definition; no separate discoverability-table change is needed.
-- **`invites.invited_by_admin_id` → `SET NULL`.** The PR #146 invite ticket (`Admin invites a User with email and role`) defines an invite flow but does not assert any runtime constraint about deleting an inviter with outstanding invites — the only thing protecting it today is the FK `RESTRICT`. Switching to `SET NULL` keeps the invite row intact (the non-personal email/role/status/timestamps are the audit artifact) and drops only the personal inviter reference, which matches the spec wording "non-personal audit references are preserved". We will note this trade-off in the PR body and reference this concern explicitly.
-- **`204` vs `200`.** We pick `204 No Content` for `DELETE /me` — Next.js route handlers treat `Response(null, { status: 204 })` as the canonical DELETE response, the response includes the cookie-clearing `Set-Cookie` header (which `200` could also carry but is uncommon), and no body is required by the spec. The cookie-clearing header is the only signal the client needs.
-- **Migration number.** Implementor will pick the next free number at execution time; do not hard-code in the plan.
-- **`hasValidCsrfToken` is file-local.** Putting `DELETE` in `app/me/route.ts` keeps it reusable without extraction.
-- **Sandbox / no real DB.** All assertions go through the override pattern; no live DB queries.
+- The AC says "Status data comes from existing Email Event and Calendar Connection records" — we explicitly reuse `emailEvents` and `calendarConnections` rather than adding new tables or columns. No Drizzle migration.
+- "Other infrastructure-level signals" is interpreted as a forward-compat note, not a hard requirement. MVP ships exactly two read sources — `emailEvents` and `calendarConnections`. Queue depth (Graphile Worker), DB pool stats, and external uptime pings are deliberately **out of scope** for issue #40 and not part of this slice; the page's renderer is composable so additional sections can be appended later without breaking the route shape.
+- "Sync health" is inferred from `calendarConnections.status` plus a derived bucketing of `accessTokenExpiresAt` against `now`: `expired` (≤ now), `expiring_soon` (now < t ≤ now + 5 min), and `unset` (column is null on a `connected` row). This is the strongest signal available without a schema migration. "Recent provider errors" would be a stronger signal but no `lastSyncErrorAt` column exists today, so it is out of scope.
+- This surface is read-only — a `GET` handler is sufficient; no CSRF-protected POST is needed.
+- The renderer must `escapeHtml` any dynamic string (error message, recipient email, account identifier) before emitting HTML — same helper used in `src/admin/invites.ts` and `src/admin/topics.ts`.
 
 ## Next Step
 
-Run `sandman-tdd` against the plan above. First red test: `DELETE /me` rejects with `401` when no session is present.
+Begin implementing the first vertical slice: TDD the `OperationalStatusRepository` contract using in-memory fakes, then the `createAdminStatusHandlers` GET behaviors — access-denied for non-admins/unauthenticated first, then admin GET with empty summaries, then non-zero email counts and recent failures, then calendar counts and the token-refresh section.
+
+## Next Step
+
+Begin implementing the first vertical slice: TDD the `OperationalStatusRepository` contract using in-memory fakes, and the `createAdminStatusHandlers` GET behavior for admins, non-admins, and unauthenticated requests.
+
+Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
+
+After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
+
+## Next Step
+
+The registered next step is the first unchecked item in the Execution Checklist.
 
 ## Already Resolved
 

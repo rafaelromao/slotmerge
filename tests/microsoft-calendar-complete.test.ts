@@ -20,6 +20,8 @@ describe("completeMicrosoftCalendarConnection", () => {
       refreshTokenEncrypted: null,
       accessTokenEncrypted: null,
       accessTokenExpiresAt: null,
+      lastErrorCode: null,
+      lastErrorMessage: null,
     };
 
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {

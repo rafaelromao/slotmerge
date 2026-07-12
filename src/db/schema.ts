@@ -84,6 +84,8 @@ export const calendarConnections = pgTable("calendar_connections", {
   accessTokenExpiresAt: timestamp("access_token_expires_at", {
     withTimezone: true,
   }),
+  lastErrorCode: text("last_error_code"),
+  lastErrorMessage: text("last_error_message"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

@@ -1,45 +1,131 @@
 # Task
 
-Implement GitHub issue #55: Define Search query parameters and validate them
+Implement GitHub issue #42: Send Calendar Connection action-required email
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Search & Matching](https://github.com/rafaelromao/slotmerge/issues/15). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmerge/issues/18). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-The Search model captures selected active Topics, minimum matching Users, meeting duration, date range, and organizer-facing timezone. Validation rejects invalid combinations before running a Search.
+When a user's Calendar Connection enters an action-required state (token revoked, reconnect needed, persistent sync failure), the system sends an email to the affected user with a clear next step.
 
 ## Acceptance criteria
 
-- [ ] Search accepts selected active Topics, minimum, duration, date range, and timezone.
-- [ ] Minimum defaults to 2 and is configurable per Search.
-- [ ] Date range defaults to current week plus next four weeks.
-- [ ] Duration is configurable per Search.
-- [ ] Invalid combinations are rejected with clear errors.
+- [ ] Token revocation triggers a reconnect email.
+- [ ] Persistent sync failure triggers an action-required email.
+- [ ] Email includes a link to the Calendar Connection page.
+- [ ] Email delivery state is recorded.
 
 ## Blocked by
 
-- [Provision app shell, auth, and Postgres bootstrap](https://github.com/rafaelromao/slotmerge/issues/20)
+- [Provision transactional email delivery and email event log](https://github.com/rafaelromao/slotmerge/issues/26)
+- [Encrypt Calendar Connection OAuth tokens at rest](https://github.com/rafaelromao/slotmerge/issues/45)
 
 
 ## Runtime Context
 
+## Plan
+
+Issue #42 sends a transactional email to a User whenever their Calendar Connection enters an action-required state (token revoked, persistent sync failure). Delivery state must be recorded through the existing single Email delivery service module (`src/email/service.ts`).
+
+### Pre-flight
+
+- [x] `gh issue view 42` confirms issue is OPEN with 4 acceptance criteria.
+- [x] Both blockers (`#26`, `#45`) are CLOSED.
+- [x] `origin/main` is up to date and the branch is an ancestor of `origin/main`.
+- [x] No open PR for the current branch.
+- [x] No existing implementation in `origin/main` matches the acceptance criteria.
+
+### Subagent review summary
+
+Subagent reviewed the initial plan and produced four concrete revisions, all adopted here:
+
+1. **Ownership check on revoke route.** Before wiring the email, ensure `app/me/calendar-connections/[id]/route.ts` rejects requests where `found.record.userId !== session.user.id`. Otherwise any logged-in user could disconnect someone else's connection and trigger an email to a third party.
+2. **Sync-failure wiring is internal, not a new POST route.** The spec's API surface (`docs/mvp-spec.md:282-287`) does not list a `POST .../sync-failure` endpoint, and the trigger origin is the sync engine, not the user. Expose `recordCalendarConnectionSyncFailure(connectionId, error)` as an internal function in `src/calendar/repository.ts` that calls the trigger module. The actual sync engine is a separate issue.
+3. **Drop `lastSyncAt` / drop the transport-rendering slice.** The transport already stringifies the payload. Put `reconnectUrl` in the payload so it appears in the body without touching `src/email/transport.ts`.
+4. **Use the real `EmailDeliveryService` type, not a narrowed one.** Mirror the singleton + test-override pattern used by `getGoogleCalendarConnectionRepository` (`src/calendar/repository.ts:30-38`).
+
+### Tracer bullet
+
+End-to-end flow that exercises every layer:
+
+1. Connection's revoke or sync-failure entry-point calls the action-required trigger module with `(connectionId, reason, user.email)`.
+2. Trigger module looks up a prior dispatch (Postgres), dedups if within window, otherwise builds the payload (including `reconnectUrl`) and hands it to the singleton `EmailDeliveryService`.
+3. `EmailDeliveryService` records the `EmailEvent` (delivery state), enqueues the worker, the worker renders the body (which now includes the `reconnectUrl`), and the transport sends it.
+
+### Behaviors to test (vertical slices)
+
+**Slice 1 — schema migration (`drizzle/0006_calendar_connection_sync_failure.sql` + `src/db/schema.ts`)**
+- Adds nullable `last_error_code` / `last_error_message` columns to `calendar_connections`.
+- Drizzle schema and `findById`/`listByUserId`/`updateById` selects include the new columns.
+
+**Slice 2 — action-required trigger module (`src/calendar/action-required-email.ts`)**
+- For `token-revoked` and `sync-failure` reasons, calls `emailDeliveryService.sendEmail` exactly once with `type: "calendar-action-required"`, the user email as recipient, a payload containing `connectionId`, `provider`, `reason`, `reconnectUrl`, `occurredAt` (ISO), and a deterministic `payloadReference` derived from `(connectionId, reason)`.
+- Skips dispatch when `findMostRecentConnectionDispatch(connectionId, reason, since)` returns a non-null timestamp inside the dedup window.
+- Returns `{ status: "sent" | "skipped", emailEventId?: string }`.
+- Uses `dedupWindowMs` from deps with a default of 60 minutes (twice admin-critical's 15-minute window because user-initiated `token-revoked` should not re-fire on every page reload, and `sync-failure` should not re-fire while a previous one is being acted on).
+- Reuses `EmailDeliveryService` from `src/email/service.ts` directly (not a narrowed duplicate).
+
+**Slice 3 — dispatch lookup repository (`src/calendar/action-required-email.repository.ts`)**
+- Postgres-backed `findMostRecentConnectionDispatch(connectionId, reason, since)` mirrors `createPostgresAdminCriticalDispatchLookup` (`src/admin/critical-email.repository.ts:29-51`).
+- `createConnectionActionRequiredDedupReference(connectionId, reason)` returns a pure-function SHA-256 hash of `{"connectionId","reason"}` (mirrors `createKindDedupReference` in `src/admin/critical-email.ts:66-68`).
+- Repository is wired through a `setConnectionActionRequiredDispatchLookupForTests` test override (mirrors the calendar repository pattern at `src/calendar/repository.ts:18-28`).
+
+**Slice 4 — singleton accessor for the email delivery service (`src/email/service.ts` / new factory)**
+- Add `getEmailDeliveryService()` that constructs a default `EmailDeliveryService` backed by the Postgres repository + Graphile enqueue, plus `setEmailDeliveryServiceForTests(...)` for the route tests.
+- Mirror the existing `getGoogleCalendarConnectionRepository` / `setGoogleCalendarConnectionRepositoryForTests` pattern (`src/calendar/repository.ts:18-38`).
+
+**Slice 5 — ownership check + wire revoke routes (`app/me/calendar-connections/[id]/route.ts`)**
+- After `findCalendarConnectionById(expectedId)`, return 404 if `found.record.userId !== session.user.id`.
+- After a successful revoke (Google or Microsoft), call `triggerCalendarActionRequiredEmail` with `{ connectionId, provider, reason: "token-revoked", user: { id, email } }`.
+- The revoke HTTP response stays 200 even if the email enqueue fails (email failures are observable through the `email_events` table, not the HTTP response).
+- The trigger is awaited only long enough to record the `EmailEvent`; the actual send runs in the worker. The route never blocks the HTTP response on transport success.
+
+**Slice 6 — internal sync-failure recorder (`src/calendar/repository.ts` + `src/calendar/action-required-email.ts`)**
+- Add `recordCalendarConnectionSyncFailure(connectionId, { code, message })` that updates `last_error_code`, `last_error_message`, and `updated_at` on the row.
+- The recorder calls `triggerCalendarActionRequiredEmail` with `reason: "sync-failure"` after the update succeeds.
+- Connection status stays `connected` while the error columns are populated. The follow-up `needs-reconnect` status value (per `docs/mvp-spec.md:143`) is filed as a separate issue and explicitly tracked in the slice description below.
+
+### Out of scope
+
+- The actual sync engine, webhooks, and reconciliation scheduler — separate issues.
+- A user-callable POST `/me/calendar-connections/{id}/sync-failure` route — the spec API surface (`docs/mvp-spec.md:282-287`) does not list it; the trigger origin is the sync engine, not the user. The internal recorder is the slice boundary.
+- Changing the connection status enum to include `needs-reconnect`. Today's schema has only `pending`/`connected`/`disconnected`. The spec calls for `needs reconnect` (`docs/mvp-spec.md:143`) and that belongs in a follow-up issue, not this one. The current slice writes error columns on a still-`connected` row and is honest about that limitation.
+- A proper HTML email template — the existing transport JSON-stringifies the payload (`src/email/transport.ts:69-75`), so a `reconnectUrl` field in the payload is enough to satisfy "Email includes a link to the Calendar Connection page" (`docs/mvp-spec.md:435`). A real HTML template is a separate slice.
+- Sending a real email in tests — `EMAIL_ADAPTER=mock` returns `mock-<eventId>` for any `EmailTransport.send`.
+
+### Schema additions
+
+- `calendar_connections.last_error_code` (text, nullable)
+- `calendar_connections.last_error_message` (text, nullable)
+- No enum change in this issue (deferred; see "Out of scope").
+
+### Risks
+
+- The spec calls for a `needs-reconnect` status value (`docs/mvp-spec.md:143`) that the current schema does not have. This issue records the failure via columns, not status, and explicitly defers the enum change to a follow-up. The trigger module is structured so a future status change will not require changes to email logic.
+- The revoke route currently does not check ownership. Without that fix, an authenticated user could disconnect someone else's connection and trigger an email to a third party. Slice 5 ships the ownership check as part of the same change so we never ship the email wiring without it.
+- Dedup window default (60 min) is twice the admin-critical window (15 min). This is intentional: the recipient is the user (not an admin) and a re-trigger while the previous email is still likely unread would be noise. If product feedback says otherwise, the dedup window is a single constant.
+
+### Subagent review
+
+A subagent reviewed the first draft and produced four revisions, all adopted above. Plan consensus reached.
+
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/55-define-search-query-parameters-and-validate-them`
-- Source branch: `sandman/55-define-search-query-parameters-and-validate-them`
+- Current branch: `sandman/42-send-calendar-connection-action-required-email`
+- Source branch: `sandman/42-send-calendar-connection-action-required-email`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/55-define-search-query-parameters-and-validate-them` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/42-send-calendar-connection-action-required-email` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
-- [x] Create branch
-- [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Create branch (`sandman/42-send-calendar-connection-action-required-email` created from `main`).
+- [x] Plan (sandman-plan) — drafted above, subagent reviewed, consensus reached on four revisions (ownership check, internal recorder not new route, drop transport slice, use real `EmailDeliveryService` type).
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -49,75 +135,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Push the branch and create the PR with a closing-reference body (`Closes #55`). Then delegate review via sandman-pr-review.
-
-## Plan
-
-### Behaviors to test (ordered vertical slices)
-
-1. **`buildSearchInput` returns sensible defaults**
-   - With a `Clock` pinned at a known date, an active-Topics repository, and a profile repository exposing an organizer timezone: returns empty `selectedTopicIds`, `minimumMatchingUsers = 2`, `durationMinutes = null`, `dateRangeStart = startOfWeek(clock.now(), organizerTimezone)` (Monday 00:00 in that timezone), `dateRangeEnd = dateRangeStart + 5 weeks` (current week + next four), `organizerTimezone` from the profile (fallback `UTC`).
-
-2. **`buildSearchInput` honors overrides**
-   - Override values supplied by the Organizer (selected topic ids, `minimumMatchingUsers`, `durationMinutes`, explicit date range, explicit timezone) replace only the corresponding defaults; the rest of the default shape is preserved.
-
-3. **`validateSearchInput` rejects invalid combinations with field-keyed errors**
-   - Rejects when no active Topic is selected.
-   - Rejects when `minimumMatchingUsers` is less than 2.
-   - Rejects when `minimumMatchingUsers` is greater than the supplied `matchingPoolSize` (sourced from the eligibility seam, not computed inside the validator).
-   - Rejects when `durationMinutes` is `null` or non-positive.
-   - Rejects when `dateRangeEnd` is before or equal to `dateRangeStart`.
-   - Rejects when `dateRangeStart` or `dateRangeEnd` carries non-zero minutes/seconds (must be minute-aligned — not hour-of-engine-grid; the engine computes its own hourly grid later).
-   - Rejects when `organizerTimezone` is not a valid IANA zone (validated by both `Intl.DateTimeFormat` round-trip and a strict allowlist pattern).
-   - Each rejection returns `{ ok: false, errors: Array<{ field, message }> }` keyed by the input field name so callers can surface clear messages.
-
-4. **`validateSearchInput` accepts the canonical valid input**
-   - With one or more active Topic ids, `minimumMatchingUsers = 2`, `durationMinutes = 60`, a valid current-week+4-weeks range, and a valid timezone, returns `{ ok: true }`.
-
-5. **Builder happy path: built defaults pass validation without further inputs**
-   - `validateSearchInput(buildSearchInput(deps), { matchingPoolSize })` returns `{ ok: true }` when the active-Topics repository yields at least one Topic and the matching pool is large enough.
-
-6. **Active-Topic lookup is the only source of truth**
-   - `buildSearchInput` returns empty `selectedTopicIds` when the active Topics repository yields an empty list.
-   - `buildSearchInput` rejects (does not silently drop) any seed topic id passed to it that is not in the active list.
-
-7. **`SearchRepository` contract (in-memory tests only)**
-   - `save(input)` returns the persisted record with an assigned id and `generatedAt === clock.now()`.
-   - `findById(id)` returns the saved record or `null`.
-   - `listByOrganizer(organizerId)` returns prior searches for an organizer ordered by `generatedAt desc`.
-   - The repository is dependency-injectable via `setSearchRepositoryForTests(repository | null)`, matching the existing discoverability-consent and profile patterns. Snapshot reference is **never** written by `save`; it is left for a downstream issue that computes results.
-
-8. **Drizzle migration + schema introduce the `searches` table**
-   - Migration `0006_searches.sql` creates the table with columns matching the spec in `docs/mvp-spec.md` §6.6: `id`, `organizer_id` (FK to `users`), `selected_topic_ids` (jsonb array of UUIDs), `minimum_matching_users`, `duration_minutes`, `range_start`, `range_end`, `organizer_timezone`, `generated_at`, `snapshot_reference` (nullable).
-   - The Drizzle schema and snapshot reflect the new table.
-   - The migration is idempotent and applies cleanly on a fresh database.
-
-9. **Drizzle-backed `SearchRepository` implementation**
-   - The default `searchRepository` reads/writes through `getDb()` and is exercised end-to-end against an in-memory Drizzle repo in tests. The seam established in slice 7 is unchanged.
-
-### Testable interfaces (seams)
-
-- **`SearchInput` (pure data type)** — the parsed, validated input that the search engine will eventually consume. Defined in a new module under `src/search/`.
-- **`SearchInputBuilder` factory** — `createSearchInputBuilder({ activeTopicsRepository, profileRepository, clock })` returns `{ build(overrides), validate(input, deps) }`. `build` produces a candidate without running cross-field validation; `validate` is the single rejection gate. Pure functions; all side effects live behind injected seams.
-- **`validateSearchInput(input, { matchingPoolSize })`** — pure validator. Returns `{ ok: true } | { ok: false, errors: Array<{ field: string; message: string }> }`. No I/O.
-- **`SearchRepository` interface** — `save(input)`, `findById(id)`, `listByOrganizer(organizerId)`. In-memory implementation provided for tests through a `setSearchRepositoryForTests` override. Drizzle-backed implementation lives alongside. Snapshot reference is set by a separate downstream method (not in this ticket).
-- **`Clock` seam** — interface returning `now()`; tests pin the date so "current week + next four weeks" is deterministic. `rangeStart` is `startOfWeek(clock.now(), organizerTimezone)` with `weekStartsOn: "monday"`.
-- **`matchingPoolSize` seam** — supplied to `validateSearchInput` by the caller (sourced from the existing eligibility/TopicMatch count, not computed inside the validator). This keeps the matching boundary out of this ticket.
-- **IANA timezone validation** — dual check: `Intl.DateTimeFormat(candidate).resolvedOptions().timeZone` round-trips back to `candidate`, plus a strict regex allowlist matching `^[A-Za-z][A-Za-z0-9_+\-/]*$`. Avoids relying on Node ICU build quirks.
-
-### Assumptions / risks
-
-- **Slot computation is out of scope for this issue.** The Search model captures parameters and persists them; actual Slot generation lives in a downstream issue (#15 sub-PRD). This slice must not implement matching — only capture and validate parameters.
-- **`generatedAt`, not `createdAt`.** MVP spec §6.6 names the timestamp `generated timestamp`; we use `generatedAt` to stay aligned with the spec. The same `Clock` seam drives it.
-- **Snapshot reference is nullable and never set in this ticket.** `SearchRepository.save` writes only parameters + `generatedAt`. A downstream issue (results computation) populates `snapshot_reference` via a separate method.
-- **Selected topic ids are stored as a JSONB array of UUIDs.** Matches the immutable Search Result JSON pattern used elsewhere in the spec.
-- **No new third-party dependency.** IANA timezone validation reuses `Intl.DateTimeFormat` (already available in Node LTS). Validation errors are hand-rolled `{ field, message }[]` rather than zod issues — keeps the public surface stable for UI form rendering. (zod remains in use elsewhere; this is a local choice.)
-- **No frontend slice in this ticket.** The acceptance criteria describe the Search model and validation; the Search form UI is a separate ticket downstream of the search engine.
-- **Minute alignment, not engine-grid alignment.** The validator enforces minute-zero (`xx:00:00.000`) boundaries. The hourly Slot grid is computed by the search engine in a later ticket; this validator does not encode that engine's grid.
-
-## Next Step
-
-Begin TDD on the first vertical slice: `buildSearchInput` returns sensible defaults from a pinned `Clock` and the active-Topics/profile repositories. Move to the next slice after each RED→GREEN cycle; commit one commit per finished slice per Hard Rule 2.
+Implement the plan via vertical-slice TDD: schema migration → trigger module → dispatch lookup repository → email delivery service accessor → ownership check + revoke wiring → sync-failure recorder. One commit per slice.
 
 ## Already Resolved
 

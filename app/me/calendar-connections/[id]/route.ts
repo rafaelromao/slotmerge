@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 
 import { getSessionFromRequest } from "../../../../src/auth/session";
+import { createCalendarActionRequiredEmailTrigger } from "../../../../src/calendar/action-required-email-singleton";
 import {
   presentGoogleCalendarConnection,
   revokeGoogleCalendarConnection,
@@ -14,6 +15,7 @@ import {
   getGoogleCalendarConnectionRepository,
   getMicrosoftCalendarConnectionRepository,
 } from "../../../../src/calendar/repository";
+import { loadRuntimeConfig } from "../../../../src/config/runtime";
 
 export async function PATCH(
   request: Request,
@@ -44,12 +46,29 @@ export async function PATCH(
     );
   }
 
+  if (found.record.userId !== session.user.id) {
+    return Response.json(
+      { error: "calendar_connection_not_found" },
+      { status: 404 },
+    );
+  }
+
   if (found.provider === "microsoft") {
     const connection = await revokeMicrosoftCalendarConnection({
       connectionId: expectedId,
       fetchImpl: fetch,
       repository: getMicrosoftCalendarConnectionRepository(),
       tokenEncryptionKey,
+    });
+    await safelyTriggerActionRequiredEmail({
+      id: connection.id,
+      userId: connection.userId,
+      provider: "microsoft",
+      user: {
+        email: session.user.email,
+        displayName: session.user.displayName,
+      },
+      occurredAt: new Date(),
     });
     return Response.json({
       connection: presentMicrosoftCalendarConnection(connection),
@@ -62,10 +81,41 @@ export async function PATCH(
     repository: getGoogleCalendarConnectionRepository(),
     tokenEncryptionKey,
   });
+  await safelyTriggerActionRequiredEmail({
+    id: connection.id,
+    userId: connection.userId,
+    provider: "google",
+    user: { email: session.user.email, displayName: session.user.displayName },
+    occurredAt: new Date(),
+  });
 
   return Response.json({
     connection: presentGoogleCalendarConnection(connection),
   });
+}
+
+async function safelyTriggerActionRequiredEmail(args: {
+  id: string;
+  userId: string;
+  provider: "google" | "microsoft";
+  user: { email: string; displayName: string | null };
+  occurredAt: Date;
+}): Promise<void> {
+  const trigger = createCalendarActionRequiredEmailTrigger({
+    clock: () => args.occurredAt,
+  });
+  try {
+    await trigger({
+      connection: {
+        ...args,
+        baseUrl: loadRuntimeConfig().appPublicUrl,
+      },
+      reason: "token-revoked",
+    });
+  } catch {
+    // Email enqueue failures are surfaced through the email_events log; the
+    // HTTP revoke response should still succeed.
+  }
 }
 
 function hasValidCsrfToken(request: Request, expectedToken: string): boolean {

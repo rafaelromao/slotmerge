@@ -58,6 +58,8 @@ describe("calendar connection management routes", () => {
       refreshTokenEncrypted: "secret-refresh",
       accessTokenEncrypted: "secret-access",
       accessTokenExpiresAt: new Date("2026-01-01T00:00:00.000Z"),
+      lastErrorCode: null,
+      lastErrorMessage: null,
     };
 
     setGoogleCalendarConnectionRepositoryForTests({
@@ -91,6 +93,8 @@ describe("calendar connection management routes", () => {
           scopes: "https://www.googleapis.com/auth/calendar.freebusy",
           status: "connected",
           accessTokenExpiresAt: "2026-01-01T00:00:00.000Z",
+          lastErrorCode: null,
+          lastErrorMessage: null,
         },
       ],
     });
@@ -115,6 +119,8 @@ describe("calendar connection management routes", () => {
         key: tokenEncryptionKey,
       }),
       accessTokenExpiresAt: new Date("2026-01-01T00:00:00.000Z"),
+      lastErrorCode: null,
+      lastErrorMessage: null,
     };
 
     setSessionRepositoryForTests({
@@ -194,6 +200,8 @@ describe("calendar connection management routes", () => {
         scopes: "https://www.googleapis.com/auth/calendar.freebusy",
         status: "disconnected",
         accessTokenExpiresAt: null,
+        lastErrorCode: null,
+        lastErrorMessage: null,
       },
     });
   });

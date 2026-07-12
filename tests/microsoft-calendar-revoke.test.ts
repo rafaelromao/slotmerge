@@ -26,6 +26,8 @@ describe("revokeMicrosoftCalendarConnection", () => {
         key: tokenEncryptionKey,
       }),
       accessTokenExpiresAt: new Date("2026-01-01T00:00:00.000Z"),
+      lastErrorCode: null,
+      lastErrorMessage: null,
     };
 
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
@@ -83,6 +85,8 @@ describe("revokeMicrosoftCalendarConnection", () => {
       refreshTokenEncrypted: null,
       accessTokenEncrypted: null,
       accessTokenExpiresAt: null,
+      lastErrorCode: null,
+      lastErrorMessage: null,
     };
 
     const fetchMock = vi.fn(() => Promise.resolve(new Response(null, { status: 200 })));
@@ -126,6 +130,8 @@ describe("revokeMicrosoftCalendarConnection", () => {
       }),
       accessTokenEncrypted: null,
       accessTokenExpiresAt: null,
+      lastErrorCode: null,
+      lastErrorMessage: null,
     };
 
     const fetchMock = vi.fn(() =>

@@ -79,6 +79,8 @@ describe("POST /me/calendar-connections/callback provider dispatch", () => {
       refreshTokenEncrypted: null,
       accessTokenEncrypted: null,
       accessTokenExpiresAt: null,
+      lastErrorCode: null,
+      lastErrorMessage: null,
     };
 
     setGoogleCalendarConnectionRepositoryForTests({
@@ -161,6 +163,8 @@ describe("POST /me/calendar-connections/callback provider dispatch", () => {
       refreshTokenEncrypted: null,
       accessTokenEncrypted: null,
       accessTokenExpiresAt: null,
+      lastErrorCode: null,
+      lastErrorMessage: null,
     };
 
     setMicrosoftCalendarConnectionRepositoryForTests({

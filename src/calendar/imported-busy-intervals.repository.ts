@@ -3,9 +3,10 @@ import { and, eq, gte, lte } from "drizzle-orm";
 import { getDb } from "../db/client";
 import { importedBusyIntervals } from "../db/schema";
 
-import type {
-  ImportedBusyIntervalRecord,
-  ImportedBusyIntervalRepository,
+import {
+  isWithinRollingWindow,
+  type ImportedBusyIntervalRecord,
+  type ImportedBusyIntervalRepository,
 } from "./imported-busy-intervals";
 
 export function createPostgresImportedBusyIntervalRepository(): ImportedBusyIntervalRepository {
@@ -13,10 +14,13 @@ export function createPostgresImportedBusyIntervalRepository(): ImportedBusyInte
     async upsertBatch(intervals) {
       if (intervals.length === 0) return;
 
+      const filtered = intervals.filter((i) => isWithinRollingWindow(i.startAt));
+      if (filtered.length === 0) return;
+
       const db = getDb();
 
       await db.transaction(async (tx) => {
-        const connectionIds = [...new Set(intervals.map((i) => i.connectionId))];
+        const connectionIds = [...new Set(filtered.map((i) => i.connectionId))];
         for (const connectionId of connectionIds) {
           await tx.delete(importedBusyIntervals).where(
             eq(importedBusyIntervals.connectionId, connectionId),
@@ -24,7 +28,7 @@ export function createPostgresImportedBusyIntervalRepository(): ImportedBusyInte
         }
 
         await tx.insert(importedBusyIntervals).values(
-          intervals.map((interval) => ({
+          filtered.map((interval) => ({
             id: interval.id,
             userId: interval.userId,
             connectionId: interval.connectionId,

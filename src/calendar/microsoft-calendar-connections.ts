@@ -5,10 +5,12 @@ import {
   buildMicrosoftCalendarAuthorizationUrl,
   getMicrosoftCalendarScopes,
 } from "./microsoft-oauth";
-import { encryptCalendarToken } from "./token-encryption";
+import { encryptCalendarToken, decryptCalendarToken } from "./token-encryption";
 
 const MICROSOFT_TOKEN_ENDPOINT =
   "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
+const MICROSOFT_LOGOUT_ENDPOINT =
+  "https://login.microsoftonline.com/organizations/oauth2/v2.0/logout";
 
 export type MicrosoftCalendarConnectionStatus =
   | "pending"
@@ -223,6 +225,55 @@ export async function completeMicrosoftCalendarConnection({
 
   if (!updated) {
     throw new Error("Microsoft calendar connection could not be updated.");
+  }
+
+  return updated;
+}
+
+export async function revokeMicrosoftCalendarConnection({
+  connectionId,
+  fetchImpl,
+  repository,
+  tokenEncryptionKey,
+}: {
+  connectionId: string;
+  fetchImpl: typeof fetch;
+  repository: MicrosoftCalendarConnectionRepository;
+  tokenEncryptionKey: string;
+}): Promise<MicrosoftCalendarConnectionRecord> {
+  const connection = await repository.findById(connectionId);
+
+  if (!connection) {
+    throw new Error("Microsoft calendar connection not found.");
+  }
+
+  const tokenCiphertext = connection.refreshTokenEncrypted;
+  if (tokenCiphertext) {
+    const logoutResponse = await fetchImpl(MICROSOFT_LOGOUT_ENDPOINT, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        token: decryptCalendarToken({
+          ciphertext: tokenCiphertext,
+          key: tokenEncryptionKey,
+        }),
+      }),
+    });
+
+    if (!logoutResponse.ok) {
+      throw new Error("Microsoft token revocation failed.");
+    }
+  }
+
+  const updated = await repository.updateById(connectionId, {
+    status: "disconnected",
+    refreshTokenEncrypted: null,
+    accessTokenEncrypted: null,
+    accessTokenExpiresAt: null,
+  });
+
+  if (!updated) {
+    throw new Error("Microsoft calendar connection could not be disconnected.");
   }
 
   return updated;

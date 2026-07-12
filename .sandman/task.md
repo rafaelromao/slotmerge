@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #47: Persist normalized imported busy intervals for the rolling 90-day window
+Implement GitHub issue #46: Choose contributing calendars per Calendar Connection
 
 ## Issue Context
 
@@ -10,15 +10,14 @@ Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerg
 
 ## What to build
 
-Calendar sync writes normalized busy intervals per user, connection, provider calendar, status (busy, out-of-office, tentative, free, working-elsewhere), and start/end time for the rolling 90-day future window. Search reads these rows and never calls provider APIs at runtime.
+A user can choose which connected calendars contribute busy intervals, defaulting to the provider primary calendar. The selection is stored per connection and used by sync and matching.
 
 ## Acceptance criteria
 
-- [ ] Imported busy intervals are stored as normalized rows.
-- [ ] Status is preserved per interval.
-- [ ] Only the rolling 90-day future window is stored.
-- [ ] Search does not call provider APIs at runtime.
-- [ ] Edits apply immediately to future Searches.
+- [ ] Default selection is the provider primary calendar.
+- [ ] User can include or exclude additional calendars.
+- [ ] Selection persists and is used by sync and matching.
+- [ ] Selection is visible in the Calendar Connection UI.
 
 ## Blocked by
 
@@ -29,151 +28,95 @@ Calendar sync writes normalized busy intervals per user, connection, provider ca
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/47-persist-normalized-imported-busy-intervals-for-the-rolling-90-day-window`
-- Source branch: `sandman/47-persist-normalized-imported-busy-intervals-for-the-rolling-90-day-window`
+- Current branch: `sandman/46-choose-contributing-calendars-per-calendar-connection`
+- Source branch: `sandman/46-choose-contributing-calendars-per-calendar-connection`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/47-persist-normalized-imported-busy-intervals-for-the-rolling-90-day-window` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/46-choose-contributing-calendars-per-calendar-connection` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
 - [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
-- [ ] PR-Review (sandman-pr-review)
+- [x] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Next Step
+
+PR-Merge (sandman-pr-merge)
+
 ## Plan
 
 ### Behaviors to test
 
-1. **Busy intervals can be persisted and retrieved by user**
-   - Given a user with connected calendars
-   - When busy intervals are imported from a calendar provider
-   - Then they are stored in `imported_busy_intervals` table
-   - And can be retrieved by user ID and date range
+1. **Connection completion auto-selects primary calendar as contributing**
+   - When `completeGoogleCalendarConnection` succeeds, `primary` is automatically stored as a contributing calendar
+   - When `completeMicrosoftCalendarConnection` succeeds, the primary calendar (via `isPrimaryCalendar: true`) is automatically stored as a contributing calendar
+   - The contributing calendar IDs appear in the connection view
 
-2. **Status is preserved per interval**
-   - Given busy intervals with different blocking statuses (busy, out-of-office, tentative)
-   - When stored in the database
-   - Then the exact status is preserved on retrieval
-   - Note: only busy/out-of-office/tentative are stored (free/working-elsewhere are filtered per spec §6.5)
+2. **User can view contributing calendar IDs for a connection**
+   - `GET /me/calendar-connections` returns each connection with `contributingCalendarIds: string[]`
+   - `presentGoogleCalendarConnection` and `presentMicrosoftCalendarConnection` include `contributingCalendarIds`
 
-3. **Only the rolling 90-day future window is stored**
-   - Given intervals with start times beyond 90 days in the future
-   - When attempting to store them
-   - Then they are not persisted (filtered out on upsert)
-   - And only intervals starting within the next 90 days are stored
+3. **User can update contributing calendar selection**
+   - `PATCH /me/calendar-connections/{id}` accepts `{ contributingCalendarIds: string[] }`
+   - The update replaces all existing contributing calendar IDs
+   - Returns the updated connection with new `contributingCalendarIds`
 
-4. **Search reads persisted busy intervals without provider API calls**
-   - Given stored busy intervals for a user
-   - When Search computes availability
-   - Then no provider API calls are made
-   - And busy intervals from DB are used directly
+4. **User can fetch available calendars from Microsoft**
+   - `GET /me/calendar-connections/{id}/calendars` returns Microsoft calendars with `id`, `name`, `isPrimary`, `isIncluded`
+   - Google calendar listing requires scope expansion beyond `calendar.freebusy` (deferred)
 
-5. **Edits apply immediately to future Searches**
-   - Given stored busy intervals for a user
-   - When intervals are updated/deleted in the DB
-   - Then subsequent Search queries see the new data immediately
+5. **Sync job uses contributing calendar IDs** (stored and ready; sync job integration is future work)
+   - The `contributingCalendarIds` field is persisted and queryable
+   - The sync job (not in this ticket's scope) will read this field
 
 ### Testable interfaces
 
-1. **BusyIntervalStatus** enum — type-safe status values:
-   ```typescript
-   type BusyIntervalStatus = "busy" | "out-of-office" | "tentative";
-   // Note: "free" and "working-elsewhere" are not stored per spec §6.5
-   ```
+1. **`selected-calendars.ts`** - New module for contributing calendar management:
+   - `getContributingCalendarIds(connectionId): Promise<string[]>`
+   - `setContributingCalendarIds(connectionId, calendarIds): Promise<void>`
+   - `ensureDefaultCalendarSelected(connectionId, primaryCalendarId): Promise<void>`
 
-2. **ImportedBusyIntervalRecord** — Type for a stored busy interval:
-   ```typescript
-   type ImportedBusyIntervalRecord = {
-     id: string;
-     userId: string;
-     connectionId: string;
-     providerCalendarId: string;
-     providerEventReference: string | null;
-     status: BusyIntervalStatus;
-     startAt: Date;
-     endAt: Date;
-     importedAt: Date;
-   };
-   ```
+2. **`calendar-list.ts`** - New module for fetching provider calendars:
+   - `getMicrosoftCalendars(accessToken): Promise<MicrosoftCalendar[]>`
+   - Google calendar listing deferred (requires scope expansion)
 
-3. **ImportedBusyIntervalRepository** interface:
-   ```typescript
-   type ImportedBusyIntervalRepository = {
-     upsertBatch(intervals: ImportedBusyIntervalRecord[]): Promise<void>;
-     deleteByConnectionId(connectionId: string): Promise<void>;
-     findByUserIdAndDateRange(
-       userId: string,
-       start: Date,
-       end: Date,
-     ): Promise<ImportedBusyIntervalRecord[]>;
-     deleteExpiredBefore(before: Date): Promise<number>;
-   };
-   ```
+3. **`src/db/schema.ts`** - Add to `calendarConnections` table:
+   - `contributingCalendarIds` as a text array or JSONB column (PostgreSQL text[] or Drizzle array)
 
-4. **Test override mechanism** (same pattern as `setSearchRepositoryForTests`):
-   ```typescript
-   let importedBusyIntervalRepositoryOverride: ImportedBusyIntervalRepository | null = null;
-   export function setImportedBusyIntervalRepositoryForTests(repo: ImportedBusyIntervalRepository | null);
-   export function getImportedBusyIntervalRepository(): ImportedBusyIntervalRepository;
-   ```
+4. **Extended PATCH endpoint** in `app/me/calendar-connections/[id]/route.ts`:
+   - Accept `{ contributingCalendarIds?: string[] }` alongside existing disconnect logic
 
-### Implementation slices (TDD order)
-
-**Slice 1: Schema and migration**
-- Add `imported_busy_intervals` table to `src/db/schema.ts` with columns: id, userId, connectionId, providerCalendarId, providerEventReference (nullable), status, startAt, endAt, importedAt
-- Add indexes on (userId, startAt, endAt) for efficient range queries
-- Add foreign key to `calendar_connections` table
-- Create Drizzle migration file `drizzle/0007_imported_busy_intervals.sql`
-- Add relations: `calendarConnection` → `importedBusyIntervals` (one-to-many), `user` → `importedBusyIntervals` (one-to-many)
-
-**Slice 2: Repository interface and in-memory implementation**
-- Define `ImportedBusyIntervalRepository` interface in `src/calendar/imported-busy-intervals.ts`
-- Create `InMemoryImportedBusyIntervalRepository` for tests
-- Add `setImportedBusyIntervalRepositoryForTests` and `getImportedBusyIntervalRepository` override mechanism
-- Write tests for all 5 behaviors using in-memory repo
-
-**Slice 3: Postgres repository implementation**
-- Implement `createPostgresImportedBusyIntervalRepository()` in `src/calendar/imported-busy-intervals.repository.ts`
-- `upsertBatch`: delete all existing intervals for the same connectionId, then insert new batch (assumes serialized per-connection sync — concurrent syncs for same connection are not supported in MVP)
-- `findByUserIdAndDateRange`: query by userId + range using the index
-- `deleteExpiredBefore`: cleanup job helper
-- Verify all tests pass against Postgres
-
-**Slice 4: 90-day window enforcement**
-- Add `isWithinRollingWindow(startAt: Date): boolean` pure function
-- Filter intervals in `upsertBatch` — only store if `isWithinRollingWindow(startAt)` is true
-- Write test: intervals beyond 90 days are not stored
-- Note: `deleteExpiredBefore` handles intervals whose startAt has passed the window
-
-**Slice 5: Search integration — seam definition**
-- Add `getImportedBusyIntervalsByUserId(userId, rangeStart, rangeEnd)` testable seam parallel to existing `getAvailabilityWindowsByUserId` pattern
-- `hasAvailabilitySource` check (in `isEligibleForSearchFromProfileSources`) stays true if `calendarConnections.length > 0` — no change needed there
-- The imported busy intervals seam enters downstream at slot-computation time (separate from eligibility check)
-- Write test: given stored busy intervals, they are returned by `getImportedBusyIntervalsByUserId` without any provider API calls
-
-**Slice 5b: Assert no provider API calls during search**
-- In the search integration test, mock the calendar provider client (Google/Microsoft fetch)
-- Assert that during `getImportedBusyIntervalsByUserId` call, zero provider API calls are made
-- This satisfies acceptance criterion "Search does not call provider APIs at runtime"
+5. **New GET endpoint** `app/me/calendar-connections/{id}/calendars/route.ts`:
+   - Return available calendars for Microsoft (with `isIncluded` derived from selection)
+   - Return only primary for Google (with `isIncluded: true` by default)
 
 ### Assumptions / Risks
 
-1. Issues #44 and #45 block actual calendar sync, but the persistence layer is built ahead
-2. The sync model is serialized per-connection (delete-all then insert-all for a given connectionId)
-3. Only blocking statuses (busy, out-of-office, tentative) are stored; free/working-elsewhere are filtered at storage time
-4. BufferMinutes subtraction happens at search-time slot computation (not at storage time), after `getImportedBusyIntervalsByUserId` returns
+- **Google scope**: `calendar.freebusy` does not include `calendarList.read`. MVP uses `primary` as default contributing calendar. Full Google calendar listing requires scope expansion (separate issue).
+- **Microsoft primary detection**: Microsoft Graph `/me/calendars` returns `isPrimaryCalendar: true` for the primary calendar.
+- **Sync job**: This ticket stores the selection; actual sync job integration is future work. The field is added and queryable.
+- **Deselection cleanup**: When a calendar is deselected, existing imported busy intervals for that calendar remain (stale markers will surface them).
 
-## Next Step
+### Execution order (tracer bullet first)
 
-Load sandman-implement and execute the TDD plan
+1. **DB migration**: Add `contributing_calendar_ids` column to `calendar_connections` table
+2. **Schema update**: Add `contributingCalendarIds` to `GoogleCalendarConnectionRecord`, `GoogleCalendarConnectionView`, `MicrosoftCalendarConnectionRecord`, `MicrosoftCalendarConnectionView`
+3. **Repository update**: Include `contributingCalendarIds` in select columns and CRUD
+4. **selected-calendars module**: Implement `getContributingCalendarIds`, `setContributingCalendarIds`, `ensureDefaultCalendarSelected`
+5. **calendar-list module**: Implement `getMicrosoftCalendars` using Microsoft Graph `/me/calendars`
+6. **Default selection**: Call `ensureDefaultCalendarSelected` in `completeGoogleCalendarConnection` and `completeMicrosoftCalendarConnection`
+7. **presentXxx functions**: Add `contributingCalendarIds` to returned views
+8. **PATCH endpoint**: Extend to accept and process `{ contributingCalendarIds: string[] }`
+9. **GET calendars endpoint**: Implement for Microsoft, note Google limitation
+10. **Tests**: Add tests for all behaviors
 
 ## Already Resolved
 

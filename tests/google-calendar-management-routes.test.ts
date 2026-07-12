@@ -60,6 +60,7 @@ describe("calendar connection management routes", () => {
       accessTokenExpiresAt: new Date("2026-01-01T00:00:00.000Z"),
       lastErrorCode: null,
       lastErrorMessage: null,
+      contributingCalendarIds: [],
     };
 
     setGoogleCalendarConnectionRepositoryForTests({
@@ -95,6 +96,7 @@ describe("calendar connection management routes", () => {
           accessTokenExpiresAt: "2026-01-01T00:00:00.000Z",
           lastErrorCode: null,
           lastErrorMessage: null,
+          contributingCalendarIds: [],
         },
       ],
     });
@@ -121,6 +123,7 @@ describe("calendar connection management routes", () => {
       accessTokenExpiresAt: new Date("2026-01-01T00:00:00.000Z"),
       lastErrorCode: null,
       lastErrorMessage: null,
+      contributingCalendarIds: [],
     };
 
     setSessionRepositoryForTests({
@@ -202,6 +205,7 @@ describe("calendar connection management routes", () => {
         accessTokenExpiresAt: null,
         lastErrorCode: null,
         lastErrorMessage: null,
+        contributingCalendarIds: [],
       },
     });
   });

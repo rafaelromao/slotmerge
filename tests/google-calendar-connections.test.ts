@@ -68,6 +68,7 @@ describe("Google calendar connection callback", () => {
       accessTokenExpiresAt: null,
       lastErrorCode: null,
       lastErrorMessage: null,
+      contributingCalendarIds: [],
     };
 
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
@@ -131,6 +132,7 @@ describe("Google calendar connection callback", () => {
     expect(result.accountIdentifier).toBe("google:connection-1");
     expect(result.providerAccountKey).toBe("google:connection-1");
     expect(result.scopes).toBe("https://www.googleapis.com/auth/calendar.freebusy");
+    expect(result.contributingCalendarIds).toEqual(["primary"]);
     expect(result.refreshTokenEncrypted).not.toBe("refresh-token-123");
     expect(result.accessTokenEncrypted).not.toBe("access-token-123");
     expect(
@@ -162,6 +164,7 @@ describe("Google calendar connection callback", () => {
       accessTokenExpiresAt: null,
       lastErrorCode: null,
       lastErrorMessage: null,
+      contributingCalendarIds: [],
     };
 
     const tokenEncryptionKey = "0123456789abcdef0123456789abcdef";

@@ -14,7 +14,9 @@ export function createPostgresImportedBusyIntervalRepository(): ImportedBusyInte
     async upsertBatch(intervals) {
       if (intervals.length === 0) return;
 
-      const filtered = intervals.filter((i) => isWithinRollingWindow(i.startAt));
+      const filtered = intervals.filter((i) =>
+        isWithinRollingWindow(i.startAt),
+      );
       if (filtered.length === 0) return;
 
       const db = getDb();
@@ -22,9 +24,9 @@ export function createPostgresImportedBusyIntervalRepository(): ImportedBusyInte
       await db.transaction(async (tx) => {
         const connectionIds = [...new Set(filtered.map((i) => i.connectionId))];
         for (const connectionId of connectionIds) {
-          await tx.delete(importedBusyIntervals).where(
-            eq(importedBusyIntervals.connectionId, connectionId),
-          );
+          await tx
+            .delete(importedBusyIntervals)
+            .where(eq(importedBusyIntervals.connectionId, connectionId));
         }
 
         await tx.insert(importedBusyIntervals).values(

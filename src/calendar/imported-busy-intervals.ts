@@ -4,7 +4,9 @@ export const ROLLING_WINDOW_DAYS = 90;
 
 export function isWithinRollingWindow(startAt: Date): boolean {
   const now = new Date();
-  const windowEnd = new Date(now.getTime() + ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const windowEnd = new Date(
+    now.getTime() + ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
   return startAt >= now && startAt <= windowEnd;
 }
 
@@ -43,45 +45,41 @@ export function getImportedBusyIntervalRepository(): ImportedBusyIntervalReposit
   return repositoryOverride ?? inMemoryImportedBusyIntervalRepository;
 }
 
-const inMemoryImportedBusyIntervalRepository: ImportedBusyIntervalRepository =
-  {
-    async upsertBatch(intervals) {
-      const filtered = intervals.filter((i) => isWithinRollingWindow(i.startAt));
-      for (const interval of filtered) {
-        const idx = inMemoryStore.findIndex(
-          (i) => i.connectionId === interval.connectionId && i.id === interval.id,
-        );
-        if (idx >= 0) {
-          inMemoryStore[idx] = interval;
-        } else {
-          inMemoryStore.push(interval);
-        }
+const inMemoryImportedBusyIntervalRepository: ImportedBusyIntervalRepository = {
+  async upsertBatch(intervals) {
+    const filtered = intervals.filter((i) => isWithinRollingWindow(i.startAt));
+    for (const interval of filtered) {
+      const idx = inMemoryStore.findIndex(
+        (i) => i.connectionId === interval.connectionId && i.id === interval.id,
+      );
+      if (idx >= 0) {
+        inMemoryStore[idx] = interval;
+      } else {
+        inMemoryStore.push(interval);
       }
-      await Promise.resolve();
-    },
-    async deleteByConnectionId(connectionId) {
-      inMemoryStore = inMemoryStore.filter(
-        (i) => i.connectionId !== connectionId,
-      );
-      await Promise.resolve();
-    },
-    async findByUserIdAndDateRange(userId, start, end) {
-      return Promise.resolve(
-        inMemoryStore.filter(
-          (i) =>
-            i.userId === userId &&
-            i.startAt >= start &&
-            i.startAt <= end,
-        ),
-      );
-    },
-    async deleteExpiredBefore(before) {
-      const expired = inMemoryStore.filter((i) => i.startAt < before);
-      const deletedCount = expired.length;
-      inMemoryStore = inMemoryStore.filter((i) => i.startAt >= before);
-      return Promise.resolve(deletedCount);
-    },
-  };
+    }
+    await Promise.resolve();
+  },
+  async deleteByConnectionId(connectionId) {
+    inMemoryStore = inMemoryStore.filter(
+      (i) => i.connectionId !== connectionId,
+    );
+    await Promise.resolve();
+  },
+  async findByUserIdAndDateRange(userId, start, end) {
+    return Promise.resolve(
+      inMemoryStore.filter(
+        (i) => i.userId === userId && i.startAt >= start && i.startAt <= end,
+      ),
+    );
+  },
+  async deleteExpiredBefore(before) {
+    const expired = inMemoryStore.filter((i) => i.startAt < before);
+    const deletedCount = expired.length;
+    inMemoryStore = inMemoryStore.filter((i) => i.startAt >= before);
+    return Promise.resolve(deletedCount);
+  },
+};
 
 let inMemoryStore: ImportedBusyIntervalRecord[] = [];
 

@@ -175,7 +175,11 @@ describe("ImportedBusyIntervalRepository contract", () => {
   it("deleteExpiredBefore removes intervals with startAt before the cutoff", async () => {
     const repo = getImportedBusyIntervalRepository();
 
-    await repo.upsertBatch([busyInterval, outOfOfficeInterval, tentativeInterval]);
+    await repo.upsertBatch([
+      busyInterval,
+      outOfOfficeInterval,
+      tentativeInterval,
+    ]);
 
     const deletedCount = await repo.deleteExpiredBefore(
       new Date("2026-07-16T00:00:00.000Z"),

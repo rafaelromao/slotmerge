@@ -10,13 +10,13 @@ Sub-PRD: [Sub-PRD: Auth & Invites](https://github.com/rafaelromao/slotmerge/issu
 
 ## What to build
 
-Requesting a magic link for an email that has no valid invite or existing account produces a clear "not invited" error and never authenticates. The behavior applies both to a magic-link attempt from a link and to any future "send me a link" form.
+Requesting a magic link for an email that has no valid invite or existing user produces a clear "not invited" error and never authenticates. The behavior applies both to a magic-link attempt from a link and to any future "send me a link" form.
 
 ## Acceptance criteria
 
 - [ ] A magic-link attempt for an unknown email shows a clear "not invited" error.
 - [ ] No session is created.
-- [ ] No account is implicitly created.
+- [ ] No user is implicitly created.
 - [ ] Error responses are indistinguishable between non-existent and uninvited emails (no email enumeration).
 
 ## Blocked by

@@ -69,7 +69,6 @@ export function createMagicLinkVerifyHandlers(
   deps: MagicLinkVerifyDependencies = {},
 ) {
   const clock = deps.clock ?? (() => new Date());
-  const magicLinkSecret = deps.magicLinkSecret ?? getMagicLinkSecret();
   const sessionLifetimeDays =
     deps.sessionLifetimeDays ?? getSessionLifetimeDays();
 
@@ -92,6 +91,8 @@ export function createMagicLinkVerifyHandlers(
       if (typeof token !== "string" || !token) {
         return errorResponse("invalid_token", 400);
       }
+
+      const magicLinkSecret = deps.magicLinkSecret ?? getMagicLinkSecret();
 
       let payload: MagicLinkTokenPayload;
       try {

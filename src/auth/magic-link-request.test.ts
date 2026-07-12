@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createMagicLinkRequestHandlers } from "./magic-link-request";
 import { createMagicLinkTokenIssuer } from "./magic-link";
+import type { EmailEvent } from "../email/service";
 
 type MockInvite = {
   id: string;
@@ -29,6 +30,25 @@ type MagicLinkEmailInput = {
   payload: MagicLinkEmailPayload;
 };
 
+function createMockEmailEvent(id: string): EmailEvent {
+  const now = new Date("2026-07-15T00:00:00.000Z");
+  return {
+    id,
+    recipient: "alice@example.com",
+    type: "magic-link",
+    payloadReference: `${id}-payload-ref`,
+    status: "queued",
+    attempts: 0,
+    createdAt: now,
+    updatedAt: now,
+    sentAt: null,
+    failedAt: null,
+    lastAttemptAt: null,
+    lastErrorCode: null,
+    lastErrorMessage: null,
+  };
+}
+
 function createMockInviteRepository() {
   return {
     findById: vi.fn<(id: string) => Promise<MockInvite | null>>(),
@@ -41,7 +61,7 @@ function createMockEmailDeliveryService() {
   return {
     sendEmail:
       vi.fn<
-        (input: MagicLinkEmailInput) => Promise<{ emailEvent: { id: string } }>
+        (input: MagicLinkEmailInput) => Promise<{ emailEvent: EmailEvent }>
       >(),
   };
 }
@@ -81,7 +101,9 @@ describe("magic link request handler", () => {
     let sentEmail: MagicLinkEmailInput | undefined;
     mockEmailService.sendEmail.mockImplementation((input) => {
       sentEmail = input;
-      return Promise.resolve({ emailEvent: { id: "email-event-1" } });
+      return Promise.resolve({
+        emailEvent: createMockEmailEvent("email-event-1"),
+      });
     });
 
     const { POST } = createMagicLinkRequestHandlers({
@@ -165,7 +187,7 @@ describe("magic link request handler", () => {
 
     const mockEmailService = createMockEmailDeliveryService();
     mockEmailService.sendEmail.mockResolvedValue({
-      emailEvent: { id: "email-event-1" },
+      emailEvent: createMockEmailEvent("email-event-1"),
     });
 
     const { POST } = createMagicLinkRequestHandlers({

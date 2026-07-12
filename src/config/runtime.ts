@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const envSchema = z.object({
   APP_ENV: z.enum(["local", "test", "staging", "production"]).default("local"),
+  APP_PUBLIC_URL: z.string().url().optional(),
   CALENDAR_PROVIDER_MODE: z.enum(["mock", "oauth"]).optional(),
   CALENDAR_TOKEN_ENCRYPTION_KEY: z.string().optional(),
   DATABASE_URL: z.string().min(1),
@@ -17,6 +18,7 @@ const envSchema = z.object({
 
 export type RuntimeConfig = {
   appEnv: "local" | "test" | "staging" | "production";
+  appPublicUrl: string;
   calendarProviderMode: "mock" | "oauth";
   calendarTokenEncryptionKey: string;
   databaseUrl: string;
@@ -36,6 +38,7 @@ export function loadRuntimeConfig(
 
   const config: RuntimeConfig = {
     appEnv: parsed.APP_ENV,
+    appPublicUrl: parsed.APP_PUBLIC_URL ?? "http://localhost",
     calendarProviderMode:
       parsed.CALENDAR_PROVIDER_MODE ?? (isLocal ? "mock" : "oauth"),
     calendarTokenEncryptionKey:

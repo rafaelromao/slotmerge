@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setEmailDeliveryServiceForTests } from "./action-required-email-singleton";
 import { setConnectionActionRequiredDispatchLookupForTests } from "./action-required-email.repository";
@@ -12,7 +12,15 @@ import {
 } from "./repository";
 
 describe("recordCalendarConnectionSyncFailure", () => {
+  beforeEach(() => {
+    process.env.DATABASE_URL =
+      process.env.DATABASE_URL ??
+      "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
+    process.env.APP_PUBLIC_URL = "https://slotmerge.example";
+  });
+
   afterEach(() => {
+    delete process.env.APP_PUBLIC_URL;
     setEmailDeliveryServiceForTests(null);
     setConnectionActionRequiredDispatchLookupForTests(null);
     setRecordCalendarConnectionSyncFailureForTests(null);

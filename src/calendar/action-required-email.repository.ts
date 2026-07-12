@@ -43,6 +43,7 @@ export function createPostgresConnectionActionRequiredDispatchLookup(
           and(
             eq(emailEvents.type, "calendar-action-required"),
             eq(emailEvents.payloadReference, reference),
+            eq(emailEvents.status, "sent"),
             gte(emailEvents.createdAt, since),
           ),
         )

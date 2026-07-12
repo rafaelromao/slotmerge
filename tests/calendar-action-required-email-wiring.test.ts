@@ -9,6 +9,7 @@ import { setEmailDeliveryServiceForTests } from "../src/calendar/action-required
 import { setConnectionActionRequiredDispatchLookupForTests } from "../src/calendar/action-required-email.repository";
 
 import {
+  TEST_DATABASE_URL,
   TOKEN_ENCRYPTION_KEY,
   USER,
   buildGoogleConnection,
@@ -19,11 +20,15 @@ describe("PATCH /me/calendar-connections/[id] - action-required email wiring", (
   beforeEach(() => {
     process.env.SESSION_SECRET = "0123456789abcdef0123456789abcdef";
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
+    process.env.DATABASE_URL = TEST_DATABASE_URL;
+    process.env.APP_PUBLIC_URL = "https://slotmerge.example";
   });
 
   afterEach(() => {
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
+    delete process.env.DATABASE_URL;
+    delete process.env.APP_PUBLIC_URL;
     setSessionRepositoryForTests(null);
     setGoogleCalendarConnectionRepositoryForTests(null);
     setMicrosoftCalendarConnectionRepositoryForTests(null);

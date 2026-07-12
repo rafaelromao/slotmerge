@@ -15,6 +15,7 @@ import {
   getGoogleCalendarConnectionRepository,
   getMicrosoftCalendarConnectionRepository,
 } from "../../../../src/calendar/repository";
+import { loadRuntimeConfig } from "../../../../src/config/runtime";
 
 export async function PATCH(
   request: Request,
@@ -107,7 +108,7 @@ async function safelyTriggerActionRequiredEmail(args: {
     await trigger({
       connection: {
         ...args,
-        baseUrl: extractBaseUrl(),
+        baseUrl: loadRuntimeConfig().appPublicUrl,
       },
       reason: "token-revoked",
     });
@@ -115,14 +116,6 @@ async function safelyTriggerActionRequiredEmail(args: {
     // Email enqueue failures are surfaced through the email_events log; the
     // HTTP revoke response should still succeed.
   }
-}
-
-function extractBaseUrl(): string {
-  const explicit = process.env.APP_PUBLIC_URL;
-  if (explicit) {
-    return explicit;
-  }
-  return "http://localhost";
 }
 
 function hasValidCsrfToken(request: Request, expectedToken: string): boolean {

@@ -5,6 +5,7 @@ import {
   getEmailDeliveryService,
   createCalendarActionRequiredEmailTrigger,
 } from "./action-required-email-singleton";
+import { setConnectionActionRequiredDispatchLookupForTests } from "./action-required-email.repository";
 
 describe("calendar action-required email singleton", () => {
   afterEach(() => {
@@ -59,5 +60,3 @@ describe("calendar action-required email singleton", () => {
     });
   });
 });
-
-import { setConnectionActionRequiredDispatchLookupForTests } from "./action-required-email.repository";

@@ -15,6 +15,8 @@ import {
 export const TOKEN_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef";
 export const SESSION_ID = "session-1";
 export const CSRF_TOKEN = "csrf-token-1";
+export const TEST_DATABASE_URL =
+  "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
 export const USER = {
   id: "user-1",
   email: "user@example.com",

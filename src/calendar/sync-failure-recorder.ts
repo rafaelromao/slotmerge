@@ -9,6 +9,7 @@ import {
 } from "./action-required-email";
 import { getConnectionActionRequiredDispatchLookup } from "./action-required-email.repository";
 import { getEmailDeliveryService } from "./action-required-email-singleton";
+import { loadRuntimeConfig } from "../config/runtime";
 
 export type RecordCalendarConnectionSyncFailureInput = {
   connectionId: string;
@@ -74,7 +75,7 @@ const defaultRecordCalendarConnectionSyncFailure: Recorder = async (
         userId: connection.userId,
         provider: connection.provider,
         user: connection.user,
-        baseUrl: extractBaseUrl(),
+        baseUrl: loadRuntimeConfig().appPublicUrl,
         occurredAt: new Date(),
       },
       reason: "sync-failure" satisfies CalendarActionRequiredReason,
@@ -106,8 +107,4 @@ async function updateConnectionErrorMetadata(
       lastErrorMessage: input.message,
     },
   );
-}
-
-function extractBaseUrl(): string {
-  return process.env.APP_PUBLIC_URL ?? "http://localhost";
 }

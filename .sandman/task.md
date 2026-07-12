@@ -1,45 +1,50 @@
 # Task
 
-Implement GitHub issue #39: Approve, reject, or retire Topics
+Implement GitHub issue #133: Containerize web and worker runtimes
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmerge/issues/18). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14). Hosting decision: [Choose MVP hosting and deployment](https://github.com/rafaelromao/slotmerge/issues/131).
 
 ## What to build
 
-Admins can approve or reject pending Topic Proposals and retire active Topics. Retired Topics preserve historical user associations but are not selectable for new ones and cannot be used in new Searches.
+Add the Docker build and runtime command shape needed to run the same application image locally and in Cloud Run as two services: `web` for the Next.js app and `worker` for Graphile Worker jobs and scheduler/tick logic.
+
+This ticket is a prerequisite for both local full-stack verification and GCP deployment.
 
 ## Acceptance criteria
 
-- [ ] Admin can approve a pending Topic Proposal; it becomes active.
-- [ ] Admin can reject a pending Topic Proposal.
-- [ ] Admin can retire an active Topic.
-- [ ] Retired Topics remain visible on past associations but not selectable for new ones.
-- [ ] Retired Topics do not participate in new Searches.
+- [ ] A production Docker image builds from the locked pnpm + Next.js + Node stack.
+- [ ] The same image can run in `web` mode and `worker` mode via command or environment selection.
+- [ ] The `web` runtime serves the Next.js app on the Cloud Run-provided port.
+- [ ] The `worker` runtime starts Graphile Worker without exposing public product routes.
+- [ ] The image can also run locally with local PostgreSQL and non-production environment variables.
+- [ ] The image does not require development-only dependencies at runtime.
+- [ ] The runtime expects configuration from environment variables and Secret Manager injection in GCP, while allowing local `.env`/compose-style configuration outside GCP.
 
 ## Blocked by
 
-- [View controlled Topic catalogue](https://github.com/rafaelromao/slotmerge/issues/30)
+- [Provision app shell, auth, and Postgres bootstrap](https://github.com/rafaelromao/slotmerge/issues/20)
+- [Provision GCP project and deployment foundation](https://github.com/rafaelromao/slotmerge/issues/132)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/39-approve-reject-or-retire-topics`
-- Source branch: `sandman/39-approve-reject-or-retire-topics`
+- Current branch: `sandman/133-containerize-web-and-worker-runtimes`
+- Source branch: `sandman/133-containerize-web-and-worker-runtimes`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/39-approve-reject-or-retire-topics` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/133-containerize-web-and-worker-runtimes` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -47,66 +52,56 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Next Step
-
-Implement: load sandman-tdd and execute Slice 1 (Schema + migration)
-
 ## Plan
 
 ### Behaviors to test
 
-1. **Admin can approve a pending Topic Proposal; it becomes active.**
-   - POST /admin/topic-proposals/{id}/approve (action=approve form param) → atomically: TopicProposal status=approved + new Topic status=active created with candidate_name as name
-   - No auto-UserTopic association created on approve; proposing user must explicitly select the new active Topic
-2. **Admin can reject a pending Topic Proposal.**
-   - POST /admin/topic-proposals/{id}/reject (action=reject form param) → TopicProposal status=rejected, no Topic created
-3. **Admin can retire an active Topic.**
-   - POST /admin/topics/{id}/retire (action=retire form param) → Topic status=retired, retiredAt set to now
-4. **Retired Topics retain existing UserTopic associations.**
-   - UserTopic associations with status=active are NOT modified when a Topic is retired; only the Topic's status changes
-5. **Admin can view pending Topic Proposals queue.**
-   - GET /admin/topic-proposals → HTML page listing pending proposals with approve/reject forms
+- Prerequisite gate: the repository contains the locked runtime scaffold needed for containerization: `package.json`, `pnpm-lock.yaml`, a Next.js production start/build path, and a real Graphile Worker entrypoint. If absent, stop as blocked by #20/#132 and do not create placeholders.
+- Tracer bullet: once the scaffold exists, the repository exposes one public container runtime contract that selects `web` or `worker` mode through command/env input and fails fast for unknown modes.
+- The production image builds from the locked pnpm + Next.js + Node stack using the repository lockfile.
+- The production runtime image contains only production/runtime artifacts and does not require development-only dependencies to start.
+- In `web` mode, the container starts the Next.js server bound to `0.0.0.0` and the Cloud Run-provided `PORT`.
+- In `worker` mode, the container starts the real Graphile Worker process/scheduler boundary and does not start the public web route surface.
+- Local execution accepts local PostgreSQL and non-production env vars through `.env`/compose-style environment injection.
+- Production configuration is expressed as environment variables suitable for Cloud Run Secret Manager injection, without hard-coding final GCP resource names while #132 is open.
 
 ### Testable interfaces
 
-- `TopicProposalRepository`: `listPending()`, `approve(id): Promise<{ topicId: string }>`, `reject(id): Promise<void>`
-- `TopicRepository`: `listActive()`, `retire(id): Promise<void>`
-- `AdminTopicProposalsHandlers`: factory `{ GET, POST }` with DI for session + repository
-- `AdminTopicsHandlers`: factory `{ GET, POST }` with DI for session + repository
-
-### Slices (vertical, execution order)
-
-**Slice 1 — Schema + migration**
-- Add `topic_proposals` table: id, proposed_by_user_id (FK→users), candidate_name, status (pending/approved/rejected), created_at, updated_at
-- Add `topics` table: id, name (unique), status (pending/active/retired), retired_at (nullable), created_at, updated_at
-- Add `user_topics` table: id, user_id (FK→users), topic_id (FK→topics), status (active/pending-retired/historical), created_at, updated_at
-- Add relations to schema.ts; create migration file
-
-**Slice 2 — Repository layer**
-- `TopicProposalRepository` with DB implementation (approve uses a transaction)
-- `TopicRepository` with DB implementation
-
-**Slice 3 — Admin Topic Proposals page+handler**
-- `app/admin/topic-proposals/route.ts` → delegates to `src/admin/topic-proposals.ts`
-- GET: list pending proposals; POST: route approve/reject by action param
-- HTML page with forms, CSRF token
-
-**Slice 4 — Admin Topics page+handler**
-- `app/admin/topics/route.ts` → delegates to `src/admin/topics.ts`
-- GET: list active topics; POST: route retire by action param
-- HTML page with retire forms, CSRF token
-
-**Slice 5 — Unit tests**
-- `src/admin/topic-proposals.test.ts`: mock session + repository, test approve/reject/list
-- `src/admin/topics.test.ts`: mock session + repository, test retire/list
-- `src/admin/topic-proposals.test.ts`: test that approve atomically creates Topic
+- Prerequisite artifact seam: repository-level existence checks for the locked app scaffold and real worker entrypoint.
+- Runtime command seam: a single Docker `CMD`/entrypoint or package script with `RUNTIME_MODE=web|worker` or equivalent CLI selection.
+- Image/build seam: `docker build` plus image inspection/smoke checks against the built production image.
+- Process boundary seam: observable start command output, bind address/port behavior, and absence of web startup in worker mode.
+- Environment contract seam: checked-in env template/docs for local and production variable names, with final GCP binding deferred to #132.
 
 ### Assumptions / risks
 
-- No audit logging infrastructure exists yet; audit logging for admin Topic decisions is noted in mvp-spec §10 but out of scope for this issue.
-- No existing Topic/TopicProposal/UserTopic tables exist in schema; this slice creates them.
-- Retired Topics not participating in Searches requires the Search module to filter by status=active; this AC is enforced by the Search module (separate issue) and not tested here — the AC "Retired Topics do not participate in new Searches" is satisfied by setting status=retired, which the Search module will read.
-- "Retired Topics remain visible on past associations" is satisfied by NOT modifying UserTopic associations when retiring — the association stays at status=active.
+- Full implementation is blocked until #20 provides the real locked app scaffold and Graphile Worker code.
+- Final Cloud Run, Artifact Registry, Cloud SQL, and Secret Manager wiring is blocked until #132.
+- Do not create a fake Next app, fake Graphile Worker, fake lockfile, or fake deployment foundation to satisfy this ticket.
+- If prerequisites are absent during `sandman-tdd`, the correct automated outcome is a blocked stop/report, not speculative implementation.
+
+## Next Step
+
+REVIEW_TIMEOUT: PR #151 has CI passing (SUCCESS) and mergeable (CLEAN) state. `/sandman review` comment posted but PR Review Agent did not respond within 15-minute polling budget. Implementation verified: multi-stage Dockerfile with web/worker RUNTIME_MODE selection, docker-entrypoint.sh with fail-fast for unknown modes, production-only dependencies in runtime stage. PR review loop exhausted without response.
+
+## Prerequisite Status Update
+
+- Issue #20 (BLOCKS #133): OPEN — PR #140 "Provision app shell, auth, and Postgres bootstrap" exists and is mergeable (CLEAN) but not yet merged.
+- Issue #132 (BLOCKED #133): CLOSED — GCP project and deployment foundation resolved.
+- No containerization artifacts exist anywhere: no Dockerfile, no package.json, no pnpm-lock.yaml, no Next.js source, no Graphile Worker entrypoint.
+- Current branch `sandman/133-containerize-web-and-worker-runtimes` is 2 commits BEHIND origin/main (which added GCP foundation docs).
+
+## Blocked Finding (re-confirmed)
+
+Prerequisite gate re-executed. Still blocked: `package.json`, `pnpm-lock.yaml`, Next.js source, and Graphile Worker entrypoint absent from repository. Issue #20 remains open (PR #140 pending). Issue #132 is now closed. Per plan: "do not create placeholder app, lockfile, or worker code to satisfy this ticket."
+
+## Stop Condition Reached
+
+Prerequisite gate failed: no `package.json`, no `pnpm-lock.yaml`, no Next.js source files, no Graphile Worker entrypoint exist in the repository. Issue #20 is still open. Implementation cannot proceed without the locked runtime scaffold from #20.
+
+## Blocked Finding
+
+The prerequisite gate was executed on `sandman/133-containerize-web-and-worker-runtimes`. The repository currently contains no `package.json`, no `pnpm-lock.yaml`, no Next.js source files, and no real Graphile Worker entrypoint. Per the plan, do not create placeholder app, lockfile, or worker code to satisfy this ticket. Issue #20 remains open.
 
 ## Already Resolved
 

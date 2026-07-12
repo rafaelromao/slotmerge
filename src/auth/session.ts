@@ -114,7 +114,7 @@ const databaseSessionRepository: SessionRepository = {
   },
 };
 
-function getSessionSecret(): string {
+export function getSessionSecret(): string {
   if (process.env.SESSION_SECRET) {
     return process.env.SESSION_SECRET;
   }

@@ -3,9 +3,9 @@ import {
   index,
   integer,
   pgTable,
-  uniqueIndex,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -14,6 +14,8 @@ export type UserRole = "user" | "organizer" | "admin";
 export type UserStatus = "active" | "suspended";
 export type InviteRole = UserRole;
 export type InviteStatus = "pending" | "accepted" | "revoked";
+export type CalendarConnectionStatus = "pending" | "connected" | "disconnected";
+export type CalendarProvider = "google";
 export type TopicStatus = "pending" | "active" | "retired";
 export type TopicProposalStatus = "pending" | "approved" | "rejected";
 export type TopicAssociationStatus =
@@ -51,6 +53,7 @@ export const sessions = pgTable("sessions", {
 
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
+  calendarConnections: many(calendarConnections),
   topicProposals: many(topicProposals),
   userTopics: many(userTopics),
 }));
@@ -61,6 +64,42 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const calendarConnections = pgTable("calendar_connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").$type<CalendarProvider>().notNull(),
+  providerAccountKey: text("provider_account_key"),
+  accountIdentifier: text("account_identifier"),
+  scopes: text("scopes"),
+  status: text("status")
+    .$type<CalendarConnectionStatus>()
+    .notNull()
+    .default("pending"),
+  refreshTokenEncrypted: text("refresh_token_encrypted"),
+  accessTokenEncrypted: text("access_token_encrypted"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", {
+    withTimezone: true,
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const calendarConnectionsRelations = relations(
+  calendarConnections,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [calendarConnections.userId],
+      references: [users.id],
+    }),
+  }),
+);
 
 export const invites = pgTable(
   "invites",

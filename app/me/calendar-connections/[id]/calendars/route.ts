@@ -90,10 +90,9 @@ type MicrosoftCalendar = {
   isPrimaryCalendar: boolean;
 };
 
-async function fetchMicrosoftCalendars(accessToken: string): Promise<
-  | { ok: true; calendars: MicrosoftCalendar[] }
-  | { ok: false }
-> {
+async function fetchMicrosoftCalendars(
+  accessToken: string,
+): Promise<{ ok: true; calendars: MicrosoftCalendar[] } | { ok: false }> {
   const response = await fetch(
     `${MICROSOFT_GRAPH_ENDPOINT}/me/calendars?$select=id,name,isPrimaryCalendar`,
     {

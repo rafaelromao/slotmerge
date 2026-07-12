@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 describe("self-delete-account migration", () => {
   it("changes the invites.invited_by_admin_id foreign key to SET NULL and makes the column nullable", async () => {
     const migration = await readFile(
-      "drizzle/0004_self_delete_account.sql",
+      "drizzle/0005_self_delete_account.sql",
       "utf8",
     );
 
@@ -27,7 +27,7 @@ describe("self-delete-account migration", () => {
 
     expect(
       journal.entries.some(
-        (entry) => entry.tag === "0004_self_delete_account",
+        (entry) => entry.tag === "0005_self_delete_account",
       ),
     ).toBe(true);
   });

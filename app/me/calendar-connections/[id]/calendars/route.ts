@@ -75,7 +75,9 @@ export async function GET(
   const calendars = calendarsResult.calendars;
   const includedIds = new Set(found.record.contributingCalendarIds);
   const calendarsWithStatus = calendars.map((cal) => ({
-    ...cal,
+    id: cal.id,
+    name: cal.name,
+    isPrimary: cal.isPrimaryCalendar,
     isIncluded: includedIds.has(cal.id),
   }));
 

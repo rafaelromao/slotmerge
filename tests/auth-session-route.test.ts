@@ -41,5 +41,4 @@ describe("DELETE /auth/session", () => {
     expect(setCookie).toContain("slotmerge_session=");
     expect(setCookie).toContain("Max-Age=0");
   });
-
 });

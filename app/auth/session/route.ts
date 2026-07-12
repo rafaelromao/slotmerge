@@ -3,7 +3,10 @@ import { eq } from "drizzle-orm";
 
 import { getDb } from "../../../src/db/client";
 import { sessions } from "../../../src/db/schema";
-import { clearSessionCookie, getSessionSecret } from "../../../src/auth/session";
+import {
+  clearSessionCookie,
+  getSessionSecret,
+} from "../../../src/auth/session";
 
 export async function DELETE(request: Request): Promise<Response> {
   const sessionId = await extractSessionId(request);

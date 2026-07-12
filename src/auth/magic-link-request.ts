@@ -24,13 +24,7 @@ export function createMagicLinkRequestHandlers(
   const clock = deps.clock ?? (() => new Date());
   const baseUrl = deps.baseUrl ?? "http://localhost";
 
-  const issuer =
-    deps.magicLinkTokenIssuer ??
-    createMagicLinkTokenIssuer({
-      baseUrl,
-      secret: deps.magicLinkSecret ?? getMagicLinkSecret(),
-      clock,
-    });
+  let issuer: MagicLinkTokenIssuer | undefined = deps.magicLinkTokenIssuer;
 
   return {
     POST: async (request: Request): Promise<Response> => {
@@ -42,6 +36,15 @@ export function createMagicLinkRequestHandlers(
       }
 
       const normalizedEmail = email.trim().toLowerCase();
+
+      if (!issuer) {
+        issuer =
+          createMagicLinkTokenIssuer({
+            baseUrl,
+            secret: deps.magicLinkSecret ?? getMagicLinkSecret(),
+            clock,
+          });
+      }
 
       const inviteRepo = deps.inviteRepository ?? defaultInviteRepository;
       const userRepo = deps.userRepository ?? defaultUserRepository;

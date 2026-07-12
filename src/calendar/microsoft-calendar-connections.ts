@@ -13,9 +13,7 @@ const MICROSOFT_LOGOUT_ENDPOINT =
   "https://login.microsoftonline.com/organizations/oauth2/v2.0/logout";
 
 export type MicrosoftCalendarConnectionStatus =
-  | "pending"
-  | "connected"
-  | "disconnected";
+  "pending" | "connected" | "disconnected";
 
 export type MicrosoftCalendarConnectionRecord = {
   id: string;

@@ -2,8 +2,14 @@ import { eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { calendarConnections } from "../db/schema";
-import { type GoogleCalendarConnectionRepository } from "./google-calendar-connections";
-import { type MicrosoftCalendarConnectionRepository } from "./microsoft-calendar-connections";
+import {
+  type GoogleCalendarConnectionRecord,
+  type GoogleCalendarConnectionRepository,
+} from "./google-calendar-connections";
+import {
+  type MicrosoftCalendarConnectionRecord,
+  type MicrosoftCalendarConnectionRepository,
+} from "./microsoft-calendar-connections";
 
 let googleRepositoryOverride: GoogleCalendarConnectionRepository | null = null;
 let microsoftRepositoryOverride: MicrosoftCalendarConnectionRepository | null =
@@ -22,15 +28,35 @@ export function setMicrosoftCalendarConnectionRepositoryForTests(
 }
 
 export function getGoogleCalendarConnectionRepository(): GoogleCalendarConnectionRepository {
-  return (
-    googleRepositoryOverride ?? databaseGoogleCalendarConnectionRepository
-  );
+  return googleRepositoryOverride ?? databaseGoogleCalendarConnectionRepository;
 }
 
 export function getMicrosoftCalendarConnectionRepository(): MicrosoftCalendarConnectionRepository {
   return (
     microsoftRepositoryOverride ?? databaseMicrosoftCalendarConnectionRepository
   );
+}
+
+export async function findCalendarConnectionById(
+  id: string,
+): Promise<
+  | { provider: "google"; record: GoogleCalendarConnectionRecord }
+  | { provider: "microsoft"; record: MicrosoftCalendarConnectionRecord }
+  | null
+> {
+  const googleRepository = getGoogleCalendarConnectionRepository();
+  const googleRecord = await googleRepository.findById(id);
+  if (googleRecord) {
+    return { provider: "google", record: googleRecord };
+  }
+
+  const microsoftRepository = getMicrosoftCalendarConnectionRepository();
+  const microsoftRecord = await microsoftRepository.findById(id);
+  if (microsoftRecord) {
+    return { provider: "microsoft", record: microsoftRecord };
+  }
+
+  return null;
 }
 
 export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectionRepository =
@@ -63,10 +89,10 @@ export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectio
           accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
         });
 
-      return row ?? record;
+      return (row as GoogleCalendarConnectionRecord | undefined) ?? record;
     },
     listByUserId: async (userId) => {
-      return getDb()
+      const rows = await getDb()
         .select({
           id: calendarConnections.id,
           userId: calendarConnections.userId,
@@ -81,6 +107,8 @@ export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectio
         })
         .from(calendarConnections)
         .where(eq(calendarConnections.userId, userId));
+
+      return rows as GoogleCalendarConnectionRecord[];
     },
     findById: async (id) => {
       const [row] = await getDb()
@@ -100,7 +128,7 @@ export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectio
         .where(eq(calendarConnections.id, id))
         .limit(1);
 
-      return row ?? null;
+      return (row as GoogleCalendarConnectionRecord | undefined) ?? null;
     },
     updateById: async (id, patch) => {
       const [row] = await getDb()
@@ -123,7 +151,7 @@ export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectio
           accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
         });
 
-      return row ?? null;
+      return (row as GoogleCalendarConnectionRecord | undefined) ?? null;
     },
   };
 
@@ -157,10 +185,10 @@ export const databaseMicrosoftCalendarConnectionRepository: MicrosoftCalendarCon
           accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
         });
 
-      return row ?? record;
+      return (row as MicrosoftCalendarConnectionRecord | undefined) ?? record;
     },
     listByUserId: async (userId) => {
-      return getDb()
+      const rows = await getDb()
         .select({
           id: calendarConnections.id,
           userId: calendarConnections.userId,
@@ -175,6 +203,8 @@ export const databaseMicrosoftCalendarConnectionRepository: MicrosoftCalendarCon
         })
         .from(calendarConnections)
         .where(eq(calendarConnections.userId, userId));
+
+      return rows as MicrosoftCalendarConnectionRecord[];
     },
     findById: async (id) => {
       const [row] = await getDb()
@@ -194,7 +224,7 @@ export const databaseMicrosoftCalendarConnectionRepository: MicrosoftCalendarCon
         .where(eq(calendarConnections.id, id))
         .limit(1);
 
-      return row ?? null;
+      return (row as MicrosoftCalendarConnectionRecord | undefined) ?? null;
     },
     updateById: async (id, patch) => {
       const [row] = await getDb()
@@ -217,6 +247,6 @@ export const databaseMicrosoftCalendarConnectionRepository: MicrosoftCalendarCon
           accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
         });
 
-      return row ?? null;
+      return (row as MicrosoftCalendarConnectionRecord | undefined) ?? null;
     },
   };

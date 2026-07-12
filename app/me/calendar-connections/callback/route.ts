@@ -10,6 +10,7 @@ import {
   presentMicrosoftCalendarConnection,
 } from "../../../../src/calendar/microsoft-calendar-connections";
 import {
+  findCalendarConnectionById,
   getGoogleCalendarConnectionRepository,
   getMicrosoftCalendarConnectionRepository,
 } from "../../../../src/calendar/repository";
@@ -98,35 +99,28 @@ export async function POST(request: Request): Promise<Response> {
   });
 }
 
-async function isMicrosoftProvider(state: FormDataEntryValue | null): Promise<boolean> {
+async function isMicrosoftProvider(
+  state: FormDataEntryValue | null,
+): Promise<boolean> {
   if (typeof state !== "string" || !state) {
     return false;
   }
 
+  let payload: CallbackState;
   try {
-    const payload = (await Iron.unseal(
+    payload = (await Iron.unseal(
       state,
       getSessionSecret(),
       Iron.defaults,
     )) as CallbackState;
-
-    if (!payload.connectionId) {
-      return false;
-    }
-
-    const googleConnection = await getGoogleCalendarConnectionRepository().findById(
-      payload.connectionId,
-    );
-    if (googleConnection) {
-      return googleConnection.provider === "microsoft";
-    }
-
-    const microsoftConnection =
-      await getMicrosoftCalendarConnectionRepository().findById(
-        payload.connectionId,
-      );
-    return Boolean(microsoftConnection);
   } catch {
     return false;
   }
+
+  if (!payload.connectionId) {
+    return false;
+  }
+
+  const found = await findCalendarConnectionById(payload.connectionId);
+  return found?.provider === "microsoft";
 }

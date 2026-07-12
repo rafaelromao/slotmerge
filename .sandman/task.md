@@ -1,130 +1,42 @@
 # Task
 
-Implement GitHub issue #42: Send Calendar Connection action-required email
+Implement GitHub issue #32: List pending Topic Proposals on profile
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmerge/issues/18). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-When a user's Calendar Connection enters an action-required state (token revoked, reconnect needed, persistent sync failure), the system sends an email to the affected user with a clear next step.
+A User sees the list of their pending Topic Proposals on `My Topics`, including their current state. Pending Topic Proposals count toward setup completion but do not make the user match Searches.
 
 ## Acceptance criteria
 
-- [ ] Token revocation triggers a reconnect email.
-- [ ] Persistent sync failure triggers an action-required email.
-- [ ] Email includes a link to the Calendar Connection page.
-- [ ] Email delivery state is recorded.
+- [ ] User sees pending proposals with their current state.
+- [ ] Pending proposals count toward setup completion.
+- [ ] User can identify which proposals are awaiting Admin review.
 
 ## Blocked by
 
-- [Provision transactional email delivery and email event log](https://github.com/rafaelromao/slotmerge/issues/26)
-- [Encrypt Calendar Connection OAuth tokens at rest](https://github.com/rafaelromao/slotmerge/issues/45)
+- [Propose a new Topic](https://github.com/rafaelromao/slotmerge/issues/29)
 
 
 ## Runtime Context
 
-## Plan
-
-Issue #42 sends a transactional email to a User whenever their Calendar Connection enters an action-required state (token revoked, persistent sync failure). Delivery state must be recorded through the existing single Email delivery service module (`src/email/service.ts`).
-
-### Pre-flight
-
-- [x] `gh issue view 42` confirms issue is OPEN with 4 acceptance criteria.
-- [x] Both blockers (`#26`, `#45`) are CLOSED.
-- [x] `origin/main` is up to date and the branch is an ancestor of `origin/main`.
-- [x] No open PR for the current branch.
-- [x] No existing implementation in `origin/main` matches the acceptance criteria.
-
-### Subagent review summary
-
-Subagent reviewed the initial plan and produced four concrete revisions, all adopted here:
-
-1. **Ownership check on revoke route.** Before wiring the email, ensure `app/me/calendar-connections/[id]/route.ts` rejects requests where `found.record.userId !== session.user.id`. Otherwise any logged-in user could disconnect someone else's connection and trigger an email to a third party.
-2. **Sync-failure wiring is internal, not a new POST route.** The spec's API surface (`docs/mvp-spec.md:282-287`) does not list a `POST .../sync-failure` endpoint, and the trigger origin is the sync engine, not the user. Expose `recordCalendarConnectionSyncFailure(connectionId, error)` as an internal function in `src/calendar/repository.ts` that calls the trigger module. The actual sync engine is a separate issue.
-3. **Drop `lastSyncAt` / drop the transport-rendering slice.** The transport already stringifies the payload. Put `reconnectUrl` in the payload so it appears in the body without touching `src/email/transport.ts`.
-4. **Use the real `EmailDeliveryService` type, not a narrowed one.** Mirror the singleton + test-override pattern used by `getGoogleCalendarConnectionRepository` (`src/calendar/repository.ts:30-38`).
-
-### Tracer bullet
-
-End-to-end flow that exercises every layer:
-
-1. Connection's revoke or sync-failure entry-point calls the action-required trigger module with `(connectionId, reason, user.email)`.
-2. Trigger module looks up a prior dispatch (Postgres), dedups if within window, otherwise builds the payload (including `reconnectUrl`) and hands it to the singleton `EmailDeliveryService`.
-3. `EmailDeliveryService` records the `EmailEvent` (delivery state), enqueues the worker, the worker renders the body (which now includes the `reconnectUrl`), and the transport sends it.
-
-### Behaviors to test (vertical slices)
-
-**Slice 1 — schema migration (`drizzle/0006_calendar_connection_sync_failure.sql` + `src/db/schema.ts`)**
-- Adds nullable `last_error_code` / `last_error_message` columns to `calendar_connections`.
-- Drizzle schema and `findById`/`listByUserId`/`updateById` selects include the new columns.
-
-**Slice 2 — action-required trigger module (`src/calendar/action-required-email.ts`)**
-- For `token-revoked` and `sync-failure` reasons, calls `emailDeliveryService.sendEmail` exactly once with `type: "calendar-action-required"`, the user email as recipient, a payload containing `connectionId`, `provider`, `reason`, `reconnectUrl`, `occurredAt` (ISO), and a deterministic `payloadReference` derived from `(connectionId, reason)`.
-- Skips dispatch when `findMostRecentConnectionDispatch(connectionId, reason, since)` returns a non-null timestamp inside the dedup window.
-- Returns `{ status: "sent" | "skipped", emailEventId?: string }`.
-- Uses `dedupWindowMs` from deps with a default of 60 minutes (twice admin-critical's 15-minute window because user-initiated `token-revoked` should not re-fire on every page reload, and `sync-failure` should not re-fire while a previous one is being acted on).
-- Reuses `EmailDeliveryService` from `src/email/service.ts` directly (not a narrowed duplicate).
-
-**Slice 3 — dispatch lookup repository (`src/calendar/action-required-email.repository.ts`)**
-- Postgres-backed `findMostRecentConnectionDispatch(connectionId, reason, since)` mirrors `createPostgresAdminCriticalDispatchLookup` (`src/admin/critical-email.repository.ts:29-51`).
-- `createConnectionActionRequiredDedupReference(connectionId, reason)` returns a pure-function SHA-256 hash of `{"connectionId","reason"}` (mirrors `createKindDedupReference` in `src/admin/critical-email.ts:66-68`).
-- Repository is wired through a `setConnectionActionRequiredDispatchLookupForTests` test override (mirrors the calendar repository pattern at `src/calendar/repository.ts:18-28`).
-
-**Slice 4 — singleton accessor for the email delivery service (`src/email/service.ts` / new factory)**
-- Add `getEmailDeliveryService()` that constructs a default `EmailDeliveryService` backed by the Postgres repository + Graphile enqueue, plus `setEmailDeliveryServiceForTests(...)` for the route tests.
-- Mirror the existing `getGoogleCalendarConnectionRepository` / `setGoogleCalendarConnectionRepositoryForTests` pattern (`src/calendar/repository.ts:18-38`).
-
-**Slice 5 — ownership check + wire revoke routes (`app/me/calendar-connections/[id]/route.ts`)**
-- After `findCalendarConnectionById(expectedId)`, return 404 if `found.record.userId !== session.user.id`.
-- After a successful revoke (Google or Microsoft), call `triggerCalendarActionRequiredEmail` with `{ connectionId, provider, reason: "token-revoked", user: { id, email } }`.
-- The revoke HTTP response stays 200 even if the email enqueue fails (email failures are observable through the `email_events` table, not the HTTP response).
-- The trigger is awaited only long enough to record the `EmailEvent`; the actual send runs in the worker. The route never blocks the HTTP response on transport success.
-
-**Slice 6 — internal sync-failure recorder (`src/calendar/repository.ts` + `src/calendar/action-required-email.ts`)**
-- Add `recordCalendarConnectionSyncFailure(connectionId, { code, message })` that updates `last_error_code`, `last_error_message`, and `updated_at` on the row.
-- The recorder calls `triggerCalendarActionRequiredEmail` with `reason: "sync-failure"` after the update succeeds.
-- Connection status stays `connected` while the error columns are populated. The follow-up `needs-reconnect` status value (per `docs/mvp-spec.md:143`) is filed as a separate issue and explicitly tracked in the slice description below.
-
-### Out of scope
-
-- The actual sync engine, webhooks, and reconciliation scheduler — separate issues.
-- A user-callable POST `/me/calendar-connections/{id}/sync-failure` route — the spec API surface (`docs/mvp-spec.md:282-287`) does not list it; the trigger origin is the sync engine, not the user. The internal recorder is the slice boundary.
-- Changing the connection status enum to include `needs-reconnect`. Today's schema has only `pending`/`connected`/`disconnected`. The spec calls for `needs reconnect` (`docs/mvp-spec.md:143`) and that belongs in a follow-up issue, not this one. The current slice writes error columns on a still-`connected` row and is honest about that limitation.
-- A proper HTML email template — the existing transport JSON-stringifies the payload (`src/email/transport.ts:69-75`), so a `reconnectUrl` field in the payload is enough to satisfy "Email includes a link to the Calendar Connection page" (`docs/mvp-spec.md:435`). A real HTML template is a separate slice.
-- Sending a real email in tests — `EMAIL_ADAPTER=mock` returns `mock-<eventId>` for any `EmailTransport.send`.
-
-### Schema additions
-
-- `calendar_connections.last_error_code` (text, nullable)
-- `calendar_connections.last_error_message` (text, nullable)
-- No enum change in this issue (deferred; see "Out of scope").
-
-### Risks
-
-- The spec calls for a `needs-reconnect` status value (`docs/mvp-spec.md:143`) that the current schema does not have. This issue records the failure via columns, not status, and explicitly defers the enum change to a follow-up. The trigger module is structured so a future status change will not require changes to email logic.
-- The revoke route currently does not check ownership. Without that fix, an authenticated user could disconnect someone else's connection and trigger an email to a third party. Slice 5 ships the ownership check as part of the same change so we never ship the email wiring without it.
-- Dedup window default (60 min) is twice the admin-critical window (15 min). This is intentional: the recipient is the user (not an admin) and a re-trigger while the previous email is still likely unread would be noise. If product feedback says otherwise, the dedup window is a single constant.
-
-### Subagent review
-
-A subagent reviewed the first draft and produced four revisions, all adopted above. Plan consensus reached.
-
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/42-send-calendar-connection-action-required-email`
-- Source branch: `sandman/42-send-calendar-connection-action-required-email`
+- Current branch: `sandman/32-list-pending-topic-proposals-on-profile`
+- Source branch: `sandman/32-list-pending-topic-proposals-on-profile`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/42-send-calendar-connection-action-required-email` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/32-list-pending-topic-proposals-on-profile` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
-- [x] Create branch (`sandman/42-send-calendar-connection-action-required-email` created from `main`).
-- [x] Plan (sandman-plan) — drafted above, subagent reviewed, consensus reached on four revisions (ownership check, internal recorder not new route, drop transport slice, use real `EmailDeliveryService` type).
+- [x] Create branch
+- [x] Plan (sandman-plan)
 - [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
@@ -135,7 +47,37 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Implement the plan via vertical-slice TDD: schema migration → trigger module → dispatch lookup repository → email delivery service accessor → ownership check + revoke wiring → sync-failure recorder. One commit per slice.
+The registered next step is **Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)**.
+
+## Plan
+
+### Behaviors to test
+
+1. **GET /me returns topicProposals with status field (AC1 + AC3)**: When a user has topic proposals, the GET /me response includes those proposals with their `status` field (`"pending"` | `"approved"` | `"rejected"`). The `status: "pending"` value is how users identify which proposals are awaiting Admin review — no additional UI logic required beyond surfacing the field.
+2. **TopicProposal type includes status field**: The `TopicProposal` type in `app/me/route.ts` reflects `{ id: string; name: string; status: TopicProposalStatus }` — matching the DB schema.
+3. **Pending proposals count toward setup completion (AC2)**: A user with only pending topic proposals (no approved topics) still has `hasTopic` setup item marked complete — this already works at line 65 of `route.ts`.
+
+### Testable interfaces
+
+- `app/me/route.ts` — `TopicProposal` type, `buildMeResponse()` return shape, `computeSetupCompleteness()` logic
+- `tests/me-route.test.ts` — existing test fixtures using `setPerUserLookupStateForTests({ topicProposalsByUserId: Map<string, TopicProposal[]> })`
+
+### Changes required
+
+**`app/me/route.ts`**:
+- Import `TopicProposalStatus` from `../../src/db/schema`
+- Add `status: TopicProposalStatus` to the `TopicProposal` type (line 24)
+- Existing `getTopicProposalsByUserId` already returns `TopicProposal[]` — the in-memory store holds full objects, no seam change needed
+
+**`tests/me-route.test.ts`**:
+- All existing test assertions use `topicProposals: []` (empty) — no assertion updates required
+- Add a new test: seed `topicProposalsByUserId` with mixed statuses (`"pending"`, `"approved"`, `"rejected"`), assert all three are returned with correct `status` values, and assert `hasTopic` setup item is `complete: true` when only pending proposals exist
+
+### Assumptions / risks
+
+- The blocking issue #31 (Propose a new Topic) defines the creation side; this change only affects the viewing/listing side and is safe to implement independently.
+- `candidateName` in the DB schema maps to `name` in the API — existing mapping is preserved.
+- `TopicProposalStatus` type already exists in `src/db/schema` — no new type needed.
 
 ## Already Resolved
 

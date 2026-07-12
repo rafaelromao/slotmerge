@@ -136,7 +136,7 @@ function getAccessToken(
 function mapMicrosoftStatus(
   status?: string,
 ): "busy" | "out-of-office" | "tentative" | null {
-  if (status === "busy" || status === "workingElsewhere") {
+  if (status === "busy") {
     return "busy";
   }
   if (status === "oof") {

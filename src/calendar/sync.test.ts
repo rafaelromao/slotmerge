@@ -71,6 +71,7 @@ describe("processCalendarConnectionSync", () => {
     expect(updates).toEqual([
       expect.objectContaining({
         id: "connection-1",
+        status: "connected",
         lastErrorCode: null,
         lastErrorMessage: null,
       }),
@@ -128,6 +129,7 @@ describe("processCalendarConnectionSync", () => {
     expect(updates).toEqual([
       expect.objectContaining({
         id: "connection-1",
+        status: "disconnected",
         lastErrorCode: "rate-limited",
         lastErrorMessage: "Calendar provider returned 429",
       }),

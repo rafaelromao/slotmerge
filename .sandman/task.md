@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #48: Reconcile Calendar Connection sync and process webhook events
+Implement GitHub issue #48: Reconcile Calendar Connection background jobs and process webhook events
 
 ## Issue Context
 
@@ -10,7 +10,7 @@ Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerg
 
 ## What to build
 
-Calendar Connection sync runs as a background job: provider webhooks update intervals promptly, scheduled reconciliation fills gaps, and transient failures use exponential backoff and provider `Retry-After` semantics. Quota handling avoids spikes.
+Calendar Connection import runs as a background job: provider webhooks update imported busy intervals promptly, scheduled reconciliation fills gaps, and transient failures use exponential backoff and provider `Retry-After` semantics. Quota handling avoids spikes.
 
 ## Acceptance criteria
 
@@ -57,12 +57,12 @@ Implement (sandman-implement: execute TDD + commit + self-review + back-merge + 
 - A webhook notification for a connected Calendar Connection validates provider-specific ingress, is handled idempotently for duplicate deliveries, and causes the imported busy intervals for that connection to refresh promptly.
 - A scheduled reconciliation pass refreshes the full rolling 90-day window for active Calendar Connections and leaves disconnected or unsupported connections untouched.
 - A provider throttling response with `Retry-After` produces a retryable delay from that header, while other transient provider failures fall back to exponential backoff.
-- Repeated sync work is staggered with randomized traffic patterns so Calendar Connections do not retry or reconcile in lockstep.
-- Sync failures update the Calendar Connection status metadata, including last error code and message, while preserving usable stale data for later Search reads.
+- Repeated import work is staggered with randomized traffic patterns so Calendar Connections do not retry or reconcile in lockstep.
+- Import failures update the Calendar Connection status metadata, including last error code and message, while preserving usable stale data for later Search reads.
 
 ### Testable interfaces
-- A webhook-ingress seam that validates provider signatures, deduplicates duplicate webhook deliveries, and hands off exactly one sync attempt per notification.
-- A sync orchestration seam that accepts a connection record, current time, provider client, imported-interval repository, and failure recorder.
+- A webhook-ingress seam that validates provider signatures, deduplicates duplicate webhook deliveries, and hands off exactly one import attempt per notification.
+- An import orchestration seam that accepts a connection record, current time, provider client, imported-interval repository, and failure recorder.
 - A provider client seam that returns free/busy results and exposes retry hints without reaching live provider APIs in tests.
 - A retry-policy seam that computes delay from `Retry-After`, exponential backoff, and jitter.
 - A scheduling/enqueue seam that can be seeded or stubbed so randomized traffic patterns are deterministic under test.

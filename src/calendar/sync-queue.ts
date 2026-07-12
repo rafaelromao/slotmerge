@@ -29,9 +29,12 @@ export async function scheduleCalendarConnectionSyncJobs({
 }): Promise<void> {
   await Promise.all(
     connections.map(async (connection, index) => {
-      const runAt = new Date(
-        now.getTime() + index * 60_000 + Math.round(random() * 30_000),
-      );
+      const runAt =
+        source === "webhook"
+          ? now
+          : new Date(
+              now.getTime() + index * 60_000 + Math.round(random() * 30_000),
+            );
 
       await enqueueJob({
         connectionId: connection.id,

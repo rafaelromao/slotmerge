@@ -79,6 +79,7 @@ export async function processCalendarConnectionSync({
 
     await importedBusyIntervalRepository.upsertBatch(intervals);
     await connectionRepository.updateById(connection.id, {
+      status: "connected",
       lastErrorCode: null,
       lastErrorMessage: null,
     });
@@ -89,6 +90,7 @@ export async function processCalendarConnectionSync({
     }
 
     await connectionRepository.updateById(connection.id, {
+      status: "disconnected",
       lastErrorCode: transient.code,
       lastErrorMessage: transient.message,
     });

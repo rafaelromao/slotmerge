@@ -15,13 +15,14 @@ import {
   isEligibleForSearch,
   type ProfileInputs,
 } from "../../src/search/eligibility";
+import { type TopicProposalStatus } from "../../src/db/schema";
 
 const supportedTimeZones = new Set(Intl.supportedValuesOf("timeZone"));
 
 type MeProfile = NonNullable<Awaited<ReturnType<typeof getProfileByUserId>>>;
 
 type Topic = { id: string; name: string };
-type TopicProposal = { id: string; name: string };
+type TopicProposal = { id: string; name: string; status: TopicProposalStatus };
 type AvailabilityWindow = { id: string; dayOfWeek: number };
 type CalendarConnection = { id: string; provider: string };
 

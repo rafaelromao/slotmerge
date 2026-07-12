@@ -2,6 +2,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -297,3 +298,31 @@ export const discoverabilityConsents = pgTable("discoverability_consents", {
     .notNull()
     .defaultNow(),
 });
+
+export const searches = pgTable(
+  "searches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizerId: uuid("organizer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    selectedTopicIds: jsonb("selected_topic_ids").$type<string[]>().notNull(),
+    minimumMatchingUsers: integer("minimum_matching_users").notNull(),
+    durationMinutes: integer("duration_minutes"),
+    rangeStart: timestamp("range_start", { withTimezone: true }).notNull(),
+    rangeEnd: timestamp("range_end", { withTimezone: true }).notNull(),
+    organizerTimezone: text("organizer_timezone").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    snapshotReference: text("snapshot_reference"),
+  },
+  (table) => ({
+    searchesOrganizerIdIdx: index("searches_organizer_id_idx").on(
+      table.organizerId,
+    ),
+    searchesGeneratedAtIdx: index("searches_generated_at_idx").on(
+      table.generatedAt,
+    ),
+  }),
+);

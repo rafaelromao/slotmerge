@@ -50,6 +50,13 @@
       "when": 1783780000004,
       "tag": "0005_self_delete_account",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783780000005,
+      "tag": "0006_searches",
+      "breakpoints": true
     }
   ]
 }

@@ -11,7 +11,7 @@ import { createPostgresEmailEventRepository } from "../email/repository";
 import { enqueueInviteEmailJob } from "../email/invite-jobs";
 import { loadRuntimeConfig } from "../config/runtime";
 import { getDb } from "../db/client";
-import { invites, users } from "../db/schema";
+import { invites, users, type UserRole } from "../db/schema";
 
 export type MagicLinkRequestDependencies = {
   clock?: () => Date;
@@ -258,7 +258,7 @@ function createDatabaseUserRepository(): UserRepository {
         .insert(users)
         .values({
           email,
-          role: role as UserRecord["role"],
+          role: role as UserRole,
           status: "active",
         })
         .returning({

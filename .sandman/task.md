@@ -1,91 +1,114 @@
 # Task
 
-Implement GitHub issue #41: Send critical Admin operational email
+Implement GitHub issue #44: OAuth-connect Microsoft work/school calendar with Calendars.ReadBasic
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmerge/issues/18). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerge/issues/17). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Critical operational issues, such as broad provider sync failures or transactional email delivery failures, trigger email to all Admins through the transactional email delivery service.
+A user can authorize a Microsoft work/school calendar using delegated `Calendars.ReadBasic`. Microsoft personal account attempts produce a clear "not supported" message. Tokens are encrypted; connection status is queryable.
 
 ## Acceptance criteria
 
-- [ ] Critical operational events trigger Admin emails.
-- [ ] Email delivery state is recorded.
-- [ ] Repeat events within a short window do not spam Admins.
+- [ ] Microsoft auth uses `Calendars.ReadBasic` for work/school accounts.
+- [ ] Personal Microsoft accounts surface a clear "not supported" message.
+- [ ] Tokens are encrypted at rest; status metadata is queryable.
+- [ ] Disconnect revokes tokens.
 
 ## Blocked by
 
-- [Provision transactional email delivery and email event log](https://github.com/rafaelromao/slotmerge/issues/26)
+- [OAuth-connect Google Calendar with free/busy-only scopes](https://github.com/rafaelromao/slotmerge/issues/43)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/41-send-critical-admin-operational-email`
-- Source branch: `sandman/41-send-critical-admin-operational-email`
+- Current branch: `sandman/44-oauth-connect-microsoft-workschool-calendar-with-calendarsreadbasic`
+- Source branch: `sandman/44-oauth-connect-microsoft-workschool-calendar-with-calendarsreadbasic`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/41-send-critical-admin-operational-email` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/44-oauth-connect-microsoft-workschool-calendar-with-calendarsreadbasic` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
-- [x] PR-Review (sandman-pr-review)
+- [x] Implement (sandman-implement: TDD + commit + self-review + back-merge + PR created at https://github.com/rafaelromao/slotmerge/pull/157)
+- [x] PR-Review (sandman-pr-review): APPROVED with 2 nits, no blockers
 - [ ] PR-Merge (sandman-pr-merge)
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Next Step
+
+Execute the vertical slices in the Plan below via sandman-tdd (one test → one implementation per slice, commit at the end of each slice). After all slices pass, run self-review, back-merge main into the branch, create PR with `Closes #44` body, and delegate review via sandman-pr-review.
+
 ## Plan
-### Behaviors to test (vertical red-green ordering)
 
-1. **Empty admin list is a no-op.** With zero active admins returned by the directory, `triggerAdminCriticalEmail` returns without throwing and without invoking the email delivery service.
-2. **Trigger queues an admin-critical email per active admin.** Given an active-admin list of N admins and an empty dedup history, `triggerAdminCriticalEmail` invokes the email delivery service N times with `type: "admin-critical"`, each admin's email as the recipient, and a payload containing the operational event details (`kind`, `summary`, `occurredAt`, plus any event-specific details).
-3. **Suspended and non-admin users are skipped.** `triggerAdminCriticalEmail` only delivers to users with `role === "admin"` AND `status === "active"`. The directory dependency is the single seam for that filter.
-4. **Repeat events within a short window are deduplicated per event kind.** Given a prior dispatch of the same kind within the dedup window, `triggerAdminCriticalEmail` invokes the delivery service zero times. Given a prior dispatch older than the window (or a different kind), the dispatch still fires.
-5. **The dedup path performs no state writes.** When the dedup window short-circuits the dispatch, the function does not invoke the email delivery service (no email event row is created).
-6. **Email delivery failure does not throw to the caller.** If queueing one admin's email fails (the existing delivery service throws after marking the event failed), the trigger records the per-recipient failure and continues for the remaining admins so a single bad recipient does not block the alert. The function returns a per-recipient result array.
-7. **Existing email delivery state recording is reused.** No new persistence is required for state — the existing `emailEvents` / `emailEventAttempts` rows from the email delivery service serve as both the recorded delivery state and the dedup source of truth. (Verified by reading `service.ts:84-91`: `createQueuedEvent` is the recording step.)
+### Behaviors to test
 
-### Testable interfaces / seams
+- **`/me/calendar-connections/microsoft/connect` POST**: Authenticated user with a valid CSRF token can start a Microsoft work/school OAuth flow. The start function creates a `pending` Calendar Connection with `provider = "microsoft"`, scopes including `Calendars.ReadBasic`, and returns an authorization URL pointing at the Microsoft identity platform (`login.microsoftonline.com`) that requests `Calendars.ReadBasic`, includes the offline_access prompt for refresh tokens, sets PKCE S256 code challenge, encodes a sealed `state` payload (connectionId + csrf + codeVerifier), and targets the existing `/me/calendar-connections/callback` redirect URI. Returns 401 unauthenticated, 403 invalid CSRF, 500 when Microsoft OAuth env is missing.
+- **`completeMicrosoftCalendarConnection`**: Given a sealed `state`, the connection is loaded by ID, validated as pending, the authorization code is exchanged at the Microsoft token endpoint using PKCE, the resulting `access_token`, `refresh_token`, and `expires_in` are encrypted-at-rest using the same `encryptCalendarToken` module Google uses, the connection is updated to `connected` with opaque plain metadata (accountIdentifier, providerAccountKey, scopes), and the refreshed Calendar Connection is returned. Throws on token endpoint failure.
+- **`revokeMicrosoftCalendarConnection`**: Given an existing connected Microsoft Calendar Connection, the encrypted refresh token is decrypted and revoked at the Microsoft logout endpoint (`https://login.microsoftonline.com/{tenant}/oauth2/v2.0/logout` style, or the canonical revoke endpoint documented for Microsoft identity platform), the connection status is set to `disconnected`, encrypted token columns are nulled, and the connection is returned. If revoke HTTP fails the function throws; missing refresh token is tolerated.
+- **Personal-account callback detection**: When the Microsoft OAuth callback includes the standard `error=access_denied` from a personal account scenario (or specifically `error=unsupported_account_type` style returns), the callback route translates that to a clear, user-facing JSON error code (e.g. `unsupported_microsoft_account`) at 400. (We rely on the OAuth provider returning this; the auth URL restricts tenant via `?tenant=organizations` so the user only gets sent to work/school.)
+- **`GET /me/calendar-connections`** returns queryable plain metadata for both providers: provider, account identifier, scopes, status, access token expiry, with encrypted token columns never leaked.
+- **`PATCH /me/calendar-connections/{id}`** disconnects the Microsoft connection when the connection is a Microsoft provider: revokes refresh token, clears encrypted tokens, returns updated connection view. (Reuses the existing route, no provider split required since encrypted token columns are provider-agnostic; verify the existing PATCH still passes for both providers.)
 
-- New module: `src/admin/critical-email.ts` exporting `triggerAdminCriticalEmail(input, deps)`. Dependency interface:
-  - `clock?: () => Date`
-  - `adminDirectory: { listActiveAdmins(): Promise<Array<{ id: string; email: string }>> }`
-  - `emailDeliveryService: { sendEmail(input: { recipient; type; payload }): Promise<{ emailEvent }> }`
-  - `lastDispatchLookup: { findMostRecentKindDispatch(kind: string, since: Date): Promise<Date | null> }`
-  - `dedupWindowMs?: number` (default `15 * 60 * 1000`)
-  - `now?: () => Date` (alias for `clock` to make intent clear at the call site)
-- Pure helpers exported for direct unit testing:
-  - `createOperationalEvent({ kind, summary, occurredAt, details? })` — validates/normalises the event shape used in the payload.
-  - `createKindDedupReference(kind: string)` — SHA-256 of `{ kind }` JSON; used both as the dedup lookup key and as a `payloadReference` argument so the existing `emailEvents.payload_reference` column serves as the dedup index without migration.
-  - `isCriticalEmailType(type)` — narrows `"admin-critical"` for the delivery service contract.
-- Postgres-backed implementations (wired only when the trigger is used from a real DB context — production wiring is out of scope for this ticket):
-  - `createPostgresAdminDirectory(db = getDb())` — `SELECT id, email FROM users WHERE role = 'admin' AND status = 'active' ORDER BY email`.
-  - `createPostgresAdminCriticalDispatchLookup(db = getDb())` — `SELECT created_at FROM email_events WHERE type = 'admin-critical' AND payload_reference = $1 AND created_at >= $2 ORDER BY created_at DESC LIMIT 1`.
-- New unit test file: `src/admin/critical-email.test.ts` — covers all seven behaviors with stubbed dependencies (no DB).
+### Testable interfaces
+
+- `src/calendar/microsoft-oauth.ts`: pure function `buildMicrosoftCalendarAuthorizationUrl({ baseUrl, clientId, codeChallenge, state })` returning a URL on `https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize` with `tenant=organizations`, `scope=offline_access Calendars.ReadBasic`, `response_type=code`, PKCE S256, sealed state, and the fixed `/me/calendar-connections/callback` redirect URI.
+- `src/calendar/microsoft-oauth.ts`: `getMicrosoftCalendarScopes()` returning the scope string (used both at start and for stored scopes).
+- `src/calendar/microsoft-calendar-connections.ts`:
+  - `MicrosoftCalendarConnectionRepository` (interface, mirroring Google): `createPending`, `listByUserId`, `findById`, `updateById`.
+  - `MicrosoftCalendarConnectionRecord`, `MicrosoftCalendarConnectionView`, `MicrosoftCalendarConnectionStatus`.
+  - `sealMicrosoftCalendarConnectionState({ connectionId, csrfToken, codeVerifier, secret })`.
+  - `startMicrosoftCalendarConnection({ baseUrl, clientId, csrfToken, generateId?, repository, sessionSecret, userId })` returning `{ authorizationUrl, connection, codeVerifier, state }`.
+  - `completeMicrosoftCalendarConnection({ baseUrl, clientId, clientSecret, code, fetchImpl, repository, sessionSecret, state, tokenEncryptionKey, tenant? })`.
+  - `revokeMicrosoftCalendarConnection({ connectionId, fetchImpl, repository, tokenEncryptionKey, tenant? })`.
+  - `presentMicrosoftCalendarConnection(record)`.
+- `src/calendar/repository.ts`: add `setMicrosoftCalendarConnectionRepositoryForTests`, `getMicrosoftCalendarConnectionRepository`, and a `databaseMicrosoftCalendarConnectionRepository` that reuses the existing `calendarConnections` table.
+- `src/db/schema.ts`: extend `CalendarProvider` type union to include `"microsoft"`. No migration needed for schema (the column is already `text` and accepts any string).
+- `app/me/calendar-connections/microsoft/connect/route.ts`: thin Next.js POST route, mirrors `app/me/calendar-connections/google/connect/route.ts`.
+- `app/me/calendar-connections/callback/route.ts`: extend to dispatch on the loaded connection's `provider` to call the right completion function; treat provider-specific OAuth errors (e.g. personal-account `access_denied`) as `unsupported_microsoft_account`.
+- `app/me/calendar-connections/route.ts`: list both providers.
+- `app/me/calendar-connections/[id]/route.ts`: dispatch revoke on provider to the right function.
+
+### Vertical slices (one commit per slice)
+
+1. **Microsoft OAuth URL builder**: test `buildMicrosoftCalendarAuthorizationUrl` and `getMicrosoftCalendarScopes`. Implement only the URL builder. Commit.
+2. **Microsoft Calendar Connection state sealing + repository interface**: test `sealMicrosoftCalendarConnectionState`. Implement seal + the `MicrosoftCalendarConnectionRepository` type (no DB impl yet — interface only for the start/complete/revoke slice; the DB-backed repository is added in a later slice). Commit.
+3. **`startMicrosoftCalendarConnection`**: test that it creates a pending record with `provider="microsoft"`, stores `Calendars.ReadBasic` scope, returns a Microsoft authorization URL on `login.microsoftonline.com`. Implement. Commit.
+4. **`completeMicrosoftCalendarConnection`**: test that the token endpoint is called with PKCE, tokens are encrypted via `encryptCalendarToken`, scopes stored, status flipped to `connected`, opaque metadata fields populated. Implement. Commit.
+5. **`revokeMicrosoftCalendarConnection`**: test refresh-token revoke + clear-encrypted-fields. Implement. Commit.
+6. **DB-backed repository**: test the actual drizzle repo against the in-memory adapter (mocked via `setMicrosoftCalendarConnectionRepositoryForTests`); implement the drizzle-backed repository. Commit.
+7. **`POST /me/calendar-connections/microsoft/connect` route**: test happy path + 401 + 403 + 500 (no env). Implement the route. Commit.
+8. **Callback route dispatch + personal-account handling**: extend the existing callback to dispatch on provider; add a test that an `access_denied` from a personal-account sign-in returns `unsupported_microsoft_account` JSON with status 400. Commit.
+9. **List + disconnect routes cover Microsoft**: tests for `GET /me/calendar-connections` returning both providers and `PATCH /me/calendar-connections/{id}` disconnecting a Microsoft connection. Commit.
+10. **Drizzle migration (optional)**: since the `provider` column is already a free-text column with no enum constraint, no new SQL migration is strictly required. If we want a CHECK constraint for documentation, add `drizzle/0005_microsoft_calendar_connections.sql`. Skip unless tests fail.
 
 ### Assumptions / risks
 
-- "Short window" is interpreted as **15 minutes**, exposed as `dedupWindowMs` so tests can pin it to e.g. `1000` ms.
-- Dedup is keyed by the event `kind` string. Two operational issues with different kinds each get their own alert.
-- The `payloadReference` written by the delivery service for `admin-critical` events is derived from `{ kind }` (not from the full event payload) so the dedup lookup can match rows purely on `payload_reference`. The full event details (summary, occurredAt, details) ride inside the delivery `payload` and are written to the worker logs / Postmark transport, not indexed in the DB. No schema migration is required.
-- Behavior 5 (no writes on dedup) is implicit but called out explicitly so the test pins it.
-- Risk: the `emailEvents.payload_reference` column will, going forward, exclusively hold dedup keys for `admin-critical` rows. This ticket does not introduce prior data, but any future caller must respect the same convention; comment this in the module.
-- Risk: the deliverability service throws when queueing fails. The trigger must isolate per-recipient failures so one bad recipient does not block the rest (covered by behavior 6).
+- **Tenant restriction**: We restrict the authorization URL to `tenant=organizations` so the user is sent only to work/school accounts; personal-account users hit `access_denied` from the identity platform which the callback surfaces as `unsupported_microsoft_account`. This satisfies AC2 without a UI branch.
+- **Revoke endpoint**: Microsoft's documented approach is to revoke refresh tokens via the OAuth `https://login.microsoftonline.com/{tenant}/oauth2/v2.0/logout` for sessions; the standard practice for revoking a refresh token in the v2.0 endpoint is to mark it unused server-side (Microsoft does not expose a true token-revocation endpoint for refresh tokens). We mirror the Google pattern (best-effort revoke + clear encrypted storage) and document the asymmetry in code comments. Acceptable for MVP since clearing the encrypted column already prevents further use.
+- **Schema migration**: the existing `calendar_connections` table uses a free-text `provider` column, so no SQL migration is required for `microsoft`. We extend the TypeScript `CalendarProvider` union only.
+- **Existing routes**: the list and revoke routes already operate on `connection.id` without provider branching. We extend them to dispatch on `provider` and to call the Microsoft-specific revoke function when applicable.
+- **Operational status (issue #152)**: already supports reading both providers because the column is free-text — no changes needed there.
+- **No new env vars**: `MICROSOFT_OAUTH_CLIENT_ID` and `MICROSOFT_OAUTH_CLIENT_SECRET` already exist in `src/config/runtime.ts`.
 
-## Next Step
+## Search Scope Restriction
 
-PR review approved by the PR Review Agent. Run `sandman-pr-merge`.
+If `codeindex.json` exists in the repository root, use `codeindex` before `grep`, `rg`, or `glob` for symbol lookup, dependency lookup, or blast-radius discovery. Only fall back to `grep`/`glob` if `codeindex` cannot answer the question.
+
+Never run grep, rg, find, or any recursive content/file search against directories outside the current working directory (e.g. /tmp, /var, /usr, /etc, /opt, /home, node_modules, .git, target, dist, build, vendor). Such searches return massive output that floods the context window. Restrict searches to the cwd or explicit sub-paths within it; use the Glob/Grep tools which already scope to the project by default.
+
+This restriction applies to the current agent and to every subagent invoked in the current session, including subagents launched directly and subagents launched by any Sandman or other skill loaded during the run. When spawning, delegating to, or handing work off to a subagent, pass this Search Scope Restriction into the subagent's instructions verbatim, or reference this section by name, so the subagent obeys the same rule.
 
 ## Already Resolved
 
@@ -153,7 +176,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent |
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 
@@ -169,32 +192,6 @@ These are all forbidden (non-exhaustive):
 > "The review returned feedback. Should I apply it?"
 
 All of these MUST be handled autonomously. Use the Subagent Escape Hatch for genuine decision ambiguity or as delegated in the table above.
-
-## Search Scope Restriction
-
-If `codeindex.json` exists in the repository root, use `codeindex` before `grep`, `rg`, or `glob` for symbol lookup, dependency lookup, or blast-radius discovery. Only fall back to `grep`/`glob` if `codeindex` cannot answer the question.
-
-Never run grep, rg, find, or any recursive content/file search against directories outside the current working directory (e.g. /tmp, /var, /usr, /etc, /opt, /home, node_modules, .git, target, dist, build, vendor). Such searches return massive output that floods the context window. Restrict searches to the cwd or explicit sub-paths within it; use the Glob/Grep tools which already scope to the project by default.
-
-This restriction applies to the current agent and to every subagent invoked in the current session, including subagents launched directly and subagents launched by any Sandman or other skill loaded during the run. When spawning, delegating to, or handing work off to a subagent, pass this Search Scope Restriction into the subagent's instructions verbatim, or reference this section by name, so the subagent obeys the same rule.
-
-## Required Skill Chain
-
-During `sandman implement`, follow all delegated subskills it calls:
-
-- `sandman-tdd` for planning, subagent-reviewed plan consensus, vertical red-green TDD, and refactor-after-green.
-- `sandman-self-review` for self-review.
-- `sandman-back-merge` before PR creation, with no rebase and no force-push.
-- `sandman-pr-review` for delegated PR review. Do not review the PR yourself.
-- `sandman-pr-merge` only if the PR is fully approved, required checks are green, and GitHub reports it mergeable.
-
-## Required Order
-
-1. Complete checklist items in order: Create branch, Plan, Implement, PR-Review, PR-Merge.
-2. For plan-approval, use subagent review. For self-review, use `sandman-self-review` skill. For PR-review, use `sandman-pr-review` skill — subagent review is banned there. Proceed after consensus/completion. Do not ask the user.
-3. **PR creation is not PR review.** A PR existing does not mean it has been reviewed or is ready to merge. Before loading `sandman-pr-merge`, the agent MUST confirm that `sandman-pr-review` was actually executed and produced a reviewed/approved state. If the last completed step is "PR Created" and the PR is not approved or not mergeable, the agent MUST call `sandman-pr-review` before `sandman-pr-merge` — do not skip the review step. If any merge gate is false or ambiguous, call `sandman-pr-review` and continue the review loop instead of reporting blockers to the user.
-4. If `PR-Review` completes with full approval and all merge gates are true, load and run `sandman-pr-merge`.
-5. If a `sandman-pr-review` pass times out or returns without approval, do not mark `PR-Review` complete and do not advance to `PR-Merge` on the next retry. Re-enter `sandman-pr-review` and keep the review loop open until approval is observed or a stop condition is reached.
 
 ## Completion Requirements
 

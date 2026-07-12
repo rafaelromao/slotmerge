@@ -5,7 +5,15 @@ import {
   presentGoogleCalendarConnection,
   revokeGoogleCalendarConnection,
 } from "../../../../src/calendar/google-calendar-connections";
-import { getGoogleCalendarConnectionRepository } from "../../../../src/calendar/repository";
+import {
+  presentMicrosoftCalendarConnection,
+  revokeMicrosoftCalendarConnection,
+} from "../../../../src/calendar/microsoft-calendar-connections";
+import {
+  findCalendarConnectionById,
+  getGoogleCalendarConnectionRepository,
+  getMicrosoftCalendarConnectionRepository,
+} from "../../../../src/calendar/repository";
 
 export async function PATCH(
   request: Request,
@@ -24,10 +32,28 @@ export async function PATCH(
 
   const tokenEncryptionKey = process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
   if (!tokenEncryptionKey) {
+    return Response.json({ error: "oauth_not_configured" }, { status: 500 });
+  }
+
+  const found = await findCalendarConnectionById(expectedId);
+
+  if (!found) {
     return Response.json(
-      { error: "google_oauth_not_configured" },
-      { status: 500 },
+      { error: "calendar_connection_not_found" },
+      { status: 404 },
     );
+  }
+
+  if (found.provider === "microsoft") {
+    const connection = await revokeMicrosoftCalendarConnection({
+      connectionId: expectedId,
+      fetchImpl: fetch,
+      repository: getMicrosoftCalendarConnectionRepository(),
+      tokenEncryptionKey,
+    });
+    return Response.json({
+      connection: presentMicrosoftCalendarConnection(connection),
+    });
   }
 
   const connection = await revokeGoogleCalendarConnection({

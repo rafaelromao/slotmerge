@@ -54,8 +54,12 @@ function getMagicLinkSecret(): string {
   if (process.env.NODE_ENV === "test") {
     return "test-magic-link-secret";
   }
-  const config = loadRuntimeConfig();
-  return config.magicLinkSecret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "MAGIC_LINK_SECRET must be set in production. Did you forget to add it to the environment?",
+    );
+  }
+  return "local-magic-link-secret-do-not-use-in-production";
 }
 
 function getSessionLifetimeDays(): number {

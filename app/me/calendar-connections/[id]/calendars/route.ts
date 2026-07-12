@@ -2,6 +2,8 @@ import { getSessionFromRequest } from "../../../../../src/auth/session";
 import { decryptCalendarToken } from "../../../../../src/calendar/token-encryption";
 import { findCalendarConnectionById } from "../../../../../src/calendar/repository";
 
+const MICROSOFT_GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0";
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -61,8 +63,16 @@ export async function GET(
     key: tokenEncryptionKey,
   });
 
-  const calendars = await fetchMicrosoftCalendars(accessToken);
+  const calendarsResult = await fetchMicrosoftCalendars(accessToken);
 
+  if (!calendarsResult.ok) {
+    return Response.json(
+      { error: "failed_to_fetch_calendars" },
+      { status: 502 },
+    );
+  }
+
+  const calendars = calendarsResult.calendars;
   const includedIds = new Set(found.record.contributingCalendarIds);
   const calendarsWithStatus = calendars.map((cal) => ({
     ...cal,
@@ -80,11 +90,12 @@ type MicrosoftCalendar = {
   isPrimaryCalendar: boolean;
 };
 
-async function fetchMicrosoftCalendars(
-  accessToken: string,
-): Promise<MicrosoftCalendar[]> {
+async function fetchMicrosoftCalendars(accessToken: string): Promise<
+  | { ok: true; calendars: MicrosoftCalendar[] }
+  | { ok: false }
+> {
   const response = await fetch(
-    "https://graph.microsoft.com/v1.0/me/calendars?$select=id,name,isPrimaryCalendar",
+    `${MICROSOFT_GRAPH_ENDPOINT}/me/calendars?$select=id,name,isPrimaryCalendar`,
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -94,12 +105,12 @@ async function fetchMicrosoftCalendars(
   );
 
   if (!response.ok) {
-    throw new Error("Failed to fetch Microsoft calendars");
+    return { ok: false };
   }
 
   const data = (await response.json()) as {
     value?: MicrosoftCalendar[];
   };
 
-  return data.value ?? [];
+  return { ok: true, calendars: data.value ?? [] };
 }

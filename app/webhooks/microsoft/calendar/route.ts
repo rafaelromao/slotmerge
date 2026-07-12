@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { quickAddJob } from "graphile-worker";
 
-import { loadRuntimeConfig } from "../../../config/runtime";
-import { calendarSyncTaskName } from "../../../worker/calendar-sync";
-import type { CalendarSyncJobPayload } from "../../../calendar/sync-jobs";
-import { findCalendarConnectionById } from "../../../calendar/repository";
+import { loadRuntimeConfig } from "../../../../src/config/runtime";
+import { calendarSyncTaskName } from "../../../../src/worker/calendar-sync";
+import type { CalendarSyncJobPayload } from "../../../../src/calendar/sync-jobs";
+import { findCalendarConnectionById } from "../../../../src/calendar/repository";
 
 export async function POST(request: NextRequest) {
   const config = loadRuntimeConfig();

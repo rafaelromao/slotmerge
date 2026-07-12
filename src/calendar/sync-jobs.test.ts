@@ -73,7 +73,8 @@ describe("handleCalendarSyncJob", () => {
         timeMax: expect.any(Date),
       });
       expect(deps.upsertBusyIntervals).toHaveBeenCalled();
-      const calledIntervals = deps.upsertBusyIntervals.mock.calls[0]?.[0] as typeof busyIntervals;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const calledIntervals = (deps.upsertBusyIntervals as any).mock.calls[0]?.[0] as typeof busyIntervals;
       expect(calledIntervals).toHaveLength(1);
       expect(calledIntervals[0]?.providerCalendarId).toBe("primary");
       expect(calledIntervals[0]?.status).toBe("busy");
@@ -232,7 +233,8 @@ describe("handleCalendarSyncJob", () => {
         timeMax: expect.any(Date),
       });
       expect(deps.upsertBusyIntervals).toHaveBeenCalled();
-      const calledIntervals = deps.upsertBusyIntervals.mock.calls[0]?.[0] as typeof busyIntervals;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const calledIntervals = (deps.upsertBusyIntervals as any).mock.calls[0]?.[0] as typeof busyIntervals;
       expect(calledIntervals).toHaveLength(1);
       expect(calledIntervals[0]?.providerCalendarId).toBe("user@example.com");
       expect(calledIntervals[0]?.status).toBe("busy");

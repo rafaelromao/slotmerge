@@ -1,10 +1,8 @@
 import { randomInt } from "node:crypto";
 
 import type { BusyIntervalStatus } from "../db/schema";
-import {
-  type GoogleCalendarConnectionRecord,
-  type MicrosoftCalendarConnectionRecord,
-} from "./google-calendar-connections";
+import { type GoogleCalendarConnectionRecord } from "./google-calendar-connections";
+import { type MicrosoftCalendarConnectionRecord } from "./microsoft-calendar-connections";
 import {
   type ImportedBusyIntervalRecord,
 } from "./imported-busy-intervals";
@@ -126,7 +124,7 @@ export async function handleCalendarSyncJob(
   try {
     if (connectionResult.provider === "google") {
       const accessToken = resolvedDeps.decryptAccessToken(
-        connection.accessTokenEncrypted,
+        connection.accessTokenEncrypted ?? "",
       );
       const googleIntervals = await resolvedDeps.fetchGoogleFreeBusy({
         accessToken,
@@ -147,7 +145,7 @@ export async function handleCalendarSyncJob(
       }));
     } else {
       const accessToken = resolvedDeps.decryptAccessToken(
-        connection.accessTokenEncrypted,
+        connection.accessTokenEncrypted ?? "",
       );
       const microsoftIntervals = await resolvedDeps.fetchMicrosoftFreeBusy({
         accessToken,
@@ -172,6 +170,8 @@ export async function handleCalendarSyncJob(
     return { status: "success" };
   } catch (error) {
     if (error instanceof RateLimitError) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const depsArg = { connectionLookup: resolvedDeps.findConnectionById as any };
       await resolvedDeps.recordSyncFailure(
         {
           connectionId,
@@ -179,7 +179,7 @@ export async function handleCalendarSyncJob(
           code: error.code,
           message: error.message,
         },
-        { connectionLookup: resolvedDeps.findConnectionById },
+        depsArg,
       );
 
       const retryAfterMs = error.retryAfterSeconds
@@ -191,6 +191,8 @@ export async function handleCalendarSyncJob(
     }
 
     const err = error instanceof Error ? error : new Error(String(error));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const depsArg = { connectionLookup: resolvedDeps.findConnectionById as any };
     await resolvedDeps.recordSyncFailure(
       {
         connectionId,
@@ -198,7 +200,7 @@ export async function handleCalendarSyncJob(
         code: err instanceof ApiError ? err.code : "unknown",
         message: err.message ?? "Sync failed",
       },
-      { connectionLookup: resolvedDeps.findConnectionById },
+      depsArg,
     );
 
     return { status: "failed" };

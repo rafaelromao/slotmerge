@@ -1,9 +1,7 @@
 import { quickAddJob } from "graphile-worker";
 
 import { loadRuntimeConfig } from "../config/runtime";
-import {
-  createPostgresImportedBusyIntervalRepository,
-} from "../calendar/imported-busy-intervals";
+import { getImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals";
 import { decryptCalendarToken } from "../calendar/token-encryption";
 import {
   calendarSyncTaskName,
@@ -11,7 +9,10 @@ import {
   type CalendarSyncJobPayload,
 } from "../calendar/sync-jobs";
 import { findCalendarConnectionById } from "../calendar/repository";
-import { recordCalendarConnectionSyncFailure } from "../calendar/sync-failure-recorder";
+import {
+  recordCalendarConnectionSyncFailure,
+  type CalendarConnectionUserLookup,
+} from "../calendar/sync-failure-recorder";
 import {
   fetchGoogleFreeBusyRaw,
   fetchMicrosoftFreeBusyRaw,
@@ -25,21 +26,39 @@ export async function handleCalendarSyncTask(
   const job = parseCalendarSyncPayload(payload);
   const config = loadRuntimeConfig();
 
+  const wrappedRecordSyncFailure: typeof recordCalendarConnectionSyncFailure = async (
+    input,
+    deps,
+  ) => {
+    const adaptedLookup: CalendarConnectionUserLookup = async (connectionId) => {
+      const result = await findCalendarConnectionById(connectionId);
+      if (!result) return null;
+      return {
+        id: result.record.id,
+        userId: result.record.userId,
+        provider: result.provider,
+        user: { email: "", displayName: null },
+      };
+    };
+    return recordCalendarConnectionSyncFailure(input, {
+      ...deps,
+      connectionLookup: adaptedLookup,
+    });
+  };
+
   const result = await handleCalendarSyncJob(job, {
-    findConnectionById: async (id) => {
-      const conn = await findCalendarConnectionById(id);
-      if (!conn) return null;
-      return conn;
-    },
+    findConnectionById: findCalendarConnectionById,
     decryptAccessToken: (encrypted: string) =>
       decryptCalendarToken({ ciphertext: encrypted, key: config.calendarTokenEncryptionKey }),
-    fetchGoogleFreeBusy: fetchGoogleFreeBusyRaw,
-    fetchMicrosoftFreeBusy: fetchMicrosoftFreeBusyRaw,
+    fetchGoogleFreeBusy: (params) =>
+      fetchGoogleFreeBusyRaw(params.accessToken, params.calendarIds, params.timeMin, params.timeMax),
+    fetchMicrosoftFreeBusy: (params) =>
+      fetchMicrosoftFreeBusyRaw(params.accessToken, params.calendarIds, params.timeMin, params.timeMax),
     upsertBusyIntervals: async (intervals) => {
-      const repo = createPostgresImportedBusyIntervalRepository();
+      const repo = getImportedBusyIntervalRepository();
       await repo.upsertBatch(intervals);
     },
-    recordSyncFailure: recordCalendarConnectionSyncFailure,
+    recordSyncFailure: wrappedRecordSyncFailure,
     enqueueSync: async (connectionId: string, backoffMs?: number) => {
       await enqueueCalendarSyncTask(connectionId, config.databaseUrl, backoffMs);
     },
@@ -60,7 +79,7 @@ async function enqueueCalendarSyncTask(
   if (backoffMs) {
     const runAt = new Date(Date.now() + backoffMs);
     await quickAddJob(
-      { connectionString: databaseUrl, timezone: "UTC" },
+      { connectionString: databaseUrl },
       calendarSyncTaskName,
       payload,
       { runAt },

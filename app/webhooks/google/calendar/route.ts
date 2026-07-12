@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { quickAddJob } from "graphile-worker";
 import { createHmac } from "node:crypto";
 
-import { loadRuntimeConfig } from "../../../config/runtime";
-import { calendarSyncTaskName } from "../../../worker/calendar-sync";
-import type { CalendarSyncJobPayload } from "../../../calendar/sync-jobs";
-import { findCalendarConnectionById } from "../../../calendar/repository";
-import { decryptCalendarToken } from "../../../calendar/token-encryption";
+import { loadRuntimeConfig } from "../../../../src/config/runtime";
+import { calendarSyncTaskName } from "../../../../src/worker/calendar-sync";
+import type { CalendarSyncJobPayload } from "../../../../src/calendar/sync-jobs";
+import { findCalendarConnectionById } from "../../../../src/calendar/repository";
 
 export async function POST(request: NextRequest) {
   const config = loadRuntimeConfig();
@@ -21,7 +20,7 @@ export async function POST(request: NextRequest) {
 
   const webhookSecret = process.env.GOOGLE_WEBHOOK_SECRET ?? "local-dev-secret";
 
-  const parsed = JSON.parse(payload);
+  const parsed = JSON.parse(payload) as { resourceState?: string };
 
   if (parsed.resourceState === "revoked") {
     return new NextResponse(null, { status: 200 });

@@ -38,8 +38,8 @@ The worktree MUST be checked out on `sandman/44-oauth-connect-microsoft-workscho
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: TDD done + self-review done; remaining: back-merge + PR + delegate review)
-- [ ] PR-Review (sandman-pr-review)
+- [x] Implement (sandman-implement: TDD + commit + self-review + back-merge + PR created at https://github.com/rafaelromao/slotmerge/pull/157)
+- [x] PR-Review (sandman-pr-review): APPROVED with 2 nits, no blockers
 - [ ] PR-Merge (sandman-pr-merge)
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.

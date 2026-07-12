@@ -59,7 +59,7 @@ const inviteLifetimeDays = 30;
 export function createAdminInvitesHandlers({
   getSession = getSessionFromRequest,
   inviteRepository = databaseInviteRepository,
-  magicLinkTokenIssuer = createDefaultMagicLinkTokenIssuer(),
+  magicLinkTokenIssuer,
   emailDeliveryService,
   clock = () => new Date(),
 }: AdminInvitesDependencies = {}) {
@@ -131,7 +131,9 @@ export function createAdminInvitesHandlers({
         );
       }
 
-      const magicLink = magicLinkTokenIssuer.issueMagicLinkToken({
+      const magicLink = (
+        magicLinkTokenIssuer ?? createDefaultMagicLinkTokenIssuer()
+      ).issueMagicLinkToken({
         inviteId: result.invite.id,
         email: result.invite.email,
         expiresAt: result.invite.expiresAt,

@@ -1,8 +1,5 @@
 import { createAdminStatusHandlers } from "../../../src/admin/operational-status";
-import { createPostgresOperationalStatusRepository } from "../../../src/admin/operational-status-repository";
 
-const handlers = createAdminStatusHandlers({
-  statusRepository: createPostgresOperationalStatusRepository(),
-});
+const handlers = createAdminStatusHandlers();
 
 export const GET = handlers.GET;

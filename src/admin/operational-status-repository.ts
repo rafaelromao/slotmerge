@@ -173,8 +173,3 @@ async function readTokensNeedingRefresh(
     ...unsetRows.map((r) => ({ ...r, bucket: "unset" as const })),
   ];
 }
-
-export const __testing = {
-  RECENT_FAILURE_LIMIT,
-  TOKEN_EXPIRING_SOON_MS,
-};

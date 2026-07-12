@@ -1,4 +1,5 @@
 import { getSessionFromRequest, type Session } from "../auth/session";
+import { createPostgresOperationalStatusRepository } from "./operational-status-repository";
 
 export type EmailDeliverySummary = {
   since: Date;
@@ -54,12 +55,9 @@ const EMAIL_WINDOW_HOURS = 24;
 
 export function createAdminStatusHandlers({
   getSession = getSessionFromRequest,
-  statusRepository,
+  statusRepository = createPostgresOperationalStatusRepository(),
   clock = () => new Date(),
 }: AdminStatusDependencies = {}) {
-  if (!statusRepository) {
-    throw new Error("statusRepository is required");
-  }
   const repository = statusRepository;
   return {
     GET: async (request: Request): Promise<Response> => {

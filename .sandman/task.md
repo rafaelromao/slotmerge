@@ -38,7 +38,7 @@ The worktree MUST be checked out on `sandman/24-request-new-magic-link-after-inv
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 

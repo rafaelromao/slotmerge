@@ -49,6 +49,10 @@ export async function sealSessionCookie({
   return `${sessionCookieName}=${encodeURIComponent(sealed)}; Path=/; HttpOnly; SameSite=Lax`;
 }
 
+export function clearSessionCookie(): string {
+  return `${sessionCookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+
 export async function getSessionFromRequest(
   request: Request,
 ): Promise<Session | null> {

@@ -1,4 +1,7 @@
-import { getSessionFromRequest } from "../../src/auth/session";
+import {
+  clearSessionCookie,
+  getSessionFromRequest,
+} from "../../src/auth/session";
 import {
   deleteProfileByUserId,
   getProfileByUserId,
@@ -332,8 +335,7 @@ export async function DELETE(request: Request): Promise<Response> {
   return new Response(null, {
     status: 204,
     headers: {
-      "Set-Cookie":
-        "slotmerge_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+      "Set-Cookie": clearSessionCookie(),
     },
   });
 }

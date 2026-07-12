@@ -157,7 +157,7 @@ function renderAdminInvitesPage({
                 <td>${escapeHtml(invite.email)}</td>
                 <td>${escapeHtml(labelInviteRole(invite.role))}</td>
                 <td>${escapeHtml(labelInviteStatus(invite.status))}</td>
-                <td>${escapeHtml(invite.invitedByAdminEmail ?? "(deleted admin)")}</td>
+                <td>${escapeHtml(invite.invitedByAdminEmail ?? "(deleted Admin)")}</td>
               </tr>`,
           )
           .join("")

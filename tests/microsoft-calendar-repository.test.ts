@@ -45,6 +45,8 @@ describe("Microsoft calendar connection repository", () => {
       refreshTokenEncrypted: null,
       accessTokenEncrypted: null,
       accessTokenExpiresAt: null,
+      lastErrorCode: null,
+      lastErrorMessage: null,
     });
     await repository.listByUserId("user-1");
     await repository.findById("connection-1");

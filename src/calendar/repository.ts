@@ -59,6 +59,21 @@ export async function findCalendarConnectionById(
   return null;
 }
 
+const calendarConnectionSelectColumns = {
+  id: calendarConnections.id,
+  userId: calendarConnections.userId,
+  provider: calendarConnections.provider,
+  providerAccountKey: calendarConnections.providerAccountKey,
+  accountIdentifier: calendarConnections.accountIdentifier,
+  scopes: calendarConnections.scopes,
+  status: calendarConnections.status,
+  refreshTokenEncrypted: calendarConnections.refreshTokenEncrypted,
+  accessTokenEncrypted: calendarConnections.accessTokenEncrypted,
+  accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
+  lastErrorCode: calendarConnections.lastErrorCode,
+  lastErrorMessage: calendarConnections.lastErrorMessage,
+};
+
 export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectionRepository =
   {
     createPending: async (record) => {
@@ -76,35 +91,13 @@ export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectio
           accessTokenEncrypted: record.accessTokenEncrypted,
           accessTokenExpiresAt: record.accessTokenExpiresAt,
         })
-        .returning({
-          id: calendarConnections.id,
-          userId: calendarConnections.userId,
-          provider: calendarConnections.provider,
-          providerAccountKey: calendarConnections.providerAccountKey,
-          accountIdentifier: calendarConnections.accountIdentifier,
-          scopes: calendarConnections.scopes,
-          status: calendarConnections.status,
-          refreshTokenEncrypted: calendarConnections.refreshTokenEncrypted,
-          accessTokenEncrypted: calendarConnections.accessTokenEncrypted,
-          accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
-        });
+        .returning(calendarConnectionSelectColumns);
 
       return (row as GoogleCalendarConnectionRecord | undefined) ?? record;
     },
     listByUserId: async (userId) => {
       const rows = await getDb()
-        .select({
-          id: calendarConnections.id,
-          userId: calendarConnections.userId,
-          provider: calendarConnections.provider,
-          providerAccountKey: calendarConnections.providerAccountKey,
-          accountIdentifier: calendarConnections.accountIdentifier,
-          scopes: calendarConnections.scopes,
-          status: calendarConnections.status,
-          refreshTokenEncrypted: calendarConnections.refreshTokenEncrypted,
-          accessTokenEncrypted: calendarConnections.accessTokenEncrypted,
-          accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
-        })
+        .select(calendarConnectionSelectColumns)
         .from(calendarConnections)
         .where(eq(calendarConnections.userId, userId));
 
@@ -112,18 +105,7 @@ export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectio
     },
     findById: async (id) => {
       const [row] = await getDb()
-        .select({
-          id: calendarConnections.id,
-          userId: calendarConnections.userId,
-          provider: calendarConnections.provider,
-          providerAccountKey: calendarConnections.providerAccountKey,
-          accountIdentifier: calendarConnections.accountIdentifier,
-          scopes: calendarConnections.scopes,
-          status: calendarConnections.status,
-          refreshTokenEncrypted: calendarConnections.refreshTokenEncrypted,
-          accessTokenEncrypted: calendarConnections.accessTokenEncrypted,
-          accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
-        })
+        .select(calendarConnectionSelectColumns)
         .from(calendarConnections)
         .where(eq(calendarConnections.id, id))
         .limit(1);
@@ -138,18 +120,7 @@ export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectio
           updatedAt: new Date(),
         })
         .where(eq(calendarConnections.id, id))
-        .returning({
-          id: calendarConnections.id,
-          userId: calendarConnections.userId,
-          provider: calendarConnections.provider,
-          providerAccountKey: calendarConnections.providerAccountKey,
-          accountIdentifier: calendarConnections.accountIdentifier,
-          scopes: calendarConnections.scopes,
-          status: calendarConnections.status,
-          refreshTokenEncrypted: calendarConnections.refreshTokenEncrypted,
-          accessTokenEncrypted: calendarConnections.accessTokenEncrypted,
-          accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
-        });
+        .returning(calendarConnectionSelectColumns);
 
       return (row as GoogleCalendarConnectionRecord | undefined) ?? null;
     },
@@ -172,35 +143,13 @@ export const databaseMicrosoftCalendarConnectionRepository: MicrosoftCalendarCon
           accessTokenEncrypted: record.accessTokenEncrypted,
           accessTokenExpiresAt: record.accessTokenExpiresAt,
         })
-        .returning({
-          id: calendarConnections.id,
-          userId: calendarConnections.userId,
-          provider: calendarConnections.provider,
-          providerAccountKey: calendarConnections.providerAccountKey,
-          accountIdentifier: calendarConnections.accountIdentifier,
-          scopes: calendarConnections.scopes,
-          status: calendarConnections.status,
-          refreshTokenEncrypted: calendarConnections.refreshTokenEncrypted,
-          accessTokenEncrypted: calendarConnections.accessTokenEncrypted,
-          accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
-        });
+        .returning(calendarConnectionSelectColumns);
 
       return (row as MicrosoftCalendarConnectionRecord | undefined) ?? record;
     },
     listByUserId: async (userId) => {
       const rows = await getDb()
-        .select({
-          id: calendarConnections.id,
-          userId: calendarConnections.userId,
-          provider: calendarConnections.provider,
-          providerAccountKey: calendarConnections.providerAccountKey,
-          accountIdentifier: calendarConnections.accountIdentifier,
-          scopes: calendarConnections.scopes,
-          status: calendarConnections.status,
-          refreshTokenEncrypted: calendarConnections.refreshTokenEncrypted,
-          accessTokenEncrypted: calendarConnections.accessTokenEncrypted,
-          accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
-        })
+        .select(calendarConnectionSelectColumns)
         .from(calendarConnections)
         .where(eq(calendarConnections.userId, userId));
 
@@ -208,18 +157,7 @@ export const databaseMicrosoftCalendarConnectionRepository: MicrosoftCalendarCon
     },
     findById: async (id) => {
       const [row] = await getDb()
-        .select({
-          id: calendarConnections.id,
-          userId: calendarConnections.userId,
-          provider: calendarConnections.provider,
-          providerAccountKey: calendarConnections.providerAccountKey,
-          accountIdentifier: calendarConnections.accountIdentifier,
-          scopes: calendarConnections.scopes,
-          status: calendarConnections.status,
-          refreshTokenEncrypted: calendarConnections.refreshTokenEncrypted,
-          accessTokenEncrypted: calendarConnections.accessTokenEncrypted,
-          accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
-        })
+        .select(calendarConnectionSelectColumns)
         .from(calendarConnections)
         .where(eq(calendarConnections.id, id))
         .limit(1);
@@ -234,18 +172,7 @@ export const databaseMicrosoftCalendarConnectionRepository: MicrosoftCalendarCon
           updatedAt: new Date(),
         })
         .where(eq(calendarConnections.id, id))
-        .returning({
-          id: calendarConnections.id,
-          userId: calendarConnections.userId,
-          provider: calendarConnections.provider,
-          providerAccountKey: calendarConnections.providerAccountKey,
-          accountIdentifier: calendarConnections.accountIdentifier,
-          scopes: calendarConnections.scopes,
-          status: calendarConnections.status,
-          refreshTokenEncrypted: calendarConnections.refreshTokenEncrypted,
-          accessTokenEncrypted: calendarConnections.accessTokenEncrypted,
-          accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
-        });
+        .returning(calendarConnectionSelectColumns);
 
       return (row as MicrosoftCalendarConnectionRecord | undefined) ?? null;
     },

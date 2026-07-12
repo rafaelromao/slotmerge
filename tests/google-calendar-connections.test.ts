@@ -66,6 +66,8 @@ describe("Google calendar connection callback", () => {
       refreshTokenEncrypted: null,
       accessTokenEncrypted: null,
       accessTokenExpiresAt: null,
+      lastErrorCode: null,
+      lastErrorMessage: null,
     };
 
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
@@ -158,6 +160,8 @@ describe("Google calendar connection callback", () => {
       refreshTokenEncrypted: "",
       accessTokenEncrypted: null,
       accessTokenExpiresAt: null,
+      lastErrorCode: null,
+      lastErrorMessage: null,
     };
 
     const tokenEncryptionKey = "0123456789abcdef0123456789abcdef";

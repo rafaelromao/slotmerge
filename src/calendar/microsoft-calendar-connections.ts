@@ -26,6 +26,8 @@ export type MicrosoftCalendarConnectionRecord = {
   refreshTokenEncrypted: string | null;
   accessTokenEncrypted: string | null;
   accessTokenExpiresAt: Date | null;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
 };
 
 export type MicrosoftCalendarConnectionView = {
@@ -36,6 +38,8 @@ export type MicrosoftCalendarConnectionView = {
   scopes: string | null;
   status: MicrosoftCalendarConnectionStatus;
   accessTokenExpiresAt: Date | null;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
 };
 
 export type MicrosoftCalendarConnectionRepository = {
@@ -104,6 +108,8 @@ export async function startMicrosoftCalendarConnection({
     refreshTokenEncrypted: null,
     accessTokenEncrypted: null,
     accessTokenExpiresAt: null,
+    lastErrorCode: null,
+    lastErrorMessage: null,
   });
   const state = await sealMicrosoftCalendarConnectionState({
     connectionId: connection.id,
@@ -301,5 +307,7 @@ export function presentMicrosoftCalendarConnection(
     scopes: connection.scopes,
     status: connection.status,
     accessTokenExpiresAt: connection.accessTokenExpiresAt,
+    lastErrorCode: connection.lastErrorCode,
+    lastErrorMessage: connection.lastErrorMessage,
   };
 }

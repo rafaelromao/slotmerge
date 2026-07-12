@@ -1,3 +1,4 @@
+import { getSessionSecret } from "../../../../src/auth/session";
 import {
   completeGoogleCalendarConnection,
   presentGoogleCalendarConnection,
@@ -36,6 +37,7 @@ export async function POST(request: Request): Promise<Response> {
     code,
     fetchImpl: fetch,
     repository: getGoogleCalendarConnectionRepository(),
+    sessionSecret: getSessionSecret(),
     state,
     tokenEncryptionKey,
   });

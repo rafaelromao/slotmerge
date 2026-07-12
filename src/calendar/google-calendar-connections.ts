@@ -129,6 +129,7 @@ export async function completeGoogleCalendarConnection({
   code,
   fetchImpl,
   repository,
+  sessionSecret,
   state,
   tokenEncryptionKey,
 }: {
@@ -138,12 +139,13 @@ export async function completeGoogleCalendarConnection({
   code: string;
   fetchImpl: typeof fetch;
   repository: GoogleCalendarConnectionRepository;
+  sessionSecret: string;
   state: string;
   tokenEncryptionKey: string;
 }): Promise<GoogleCalendarConnectionRecord> {
   const payload = (await Iron.unseal(
     state,
-    tokenEncryptionKey,
+    sessionSecret,
     Iron.defaults,
   )) as GoogleCalendarConnectionState;
 

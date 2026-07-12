@@ -91,11 +91,13 @@ describe("Google calendar connection callback", () => {
       );
     });
 
+    const sessionSecret = "session-secret-32-characters!!!!";
+    const tokenEncryptionKey = "0123456789abcdef0123456789abcdef";
     const state = await sealGoogleCalendarConnectionState({
       connectionId: stored.id,
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",
-      secret: "0123456789abcdef0123456789abcdef",
+      secret: sessionSecret,
     });
 
     const result = await completeGoogleCalendarConnection({
@@ -117,8 +119,9 @@ describe("Google calendar connection callback", () => {
           return Promise.resolve({ ...stored });
         },
       },
+      sessionSecret,
       state,
-      tokenEncryptionKey: "0123456789abcdef0123456789abcdef",
+      tokenEncryptionKey,
     });
 
     expect(result.status).toBe("connected");
@@ -131,13 +134,13 @@ describe("Google calendar connection callback", () => {
     expect(
       decryptCalendarToken({
         ciphertext: result.refreshTokenEncrypted ?? "",
-        key: "0123456789abcdef0123456789abcdef",
+        key: tokenEncryptionKey,
       }),
     ).toBe("refresh-token-123");
     expect(
       decryptCalendarToken({
         ciphertext: result.accessTokenEncrypted ?? "",
-        key: "0123456789abcdef0123456789abcdef",
+        key: tokenEncryptionKey,
       }),
     ).toBe("access-token-123");
     expect(fetchMock).toHaveBeenCalledTimes(1);

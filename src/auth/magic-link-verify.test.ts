@@ -17,12 +17,30 @@ function createMockInviteRepository() {
         expiresAt: Date;
       } | null>
     >(),
+    findPendingByEmail: vi.fn<
+      (email: string) => Promise<{
+        id: string;
+        email: string;
+        role: string;
+        status: "pending" | "accepted" | "revoked";
+        invitedByAdminId: string | null;
+        expiresAt: Date;
+      } | null>
+    >(),
     accept: vi.fn<(id: string) => Promise<void>>(),
   };
 }
 
 function createMockUserRepository() {
   return {
+    findById: vi.fn<
+      (id: string) => Promise<{
+        id: string;
+        email: string;
+        role: string;
+        status: string;
+      } | null>
+    >(),
     findByEmail: vi.fn<
       (email: string) => Promise<{
         id: string;

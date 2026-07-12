@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #23: Sign in via magic link
+Implement GitHub issue #25: Reject sign-in for non-invited email
 
 ## Issue Context
 
@@ -10,36 +10,35 @@ Sub-PRD: [Sub-PRD: Auth & Invites](https://github.com/rafaelromao/slotmerge/issu
 
 ## What to build
 
-Clicking a valid, unused, unexpired magic link authenticates the recipient, creates a session, accepts the invite, and redirects into the app. Used or expired links produce a clear error screen.
+Requesting a magic link for an email that has no valid invite or existing account produces a clear "not invited" error and never authenticates. The behavior applies both to a magic-link attempt from a link and to any future "send me a link" form.
 
 ## Acceptance criteria
 
-- [ ] A valid magic link creates a session and accepts the invite.
-- [ ] A used magic link is rejected on second use.
-- [ ] An expired magic link is rejected.
-- [ ] The error screen explains the failure and offers the next step (covered by the next ticket).
-- [ ] Sessions have a defined lifetime and can be ended.
+- [ ] A magic-link attempt for an unknown email shows a clear "not invited" error.
+- [ ] No session is created.
+- [ ] No account is implicitly created.
+- [ ] Error responses are indistinguishable between non-existent and uninvited emails (no email enumeration).
 
 ## Blocked by
 
-- [Send invitation email with magic link](https://github.com/rafaelromao/slotmerge/issues/22)
+- [Sign in via magic link](https://github.com/rafaelromao/slotmerge/issues/23)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/23-sign-in-via-magic-link`
-- Source branch: `sandman/23-sign-in-via-magic-link`
+- Current branch: `sandman/25-reject-sign-in-for-non-invited-email`
+- Source branch: `sandman/25-reject-sign-in-for-non-invited-email`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/23-sign-in-via-magic-link` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/25-reject-sign-in-for-non-invited-email` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -49,7 +48,62 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-sandman-pr-review (PR #162)
+Implement Slice 1 (sandman-tdd): Add `findPendingByEmail` to `InviteRepository` in `src/auth/magic-link-verify.ts`
+
+## Plan
+
+### Issue Context
+- Issue #25: Reject sign-in for non-invited email
+- Parent: Sub-PRD Auth & Invites (#16)
+- Blocked by: Issue #23 (Sign in via magic link) - CLOSED
+- The `POST /auth/magic-link/request` endpoint does not exist yet
+
+### Behaviors to test
+
+1. **Non-invited email → "not invited" error**: A POST to `/auth/magic-link/request` with an email that has no pending invite AND no existing active user returns HTTP 400 with JSON `{"error":"not_invited"}`. The same error is returned for both unknown emails and uninvited-but-known emails (no enumeration). Suspended users are treated as non-existent for this check.
+
+2. **Pending invite → magic link sent**: A POST to `/auth/magic-link/request` with an email that has a pending invite issues a magic link token and queues a `magic-link` email. No session is created at this point.
+
+3. **Existing active user → magic link sent**: A POST to `/auth/magic-link/request` with an email belonging to an existing active user issues a magic link token and queues a `magic-link` email. The token uses `userId` instead of `inviteId`. Suspended users receive `not_invited` error.
+
+4. **Verify: new user with valid invite → session created, invite accepted**: A valid token with `inviteId` for a pending invite creates the user, creates a session, marks invite as accepted, and redirects to `/`.
+
+5. **Verify: existing user with valid token → session created, no user created**: A valid token with `userId` (no `inviteId`) for an existing active user creates a session and redirects to `/`. No user is created.
+
+6. **Verify: no implicit account creation**: A token presented for a non-invited email (no pending invite, no existing user) never authenticates and never creates an account, even if the token is technically valid.
+
+### Testable interfaces
+
+- `src/auth/magic-link-request.ts`: New handler factory `createMagicLinkRequestHandlers(deps)` with `POST(request: Request): Promise<Response>`.
+  - Dependencies: `inviteRepository.findPendingByEmail(email)`, `userRepository.findByEmail(email)`, `magicLinkTokenIssuer.issueMagicLinkToken({inviteId?, userId?, email, expiresAt})`, `emailDeliveryService.sendEmail(...)`, `clock`.
+  - Returns JSON `{"error":"not_invited"}` with 400 for unknown/uninvited emails. Returns JSON `{"sent":true}` with 200 on success.
+  - **Note**: This is a JSON API endpoint (unlike verify which returns HTML), consistent with being a programmatic API.
+
+### Token structure change
+
+The magic link token currently contains `{inviteId, email, expiresAt, issuedAt}` where `inviteId` is required. For existing-user re-authentication, we need tokens with `{userId, email, expiresAt, issuedAt}` (no `inviteId`).
+
+**Required type changes** (part of Slice 3):
+- `MagicLinkTokenInput` in `src/auth/magic-link.ts`: change `inviteId` from required to optional, add optional `userId`
+- `MagicLinkTokenPayload` in `src/auth/magic-link.ts`: same change
+- `verifyMagicLinkToken` validation at lines 109–114: update the `typeof payload.inviteId !== "string"` check to allow `userId` as an alternative required field (inviteId OR userId must be present, not both optional)
+
+### Slices (vertical, red-green)
+
+**Slice 1**: Add `findPendingByEmail` to `InviteRepository` in `src/auth/magic-link-verify.ts` (the verify handler's repository interface, separate from `admin/invites.ts`'s repository). Add tests for finding pending invites by email.
+
+**Slice 2**: Create `src/auth/magic-link-request.ts` with `createMagicLinkRequestHandlers`. Write tests for all three cases: unknown email, pending invite, existing active user. Implement the handler with JSON error responses.
+
+**Slice 3**: Modify `src/auth/magic-link.ts` `MagicLinkTokenInput` and `MagicLinkTokenPayload` types to make `inviteId` optional and add optional `userId`. Update `verifyMagicLinkToken` validation to require either `inviteId` or `userId`. Then modify `magic-link-verify.ts` `POST` to handle userId-based tokens: skip invite validation, skip user creation, look up user directly by `userId` from token. Update tests accordingly.
+
+**Slice 4**: Create `app/auth/magic-link/request/route.ts`. Integration test of the full POST /auth/magic-link/request → email queued flow.
+
+### Assumptions / risks
+
+- The email delivery service already has a `magic-link` type; no new email type needed.
+- Existing users are identified by email match in `users` table regardless of status (active/suspended). Suspended users should probably NOT receive magic links — to be confirmed.
+- Rate limiting on `/auth/magic-link/request` is mentioned in the stack spec but deferred to a separate issue; this implementation does not add rate limiting.
+- The `invites.email` column is `unique`, so `findPendingByEmail` returns at most one invite.
 
 ## Already Resolved
 
@@ -168,98 +222,3 @@ Before final response, verify and report:
 - Test/format commands run and outcomes.
 - PR URL and review status, if a PR was created.
 - Whether PR merge was performed or skipped, with reason.
-
-## Plan
-
-### Behaviors to test
-
-1. **Valid magic link creates session and accepts invite**
-   - Given a valid unexpired magic link token, pending invite, and matching email
-   - When POST /auth/magic-link/verify is called
-   - Then user is upserted (created with invite role if not exists), session is created, invite is marked accepted, session cookie is set, and redirect to app root `/`
-
-2. **Used magic link is rejected on second use**
-   - Given a magic link token whose invite is already accepted
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "invite_already_accepted" reason
-
-3. **Expired token is rejected**
-   - Given a magic link token whose embedded expiresAt has passed
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "token_expired" reason
-
-4. **Expired invite is rejected**
-   - Given a magic link token whose associated invite record has expiresAt in the past
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "invite_expired" reason
-
-5. **Invalid signature is rejected**
-   - Given a magic link token with invalid HMAC signature
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "invalid_token" reason
-
-6. **Email mismatch is rejected**
-   - Given a magic link token whose email does not match the invite's email
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "email_mismatch" reason
-
-7. **Non-existent invite is rejected**
-   - Given a magic link token with non-existent inviteId
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "invite_not_found" reason
-
-### Testable interfaces
-
-1. **`verifyMagicLinkToken(token, secret, clock?)`** in `src/auth/magic-link.ts`:
-   - Parses `payload.signature` format, verifies HMAC, checks token-level expiration
-   - Returns decoded payload or throws typed error (InvalidToken | TokenExpired)
-   - Pure function, easily unit-tested
-
-2. **`MagicLinkVerifyHandler`** factory in a new `src/auth/magic-link-verify.ts`:
-   - `createMagicLinkVerifyHandlers({clock?, db?, tokenVerifier?})`
-   - Returns `{GET, POST}` handlers
-   - Encapsulates: token verification → invite lookup → email match check → invite expiration check → user upsert → session creation → invite acceptance → redirect
-   - All dependencies injectable for tests
-
-3. **`app/auth/magic-link/verify/route.ts`**:
-   - Thin Next.js route that delegates to `MagicLinkVerifyHandler`
-   - GET: renders confirmation page with auto-submitting form (prevents token in server logs/URLs)
-   - POST: processes the verification
-
-### Execution order (vertical slices)
-
-**Slice 1 — Token verifier**
-- Add `verifyMagicLinkToken` to `src/auth/magic-link.ts`
-- Add unit tests in `src/auth/magic-link.test.ts`
-- Verifies HMAC signature, parses payload, checks token expiration
-
-**Slice 2 — Route + handler**
-- Create `src/auth/magic-link-verify.ts` with handler factory
-- Create `app/auth/magic-link/verify/route.ts` with GET (confirmation form) and POST handlers
-- GET renders an auto-post form to POST with the token (security: keeps token out of URL logs)
-
-**Slice 3 — Accept invite + create user + create session**
-- When token valid + invite pending + email matches + invite not expired:
-  1. Upsert user by email (create if not exists, role from invite; if exists, keep existing role)
-  2. Create session record in DB with expiresAt (e.g., 30 days from now)
-  3. Set session cookie via `sealSessionCookie`
-  4. Update invite status to "accepted"
-  5. Redirect to app root `/`
-
-**Slice 4 — Error responses**
-- For each failure mode, return HTML error page with error code
-- Error screen UI (next ticket) will enhance these with better UX
-
-### Key design decisions
-
-- **GET form auto-submit**: GET with `?token=` in URL exposes token in server logs. Instead, GET renders a small HTML page with an auto-submitting form (method="POST", action includes token). Token only appears in POST body, not in server logs or browser URL bar.
-- **User upsert role semantics**: If user already exists, their role is preserved (not overwritten by invite role). Invite role only applies to newly created users.
-- **Session lifetime**: 30 days default (configurable). Already modeled in schema with `expiresAt`.
-- **Invite vs token expiration**: Both checked — token's embedded `expiresAt` for quick rejection of forged tokens, invite record's `expiresAt` for actual business rule.
-
-### Assumptions / risks
-
-1. Token's `expiresAt` and invite's `expiresAt` are checked independently.
-2. Redirect URL after success: app root `/`.
-3. Error screen rendering: simple HTML error page now; enhanced by next ticket.
-4. CSRF: magic link token serves as the secret; auto-submit form pattern prevents URL exposure.

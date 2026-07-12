@@ -79,5 +79,4 @@ describe("loadRuntimeConfig", () => {
     expect(config.magicLinkSecret).toBe("production-magic-link-secret");
     expect(config.sessionSecret).toBe("production-session-secret");
   });
-
 });

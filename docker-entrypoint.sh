@@ -5,7 +5,7 @@ echo "[entrypoint] RUNTIME_MODE=${RUNTIME_MODE:-web}"
 
 case "${RUNTIME_MODE}" in
 web)
-    echo "[entrypoint] Starting Next.js web server on port ${PORT:-3000}"
+    echo "[entrypoint] Launching Next.js web server (hostname=0.0.0.0, port=${PORT:-3000})"
     exec next start
     ;;
 worker)

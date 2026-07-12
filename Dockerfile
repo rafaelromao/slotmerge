@@ -39,7 +39,6 @@ RUN pnpm install --frozen-lockfile --prod
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/src/worker ./src/worker
 COPY --from=builder /app/src/config ./src/config
 

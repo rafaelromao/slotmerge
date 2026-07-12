@@ -44,7 +44,7 @@ The worktree MUST be checked out on `sandman/133-containerize-web-and-worker-run
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -82,7 +82,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-BLOCKED: Issue #20 (app shell, auth, Postgres bootstrap) is still open with PR #140 pending merge. Issue #132 (GCP project foundation) is CLOSED. No package.json, pnpm-lock.yaml, Next.js source, or Graphile Worker entrypoint exists anywhere in the repository. Cannot proceed with implementation or PR review until #20 is resolved.
+REVIEW_TIMEOUT: PR #151 has CI passing (SUCCESS) and mergeable (CLEAN) state. `/sandman review` comment posted but PR Review Agent did not respond within 15-minute polling budget. Implementation verified: multi-stage Dockerfile with web/worker RUNTIME_MODE selection, docker-entrypoint.sh with fail-fast for unknown modes, production-only dependencies in runtime stage. PR review loop exhausted without response.
 
 ## Prerequisite Status Update
 

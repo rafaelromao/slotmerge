@@ -1,5 +1,11 @@
 import { getSessionFromRequest, type Session } from "../auth/session";
-import { createPostgresOperationalStatusRepository } from "./operational-status-repository";
+import { and, count, desc, eq, gte, isNotNull, isNull, lte } from "drizzle-orm";
+import { getDb } from "../db/client";
+import { calendarConnections, emailEvents } from "../db/schema";
+
+const RECENT_FAILURE_LIMIT = 5;
+const TOKEN_EXPIRING_SOON_MS = 5 * 60 * 1000;
+const EMAIL_WINDOW_HOURS = 24;
 
 export type EmailDeliverySummary = {
   since: Date;
@@ -51,11 +57,9 @@ export type AdminStatusDependencies = {
   clock?: () => Date;
 };
 
-const EMAIL_WINDOW_HOURS = 24;
-
 export function createAdminStatusHandlers({
   getSession = getSessionFromRequest,
-  statusRepository = createPostgresOperationalStatusRepository(),
+  statusRepository = databaseOperationalStatusRepository,
   clock = () => new Date(),
 }: AdminStatusDependencies = {}) {
   const repository = statusRepository;
@@ -238,3 +242,144 @@ function escapeHtml(value: string): string {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+
+const databaseOperationalStatusRepository: OperationalStatusRepository = {
+  async summarizeEmailDelivery({ since }) {
+    const db = getDb();
+    const counts = await db
+      .select({ status: emailEvents.status, value: count() })
+      .from(emailEvents)
+      .where(gte(emailEvents.createdAt, since))
+      .groupBy(emailEvents.status)
+      .then((rows) => {
+        const empty = { queued: 0, sending: 0, sent: 0, failed: 0 };
+        for (const row of rows) {
+          if (row.status === "queued") empty.queued = Number(row.value);
+          else if (row.status === "sending") empty.sending = Number(row.value);
+          else if (row.status === "sent") empty.sent = Number(row.value);
+          else if (row.status === "failed") empty.failed = Number(row.value);
+        }
+        return empty;
+      });
+
+    const recentFailures = await db
+      .select({
+        emailEventId: emailEvents.id,
+        recipient: emailEvents.recipient,
+        type: emailEvents.type,
+        code: emailEvents.lastErrorCode,
+        message: emailEvents.lastErrorMessage,
+        failedAt: emailEvents.failedAt,
+      })
+      .from(emailEvents)
+      .where(
+        and(eq(emailEvents.status, "failed"), gte(emailEvents.failedAt, since)),
+      )
+      .orderBy(desc(emailEvents.failedAt))
+      .limit(RECENT_FAILURE_LIMIT)
+      .then((rows) =>
+        rows.map((row) => ({
+          emailEventId: row.emailEventId,
+          recipient: row.recipient,
+          type: row.type,
+          code: row.code ?? null,
+          message: row.message ?? null,
+          failedAt: row.failedAt as Date,
+        })),
+      );
+
+    return { since, counts, recentFailures };
+  },
+
+  async summarizeCalendarConnections({ now }) {
+    const db = getDb();
+    const counts = await db
+      .select({ status: calendarConnections.status, value: count() })
+      .from(calendarConnections)
+      .groupBy(calendarConnections.status)
+      .then((rows) => {
+        const empty = { pending: 0, connected: 0, disconnected: 0 };
+        for (const row of rows) {
+          if (row.status === "pending") empty.pending = Number(row.value);
+          else if (row.status === "connected")
+            empty.connected = Number(row.value);
+          else if (row.status === "disconnected")
+            empty.disconnected = Number(row.value);
+        }
+        return empty;
+      });
+
+    const expiringSoon = new Date(now.getTime() + TOKEN_EXPIRING_SOON_MS);
+
+    const expired = await db
+      .select({
+        connectionId: calendarConnections.id,
+        userId: calendarConnections.userId,
+        provider: calendarConnections.provider,
+        accountIdentifier: calendarConnections.accountIdentifier,
+        status: calendarConnections.status,
+        accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
+      })
+      .from(calendarConnections)
+      .where(
+        and(
+          eq(calendarConnections.status, "connected"),
+          isNotNull(calendarConnections.accessTokenExpiresAt),
+          lte(calendarConnections.accessTokenExpiresAt, now),
+        ),
+      );
+
+    const expiringSoonRows = await db
+      .select({
+        connectionId: calendarConnections.id,
+        userId: calendarConnections.userId,
+        provider: calendarConnections.provider,
+        accountIdentifier: calendarConnections.accountIdentifier,
+        status: calendarConnections.status,
+        accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
+      })
+      .from(calendarConnections)
+      .where(
+        and(
+          eq(calendarConnections.status, "connected"),
+          isNotNull(calendarConnections.accessTokenExpiresAt),
+          gte(calendarConnections.accessTokenExpiresAt, now),
+          lte(calendarConnections.accessTokenExpiresAt, expiringSoon),
+        ),
+      );
+
+    const unsetRows = await db
+      .select({
+        connectionId: calendarConnections.id,
+        userId: calendarConnections.userId,
+        provider: calendarConnections.provider,
+        accountIdentifier: calendarConnections.accountIdentifier,
+        status: calendarConnections.status,
+        accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
+      })
+      .from(calendarConnections)
+      .where(
+        and(
+          eq(calendarConnections.status, "connected"),
+          isNull(calendarConnections.accessTokenExpiresAt),
+        ),
+      );
+
+    return {
+      counts,
+      tokensNeedingRefresh: [
+        ...expired.map((r) => ({ ...r, bucket: "expired" as const })),
+        ...expiringSoonRows.map((r) => ({
+          ...r,
+          bucket: "expiring_soon" as const,
+        })),
+        ...unsetRows.map((r) => ({ ...r, bucket: "unset" as const })),
+      ],
+    };
+  },
+};
+
+export const __testing = {
+  RECENT_FAILURE_LIMIT,
+  TOKEN_EXPIRING_SOON_MS,
+};

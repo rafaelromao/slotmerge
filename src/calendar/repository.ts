@@ -72,6 +72,7 @@ const calendarConnectionSelectColumns = {
   accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
   lastErrorCode: calendarConnections.lastErrorCode,
   lastErrorMessage: calendarConnections.lastErrorMessage,
+  contributingCalendarIds: calendarConnections.contributingCalendarIds,
 };
 
 export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectionRepository =
@@ -90,6 +91,7 @@ export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectio
           refreshTokenEncrypted: record.refreshTokenEncrypted,
           accessTokenEncrypted: record.accessTokenEncrypted,
           accessTokenExpiresAt: record.accessTokenExpiresAt,
+          contributingCalendarIds: record.contributingCalendarIds,
         })
         .returning(calendarConnectionSelectColumns);
 
@@ -142,6 +144,7 @@ export const databaseMicrosoftCalendarConnectionRepository: MicrosoftCalendarCon
           refreshTokenEncrypted: record.refreshTokenEncrypted,
           accessTokenEncrypted: record.accessTokenEncrypted,
           accessTokenExpiresAt: record.accessTokenExpiresAt,
+          contributingCalendarIds: record.contributingCalendarIds,
         })
         .returning(calendarConnectionSelectColumns);
 

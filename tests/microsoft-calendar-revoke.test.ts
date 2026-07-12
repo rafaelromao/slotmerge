@@ -28,6 +28,7 @@ describe("revokeMicrosoftCalendarConnection", () => {
       accessTokenExpiresAt: new Date("2026-01-01T00:00:00.000Z"),
       lastErrorCode: null,
       lastErrorMessage: null,
+      contributingCalendarIds: [],
     };
 
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
@@ -87,6 +88,7 @@ describe("revokeMicrosoftCalendarConnection", () => {
       accessTokenExpiresAt: null,
       lastErrorCode: null,
       lastErrorMessage: null,
+      contributingCalendarIds: [],
     };
 
     const fetchMock = vi.fn(() => Promise.resolve(new Response(null, { status: 200 })));
@@ -132,6 +134,7 @@ describe("revokeMicrosoftCalendarConnection", () => {
       accessTokenExpiresAt: null,
       lastErrorCode: null,
       lastErrorMessage: null,
+      contributingCalendarIds: [],
     };
 
     const fetchMock = vi.fn(() =>

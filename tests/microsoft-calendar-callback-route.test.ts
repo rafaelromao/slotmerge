@@ -81,6 +81,7 @@ describe("POST /me/calendar-connections/callback provider dispatch", () => {
       accessTokenExpiresAt: null,
       lastErrorCode: null,
       lastErrorMessage: null,
+      contributingCalendarIds: [],
     };
 
     setGoogleCalendarConnectionRepositoryForTests({
@@ -165,6 +166,7 @@ describe("POST /me/calendar-connections/callback provider dispatch", () => {
       accessTokenExpiresAt: null,
       lastErrorCode: null,
       lastErrorMessage: null,
+      contributingCalendarIds: [],
     };
 
     setMicrosoftCalendarConnectionRepositoryForTests({

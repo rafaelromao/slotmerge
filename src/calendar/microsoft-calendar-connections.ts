@@ -11,6 +11,7 @@ const MICROSOFT_TOKEN_ENDPOINT =
   "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
 const MICROSOFT_LOGOUT_ENDPOINT =
   "https://login.microsoftonline.com/organizations/oauth2/v2.0/logout";
+const MICROSOFT_GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0";
 
 export type MicrosoftCalendarConnectionStatus =
   "pending" | "connected" | "disconnected";
@@ -28,6 +29,7 @@ export type MicrosoftCalendarConnectionRecord = {
   accessTokenExpiresAt: Date | null;
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
+  contributingCalendarIds: string[];
 };
 
 export type MicrosoftCalendarConnectionView = {
@@ -40,6 +42,7 @@ export type MicrosoftCalendarConnectionView = {
   accessTokenExpiresAt: Date | null;
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
+  contributingCalendarIds: string[];
 };
 
 export type MicrosoftCalendarConnectionRepository = {
@@ -110,6 +113,7 @@ export async function startMicrosoftCalendarConnection({
     accessTokenExpiresAt: null,
     lastErrorCode: null,
     lastErrorMessage: null,
+    contributingCalendarIds: [],
   });
   const state = await sealMicrosoftCalendarConnectionState({
     connectionId: connection.id,
@@ -206,6 +210,17 @@ export async function completeMicrosoftCalendarConnection({
     throw new Error("Microsoft token response did not include tokens.");
   }
 
+  const primaryCalendarId = await getMicrosoftPrimaryCalendarId(
+    tokenPayload.access_token,
+    fetchImpl,
+  );
+
+  if (!primaryCalendarId) {
+    throw new Error(
+      "Could not determine the primary calendar for the Microsoft account. Please try again.",
+    );
+  }
+
   const accessTokenEncrypted = encryptCalendarToken({
     plaintext: tokenPayload.access_token,
     key: tokenEncryptionKey,
@@ -225,6 +240,7 @@ export async function completeMicrosoftCalendarConnection({
     accessTokenExpiresAt: tokenPayload.expires_in
       ? new Date(Date.now() + tokenPayload.expires_in * 1000)
       : null,
+    contributingCalendarIds: [primaryCalendarId],
   });
 
   if (!updated) {
@@ -296,6 +312,38 @@ async function bestEffortMicrosoftLogout({
   }
 }
 
+async function getMicrosoftPrimaryCalendarId(
+  accessToken: string,
+  fetchImpl: typeof fetch,
+): Promise<string | null> {
+  try {
+    const response = await fetchImpl(
+      `${MICROSOFT_GRAPH_ENDPOINT}/me/calendars?$filter=isPrimaryCalendar eq true&$top=1`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as {
+      value?: Array<{ id: string; isPrimaryCalendar?: boolean }>;
+    };
+
+    const primaryCalendar = data.value?.find(
+      (cal) => cal.isPrimaryCalendar === true,
+    );
+    return primaryCalendar?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function presentMicrosoftCalendarConnection(
   connection: MicrosoftCalendarConnectionRecord,
 ): MicrosoftCalendarConnectionView {
@@ -309,5 +357,6 @@ export function presentMicrosoftCalendarConnection(
     accessTokenExpiresAt: connection.accessTokenExpiresAt,
     lastErrorCode: connection.lastErrorCode,
     lastErrorMessage: connection.lastErrorMessage,
+    contributingCalendarIds: connection.contributingCalendarIds,
   };
 }

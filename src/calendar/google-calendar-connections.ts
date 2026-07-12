@@ -25,6 +25,7 @@ export type GoogleCalendarConnectionRecord = {
   accessTokenExpiresAt: Date | null;
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
+  contributingCalendarIds: string[];
 };
 
 export type GoogleCalendarConnectionView = {
@@ -37,6 +38,7 @@ export type GoogleCalendarConnectionView = {
   accessTokenExpiresAt: Date | null;
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
+  contributingCalendarIds: string[];
 };
 
 export type GoogleCalendarConnectionRepository = {
@@ -107,6 +109,7 @@ export async function startGoogleCalendarConnection({
     accessTokenExpiresAt: null,
     lastErrorCode: null,
     lastErrorMessage: null,
+    contributingCalendarIds: [],
   });
   const state = await sealGoogleCalendarConnectionState({
     connectionId: connection.id,
@@ -214,6 +217,7 @@ export async function completeGoogleCalendarConnection({
     accessTokenExpiresAt: tokenPayload.expires_in
       ? new Date(Date.now() + tokenPayload.expires_in * 1000)
       : null,
+    contributingCalendarIds: ["primary"],
   });
 
   if (!updated) {
@@ -315,5 +319,6 @@ export function presentGoogleCalendarConnection(
     accessTokenExpiresAt: connection.accessTokenExpiresAt,
     lastErrorCode: connection.lastErrorCode,
     lastErrorMessage: connection.lastErrorMessage,
+    contributingCalendarIds: connection.contributingCalendarIds,
   };
 }

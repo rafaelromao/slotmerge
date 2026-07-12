@@ -27,10 +27,11 @@ describe("Production Docker containerization", () => {
       expect(dockerfile).toMatch(/EXPOSE\s+\$\{?PORT\}?/);
     });
 
-    it("uses an entrypoint script that respects RUNTIME_MODE", () => {
+    it("uses an entrypoint script that respects PROCESS_ROLE or RUNTIME_MODE", () => {
       const dockerfile = readFileSync(join(REPO_ROOT, "Dockerfile"), "utf8");
       expect(dockerfile).toMatch(/ENTRYPOINT|CMD.*docker-entrypoint/);
-      expect(dockerfile).toMatch(/RUNTIME_MODE/);
+      const entrypoint = readFileSync(join(REPO_ROOT, "docker-entrypoint.sh"), "utf8");
+      expect(entrypoint).toMatch(/PROCESS_ROLE|RUNTIME_MODE/);
     });
   });
 
@@ -68,11 +69,11 @@ describe("Production Docker containerization", () => {
   });
 
   describe("package.json production scripts", () => {
-    it("has start:web script", () => {
+    it("has start script (web default)", () => {
       const pkg = JSON.parse(
         readFileSync(join(REPO_ROOT, "package.json"), "utf8"),
       ) as { scripts?: Record<string, string> };
-      expect(pkg.scripts?.["start:web"]).toBeDefined();
+      expect(pkg.scripts?.["start"]).toBeDefined();
     });
 
     it("has start:worker script", () => {

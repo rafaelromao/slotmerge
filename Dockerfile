@@ -28,7 +28,6 @@ FROM node:22-bookworm-slim AS runtime
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV NODE_ENV=production
-ENV RUNTIME_MODE=web
 
 WORKDIR /app
 

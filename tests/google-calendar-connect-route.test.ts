@@ -1,7 +1,10 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 
 import { POST } from "../app/me/calendar-connections/google/connect/route";
-import { sealSessionCookie, setSessionRepositoryForTests } from "../src/auth/session";
+import {
+  sealSessionCookie,
+  setSessionRepositoryForTests,
+} from "../src/auth/session";
 import { setGoogleCalendarConnectionRepositoryForTests } from "../src/calendar/repository";
 
 describe("POST /me/calendar-connections/google/connect", () => {

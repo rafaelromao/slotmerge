@@ -112,7 +112,8 @@ describe("Google calendar connection callback", () => {
       repository: {
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([]),
-        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        findById: (id) =>
+          Promise.resolve(id === stored.id ? { ...stored } : null),
         updateById: (id, patch) => {
           if (id !== stored.id) {
             return Promise.resolve(null);
@@ -131,7 +132,9 @@ describe("Google calendar connection callback", () => {
     expect(result.provider).toBe("google");
     expect(result.accountIdentifier).toBe("google:connection-1");
     expect(result.providerAccountKey).toBe("google:connection-1");
-    expect(result.scopes).toBe("https://www.googleapis.com/auth/calendar.freebusy");
+    expect(result.scopes).toBe(
+      "https://www.googleapis.com/auth/calendar.freebusy",
+    );
     expect(result.contributingCalendarIds).toEqual(["primary"]);
     expect(result.refreshTokenEncrypted).not.toBe("refresh-token-123");
     expect(result.accessTokenEncrypted).not.toBe("access-token-123");
@@ -198,7 +201,8 @@ describe("Google calendar connection callback", () => {
       repository: {
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([]),
-        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        findById: (id) =>
+          Promise.resolve(id === stored.id ? { ...stored } : null),
         updateById: (id, patch) => {
           if (id !== stored.id) {
             return Promise.resolve(null);

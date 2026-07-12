@@ -74,15 +74,33 @@ type ProfileState = {
 
 const setupItems = [
   { key: "displayName", label: "Display name", required: true, complete: true },
-  { key: "discoverabilityConsent", label: "Discoverability consent", required: true, complete: false },
-  { key: "hasTopic", label: "At least one Topic or Topic Proposal", required: true, complete: false },
-  { key: "hasAvailability", label: "At least one Availability source or manual Availability Window", required: true, complete: false },
-  { key: "hasCalendarConnection", label: "Calendar Connection", required: false, complete: false },
+  {
+    key: "discoverabilityConsent",
+    label: "Discoverability consent",
+    required: true,
+    complete: false,
+  },
+  {
+    key: "hasTopic",
+    label: "At least one Topic or Topic Proposal",
+    required: true,
+    complete: false,
+  },
+  {
+    key: "hasAvailability",
+    label: "At least one Availability source or manual Availability Window",
+    required: true,
+    complete: false,
+  },
+  {
+    key: "hasCalendarConnection",
+    label: "Calendar Connection",
+    required: false,
+    complete: false,
+  },
 ];
 
-class InMemoryDiscoverabilityConsentRepository
-  implements DiscoverabilityConsentRepository
-{
+class InMemoryDiscoverabilityConsentRepository implements DiscoverabilityConsentRepository {
   private readonly state = new Map<string, DiscoverabilityConsentRecord>();
 
   async findByUserId(
@@ -353,7 +371,10 @@ describe("GET /me", () => {
         ),
     });
 
-    const topicProposals = new Map<string, Array<{ id: string; name: string; status: TopicProposalStatus }>>();
+    const topicProposals = new Map<
+      string,
+      Array<{ id: string; name: string; status: TopicProposalStatus }>
+    >();
     topicProposals.set("user-1", [
       { id: "proposal-1", name: "Compilers", status: "pending" },
       { id: "proposal-2", name: "Type Theory", status: "approved" },
@@ -375,11 +396,25 @@ describe("GET /me", () => {
       topicProposals: Array<{ id: string; name: string; status: string }>;
       setup: { items: Array<{ key: string; complete: boolean }> };
     };
-    expect(body.topicProposals).toContainEqual({ id: "proposal-1", name: "Compilers", status: "pending" });
-    expect(body.topicProposals).toContainEqual({ id: "proposal-2", name: "Type Theory", status: "approved" });
-    expect(body.topicProposals).toContainEqual({ id: "proposal-3", name: "Parsing", status: "rejected" });
+    expect(body.topicProposals).toContainEqual({
+      id: "proposal-1",
+      name: "Compilers",
+      status: "pending",
+    });
+    expect(body.topicProposals).toContainEqual({
+      id: "proposal-2",
+      name: "Type Theory",
+      status: "approved",
+    });
+    expect(body.topicProposals).toContainEqual({
+      id: "proposal-3",
+      name: "Parsing",
+      status: "rejected",
+    });
 
-    const hasTopicItem = body.setup.items.find((item) => item.key === "hasTopic");
+    const hasTopicItem = body.setup.items.find(
+      (item) => item.key === "hasTopic",
+    );
     expect(hasTopicItem?.complete).toBe(true);
   });
 });
@@ -410,7 +445,9 @@ describe("PATCH /me", () => {
 
     setProfileRepositoryForTests({
       findByUserId: (userId) =>
-        Promise.resolve(userId === profileState.id ? { ...profileState } : null),
+        Promise.resolve(
+          userId === profileState.id ? { ...profileState } : null,
+        ),
       updateByUserId: () => Promise.resolve(null),
       deleteByUserId: () => Promise.resolve(false),
     });
@@ -819,10 +856,7 @@ describe("DELETE /me", () => {
       Array<{ id: string; dayOfWeek: number }>
     >();
     availability.set("user-1", [{ id: "win-1", dayOfWeek: 1 }]);
-    const calendar = new Map<
-      string,
-      Array<{ id: string; provider: string }>
-    >();
+    const calendar = new Map<string, Array<{ id: string; provider: string }>>();
     calendar.set("user-1", [{ id: "cal-1", provider: "google" }]);
 
     setPerUserLookupStateForTests({
@@ -843,9 +877,7 @@ describe("DELETE /me", () => {
     );
 
     expect(response.status).toBe(204);
-    expect(response.headers.get("set-cookie")).toContain(
-      "slotmerge_session=",
-    );
+    expect(response.headers.get("set-cookie")).toContain("slotmerge_session=");
     expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
 
     await expect(getProfileByUserId("user-1")).resolves.toBeNull();
@@ -853,9 +885,9 @@ describe("DELETE /me", () => {
     await expect(
       listAvailabilityWindowsForUserInTests("user-1"),
     ).resolves.toEqual([]);
-    await expect(listCalendarConnectionsForUserInTests("user-1")).resolves.toEqual(
-      [],
-    );
+    await expect(
+      listCalendarConnectionsForUserInTests("user-1"),
+    ).resolves.toEqual([]);
 
     clearPerUserLookupStateForTests();
   });

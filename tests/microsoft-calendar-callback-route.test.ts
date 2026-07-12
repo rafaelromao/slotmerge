@@ -35,7 +35,8 @@ function createSession() {
 describe("POST /me/calendar-connections/callback provider dispatch", () => {
   beforeEach(() => {
     process.env.SESSION_SECRET = "0123456789abcdef0123456789abcdef";
-    process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef";
+    process.env.CALENDAR_TOKEN_ENCRYPTION_KEY =
+      "0123456789abcdef0123456789abcdef";
     process.env.GOOGLE_OAUTH_CLIENT_ID = "google-client-id";
     process.env.GOOGLE_OAUTH_CLIENT_SECRET = "google-client-secret";
     process.env.MICROSOFT_OAUTH_CLIENT_ID = "microsoft-client-id";

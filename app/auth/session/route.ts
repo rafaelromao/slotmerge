@@ -34,9 +34,7 @@ export async function DELETE(request: Request): Promise<Response> {
   });
 }
 
-async function extractSessionId(
-  request: Request,
-): Promise<string | null> {
+async function extractSessionId(request: Request): Promise<string | null> {
   const cookieHeader = request.headers.get("cookie");
   if (!cookieHeader) {
     return null;

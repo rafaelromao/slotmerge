@@ -62,7 +62,9 @@ describe("completeMicrosoftCalendarConnection", () => {
         );
       }
 
-      if (requestUrl.startsWith("https://graph.microsoft.com/v1.0/me/calendars")) {
+      if (
+        requestUrl.startsWith("https://graph.microsoft.com/v1.0/me/calendars")
+      ) {
         return Promise.resolve(
           new Response(
             JSON.stringify({
@@ -100,7 +102,8 @@ describe("completeMicrosoftCalendarConnection", () => {
       repository: {
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([]),
-        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        findById: (id) =>
+          Promise.resolve(id === stored.id ? { ...stored } : null),
         updateById: (id, patch) => {
           if (id !== stored.id) {
             return Promise.resolve(null);

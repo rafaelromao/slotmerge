@@ -155,10 +155,11 @@ export function createMagicLinkVerifyHandlers(
 
       const sessionCookie = await sealSessionCookie({ sessionId: session.id });
 
+      const origin = new URL(request.url).origin;
       return new Response(null, {
         status: 302,
         headers: {
-          Location: "http://localhost/",
+          Location: `${origin}/`,
           "Set-Cookie": sessionCookie,
         },
       });

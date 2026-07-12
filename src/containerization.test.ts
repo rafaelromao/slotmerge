@@ -30,7 +30,10 @@ describe("Production Docker containerization", () => {
     it("uses an entrypoint script that respects PROCESS_ROLE or RUNTIME_MODE", () => {
       const dockerfile = readFileSync(join(REPO_ROOT, "Dockerfile"), "utf8");
       expect(dockerfile).toMatch(/ENTRYPOINT|CMD.*docker-entrypoint/);
-      const entrypoint = readFileSync(join(REPO_ROOT, "docker-entrypoint.sh"), "utf8");
+      const entrypoint = readFileSync(
+        join(REPO_ROOT, "docker-entrypoint.sh"),
+        "utf8",
+      );
       expect(entrypoint).toMatch(/PROCESS_ROLE|RUNTIME_MODE/);
     });
   });

@@ -105,11 +105,10 @@ describe("handleGoogleCalendarWebhook", () => {
 });
 
 describe("handleMicrosoftCalendarValidationWebhook", () => {
-  it("returns 200 OK with the raw validation token as text/plain", async () => {
+  it("returns 200 OK with the raw validation token as text/plain", () => {
     const validationToken = "abc123-validation-token";
 
-    const response =
-      await handleMicrosoftCalendarValidationWebhook(validationToken);
+    const response = handleMicrosoftCalendarValidationWebhook(validationToken);
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toBe("text/plain");

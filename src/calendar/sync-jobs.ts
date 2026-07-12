@@ -166,9 +166,8 @@ export async function handleCalendarSyncJob(
     return { status: "success" };
   } catch (error) {
     if (error instanceof RateLimitError) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const depsArg = {
-        connectionLookup: resolvedDeps.findConnectionById as any,
+        connectionLookup: resolvedDeps.findConnectionById as any, // eslint-disable-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
       };
       await resolvedDeps.recordSyncFailure(
         {
@@ -189,9 +188,8 @@ export async function handleCalendarSyncJob(
     }
 
     const err = error instanceof Error ? error : new Error(String(error));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const depsArg = {
-      connectionLookup: resolvedDeps.findConnectionById as any,
+      connectionLookup: resolvedDeps.findConnectionById as any, // eslint-disable-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
     };
     await resolvedDeps.recordSyncFailure(
       {

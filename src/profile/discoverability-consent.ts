@@ -1,3 +1,8 @@
+import { eq } from "drizzle-orm";
+
+import { getDb } from "../db/client";
+import { discoverabilityConsents } from "../db/schema";
+
 export type DiscoverabilityConsentRecord = {
   userId: string;
   grantedAt: Date;
@@ -22,27 +27,45 @@ export function clearDiscoverabilityConsentOverride() {
 }
 
 export const discoverabilityConsentRepository: DiscoverabilityConsentRepository =
-  defaultDiscoverabilityConsentRepository();
+  {
+    async findByUserId(userId) {
+      const [row] = await getDb()
+        .select({
+          userId: discoverabilityConsents.userId,
+          grantedAt: discoverabilityConsents.grantedAt,
+        })
+        .from(discoverabilityConsents)
+        .where(eq(discoverabilityConsents.userId, userId))
+        .limit(1);
 
-function defaultDiscoverabilityConsentRepository(): DiscoverabilityConsentRepository {
-  return {
-    async findByUserId() {
-      await Promise.resolve();
-      return null;
+      return row ?? null;
     },
     async grant(userId) {
-      await Promise.resolve();
-      return {
-        userId,
-        grantedAt: new Date(),
-      };
+      const inserted = await getDb()
+        .insert(discoverabilityConsents)
+        .values({ userId })
+        .onConflictDoUpdate({
+          target: discoverabilityConsents.userId,
+          set: { grantedAt: new Date() },
+        })
+        .returning({
+          userId: discoverabilityConsents.userId,
+          grantedAt: discoverabilityConsents.grantedAt,
+        });
+
+      const [row] = inserted;
+      if (!row) {
+        throw new Error("discoverability_consent grant returned no row");
+      }
+
+      return row;
     },
-    async revoke() {
-      await Promise.resolve();
-      return;
+    async revoke(userId) {
+      await getDb()
+        .delete(discoverabilityConsents)
+        .where(eq(discoverabilityConsents.userId, userId));
     },
   };
-}
 
 function getRepository(): DiscoverabilityConsentRepository {
   return repositoryOverride ?? discoverabilityConsentRepository;

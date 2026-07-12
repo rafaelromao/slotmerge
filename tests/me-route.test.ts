@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { GET, PATCH } from "../app/me/route";
 import {
@@ -207,6 +207,15 @@ describe("GET /me discoverability consent reflection", () => {
 });
 
 describe("GET /me", () => {
+  beforeEach(() => {
+    setDiscoverabilityConsentRepositoryForTests(
+      new InMemoryDiscoverabilityConsentRepository(),
+    );
+  });
+
+  afterEach(() => {
+    clearDiscoverabilityConsentOverride();
+  });
   it("rejects requests without a valid session", async () => {
     const response = await GET(new Request("http://localhost/me"));
 
@@ -287,6 +296,15 @@ describe("GET /me", () => {
 });
 
 describe("PATCH /me", () => {
+  beforeEach(() => {
+    setDiscoverabilityConsentRepositoryForTests(
+      new InMemoryDiscoverabilityConsentRepository(),
+    );
+  });
+
+  afterEach(() => {
+    clearDiscoverabilityConsentOverride();
+  });
   it("rejects invalid profile updates without mutating the stored profile", async () => {
     const profileState: ProfileState = {
       id: "user-1",

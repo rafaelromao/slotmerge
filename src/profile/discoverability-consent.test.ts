@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   clearDiscoverabilityConsentOverride,
-  discoverabilityConsentRepository,
   getDiscoverabilityConsent,
   revokeDiscoverabilityConsent,
   setDiscoverabilityConsentRepositoryForTests,
@@ -99,9 +98,20 @@ describe("discoverability consent repository", () => {
     );
   });
 
-  it("returns the default (null) repository when no override has been registered", async () => {
-    const record =
-      await discoverabilityConsentRepository.findByUserId("user-1");
-    expect(record).toBeNull();
+  it("supports swapping the repository via the test override without leaking across tests", async () => {
+    const firstRepository = new InMemoryDiscoverabilityConsentRepository();
+    setDiscoverabilityConsentRepositoryForTests(firstRepository);
+
+    await firstRepository.grant("user-1");
+    await expect(getDiscoverabilityConsent("user-1")).resolves.toMatchObject({
+      userId: "user-1",
+    });
+
+    clearDiscoverabilityConsentOverride();
+
+    const secondRepository = new InMemoryDiscoverabilityConsentRepository();
+    setDiscoverabilityConsentRepositoryForTests(secondRepository);
+
+    await expect(getDiscoverabilityConsent("user-1")).resolves.toBeNull();
   });
 });

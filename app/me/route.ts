@@ -1,3 +1,6 @@
+import { timingSafeEqual } from "node:crypto";
+import { z } from "zod";
+
 import { getSessionFromRequest } from "../../src/auth/session";
 import { getDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
 import {
@@ -8,8 +11,6 @@ import {
   isEligibleForSearch,
   type ProfileInputs,
 } from "../../src/search/eligibility";
-import { timingSafeEqual } from "node:crypto";
-import { z } from "zod";
 
 const supportedTimeZones = new Set(Intl.supportedValuesOf("timeZone"));
 

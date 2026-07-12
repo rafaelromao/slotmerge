@@ -2,14 +2,20 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { UserProfile } from "../profile/repository";
 
+import { InMemorySearchRepository } from "./in-memory-repository";
 import {
   type ActiveTopicsRepository,
   type Clock,
   type ProfileRepository,
   type SearchInput,
   createSearchInputBuilder,
+  submitSearch,
   validateSearchInput,
 } from "./search-input";
+import {
+  clearSearchRepositoryOverride,
+  setSearchRepositoryForTests,
+} from "./repository";
 
 class InMemoryActiveTopicsRepository implements ActiveTopicsRepository {
   constructor(
@@ -343,5 +349,75 @@ describe("buildSearchInput integration with validateSearchInput", () => {
     await expect(
       builder.build({ selectedTopicIds: ["topic-1", "topic-99"] }),
     ).rejects.toThrow(/Topic topic-99 is not in the active Topics catalogue/);
+  });
+});
+
+describe("submitSearch", () => {
+  afterEach(() => {
+    clearSearchRepositoryOverride();
+  });
+
+  it("persists a validated Search and returns the stored record", async () => {
+    const repo = new InMemorySearchRepository();
+    setSearchRepositoryForTests(repo);
+
+    const result = await submitSearch(
+      {
+        organizerId: "organizer-1",
+        activeTopicsRepository: new InMemoryActiveTopicsRepository([
+          { id: "topic-1", name: "Product strategy" },
+        ]),
+        profileRepository: new InMemoryProfileRepository(organizerProfile),
+        clock: pinnedClock("2026-07-08T15:00:00.000Z"),
+        matchingPoolSize: 5,
+      },
+      {
+        selectedTopicIds: ["topic-1"],
+        durationMinutes: 60,
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected success");
+    expect(result.search.id).toBeTypeOf("string");
+    expect(result.search.organizerId).toBe("organizer-1");
+    expect(result.search.selectedTopicIds).toEqual(["topic-1"]);
+    expect(result.search.minimumMatchingUsers).toBe(2);
+    expect(result.search.durationMinutes).toBe(60);
+    expect(result.search.organizerTimezone).toBe("America/Sao_Paulo");
+    expect(result.search.generatedAt.toISOString()).toBe(
+      "2026-07-08T15:00:00.000Z",
+    );
+  });
+
+  it("returns validation errors without persisting when the input is invalid", async () => {
+    const repo = new InMemorySearchRepository();
+    setSearchRepositoryForTests(repo);
+
+    const result = await submitSearch(
+      {
+        organizerId: "organizer-1",
+        activeTopicsRepository: new InMemoryActiveTopicsRepository([]),
+        profileRepository: new InMemoryProfileRepository(organizerProfile),
+        clock: pinnedClock("2026-07-08T15:00:00.000Z"),
+        matchingPoolSize: 5,
+      },
+      {
+        selectedTopicIds: [],
+        durationMinutes: 0,
+      },
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected rejection");
+    expect(result.reason).toBe("validation_failed");
+    expect(result.errors.length).toBeGreaterThanOrEqual(2);
+    expect(result.errors.some((e) => e.field === "selectedTopicIds")).toBe(
+      true,
+    );
+    expect(result.errors.some((e) => e.field === "durationMinutes")).toBe(true);
+
+    const stored = await repo.listByOrganizer("organizer-1");
+    expect(stored.length).toBe(0);
   });
 });

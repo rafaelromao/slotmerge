@@ -1,19 +1,23 @@
-export type SearchRecord = {
-  id?: string;
-  organizerId: string;
-  selectedTopicIds: string[];
-  minimumMatchingUsers: number;
-  durationMinutes: number | null;
-  dateRangeStart: Date;
-  dateRangeEnd: Date;
-  organizerTimezone: string;
-  generatedAt: Date;
-  snapshotReference?: string;
-};
+import type { SearchRepository } from "./drizzle-repository";
 
-export type SearchRepository = {
-  save(record: SearchRecord): Promise<SearchRecord>;
-  findById(id: string): Promise<SearchRecord | null>;
-  listByOrganizer(organizerId: string): Promise<SearchRecord[]>;
-};
+export type { SearchRecord, SearchRepository } from "./drizzle-repository";
 
+export { createPostgresSearchRepository } from "./drizzle-repository";
+
+import { createPostgresSearchRepository } from "./drizzle-repository";
+
+let repositoryOverride: SearchRepository | null = null;
+
+export function setSearchRepositoryForTests(
+  repository: SearchRepository | null,
+) {
+  repositoryOverride = repository;
+}
+
+export function clearSearchRepositoryOverride() {
+  repositoryOverride = null;
+}
+
+export function getSearchRepository(): SearchRepository {
+  return repositoryOverride ?? createPostgresSearchRepository();
+}

@@ -1,5 +1,7 @@
 import type { UserProfile } from "../profile/repository";
 
+import { getSearchRepository, type SearchRecord } from "./repository";
+
 export type Clock = {
   now(): Date;
 };
@@ -253,4 +255,50 @@ export function validateSearchInput(
     return { ok: false, errors };
   }
   return { ok: true };
+}
+
+export type SubmitSearchDeps = SearchInputBuilderDeps & {
+  matchingPoolSize: number;
+};
+
+export type SubmitSearchOverrides = SearchInputOverrides;
+
+export type SubmitSearchResult =
+  | { ok: true; search: SearchRecord }
+  | {
+      ok: false;
+      reason: "validation_failed";
+      errors: SearchInputError[];
+    };
+
+export async function submitSearch(
+  deps: SubmitSearchDeps,
+  overrides: SubmitSearchOverrides = {},
+): Promise<SubmitSearchResult> {
+  const builder = createSearchInputBuilder(deps);
+  const input = await builder.build(overrides);
+  const validation = validateSearchInput(input, {
+    matchingPoolSize: deps.matchingPoolSize,
+  });
+  if (!validation.ok) {
+    return {
+      ok: false,
+      reason: "validation_failed",
+      errors: validation.errors,
+    };
+  }
+
+  const record: SearchRecord = {
+    organizerId: input.organizerId,
+    selectedTopicIds: input.selectedTopicIds,
+    minimumMatchingUsers: input.minimumMatchingUsers,
+    durationMinutes: input.durationMinutes,
+    dateRangeStart: input.dateRangeStart,
+    dateRangeEnd: input.dateRangeEnd,
+    organizerTimezone: input.organizerTimezone,
+    generatedAt: deps.clock.now(),
+  };
+
+  const stored = await getSearchRepository().save(record);
+  return { ok: true, search: stored };
 }

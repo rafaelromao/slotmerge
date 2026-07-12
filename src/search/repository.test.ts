@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { InMemorySearchRepository } from "./in-memory-repository";
-import type { SearchRecord } from "./repository";
+import {
+  clearSearchRepositoryOverride,
+  getSearchRepository,
+  setSearchRepositoryForTests,
+} from "./repository";
+import type { SearchRecord } from "./drizzle-repository";
 
 const fixedGeneratedAt = new Date("2026-07-08T15:00:00.000Z");
 
@@ -86,3 +91,25 @@ describe("SearchRepository contract", () => {
   });
 });
 
+describe("SearchRepository override wiring", () => {
+  afterEach(() => {
+    clearSearchRepositoryOverride();
+  });
+
+  it("returns the override repository when set", () => {
+    const repo = new InMemorySearchRepository();
+    setSearchRepositoryForTests(repo);
+
+    expect(getSearchRepository()).toBe(repo);
+  });
+
+  it("returns a working repository even when no override is set (Postgres-backed)", () => {
+    clearSearchRepositoryOverride();
+
+    const repository = getSearchRepository();
+    expect(repository).toBeDefined();
+    expect(typeof repository.save).toBe("function");
+    expect(typeof repository.findById).toBe("function");
+    expect(typeof repository.listByOrganizer).toBe("function");
+  });
+});

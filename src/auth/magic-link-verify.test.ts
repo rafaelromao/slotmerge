@@ -52,8 +52,28 @@ function createMockSessionRepository() {
           expiresAt: Date;
         }) => Promise<{ id: string }>
       >(),
+    delete: vi.fn<(id: string) => Promise<void>>(),
   };
 }
+
+function createTransaction(
+  sessionRepo: ReturnType<typeof createMockSessionRepository>,
+  inviteRepo: ReturnType<typeof createMockInviteRepository>,
+) {
+  return vi.fn<
+    (fn: (ctx: {
+      sessionRepository: ReturnType<typeof createMockSessionRepository>;
+      inviteRepository: ReturnType<typeof createMockInviteRepository>;
+    }) => Promise<void>) => Promise<void>
+  >(async (fn) => {
+    await fn({
+      sessionRepository: sessionRepo,
+      inviteRepository: inviteRepo,
+    });
+  });
+}
+
+
 
 describe("magic link verify handler", () => {
   describe("POST", () => {
@@ -317,6 +337,7 @@ describe("magic link verify handler", () => {
         userRepository: mockUserRepo,
         sessionRepository: mockSessionRepo,
         sessionLifetimeDays: SESSION_LIFETIME_DAYS,
+        transaction: createTransaction(mockSessionRepo, mockInviteRepo),
       });
 
       const response = await POST(
@@ -384,6 +405,7 @@ describe("magic link verify handler", () => {
         userRepository: mockUserRepo,
         sessionRepository: mockSessionRepo,
         sessionLifetimeDays: SESSION_LIFETIME_DAYS,
+        transaction: createTransaction(mockSessionRepo, mockInviteRepo),
       });
 
       const response = await POST(

@@ -11,6 +11,14 @@ export type MagicLinkVerifyDependencies = {
   inviteRepository?: InviteRepository;
   userRepository?: UserRepository;
   sessionRepository?: SessionRepositoryForMagicLink;
+  transaction?: (
+    fn: (ctx: TransactionContext) => Promise<void>,
+  ) => Promise<void>;
+};
+
+export type TransactionContext = {
+  sessionRepository: SessionRepositoryForMagicLink;
+  inviteRepository: InviteRepository;
 };
 
 export type InviteRepository = {
@@ -29,6 +37,7 @@ export type SessionRepositoryForMagicLink = {
     csrfToken: string;
     expiresAt: Date;
   }): Promise<{ id: string }>;
+  delete(id: string): Promise<void>;
 };
 
 export type InviteRecord = {
@@ -145,19 +154,20 @@ export function createMagicLinkVerifyHandlers(
         clock().getTime() + sessionLifetimeDays * 24 * 60 * 60 * 1000,
       );
 
-      const session = await (
-        deps.sessionRepository ?? defaultSessionRepository
-      ).create({
-        userId: user.id,
-        csrfToken,
-        expiresAt,
+      const transaction = deps.transaction ?? defaultTransaction;
+
+      let sessionCookie = "";
+      await transaction(async (ctx) => {
+        const session = await ctx.sessionRepository.create({
+          userId: user.id,
+          csrfToken,
+          expiresAt,
+        });
+
+        await ctx.inviteRepository.accept(invite.id);
+
+        sessionCookie = await sealSessionCookie({ sessionId: session.id });
       });
-
-      await (deps.inviteRepository ?? defaultInviteRepository).accept(
-        invite.id,
-      );
-
-      const sessionCookie = await sealSessionCookie({ sessionId: session.id });
 
       const origin = new URL(request.url).origin;
       return new Response(null, {
@@ -226,6 +236,52 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
+async function defaultTransaction(
+  fn: (ctx: TransactionContext) => Promise<void>,
+): Promise<void> {
+  const { getDb } = await import("../db/client");
+  const { sessions, invites } = await import("../db/schema");
+  const { eq } = await import("drizzle-orm");
+  const db = getDb();
+
+  await db.transaction(async (tx) => {
+    await fn({
+      sessionRepository: {
+        create: async (data) => {
+          const [row] = await tx
+            .insert(sessions)
+            .values({
+              userId: data.userId,
+              csrfToken: data.csrfToken,
+              expiresAt: data.expiresAt,
+            })
+            .returning({ id: sessions.id });
+          return row;
+        },
+        delete: async (id: string) => {
+          await tx.delete(sessions).where(eq(sessions.id, id));
+        },
+      },
+      inviteRepository: {
+        findById: async (id) => {
+          const [row] = await tx
+            .select()
+            .from(invites)
+            .where(eq(invites.id, id))
+            .limit(1);
+          return row ?? null;
+        },
+        accept: async (id) => {
+          await tx
+            .update(invites)
+            .set({ status: "accepted" })
+            .where(eq(invites.id, id));
+        },
+      },
+    });
+  });
+}
+
 const defaultInviteRepository: InviteRepository = {
   findById: async (id) => {
     const { getDb } = await import("../db/client");
@@ -280,19 +336,4 @@ const defaultUserRepository: UserRepository = {
   },
 };
 
-const defaultSessionRepository: SessionRepositoryForMagicLink = {
-  create: async (data) => {
-    const { getDb } = await import("../db/client");
-    const { sessions } = await import("../db/schema");
-    const db = getDb();
-    const [row] = await db
-      .insert(sessions)
-      .values({
-        userId: data.userId,
-        csrfToken: data.csrfToken,
-        expiresAt: data.expiresAt,
-      })
-      .returning({ id: sessions.id });
-    return row;
-  },
-};
+

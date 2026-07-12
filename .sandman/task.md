@@ -1,45 +1,26 @@
 # Task
 
-Implement GitHub issue #23: Sign in via magic link
+Implement GitHub issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}
 
 ## Issue Context
 
-## Parent
-
-Sub-PRD: [Sub-PRD: Auth & Invites](https://github.com/rafaelromao/slotmerge/issues/16). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
-
-## What to build
-
-Clicking a valid, unused, unexpired magic link authenticates the recipient, creates a session, accepts the invite, and redirects into the app. Used or expired links produce a clear error screen.
-
-## Acceptance criteria
-
-- [ ] A valid magic link creates a session and accepts the invite.
-- [ ] A used magic link is rejected on second use.
-- [ ] An expired magic link is rejected.
-- [ ] The error screen explains the failure and offers the next step (covered by the next ticket).
-- [ ] Sessions have a defined lifetime and can be ended.
-
-## Blocked by
-
-- [Send invitation email with magic link](https://github.com/rafaelromao/slotmerge/issues/22)
-
+{{ISSUE_BODY}}
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/23-sign-in-via-magic-link`
-- Source branch: `sandman/23-sign-in-via-magic-link`
-- Base branch: `main`
-- Review command: `/sandman review`
+- Current branch: `{{BRANCH}}`
+- Source branch: `{{SOURCE_BRANCH}}`
+- Base branch: `{{BASE_BRANCH}}`
+- Review command: `{{REVIEW_COMMAND}}`
 
-The worktree MUST be checked out on `sandman/23-sign-in-via-magic-link` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `{{BRANCH}}` when the run finishes. Do not switch to `{{BASE_BRANCH}}` or any other branch before exiting.
 
 ## Execution Checklist
 
-- [x] Create branch
-- [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Create branch
+- [ ] Plan (sandman-plan)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -49,11 +30,11 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-sandman-pr-review (PR #162)
+PR-Review (sandman-pr-review)
 
 ## Already Resolved
 
-If the issue is already implemented on `main`, after fetching and checking the current `origin/main` HEAD against the issue acceptance criteria, update `.sandman/task.md` so it contains the exact line `## Status: already resolved`.
+If the issue is already implemented on `{{BASE_BRANCH}}`, after fetching and checking the current `origin/{{BASE_BRANCH}}` HEAD against the issue acceptance criteria, update `.sandman/task.md` so it contains the exact line `## Status: already resolved`.
 
 Do not use issue closure, a matching local branch, or unmerged worktree changes as proof that the issue is already resolved. If any acceptance criterion is missing or you are not certain, continue with Plan.
 
@@ -67,7 +48,7 @@ The run is NOT considered successful (and `## Status: already resolved` MUST NOT
 
 - **Open PR with no approval** — `gh pr list --head <branch> --state open` returns one or more PRs that have not been approved (or the approval state is unknown).
 - **`mergeable: CONFLICTING`** — the branch's open PR is in a conflict state with the base branch.
-- **Unpushed commits** — `git log @{u}..HEAD` (or `git log origin/main..HEAD` for a new branch) is non-empty; the local branch has commits the remote does not.
+- **Unpushed commits** — `git log @{u}..HEAD` (or `git log origin/{{BASE_BRANCH}}..HEAD` for a new branch) is non-empty; the local branch has commits the remote does not.
 - **Unresolved AC blocker** — any acceptance criterion in the issue body is unmet, contested, or marked blocked by another open issue.
 
 Re-check this block immediately before writing `## Status: already resolved`. If any condition is true, abort the marker and address the underlying problem (close orphan PR, back-merge, push commits, or resolve the blocker).
@@ -168,98 +149,3 @@ Before final response, verify and report:
 - Test/format commands run and outcomes.
 - PR URL and review status, if a PR was created.
 - Whether PR merge was performed or skipped, with reason.
-
-## Plan
-
-### Behaviors to test
-
-1. **Valid magic link creates session and accepts invite**
-   - Given a valid unexpired magic link token, pending invite, and matching email
-   - When POST /auth/magic-link/verify is called
-   - Then user is upserted (created with invite role if not exists), session is created, invite is marked accepted, session cookie is set, and redirect to app root `/`
-
-2. **Used magic link is rejected on second use**
-   - Given a magic link token whose invite is already accepted
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "invite_already_accepted" reason
-
-3. **Expired token is rejected**
-   - Given a magic link token whose embedded expiresAt has passed
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "token_expired" reason
-
-4. **Expired invite is rejected**
-   - Given a magic link token whose associated invite record has expiresAt in the past
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "invite_expired" reason
-
-5. **Invalid signature is rejected**
-   - Given a magic link token with invalid HMAC signature
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "invalid_token" reason
-
-6. **Email mismatch is rejected**
-   - Given a magic link token whose email does not match the invite's email
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "email_mismatch" reason
-
-7. **Non-existent invite is rejected**
-   - Given a magic link token with non-existent inviteId
-   - When POST /auth/magic-link/verify is called
-   - Then error page with "invite_not_found" reason
-
-### Testable interfaces
-
-1. **`verifyMagicLinkToken(token, secret, clock?)`** in `src/auth/magic-link.ts`:
-   - Parses `payload.signature` format, verifies HMAC, checks token-level expiration
-   - Returns decoded payload or throws typed error (InvalidToken | TokenExpired)
-   - Pure function, easily unit-tested
-
-2. **`MagicLinkVerifyHandler`** factory in a new `src/auth/magic-link-verify.ts`:
-   - `createMagicLinkVerifyHandlers({clock?, db?, tokenVerifier?})`
-   - Returns `{GET, POST}` handlers
-   - Encapsulates: token verification → invite lookup → email match check → invite expiration check → user upsert → session creation → invite acceptance → redirect
-   - All dependencies injectable for tests
-
-3. **`app/auth/magic-link/verify/route.ts`**:
-   - Thin Next.js route that delegates to `MagicLinkVerifyHandler`
-   - GET: renders confirmation page with auto-submitting form (prevents token in server logs/URLs)
-   - POST: processes the verification
-
-### Execution order (vertical slices)
-
-**Slice 1 — Token verifier**
-- Add `verifyMagicLinkToken` to `src/auth/magic-link.ts`
-- Add unit tests in `src/auth/magic-link.test.ts`
-- Verifies HMAC signature, parses payload, checks token expiration
-
-**Slice 2 — Route + handler**
-- Create `src/auth/magic-link-verify.ts` with handler factory
-- Create `app/auth/magic-link/verify/route.ts` with GET (confirmation form) and POST handlers
-- GET renders an auto-post form to POST with the token (security: keeps token out of URL logs)
-
-**Slice 3 — Accept invite + create user + create session**
-- When token valid + invite pending + email matches + invite not expired:
-  1. Upsert user by email (create if not exists, role from invite; if exists, keep existing role)
-  2. Create session record in DB with expiresAt (e.g., 30 days from now)
-  3. Set session cookie via `sealSessionCookie`
-  4. Update invite status to "accepted"
-  5. Redirect to app root `/`
-
-**Slice 4 — Error responses**
-- For each failure mode, return HTML error page with error code
-- Error screen UI (next ticket) will enhance these with better UX
-
-### Key design decisions
-
-- **GET form auto-submit**: GET with `?token=` in URL exposes token in server logs. Instead, GET renders a small HTML page with an auto-submitting form (method="POST", action includes token). Token only appears in POST body, not in server logs or browser URL bar.
-- **User upsert role semantics**: If user already exists, their role is preserved (not overwritten by invite role). Invite role only applies to newly created users.
-- **Session lifetime**: 30 days default (configurable). Already modeled in schema with `expiresAt`.
-- **Invite vs token expiration**: Both checked — token's embedded `expiresAt` for quick rejection of forged tokens, invite record's `expiresAt` for actual business rule.
-
-### Assumptions / risks
-
-1. Token's `expiresAt` and invite's `expiresAt` are checked independently.
-2. Redirect URL after success: app root `/`.
-3. Error screen rendering: simple HTML error page now; enhanced by next ticket.
-4. CSRF: magic link token serves as the secret; auto-submit form pattern prevents URL exposure.

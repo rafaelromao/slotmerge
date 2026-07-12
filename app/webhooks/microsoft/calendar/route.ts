@@ -11,16 +11,17 @@ export async function POST(request: NextRequest) {
   const config = loadRuntimeConfig();
 
   const webhookType = request.headers.get("X-MS-WEBHOOK-TYPE") ?? "";
+
   const rawUrl = request.nextUrl.toString();
-  const validationTokenParam = rawUrl
-    .split("Validationtoken=")[1]
-    ?.split("&")[0];
+  const validationTokenMatch = rawUrl.match(/[?&]validationToken=([^&]+)/i);
+  const validationTokenParam = validationTokenMatch
+    ? validationTokenMatch[1]
+    : null;
 
   if (validationTokenParam) {
-    const tokenBytes = new TextEncoder().encode(validationTokenParam);
-    return new NextResponse(tokenBytes, {
+    return new NextResponse(validationTokenParam, {
       status: 200,
-      headers: { "Content-Type": "application/octet-stream" },
+      headers: { "Content-Type": "text/plain" },
     });
   }
 

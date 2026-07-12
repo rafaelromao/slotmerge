@@ -1,130 +1,44 @@
 # Task
 
-Implement GitHub issue #42: Send Calendar Connection action-required email
+Implement GitHub issue #23: Sign in via magic link
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmerge/issues/18). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Auth & Invites](https://github.com/rafaelromao/slotmerge/issues/16). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-When a user's Calendar Connection enters an action-required state (token revoked, reconnect needed, persistent sync failure), the system sends an email to the affected user with a clear next step.
+Clicking a valid, unused, unexpired magic link authenticates the recipient, creates a session, accepts the invite, and redirects into the app. Used or expired links produce a clear error screen.
 
 ## Acceptance criteria
 
-- [ ] Token revocation triggers a reconnect email.
-- [ ] Persistent sync failure triggers an action-required email.
-- [ ] Email includes a link to the Calendar Connection page.
-- [ ] Email delivery state is recorded.
+- [ ] A valid magic link creates a session and accepts the invite.
+- [ ] A used magic link is rejected on second use.
+- [ ] An expired magic link is rejected.
+- [ ] The error screen explains the failure and offers the next step (covered by the next ticket).
+- [ ] Sessions have a defined lifetime and can be ended.
 
 ## Blocked by
 
-- [Provision transactional email delivery and email event log](https://github.com/rafaelromao/slotmerge/issues/26)
-- [Encrypt Calendar Connection OAuth tokens at rest](https://github.com/rafaelromao/slotmerge/issues/45)
+- [Send invitation email with magic link](https://github.com/rafaelromao/slotmerge/issues/22)
 
 
 ## Runtime Context
 
-## Plan
-
-Issue #42 sends a transactional email to a User whenever their Calendar Connection enters an action-required state (token revoked, persistent sync failure). Delivery state must be recorded through the existing single Email delivery service module (`src/email/service.ts`).
-
-### Pre-flight
-
-- [x] `gh issue view 42` confirms issue is OPEN with 4 acceptance criteria.
-- [x] Both blockers (`#26`, `#45`) are CLOSED.
-- [x] `origin/main` is up to date and the branch is an ancestor of `origin/main`.
-- [x] No open PR for the current branch.
-- [x] No existing implementation in `origin/main` matches the acceptance criteria.
-
-### Subagent review summary
-
-Subagent reviewed the initial plan and produced four concrete revisions, all adopted here:
-
-1. **Ownership check on revoke route.** Before wiring the email, ensure `app/me/calendar-connections/[id]/route.ts` rejects requests where `found.record.userId !== session.user.id`. Otherwise any logged-in user could disconnect someone else's connection and trigger an email to a third party.
-2. **Sync-failure wiring is internal, not a new POST route.** The spec's API surface (`docs/mvp-spec.md:282-287`) does not list a `POST .../sync-failure` endpoint, and the trigger origin is the sync engine, not the user. Expose `recordCalendarConnectionSyncFailure(connectionId, error)` as an internal function in `src/calendar/repository.ts` that calls the trigger module. The actual sync engine is a separate issue.
-3. **Drop `lastSyncAt` / drop the transport-rendering slice.** The transport already stringifies the payload. Put `reconnectUrl` in the payload so it appears in the body without touching `src/email/transport.ts`.
-4. **Use the real `EmailDeliveryService` type, not a narrowed one.** Mirror the singleton + test-override pattern used by `getGoogleCalendarConnectionRepository` (`src/calendar/repository.ts:30-38`).
-
-### Tracer bullet
-
-End-to-end flow that exercises every layer:
-
-1. Connection's revoke or sync-failure entry-point calls the action-required trigger module with `(connectionId, reason, user.email)`.
-2. Trigger module looks up a prior dispatch (Postgres), dedups if within window, otherwise builds the payload (including `reconnectUrl`) and hands it to the singleton `EmailDeliveryService`.
-3. `EmailDeliveryService` records the `EmailEvent` (delivery state), enqueues the worker, the worker renders the body (which now includes the `reconnectUrl`), and the transport sends it.
-
-### Behaviors to test (vertical slices)
-
-**Slice 1 — schema migration (`drizzle/0006_calendar_connection_sync_failure.sql` + `src/db/schema.ts`)**
-- Adds nullable `last_error_code` / `last_error_message` columns to `calendar_connections`.
-- Drizzle schema and `findById`/`listByUserId`/`updateById` selects include the new columns.
-
-**Slice 2 — action-required trigger module (`src/calendar/action-required-email.ts`)**
-- For `token-revoked` and `sync-failure` reasons, calls `emailDeliveryService.sendEmail` exactly once with `type: "calendar-action-required"`, the user email as recipient, a payload containing `connectionId`, `provider`, `reason`, `reconnectUrl`, `occurredAt` (ISO), and a deterministic `payloadReference` derived from `(connectionId, reason)`.
-- Skips dispatch when `findMostRecentConnectionDispatch(connectionId, reason, since)` returns a non-null timestamp inside the dedup window.
-- Returns `{ status: "sent" | "skipped", emailEventId?: string }`.
-- Uses `dedupWindowMs` from deps with a default of 60 minutes (twice admin-critical's 15-minute window because user-initiated `token-revoked` should not re-fire on every page reload, and `sync-failure` should not re-fire while a previous one is being acted on).
-- Reuses `EmailDeliveryService` from `src/email/service.ts` directly (not a narrowed duplicate).
-
-**Slice 3 — dispatch lookup repository (`src/calendar/action-required-email.repository.ts`)**
-- Postgres-backed `findMostRecentConnectionDispatch(connectionId, reason, since)` mirrors `createPostgresAdminCriticalDispatchLookup` (`src/admin/critical-email.repository.ts:29-51`).
-- `createConnectionActionRequiredDedupReference(connectionId, reason)` returns a pure-function SHA-256 hash of `{"connectionId","reason"}` (mirrors `createKindDedupReference` in `src/admin/critical-email.ts:66-68`).
-- Repository is wired through a `setConnectionActionRequiredDispatchLookupForTests` test override (mirrors the calendar repository pattern at `src/calendar/repository.ts:18-28`).
-
-**Slice 4 — singleton accessor for the email delivery service (`src/email/service.ts` / new factory)**
-- Add `getEmailDeliveryService()` that constructs a default `EmailDeliveryService` backed by the Postgres repository + Graphile enqueue, plus `setEmailDeliveryServiceForTests(...)` for the route tests.
-- Mirror the existing `getGoogleCalendarConnectionRepository` / `setGoogleCalendarConnectionRepositoryForTests` pattern (`src/calendar/repository.ts:18-38`).
-
-**Slice 5 — ownership check + wire revoke routes (`app/me/calendar-connections/[id]/route.ts`)**
-- After `findCalendarConnectionById(expectedId)`, return 404 if `found.record.userId !== session.user.id`.
-- After a successful revoke (Google or Microsoft), call `triggerCalendarActionRequiredEmail` with `{ connectionId, provider, reason: "token-revoked", user: { id, email } }`.
-- The revoke HTTP response stays 200 even if the email enqueue fails (email failures are observable through the `email_events` table, not the HTTP response).
-- The trigger is awaited only long enough to record the `EmailEvent`; the actual send runs in the worker. The route never blocks the HTTP response on transport success.
-
-**Slice 6 — internal sync-failure recorder (`src/calendar/repository.ts` + `src/calendar/action-required-email.ts`)**
-- Add `recordCalendarConnectionSyncFailure(connectionId, { code, message })` that updates `last_error_code`, `last_error_message`, and `updated_at` on the row.
-- The recorder calls `triggerCalendarActionRequiredEmail` with `reason: "sync-failure"` after the update succeeds.
-- Connection status stays `connected` while the error columns are populated. The follow-up `needs-reconnect` status value (per `docs/mvp-spec.md:143`) is filed as a separate issue and explicitly tracked in the slice description below.
-
-### Out of scope
-
-- The actual sync engine, webhooks, and reconciliation scheduler — separate issues.
-- A user-callable POST `/me/calendar-connections/{id}/sync-failure` route — the spec API surface (`docs/mvp-spec.md:282-287`) does not list it; the trigger origin is the sync engine, not the user. The internal recorder is the slice boundary.
-- Changing the connection status enum to include `needs-reconnect`. Today's schema has only `pending`/`connected`/`disconnected`. The spec calls for `needs reconnect` (`docs/mvp-spec.md:143`) and that belongs in a follow-up issue, not this one. The current slice writes error columns on a still-`connected` row and is honest about that limitation.
-- A proper HTML email template — the existing transport JSON-stringifies the payload (`src/email/transport.ts:69-75`), so a `reconnectUrl` field in the payload is enough to satisfy "Email includes a link to the Calendar Connection page" (`docs/mvp-spec.md:435`). A real HTML template is a separate slice.
-- Sending a real email in tests — `EMAIL_ADAPTER=mock` returns `mock-<eventId>` for any `EmailTransport.send`.
-
-### Schema additions
-
-- `calendar_connections.last_error_code` (text, nullable)
-- `calendar_connections.last_error_message` (text, nullable)
-- No enum change in this issue (deferred; see "Out of scope").
-
-### Risks
-
-- The spec calls for a `needs-reconnect` status value (`docs/mvp-spec.md:143`) that the current schema does not have. This issue records the failure via columns, not status, and explicitly defers the enum change to a follow-up. The trigger module is structured so a future status change will not require changes to email logic.
-- The revoke route currently does not check ownership. Without that fix, an authenticated user could disconnect someone else's connection and trigger an email to a third party. Slice 5 ships the ownership check as part of the same change so we never ship the email wiring without it.
-- Dedup window default (60 min) is twice the admin-critical window (15 min). This is intentional: the recipient is the user (not an admin) and a re-trigger while the previous email is still likely unread would be noise. If product feedback says otherwise, the dedup window is a single constant.
-
-### Subagent review
-
-A subagent reviewed the first draft and produced four revisions, all adopted above. Plan consensus reached.
-
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/42-send-calendar-connection-action-required-email`
-- Source branch: `sandman/42-send-calendar-connection-action-required-email`
+- Current branch: `sandman/23-sign-in-via-magic-link`
+- Source branch: `sandman/23-sign-in-via-magic-link`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/42-send-calendar-connection-action-required-email` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/23-sign-in-via-magic-link` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
-- [x] Create branch (`sandman/42-send-calendar-connection-action-required-email` created from `main`).
-- [x] Plan (sandman-plan) — drafted above, subagent reviewed, consensus reached on four revisions (ownership check, internal recorder not new route, drop transport slice, use real `EmailDeliveryService` type).
+- [x] Create branch
+- [x] Plan (sandman-plan)
 - [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
@@ -135,7 +49,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Implement the plan via vertical-slice TDD: schema migration → trigger module → dispatch lookup repository → email delivery service accessor → ownership check + revoke wiring → sync-failure recorder. One commit per slice.
+sandman-tdd (vertical slices from Plan)
 
 ## Already Resolved
 
@@ -254,3 +168,98 @@ Before final response, verify and report:
 - Test/format commands run and outcomes.
 - PR URL and review status, if a PR was created.
 - Whether PR merge was performed or skipped, with reason.
+
+## Plan
+
+### Behaviors to test
+
+1. **Valid magic link creates session and accepts invite**
+   - Given a valid unexpired magic link token, pending invite, and matching email
+   - When POST /auth/magic-link/verify is called
+   - Then user is upserted (created with invite role if not exists), session is created, invite is marked accepted, session cookie is set, and redirect to app root `/`
+
+2. **Used magic link is rejected on second use**
+   - Given a magic link token whose invite is already accepted
+   - When POST /auth/magic-link/verify is called
+   - Then error page with "invite_already_accepted" reason
+
+3. **Expired token is rejected**
+   - Given a magic link token whose embedded expiresAt has passed
+   - When POST /auth/magic-link/verify is called
+   - Then error page with "token_expired" reason
+
+4. **Expired invite is rejected**
+   - Given a magic link token whose associated invite record has expiresAt in the past
+   - When POST /auth/magic-link/verify is called
+   - Then error page with "invite_expired" reason
+
+5. **Invalid signature is rejected**
+   - Given a magic link token with invalid HMAC signature
+   - When POST /auth/magic-link/verify is called
+   - Then error page with "invalid_token" reason
+
+6. **Email mismatch is rejected**
+   - Given a magic link token whose email does not match the invite's email
+   - When POST /auth/magic-link/verify is called
+   - Then error page with "email_mismatch" reason
+
+7. **Non-existent invite is rejected**
+   - Given a magic link token with non-existent inviteId
+   - When POST /auth/magic-link/verify is called
+   - Then error page with "invite_not_found" reason
+
+### Testable interfaces
+
+1. **`verifyMagicLinkToken(token, secret, clock?)`** in `src/auth/magic-link.ts`:
+   - Parses `payload.signature` format, verifies HMAC, checks token-level expiration
+   - Returns decoded payload or throws typed error (InvalidToken | TokenExpired)
+   - Pure function, easily unit-tested
+
+2. **`MagicLinkVerifyHandler`** factory in a new `src/auth/magic-link-verify.ts`:
+   - `createMagicLinkVerifyHandlers({clock?, db?, tokenVerifier?})`
+   - Returns `{GET, POST}` handlers
+   - Encapsulates: token verification → invite lookup → email match check → invite expiration check → user upsert → session creation → invite acceptance → redirect
+   - All dependencies injectable for tests
+
+3. **`app/auth/magic-link/verify/route.ts`**:
+   - Thin Next.js route that delegates to `MagicLinkVerifyHandler`
+   - GET: renders confirmation page with auto-submitting form (prevents token in server logs/URLs)
+   - POST: processes the verification
+
+### Execution order (vertical slices)
+
+**Slice 1 — Token verifier**
+- Add `verifyMagicLinkToken` to `src/auth/magic-link.ts`
+- Add unit tests in `src/auth/magic-link.test.ts`
+- Verifies HMAC signature, parses payload, checks token expiration
+
+**Slice 2 — Route + handler**
+- Create `src/auth/magic-link-verify.ts` with handler factory
+- Create `app/auth/magic-link/verify/route.ts` with GET (confirmation form) and POST handlers
+- GET renders an auto-post form to POST with the token (security: keeps token out of URL logs)
+
+**Slice 3 — Accept invite + create user + create session**
+- When token valid + invite pending + email matches + invite not expired:
+  1. Upsert user by email (create if not exists, role from invite; if exists, keep existing role)
+  2. Create session record in DB with expiresAt (e.g., 30 days from now)
+  3. Set session cookie via `sealSessionCookie`
+  4. Update invite status to "accepted"
+  5. Redirect to app root `/`
+
+**Slice 4 — Error responses**
+- For each failure mode, return HTML error page with error code
+- Error screen UI (next ticket) will enhance these with better UX
+
+### Key design decisions
+
+- **GET form auto-submit**: GET with `?token=` in URL exposes token in server logs. Instead, GET renders a small HTML page with an auto-submitting form (method="POST", action includes token). Token only appears in POST body, not in server logs or browser URL bar.
+- **User upsert role semantics**: If user already exists, their role is preserved (not overwritten by invite role). Invite role only applies to newly created users.
+- **Session lifetime**: 30 days default (configurable). Already modeled in schema with `expiresAt`.
+- **Invite vs token expiration**: Both checked — token's embedded `expiresAt` for quick rejection of forged tokens, invite record's `expiresAt` for actual business rule.
+
+### Assumptions / risks
+
+1. Token's `expiresAt` and invite's `expiresAt` are checked independently.
+2. Redirect URL after success: app root `/`.
+3. Error screen rendering: simple HTML error page now; enhanced by next ticket.
+4. CSRF: magic link token serves as the secret; auto-submit form pattern prevents URL exposure.

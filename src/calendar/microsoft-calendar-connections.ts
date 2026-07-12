@@ -5,6 +5,10 @@ import {
   buildMicrosoftCalendarAuthorizationUrl,
   getMicrosoftCalendarScopes,
 } from "./microsoft-oauth";
+import { encryptCalendarToken } from "./token-encryption";
+
+const MICROSOFT_TOKEN_ENDPOINT =
+  "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
 
 export type MicrosoftCalendarConnectionStatus =
   | "pending"
@@ -127,6 +131,101 @@ function generatePkceVerifier(): string {
 
 function generatePkceChallenge(verifier: string): string {
   return createHash("sha256").update(verifier).digest("base64url");
+}
+
+export async function completeMicrosoftCalendarConnection({
+  baseUrl,
+  clientId,
+  clientSecret,
+  code,
+  fetchImpl,
+  repository,
+  sessionSecret,
+  state,
+  tokenEncryptionKey,
+}: {
+  baseUrl: string;
+  clientId: string;
+  clientSecret: string;
+  code: string;
+  fetchImpl: typeof fetch;
+  repository: MicrosoftCalendarConnectionRepository;
+  sessionSecret: string;
+  state: string;
+  tokenEncryptionKey: string;
+}): Promise<MicrosoftCalendarConnectionRecord> {
+  const payload = (await Iron.unseal(
+    state,
+    sessionSecret,
+    Iron.defaults,
+  )) as MicrosoftCalendarConnectionState;
+
+  const connection = await repository.findById(payload.connectionId);
+  if (!connection) {
+    throw new Error("Microsoft calendar connection not found.");
+  }
+
+  if (connection.status !== "pending") {
+    throw new Error("Microsoft calendar connection is not pending.");
+  }
+
+  const tokenResponse = await fetchImpl(MICROSOFT_TOKEN_ENDPOINT, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      code,
+      code_verifier: payload.codeVerifier,
+      grant_type: "authorization_code",
+      redirect_uri: new URL(
+        "/me/calendar-connections/callback",
+        baseUrl,
+      ).toString(),
+    }),
+  });
+
+  if (!tokenResponse.ok) {
+    throw new Error("Microsoft token exchange failed.");
+  }
+
+  const tokenPayload = (await tokenResponse.json()) as {
+    access_token?: string;
+    expires_in?: number;
+    refresh_token?: string;
+    scope?: string;
+  };
+
+  if (!tokenPayload.access_token || !tokenPayload.refresh_token) {
+    throw new Error("Microsoft token response did not include tokens.");
+  }
+
+  const accessTokenEncrypted = encryptCalendarToken({
+    plaintext: tokenPayload.access_token,
+    key: tokenEncryptionKey,
+  });
+  const refreshTokenEncrypted = encryptCalendarToken({
+    plaintext: tokenPayload.refresh_token,
+    key: tokenEncryptionKey,
+  });
+
+  const updated = await repository.updateById(connection.id, {
+    accountIdentifier: `microsoft:${connection.id}`,
+    providerAccountKey: `microsoft:${connection.id}`,
+    scopes: tokenPayload.scope ?? getMicrosoftCalendarScopes(),
+    status: "connected",
+    accessTokenEncrypted,
+    refreshTokenEncrypted,
+    accessTokenExpiresAt: tokenPayload.expires_in
+      ? new Date(Date.now() + tokenPayload.expires_in * 1000)
+      : null,
+  });
+
+  if (!updated) {
+    throw new Error("Microsoft calendar connection could not be updated.");
+  }
+
+  return updated;
 }
 
 export function presentMicrosoftCalendarConnection(

@@ -106,7 +106,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
       connectionId: "connection-1",
       provider: "google",
     });
-    expect(storedStatus).toBe("connected");
+    expect(storedStatus).toBe("disconnected");
   });
 
   it("returns failed when the underlying update throws (does not send the email)", async () => {

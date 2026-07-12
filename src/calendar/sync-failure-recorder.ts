@@ -96,6 +96,7 @@ async function updateConnectionErrorMetadata(
       {
         lastErrorCode: input.code,
         lastErrorMessage: input.message,
+        status: "disconnected",
       },
     );
     return;
@@ -105,6 +106,7 @@ async function updateConnectionErrorMetadata(
     {
       lastErrorCode: input.code,
       lastErrorMessage: input.message,
+      status: "disconnected",
     },
   );
 }

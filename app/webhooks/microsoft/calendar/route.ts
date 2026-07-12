@@ -11,12 +11,16 @@ export async function POST(request: NextRequest) {
   const config = loadRuntimeConfig();
 
   const webhookType = request.headers.get("X-MS-WEBHOOK-TYPE") ?? "";
-  const validationToken = request.nextUrl.searchParams.get("Validationtoken");
+  const rawUrl = request.nextUrl.toString();
+  const validationTokenParam = rawUrl
+    .split("Validationtoken=")[1]
+    ?.split("&")[0];
 
-  if (validationToken) {
-    return new NextResponse(validationToken, {
+  if (validationTokenParam) {
+    const tokenBytes = new TextEncoder().encode(validationTokenParam);
+    return new NextResponse(tokenBytes, {
       status: 200,
-      headers: { "Content-Type": "text/plain" },
+      headers: { "Content-Type": "application/octet-stream" },
     });
   }
 
@@ -34,17 +38,18 @@ export async function POST(request: NextRequest) {
     return new NextResponse("Missing clientState", { status: 400 });
   }
 
-  const expectedSignature = `sha256=${createHmac("sha256", clientState)
+  const connection = await findCalendarConnectionById(clientState);
+  if (!connection || connection.record.status !== "connected") {
+    return new NextResponse(null, { status: 200 });
+  }
+
+  const hmacSecret = clientState;
+  const expectedSignature = `sha256=${createHmac("sha256", hmacSecret)
     .update(payload)
     .digest("hex")}`;
 
   if (signature !== expectedSignature) {
     return new NextResponse("Invalid signature", { status: 401 });
-  }
-
-  const connection = await findCalendarConnectionById(clientState);
-  if (!connection || connection.record.status !== "connected") {
-    return new NextResponse(null, { status: 200 });
   }
 
   const job: CalendarSyncJobPayload = { connectionId: clientState };

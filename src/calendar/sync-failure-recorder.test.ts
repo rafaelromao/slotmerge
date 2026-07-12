@@ -59,6 +59,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
           accessTokenExpiresAt: null,
           lastErrorCode: null,
           lastErrorMessage: null,
+          contributingCalendarIds: [],
           ...updated,
         });
       },

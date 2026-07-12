@@ -22,6 +22,7 @@ describe("completeMicrosoftCalendarConnection", () => {
       accessTokenExpiresAt: null,
       lastErrorCode: null,
       lastErrorMessage: null,
+      contributingCalendarIds: [],
     };
 
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
@@ -38,26 +39,47 @@ describe("completeMicrosoftCalendarConnection", () => {
             ? init.body.toString()
             : "";
 
-      expect(requestUrl).toBe(
-        "https://login.microsoftonline.com/organizations/oauth2/v2.0/token",
-      );
-      expect(bodyText).toContain("grant_type=authorization_code");
-      expect(bodyText).toContain("code=auth-code-123");
-      expect(bodyText).toContain("client_id=microsoft-client-id");
-      expect(bodyText).toContain("client_secret=microsoft-client-secret");
-      expect(bodyText).toContain("code_verifier=code-verifier-1");
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            access_token: "access-token-123",
-            expires_in: 3600,
-            refresh_token: "refresh-token-123",
-            scope: "offline_access Calendars.ReadBasic",
-            token_type: "Bearer",
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
-      );
+      if (
+        requestUrl ===
+        "https://login.microsoftonline.com/organizations/oauth2/v2.0/token"
+      ) {
+        expect(bodyText).toContain("grant_type=authorization_code");
+        expect(bodyText).toContain("code=auth-code-123");
+        expect(bodyText).toContain("client_id=microsoft-client-id");
+        expect(bodyText).toContain("client_secret=microsoft-client-secret");
+        expect(bodyText).toContain("code_verifier=code-verifier-1");
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              access_token: "access-token-123",
+              expires_in: 3600,
+              refresh_token: "refresh-token-123",
+              scope: "offline_access Calendars.ReadBasic",
+              token_type: "Bearer",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+        );
+      }
+
+      if (requestUrl.startsWith("https://graph.microsoft.com/v1.0/me/calendars")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              value: [
+                {
+                  id: "primary-calendar-id",
+                  name: "Calendar",
+                  isPrimaryCalendar: true,
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+        );
+      }
+
+      throw new Error(`Unexpected request: ${requestUrl}`);
     });
 
     const sessionSecret = "0123456789abcdef0123456789abcdef";
@@ -112,6 +134,6 @@ describe("completeMicrosoftCalendarConnection", () => {
         key: tokenEncryptionKey,
       }),
     ).toBe("access-token-123");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

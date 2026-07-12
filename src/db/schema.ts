@@ -58,6 +58,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   calendarConnections: many(calendarConnections),
   topicProposals: many(topicProposals),
   userTopics: many(userTopics),
+  availabilityWindows: many(availabilityWindows),
   importedBusyIntervals: many(importedBusyIntervals),
 }));
 
@@ -88,6 +89,10 @@ export const calendarConnections = pgTable("calendar_connections", {
   }),
   lastErrorCode: text("last_error_code"),
   lastErrorMessage: text("last_error_message"),
+  contributingCalendarIds: jsonb("contributing_calendar_ids")
+    .$type<string[]>()
+    .notNull()
+    .default([]),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -349,6 +354,55 @@ export const discoverabilityConsents = pgTable("discoverability_consents", {
     .notNull()
     .defaultNow(),
 });
+
+export const availabilityWindows = pgTable(
+  "availability_windows",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    dayOfWeek: integer("day_of_week").notNull(),
+    startTime: text("start_time").notNull(),
+    endTime: text("end_time").notNull(),
+    profileTimezone: text("profile_timezone").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("availability_windows_user_id_idx").on(table.userId),
+    userIdDayStartUnique: uniqueIndex(
+      "availability_windows_user_id_day_of_week_start_time_unique_idx",
+    ).on(table.userId, table.dayOfWeek, table.startTime),
+  }),
+);
+
+export const availabilityWindowsRelations = relations(
+  availabilityWindows,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [availabilityWindows.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export type WeeklyAvailabilityWindow = typeof availabilityWindows.$inferSelect;
+export type CreateWeeklyAvailabilityWindow = Pick<
+  WeeklyAvailabilityWindow,
+  "dayOfWeek" | "startTime" | "endTime"
+>;
+export type NewWeeklyAvailabilityWindow = Omit<
+  typeof availabilityWindows.$inferInsert,
+  "id" | "createdAt" | "updatedAt"
+>;
+export type WeeklyAvailabilityWindowUpdate = Partial<
+  Pick<CreateWeeklyAvailabilityWindow, "dayOfWeek" | "startTime" | "endTime">
+>;
 
 export const searches = pgTable(
   "searches",

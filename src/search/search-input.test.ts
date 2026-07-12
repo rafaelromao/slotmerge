@@ -1,0 +1,347 @@
+import { afterEach, describe, expect, it } from "vitest";
+
+import type { UserProfile } from "../profile/repository";
+
+import {
+  type ActiveTopicsRepository,
+  type Clock,
+  type ProfileRepository,
+  type SearchInput,
+  createSearchInputBuilder,
+  validateSearchInput,
+} from "./search-input";
+
+class InMemoryActiveTopicsRepository implements ActiveTopicsRepository {
+  constructor(
+    private readonly activeTopics: Array<{ id: string; name: string }> = [],
+  ) {}
+
+  async listActive(): Promise<
+    Array<{ id: string; name: string; status: "active" }>
+  > {
+    await Promise.resolve();
+    return this.activeTopics.map((t) => ({ ...t, status: "active" as const }));
+  }
+}
+
+class InMemoryProfileRepository implements ProfileRepository {
+  constructor(private readonly profile: UserProfile | null) {}
+
+  async findByUserId(userId: string): Promise<UserProfile | null> {
+    await Promise.resolve();
+    if (!this.profile) return null;
+    if (this.profile.id !== userId) return null;
+    return this.profile;
+  }
+}
+
+const pinnedClock = (iso: string): Clock => ({
+  now: () => new Date(iso),
+});
+
+const organizerProfile: UserProfile = {
+  id: "organizer-1",
+  email: "organizer@example.com",
+  displayName: "Organizer",
+  avatarUrl: null,
+  shortBio: null,
+  role: "organizer",
+  status: "active",
+  profileTimezone: "America/Sao_Paulo",
+  bufferMinutes: 0,
+};
+
+const utcProfile: UserProfile = {
+  ...organizerProfile,
+  id: "organizer-2",
+  profileTimezone: null,
+};
+
+describe("buildSearchInput", () => {
+  afterEach(() => {});
+
+  it("returns the documented defaults when no overrides are supplied", async () => {
+    const builder = createSearchInputBuilder({
+      organizerId: "organizer-1",
+      activeTopicsRepository: new InMemoryActiveTopicsRepository([
+        { id: "topic-1", name: "Product strategy" },
+      ]),
+      profileRepository: new InMemoryProfileRepository(organizerProfile),
+      clock: pinnedClock("2026-07-08T15:00:00.000Z"),
+    });
+
+    const input = await builder.build({});
+
+    expect(input.organizerId).toBe("organizer-1");
+    expect(input.selectedTopicIds).toEqual([]);
+    expect(input.minimumMatchingUsers).toBe(2);
+    expect(input.durationMinutes).toBeNull();
+    expect(input.organizerTimezone).toBe("America/Sao_Paulo");
+    expect(input.dateRangeStart.toISOString()).toBe("2026-07-06T03:00:00.000Z");
+    expect(input.dateRangeEnd.toISOString()).toBe("2026-08-10T03:00:00.000Z");
+  });
+
+  it("falls back to UTC when the organizer profile has no timezone", async () => {
+    const builder = createSearchInputBuilder({
+      organizerId: "organizer-2",
+      activeTopicsRepository: new InMemoryActiveTopicsRepository([]),
+      profileRepository: new InMemoryProfileRepository(utcProfile),
+      clock: pinnedClock("2026-07-08T15:00:00.000Z"),
+    });
+
+    const input = await builder.build({});
+
+    expect(input.organizerTimezone).toBe("UTC");
+    expect(input.dateRangeStart.toISOString()).toBe("2026-07-06T00:00:00.000Z");
+    expect(input.dateRangeEnd.toISOString()).toBe("2026-08-10T00:00:00.000Z");
+  });
+
+  it("honors organizer-supplied overrides for the fields that matter", async () => {
+    const builder = createSearchInputBuilder({
+      organizerId: "organizer-1",
+      activeTopicsRepository: new InMemoryActiveTopicsRepository([
+        { id: "topic-1", name: "Product strategy" },
+        { id: "topic-2", name: "AI engineering" },
+      ]),
+      profileRepository: new InMemoryProfileRepository(organizerProfile),
+      clock: pinnedClock("2026-07-08T15:00:00.000Z"),
+    });
+
+    const input = await builder.build({
+      selectedTopicIds: ["topic-1", "topic-2"],
+      minimumMatchingUsers: 5,
+      durationMinutes: 90,
+      dateRangeStart: new Date("2026-08-03T03:00:00.000Z"),
+      dateRangeEnd: new Date("2026-08-10T03:00:00.000Z"),
+      organizerTimezone: "America/New_York",
+    });
+
+    expect(input.selectedTopicIds).toEqual(["topic-1", "topic-2"]);
+    expect(input.minimumMatchingUsers).toBe(5);
+    expect(input.durationMinutes).toBe(90);
+    expect(input.dateRangeStart.toISOString()).toBe("2026-08-03T03:00:00.000Z");
+    expect(input.dateRangeEnd.toISOString()).toBe("2026-08-10T03:00:00.000Z");
+    expect(input.organizerTimezone).toBe("America/New_York");
+  });
+
+  it("preserves default fields that are not overridden", async () => {
+    const builder = createSearchInputBuilder({
+      organizerId: "organizer-1",
+      activeTopicsRepository: new InMemoryActiveTopicsRepository([
+        { id: "topic-1", name: "Product strategy" },
+      ]),
+      profileRepository: new InMemoryProfileRepository(organizerProfile),
+      clock: pinnedClock("2026-07-08T15:00:00.000Z"),
+    });
+
+    const input = await builder.build({ minimumMatchingUsers: 4 });
+
+    expect(input.minimumMatchingUsers).toBe(4);
+    expect(input.durationMinutes).toBeNull();
+    expect(input.selectedTopicIds).toEqual([]);
+    expect(input.organizerTimezone).toBe("America/Sao_Paulo");
+  });
+});
+
+describe("validateSearchInput", () => {
+  const baseInput: SearchInput = {
+    organizerId: "organizer-1",
+    selectedTopicIds: ["topic-1"],
+    minimumMatchingUsers: 2,
+    durationMinutes: 60,
+    dateRangeStart: new Date("2026-07-06T03:00:00.000Z"),
+    dateRangeEnd: new Date("2026-08-10T03:00:00.000Z"),
+    organizerTimezone: "America/Sao_Paulo",
+  };
+
+  it("accepts the canonical valid input", () => {
+    const result = validateSearchInput(baseInput, { matchingPoolSize: 5 });
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("rejects when no active Topic is selected", () => {
+    const result = validateSearchInput(
+      { ...baseInput, selectedTopicIds: [] },
+      { matchingPoolSize: 5 },
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected rejection");
+    expect(result.errors).toContainEqual({
+      field: "selectedTopicIds",
+      message: "Select at least one active Topic.",
+    });
+  });
+
+  it("rejects when minimumMatchingUsers is below 2", () => {
+    const result = validateSearchInput(
+      { ...baseInput, minimumMatchingUsers: 1 },
+      { matchingPoolSize: 5 },
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected rejection");
+    expect(result.errors).toContainEqual({
+      field: "minimumMatchingUsers",
+      message: "Minimum matching Users must be at least 2.",
+    });
+  });
+
+  it("rejects when minimumMatchingUsers exceeds the matching pool size", () => {
+    const result = validateSearchInput(
+      { ...baseInput, minimumMatchingUsers: 10 },
+      { matchingPoolSize: 5 },
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected rejection");
+    expect(result.errors).toContainEqual({
+      field: "minimumMatchingUsers",
+      message:
+        "Minimum matching Users cannot exceed the matching pool size (5).",
+    });
+  });
+
+  it("rejects when durationMinutes is null", () => {
+    const result = validateSearchInput(
+      { ...baseInput, durationMinutes: null },
+      { matchingPoolSize: 5 },
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected rejection");
+    expect(result.errors).toContainEqual({
+      field: "durationMinutes",
+      message: "Meeting duration is required.",
+    });
+  });
+
+  it("rejects when durationMinutes is non-positive", () => {
+    const result = validateSearchInput(
+      { ...baseInput, durationMinutes: 0 },
+      { matchingPoolSize: 5 },
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected rejection");
+    expect(result.errors).toContainEqual({
+      field: "durationMinutes",
+      message: "Meeting duration must be greater than zero.",
+    });
+  });
+
+  it("rejects when the date range end is before or equal to start", () => {
+    const result = validateSearchInput(
+      {
+        ...baseInput,
+        dateRangeStart: new Date("2026-08-10T03:00:00.000Z"),
+        dateRangeEnd: new Date("2026-08-10T03:00:00.000Z"),
+      },
+      { matchingPoolSize: 5 },
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected rejection");
+    expect(result.errors).toContainEqual({
+      field: "dateRangeEnd",
+      message: "Date range end must be after the start.",
+    });
+  });
+
+  it("rejects when the date range carries non-zero minutes or seconds", () => {
+    const result = validateSearchInput(
+      {
+        ...baseInput,
+        dateRangeStart: new Date("2026-07-06T03:30:00.000Z"),
+      },
+      { matchingPoolSize: 5 },
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected rejection");
+    expect(result.errors).toContainEqual({
+      field: "dateRangeStart",
+      message: "Date range start must align to whole minutes (:00 seconds).",
+    });
+  });
+
+  it("rejects when organizerTimezone is not a valid IANA zone", () => {
+    const result = validateSearchInput(
+      { ...baseInput, organizerTimezone: "Mars/Olympus" },
+      { matchingPoolSize: 5 },
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected rejection");
+    expect(result.errors).toContainEqual({
+      field: "organizerTimezone",
+      message: "Organizer timezone must be a valid IANA zone.",
+    });
+  });
+
+  it("collects multiple errors in a single result", () => {
+    const result = validateSearchInput(
+      {
+        ...baseInput,
+        selectedTopicIds: [],
+        minimumMatchingUsers: 0,
+        durationMinutes: -1,
+        organizerTimezone: "",
+      },
+      { matchingPoolSize: 1 },
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected rejection");
+    expect(result.errors.length).toBeGreaterThanOrEqual(4);
+    const fields = new Set(result.errors.map((e) => e.field));
+    expect(fields).toEqual(
+      new Set([
+        "selectedTopicIds",
+        "minimumMatchingUsers",
+        "durationMinutes",
+        "organizerTimezone",
+      ]),
+    );
+  });
+});
+
+describe("buildSearchInput integration with validateSearchInput", () => {
+  it("builds a default that validates when the active Topics and pool are large enough", async () => {
+    const builder = createSearchInputBuilder({
+      organizerId: "organizer-1",
+      activeTopicsRepository: new InMemoryActiveTopicsRepository([
+        { id: "topic-1", name: "Product strategy" },
+      ]),
+      profileRepository: new InMemoryProfileRepository(organizerProfile),
+      clock: pinnedClock("2026-07-08T15:00:00.000Z"),
+    });
+
+    const built = await builder.build({
+      selectedTopicIds: ["topic-1"],
+      durationMinutes: 60,
+    });
+
+    const result = validateSearchInput(built, { matchingPoolSize: 5 });
+    expect(result.ok).toBe(true);
+  });
+
+  it("returns empty selectedTopicIds when the active Topics repository is empty", async () => {
+    const builder = createSearchInputBuilder({
+      organizerId: "organizer-1",
+      activeTopicsRepository: new InMemoryActiveTopicsRepository([]),
+      profileRepository: new InMemoryProfileRepository(organizerProfile),
+      clock: pinnedClock("2026-07-08T15:00:00.000Z"),
+    });
+
+    const input = await builder.build({});
+
+    expect(input.selectedTopicIds).toEqual([]);
+  });
+
+  it("rejects overrides that name a Topic outside the active catalogue", async () => {
+    const builder = createSearchInputBuilder({
+      organizerId: "organizer-1",
+      activeTopicsRepository: new InMemoryActiveTopicsRepository([
+        { id: "topic-1", name: "Product strategy" },
+      ]),
+      profileRepository: new InMemoryProfileRepository(organizerProfile),
+      clock: pinnedClock("2026-07-08T15:00:00.000Z"),
+    });
+
+    await expect(
+      builder.build({ selectedTopicIds: ["topic-1", "topic-99"] }),
+    ).rejects.toThrow(/Topic topic-99 is not in the active Topics catalogue/);
+  });
+});

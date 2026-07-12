@@ -109,12 +109,12 @@ export function createMagicLinkVerifyHandlers(
         payload = verifyMagicLinkToken(token, magicLinkSecret, clock);
       } catch (err) {
         if (err instanceof Error && err.message === "invalid_token") {
-          return errorResponse("invalid_token", 400);
+          return errorResponse("invalid_token", 400, token);
         }
         if (err instanceof Error && err.message === "token_expired") {
           return errorResponse("token_expired", 400, token);
         }
-        return errorResponse("invalid_token", 400);
+        return errorResponse("invalid_token", 400, token);
       }
 
       const invite = await (
@@ -122,7 +122,7 @@ export function createMagicLinkVerifyHandlers(
       ).findById(payload.inviteId);
 
       if (!invite) {
-        return errorResponse("invite_not_found", 400);
+        return errorResponse("invite_not_found", 400, token);
       }
 
       if (invite.status === "accepted") {
@@ -134,11 +134,11 @@ export function createMagicLinkVerifyHandlers(
       }
 
       if (invite.expiresAt <= clock()) {
-        return errorResponse("invite_expired", 400);
+        return errorResponse("invite_expired", 400, token);
       }
 
       if (invite.email !== payload.email) {
-        return errorResponse("email_mismatch", 400);
+        return errorResponse("email_mismatch", 400, token);
       }
 
       if ((payload.generation ?? 0) !== (invite.magicLinkGeneration ?? 0)) {

@@ -21,6 +21,7 @@ export type TopicStatus = "pending" | "active" | "retired";
 export type TopicProposalStatus = "pending" | "approved" | "rejected";
 export type TopicAssociationStatus =
   "active" | "pending-retired" | "historical";
+export type BusyIntervalStatus = "busy" | "out-of-office" | "tentative";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -57,6 +58,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   calendarConnections: many(calendarConnections),
   topicProposals: many(topicProposals),
   userTopics: many(userTopics),
+  importedBusyIntervals: many(importedBusyIntervals),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -96,10 +98,57 @@ export const calendarConnections = pgTable("calendar_connections", {
 
 export const calendarConnectionsRelations = relations(
   calendarConnections,
-  ({ one }) => ({
+  ({ one, many }) => ({
     user: one(users, {
       fields: [calendarConnections.userId],
       references: [users.id],
+    }),
+    importedBusyIntervals: many(importedBusyIntervals),
+  }),
+);
+
+export const importedBusyIntervals = pgTable(
+  "imported_busy_intervals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => calendarConnections.id, { onDelete: "cascade" }),
+    providerCalendarId: text("provider_calendar_id").notNull(),
+    providerEventReference: text("provider_event_reference"),
+    status: text("status").$type<BusyIntervalStatus>().notNull(),
+    startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+    endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+    importedAt: timestamp("imported_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    importedBusyIntervalsUserIdIdx: index(
+      "imported_busy_intervals_user_id_idx",
+    ).on(table.userId),
+    importedBusyIntervalsConnectionIdIdx: index(
+      "imported_busy_intervals_connection_id_idx",
+    ).on(table.connectionId),
+    importedBusyIntervalsUserIdStartAtEndAtIdx: index(
+      "imported_busy_intervals_user_id_start_at_end_at_idx",
+    ).on(table.userId, table.startAt, table.endAt),
+  }),
+);
+
+export const importedBusyIntervalsRelations = relations(
+  importedBusyIntervals,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [importedBusyIntervals.userId],
+      references: [users.id],
+    }),
+    calendarConnection: one(calendarConnections, {
+      fields: [importedBusyIntervals.connectionId],
+      references: [calendarConnections.id],
     }),
   }),
 );

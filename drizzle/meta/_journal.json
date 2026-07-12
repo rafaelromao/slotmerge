@@ -57,6 +57,13 @@
       "when": 1783780000005,
       "tag": "0006_searches",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783780000007,
+      "tag": "0007_imported_busy_intervals",
+      "breakpoints": true
     }
   ]
 }

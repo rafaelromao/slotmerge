@@ -44,25 +44,25 @@ describe("Production Docker containerization", () => {
       expect(() => readFileSync(entrypointPath, "utf8")).not.toThrow();
     });
 
-    it("entrypoint selects web mode when RUNTIME_MODE=web", () => {
+    it("entrypoint selects web mode when PROCESS_ROLE=web", () => {
       const entrypoint = readFileSync(
         join(REPO_ROOT, "docker-entrypoint.sh"),
         "utf8",
       );
-      expect(entrypoint).toMatch(/RUNTIME_MODE.*web/s);
+      expect(entrypoint).toMatch(/PROCESS_ROLE.*web|web.*PROCESS_ROLE/s);
       expect(entrypoint).toMatch(/next start/);
     });
 
-    it("entrypoint selects worker mode when RUNTIME_MODE=worker", () => {
+    it("entrypoint selects worker mode when PROCESS_ROLE=worker", () => {
       const entrypoint = readFileSync(
         join(REPO_ROOT, "docker-entrypoint.sh"),
         "utf8",
       );
-      expect(entrypoint).toMatch(/RUNTIME_MODE.*worker/s);
+      expect(entrypoint).toMatch(/PROCESS_ROLE.*worker|worker.*PROCESS_ROLE/s);
       expect(entrypoint).toMatch(/graphile-worker|tsx.*run\.ts/);
     });
 
-    it("entrypoint fails fast for unknown RUNTIME_MODE", () => {
+    it("entrypoint fails fast for unknown PROCESS_ROLE", () => {
       const entrypoint = readFileSync(
         join(REPO_ROOT, "docker-entrypoint.sh"),
         "utf8",

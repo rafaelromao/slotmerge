@@ -1,9 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type {
-  EmailDeliveryService,
-  EmailPayload,
-} from "../email/service";
+import type { EmailDeliveryService, EmailPayload } from "../email/service";
 
 export type CalendarActionRequiredReason = "token-revoked" | "sync-failure";
 

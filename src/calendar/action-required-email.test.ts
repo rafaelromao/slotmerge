@@ -40,12 +40,18 @@ describe("triggerCalendarActionRequiredEmail", () => {
     );
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    expect(sendEmail.mock.calls[0][0]).toMatchObject({
+    const firstCall = sendEmail.mock.calls[0][0] as {
+      recipient: string;
+      type: string;
+      payloadReference: string;
+      payload: Record<string, unknown>;
+    };
+    expect(firstCall).toMatchObject({
       recipient: "user@example.com",
       type: "calendar-action-required",
       payloadReference: dedupReferenceFor("connection-1", "token-revoked"),
     });
-    expect(sendEmail.mock.calls[0][0].payload).toMatchObject({
+    expect(firstCall.payload).toMatchObject({
       reason: "token-revoked",
       connectionId: "connection-1",
       provider: "google",
@@ -86,12 +92,18 @@ describe("triggerCalendarActionRequiredEmail", () => {
     );
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    expect(sendEmail.mock.calls[0][0]).toMatchObject({
+    const syncFailureCall = sendEmail.mock.calls[0][0] as {
+      recipient: string;
+      type: string;
+      payloadReference: string;
+      payload: Record<string, unknown>;
+    };
+    expect(syncFailureCall).toMatchObject({
       recipient: "user2@example.com",
       type: "calendar-action-required",
       payloadReference: dedupReferenceFor("connection-2", "sync-failure"),
     });
-    expect(sendEmail.mock.calls[0][0].payload).toMatchObject({
+    expect(syncFailureCall.payload).toMatchObject({
       reason: "sync-failure",
       connectionId: "connection-2",
       provider: "microsoft",
@@ -271,9 +283,7 @@ describe("triggerCalendarActionRequiredEmail", () => {
   });
 
   it("returns a failed result when the email delivery service throws", async () => {
-    const sendEmail = vi
-      .fn()
-      .mockRejectedValue(new Error("queue unavailable"));
+    const sendEmail = vi.fn().mockRejectedValue(new Error("queue unavailable"));
 
     const result = await triggerCalendarActionRequiredEmail(
       {
@@ -306,15 +316,15 @@ describe("triggerCalendarActionRequiredEmail", () => {
 
 describe("createConnectionActionRequiredDedupReference", () => {
   it("returns a deterministic hex hash that depends only on (connectionId, reason)", () => {
-    expect(createConnectionActionRequiredDedupReference("c-1", "token-revoked")).toBe(
-      dedupReferenceFor("c-1", "token-revoked"),
-    );
-    expect(createConnectionActionRequiredDedupReference("c-1", "sync-failure")).toBe(
-      dedupReferenceFor("c-1", "sync-failure"),
-    );
-    expect(createConnectionActionRequiredDedupReference("c-2", "token-revoked")).toBe(
-      dedupReferenceFor("c-2", "token-revoked"),
-    );
+    expect(
+      createConnectionActionRequiredDedupReference("c-1", "token-revoked"),
+    ).toBe(dedupReferenceFor("c-1", "token-revoked"));
+    expect(
+      createConnectionActionRequiredDedupReference("c-1", "sync-failure"),
+    ).toBe(dedupReferenceFor("c-1", "sync-failure"));
+    expect(
+      createConnectionActionRequiredDedupReference("c-2", "token-revoked"),
+    ).toBe(dedupReferenceFor("c-2", "token-revoked"));
   });
 });
 

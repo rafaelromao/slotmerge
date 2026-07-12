@@ -5,11 +5,9 @@ import { emailEvents } from "../db/schema";
 import {
   createConnectionActionRequiredDedupReference,
   type CalendarActionRequiredDispatchLookup,
-  type CalendarActionRequiredReason,
 } from "./action-required-email";
 
-let dispatchLookupOverride: CalendarActionRequiredDispatchLookup | null =
-  null;
+let dispatchLookupOverride: CalendarActionRequiredDispatchLookup | null = null;
 
 export function setConnectionActionRequiredDispatchLookupForTests(
   lookup: CalendarActionRequiredDispatchLookup | null,
@@ -35,7 +33,7 @@ export function createPostgresConnectionActionRequiredDispatchLookup(
     async findMostRecentConnectionDispatch(connectionId, reason, since) {
       const reference = createConnectionActionRequiredDedupReference(
         connectionId,
-        reason as CalendarActionRequiredReason,
+        reason,
       );
 
       const rows = await db
@@ -51,7 +49,8 @@ export function createPostgresConnectionActionRequiredDispatchLookup(
         .orderBy(desc(emailEvents.createdAt))
         .limit(1);
 
-      return rows[0]?.createdAt ?? null;
+      const firstRow = rows[0];
+      return firstRow ? firstRow.createdAt : null;
     },
   };
 }

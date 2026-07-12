@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createConnectionActionRequiredDedupReference,
   type CalendarActionRequiredDispatchLookup,
-  type CalendarActionRequiredReason,
 } from "./action-required-email";
 import {
   createPostgresConnectionActionRequiredDispatchLookup,
@@ -16,12 +15,12 @@ describe("createPostgresConnectionActionRequiredDispatchLookup", () => {
     vi.unstubAllGlobals();
   });
 
-  it("queries the email_events table for type=calendar-action-required with the per-(connection,reason) reference and a recent timestamp cutoff", async () => {
+  it("queries the email_events table for type=calendar-action-required with the per-(connection,reason) reference", async () => {
     const where = vi.fn().mockReturnThis();
     const orderBy = vi.fn().mockReturnThis();
-    const limit = vi.fn().mockResolvedValue([
-      { createdAt: new Date("2026-01-01T01:00:00.000Z") },
-    ]);
+    const limit = vi
+      .fn()
+      .mockResolvedValue([{ createdAt: new Date("2026-01-01T01:00:00.000Z") }]);
     const from = vi.fn().mockReturnValue({ where, orderBy, limit });
     const select = vi.fn().mockReturnValue({ from });
     const db = { select };
@@ -93,7 +92,7 @@ describe("createPostgresConnectionActionRequiredDispatchLookup", () => {
 
     const result = await dispatchLookup.findMostRecentConnectionDispatch(
       "any",
-      "token-revoked" as CalendarActionRequiredReason,
+      "token-revoked",
       new Date("2026-01-01T00:00:00.000Z"),
     );
 

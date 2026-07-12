@@ -40,7 +40,8 @@ function createDefaultEmailDeliveryService(): EmailDeliveryService {
   const eventRepository = createPostgresEmailEventRepository();
   return createEmailDeliveryService({
     eventRepository,
-    queueJob: (queued) => enqueueCalendarActionRequiredJob(queued, config.databaseUrl),
+    queueJob: (queued) =>
+      enqueueCalendarActionRequiredJob(queued, config.databaseUrl),
   });
 }
 

@@ -240,7 +240,7 @@ export async function completeMicrosoftCalendarConnection({
     accessTokenExpiresAt: tokenPayload.expires_in
       ? new Date(Date.now() + tokenPayload.expires_in * 1000)
       : null,
-    contributingCalendarIds: primaryCalendarId ? [primaryCalendarId] : [],
+    contributingCalendarIds: [primaryCalendarId],
   });
 
   if (!updated) {

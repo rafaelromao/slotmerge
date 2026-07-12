@@ -28,6 +28,7 @@ export class ApiError extends Error {
 
 export type CalendarSyncJobPayload = {
   connectionId: string;
+  attempt?: number;
 };
 
 export type CalendarSyncResult =
@@ -50,7 +51,7 @@ export type DecryptToken = (encrypted: string) => string;
 
 export type GoogleBusyInterval = {
   providerCalendarId: string;
-  providerEventReference: string;
+  providerEventReference: string | null;
   status: BusyIntervalStatus;
   startAt: Date;
   endAt: Date;
@@ -58,7 +59,7 @@ export type GoogleBusyInterval = {
 
 export type MicrosoftBusyInterval = {
   providerCalendarId: string;
-  providerEventReference: string;
+  providerEventReference: string | null;
   status: BusyIntervalStatus;
   startAt: Date;
   endAt: Date;
@@ -81,7 +82,11 @@ export type CalendarSyncJobDeps = {
   }): Promise<MicrosoftBusyInterval[]>;
   upsertBusyIntervals(intervals: ImportedBusyIntervalRecord[]): Promise<void>;
   recordSyncFailure: typeof recordCalendarConnectionSyncFailure;
-  enqueueSync(connectionId: string, backoffMs?: number): Promise<void>;
+  enqueueSync(
+    connectionId: string,
+    backoffMs?: number,
+    attempt?: number,
+  ): Promise<void>;
   clock(): Date;
 };
 
@@ -103,7 +108,7 @@ export async function handleCalendarSyncJob(
   deps?: CalendarSyncJobDeps,
 ): Promise<CalendarSyncResult> {
   const resolvedDeps = deps ?? getDeps();
-  const { connectionId } = payload;
+  const { connectionId, attempt = 1 } = payload;
 
   const connectionResult = await resolvedDeps.findConnectionById(connectionId);
   if (!connectionResult || connectionResult.record.status !== "connected") {
@@ -180,10 +185,13 @@ export async function handleCalendarSyncJob(
       );
 
       const retryAfterMs = error.retryAfterSeconds
-        ? error.retryAfterSeconds * 2 * 1000
-        : randomInt(30000, 120000);
+        ? Math.min(
+            error.retryAfterSeconds * 2 * 1000 * 2 ** (attempt - 1),
+            900_000,
+          )
+        : Math.min(30_000 * 2 ** (attempt - 1) + randomInt(0, 15_000), 900_000);
 
-      await resolvedDeps.enqueueSync(connectionId, retryAfterMs);
+      await resolvedDeps.enqueueSync(connectionId, retryAfterMs, attempt + 1);
       return { status: "retry_scheduled", retryAfterMs };
     }
 
@@ -263,7 +271,7 @@ export async function fetchGoogleFreeBusyRaw(
     for (const busy of calendarData.busy ?? []) {
       intervals.push({
         providerCalendarId: calendarId,
-        providerEventReference: "",
+        providerEventReference: null,
         status: "busy",
         startAt: new Date(busy.start),
         endAt: new Date(busy.end),
@@ -342,7 +350,7 @@ export async function fetchMicrosoftFreeBusyRaw(
 
       intervals.push({
         providerCalendarId: schedule.scheduleId,
-        providerEventReference: "",
+        providerEventReference: null,
         status,
         startAt: new Date(item.start),
         endAt: new Date(item.end),

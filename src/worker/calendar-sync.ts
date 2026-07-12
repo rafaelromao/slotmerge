@@ -70,11 +70,16 @@ export async function handleCalendarSyncTask(payload: unknown): Promise<void> {
       await repo.upsertBatch(intervals);
     },
     recordSyncFailure: wrappedRecordSyncFailure,
-    enqueueSync: async (connectionId: string, backoffMs?: number) => {
+    enqueueSync: async (
+      connectionId: string,
+      backoffMs?: number,
+      attempt?: number,
+    ) => {
       await enqueueCalendarSyncTask(
         connectionId,
         config.databaseUrl,
         backoffMs,
+        attempt,
       );
     },
     clock: () => new Date(),
@@ -89,8 +94,9 @@ async function enqueueCalendarSyncTask(
   connectionId: string,
   databaseUrl: string,
   backoffMs?: number,
+  attempt?: number,
 ): Promise<void> {
-  const payload: CalendarSyncJobPayload = { connectionId };
+  const payload: CalendarSyncJobPayload = { connectionId, attempt };
   if (backoffMs) {
     const runAt = new Date(Date.now() + backoffMs);
     await quickAddJob(
@@ -115,7 +121,8 @@ function parseCalendarSyncPayload(payload: unknown): CalendarSyncJobPayload {
     "connectionId" in payload &&
     typeof payload.connectionId === "string"
   ) {
-    return { connectionId: payload.connectionId };
+    const p = payload as { connectionId: string; attempt?: number };
+    return { connectionId: p.connectionId, attempt: p.attempt };
   }
   throw new Error("calendar sync job requires connectionId");
 }

@@ -142,7 +142,7 @@ describe("handleCalendarSyncJob", () => {
         retryAfterMs: 120000,
       } satisfies CalendarSyncResult);
       expect(deps.recordSyncFailure).toHaveBeenCalled();
-      expect(deps.enqueueSync).toHaveBeenCalledWith("google-conn-1", 120000);
+      expect(deps.enqueueSync).toHaveBeenCalledWith("google-conn-1", 120000, 2);
     });
 
     it("records failure and re-enqueues with jitter on 429 without Retry-After", async () => {

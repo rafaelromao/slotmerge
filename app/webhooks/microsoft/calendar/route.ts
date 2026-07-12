@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac } from "node:crypto";
 import { quickAddJob } from "graphile-worker";
 
 import { loadRuntimeConfig } from "../../../../src/config/runtime";
@@ -24,11 +25,21 @@ export async function POST(request: NextRequest) {
   }
 
   const payload = await request.text();
+  const signature = request.headers.get("X-MS-WEBHOOK-SIGNATURE") ?? "";
+
   const parsed = JSON.parse(payload) as { clientState?: string };
 
   const clientState = parsed.clientState;
   if (!clientState) {
     return new NextResponse("Missing clientState", { status: 400 });
+  }
+
+  const expectedSignature = `sha256=${createHmac("sha256", clientState)
+    .update(payload)
+    .digest("hex")}`;
+
+  if (signature !== expectedSignature) {
+    return new NextResponse("Invalid signature", { status: 401 });
   }
 
   const connection = await findCalendarConnectionById(clientState);

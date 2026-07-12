@@ -109,4 +109,49 @@ describe("revokeMicrosoftCalendarConnection", () => {
     expect(result.status).toBe("disconnected");
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("tolerates a logout HTTP failure and still marks the connection disconnected", async () => {
+    const tokenEncryptionKey = "0123456789abcdef0123456789abcdef";
+    const stored: MicrosoftCalendarConnectionRecord = {
+      id: "connection-1",
+      userId: "user-1",
+      provider: "microsoft",
+      accountIdentifier: "microsoft:connection-1",
+      providerAccountKey: "microsoft:connection-1",
+      scopes: "offline_access Calendars.ReadBasic",
+      status: "connected",
+      refreshTokenEncrypted: encryptCalendarToken({
+        plaintext: "refresh-token-123",
+        key: tokenEncryptionKey,
+      }),
+      accessTokenEncrypted: null,
+      accessTokenExpiresAt: null,
+    };
+
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(new Response(null, { status: 400 })),
+    );
+
+    const result = await revokeMicrosoftCalendarConnection({
+      connectionId: stored.id,
+      fetchImpl: fetchMock,
+      repository: {
+        createPending: (record) => Promise.resolve(record),
+        listByUserId: () => Promise.resolve([]),
+        findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+        updateById: (id, patch) => {
+          if (id !== stored.id) {
+            return Promise.resolve(null);
+          }
+
+          Object.assign(stored, patch);
+          return Promise.resolve({ ...stored });
+        },
+      },
+      tokenEncryptionKey,
+    });
+
+    expect(result.status).toBe("disconnected");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

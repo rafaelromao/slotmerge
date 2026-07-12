@@ -247,20 +247,13 @@ export async function revokeMicrosoftCalendarConnection({
 
   const tokenCiphertext = connection.refreshTokenEncrypted;
   if (tokenCiphertext) {
-    const logoutResponse = await fetchImpl(MICROSOFT_LOGOUT_ENDPOINT, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        token: decryptCalendarToken({
-          ciphertext: tokenCiphertext,
-          key: tokenEncryptionKey,
-        }),
+    await bestEffortMicrosoftLogout({
+      fetchImpl,
+      refreshToken: decryptCalendarToken({
+        ciphertext: tokenCiphertext,
+        key: tokenEncryptionKey,
       }),
     });
-
-    if (!logoutResponse.ok) {
-      throw new Error("Microsoft token revocation failed.");
-    }
   }
 
   const updated = await repository.updateById(connectionId, {
@@ -275,6 +268,26 @@ export async function revokeMicrosoftCalendarConnection({
   }
 
   return updated;
+}
+
+async function bestEffortMicrosoftLogout({
+  fetchImpl,
+  refreshToken,
+}: {
+  fetchImpl: typeof fetch;
+  refreshToken: string;
+}): Promise<void> {
+  try {
+    await fetchImpl(MICROSOFT_LOGOUT_ENDPOINT, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token: refreshToken }),
+    });
+  } catch {
+    // Microsoft identity platform does not expose a true refresh-token
+    // revocation endpoint. The logout endpoint is best-effort; we still
+    // null out the encrypted columns locally so the token cannot be reused.
+  }
 }
 
 export function presentMicrosoftCalendarConnection(

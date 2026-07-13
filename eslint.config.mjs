@@ -11,6 +11,7 @@ export default tseslint.config(
       "drizzle/**",
       "node_modules/**",
       "*.mjs",
+      ".sandman/**",
     ],
   },
   js.configs.recommended,

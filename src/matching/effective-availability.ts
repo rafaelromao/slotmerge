@@ -167,7 +167,12 @@ export function computeEffectiveAvailability(
     }
   }
 
+  const blockingStatuses: Set<string> = new Set(["busy", "out-of-office", "tentative"]);
+
   for (const busy of busyIntervals) {
+    if (!blockingStatuses.has(busy.status)) {
+      continue;
+    }
     const bufferMs = bufferMinutes * 60 * 1000;
     const busyStart = new Date(busy.startAt.getTime() - bufferMs);
     const busyEnd = new Date(busy.endAt.getTime() + bufferMs);

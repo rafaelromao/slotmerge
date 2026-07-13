@@ -7,12 +7,7 @@ export default defineConfig({
       DATABASE_URL: "postgres://slotmerge:slotmerge@localhost:5432/slotmerge",
     },
     globals: true,
-    include: [
-      "src/**/*.test.ts",
-      "scripts/**/*.test.ts",
-      "tests/**/*.test.ts",
-      "tests/e2e/**/*.test.ts",
-    ],
+    include: ["src/**/*.test.ts", "scripts/**/*.test.ts", "tests/**/*.test.ts"],
     exclude: ["tests/helpers/**/*.test.ts"],
   },
 });

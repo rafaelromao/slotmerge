@@ -1,5 +1,4 @@
-import { getTestDb } from "./test-db";
-import { resetDatabase } from "./test-db";
+import { getTestDb, resetDatabase } from "./test-db";
 import { seedAll } from "../fixtures/seeds";
 
 export async function setupTest(): Promise<void> {

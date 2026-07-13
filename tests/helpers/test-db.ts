@@ -54,7 +54,15 @@ export async function createEphemeralDatabase(): Promise<{
   const dbName = `slotmerge_test_${process.pid}_${Date.now()}`;
   await createDatabase(dbName);
 
-  const url = `postgres://slotmerge:slotmerge@localhost:5432/${dbName}`;
+  const baseUrl =
+    process.env.DATABASE_URL ?? "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
+  const match = baseUrl.match(/^(postgres:\/\/[^:]+:[^@]+@[^:]+:\d+)/);
+  if (!match) {
+    throw new Error(
+      "Cannot derive test DATABASE_URL from DATABASE_URL. Expected format: postgres://user:pass@host:port/dbname",
+    );
+  }
+  const url = `${match[1]}/${dbName}`;
 
   await runMigrations(url);
 

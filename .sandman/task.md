@@ -39,7 +39,7 @@ The worktree MUST be checked out on `sandman/57-render-weekly-search-result-cale
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -49,7 +49,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Implement (sandman-implement: TDD + commit + self-review + back-merge + PR + delegate PR review)
+PR-Review (sandman-pr-review)
 
 ## Plan
 

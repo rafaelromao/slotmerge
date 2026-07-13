@@ -144,7 +144,7 @@ export default function SearchResultPage({
     ? getSlotsForWeek(search.snapshot, currentWeekStart)
     : [];
 
-  const slotsByDayHour = buildGrid(slotsForWeek);
+  const slotsByDayHour = buildGrid(slotsForWeek, search.organizerTimezone);
 
   const weekEnd = currentWeekStart
     ? new Date(currentWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000)
@@ -262,13 +262,16 @@ export default function SearchResultPage({
   );
 }
 
-function buildGrid(slots: Slot[]): Map<string, { matchCount: number; hasStale: boolean }> {
+function buildGrid(
+  slots: Slot[],
+  timezone: string,
+): Map<string, { matchCount: number; hasStale: boolean }> {
   const map = new Map<string, { matchCount: number; hasStale: boolean }>();
 
   for (const slot of slots) {
     const date = new Date(slot.startUtc);
-    const dayIndex = (date.getUTCDay() + 6) % 7;
-    const hour = date.getUTCHours();
+    const dayIndex = getDayIndexInTimezone(date, timezone);
+    const hour = getHourInTimezone(date, timezone);
     const key = `${dayIndex}-${hour}`;
 
     map.set(key, {
@@ -278,4 +281,37 @@ function buildGrid(slots: Slot[]): Map<string, { matchCount: number; hasStale: b
   }
 
   return map;
+}
+
+function getDayIndexInTimezone(date: Date, timezone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    weekday: "short",
+  }).formatToParts(date);
+  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
+  const weekdayIndex =
+    weekday === "Mon"
+      ? 0
+      : weekday === "Tue"
+        ? 1
+        : weekday === "Wed"
+          ? 2
+          : weekday === "Thu"
+            ? 3
+            : weekday === "Fri"
+              ? 4
+              : weekday === "Sat"
+                ? 5
+                : 6;
+  return weekdayIndex;
+}
+
+function getHourInTimezone(date: Date, timezone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const hourStr = parts.find((p) => p.type === "hour")?.value ?? "0";
+  return Number(hourStr);
 }

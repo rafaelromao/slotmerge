@@ -1,38 +1,38 @@
 # Task
 
-Implement GitHub issue #25: Reject sign-in for non-invited email
+Implement GitHub issue #51: Support local development without public HTTPS webhooks
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Auth & Invites](https://github.com/rafaelromao/slotmerge/issues/16). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerge/issues/17). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Requesting a magic link for an email that has no valid invite or existing user produces a clear "not invited" error and never authenticates. The behavior applies both to a magic-link attempt from a link and to any future "send me a link" form.
+In local development, calendar sync runs without provider webhooks: the user can manually refresh a Calendar Connection, and a polling fallback updates imported busy intervals. Production uses webhooks plus reconciliation.
 
 ## Acceptance criteria
 
-- [ ] A magic-link attempt for an unknown email shows a clear "not invited" error.
-- [ ] No session is created.
-- [ ] No user is implicitly created.
-- [ ] Error responses are indistinguishable between non-existent and uninvited emails (no email enumeration).
+- [ ] Local development does not require public HTTPS webhook URLs.
+- [ ] Manual refresh updates imported busy intervals.
+- [ ] Polling fallback operates at a development-friendly interval.
+- [ ] The same persistence and matching behaviour applies in local development.
 
 ## Blocked by
 
-- [Sign in via magic link](https://github.com/rafaelromao/slotmerge/issues/23)
+- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/47)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/25-reject-sign-in-for-non-invited-email`
-- Source branch: `sandman/25-reject-sign-in-for-non-invited-email`
+- Current branch: `sandman/51-support-local-development-without-public-https-webhooks`
+- Source branch: `sandman/51-support-local-development-without-public-https-webhooks`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/25-reject-sign-in-for-non-invited-email` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/51-support-local-development-without-public-https-webhooks` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -49,19 +49,62 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 ## Plan
 
 ### Behaviors to test
-- When `/auth/magic-link/verify` receives a valid token whose invite lookup fails, it responds with HTTP 400 and a `not_invited` error, and it does not create a user or session.
-- The invited-email happy path still works unchanged, so this rejection only covers the missing-invite case.
 
-### Testable interfaces
-- `createMagicLinkVerifyHandlers` at the POST boundary, with injected invite, user, and session repositories plus the transaction callback.
+1. `POST /me/calendar-connections/{id}/refresh` (manual refresh) authenticates the user, validates the connection is theirs, enqueues a `sync_calendar_connection` Graphile Worker job, and returns `202 Accepted`.
+2. `sync_calendar_connection` Graphile Worker task syncs one calendar connection's busy intervals to `importedBusyIntervals` via the injected repository — mock provider in local mode (`calendarProviderMode === "mock"`), OAuth provider in production (`calendarProviderMode === "oauth"`).
+3. `syncCalendarConnection` early-returns (no-op) when `contributingCalendarIds.length === 0` to avoid silently deleting all intervals.
+4. `poll_calendar_connections` Graphile Worker scheduled task runs at a dev-friendly cron interval (`*/5 * * * *` in local, `*/15 * * * *` in staging/production) and enqueues `sync_calendar_connection` for every `status === "connected"` calendar connection.
+5. `POST /webhooks/google/calendar` and `POST /webhooks/microsoft/calendar` handlers verify incoming notifications in production (`requirePublicWebhookHttps === true`) and are no-ops in local (`requirePublicWebhookHttps === false`).
+6. Both the in-memory and Postgres `importedBusyIntervalRepository` implementations exhibit identical replace-all semantics for `upsertBatch` per connectionId (AC4).
+
+### Testable interfaces / seams
+
+- `syncCalendarConnection(params)` — `params: { connectionId, provider, accessToken, contributingCalendarIds, userId, fetchImpl, busyIntervalRepository, recordFailure }`. Returns `ImportedBusyIntervalRecord[]`. Early-returns when `contributingCalendarIds.length === 0`.
+- Mock busy interval generator (seeded by `connectionId` for deterministic test output) for `calendarProviderMode === "mock"`.
+- `enqueueSyncCalendarConnectionJob(connectionId)` — uses `quickAddJob({ connectionString }, "sync_calendar_connection", { connectionId })`, matching existing `email.ts` pattern.
+- `createPollCalendarConnectionsTask(cronExpression)` — returns a Graphile Worker task that lists all `status === "connected"` connections and enqueues a sync job per connection.
+- `listActiveConnections()` — combined function in `src/calendar/repository.ts` that calls both `listByUserId` on Google and Microsoft repos for all known users, filtering to `status === "connected"`.
+- `POST /me/calendar-connections/{id}/refresh/route.ts` — auth + CSRF gated.
+- `app/webhooks/google/calendar/route.ts` — Google channel ID verification + sync trigger in production.
+- `app/webhooks/microsoft/calendar/route.ts` — Microsoft validation token handshake + sync trigger in production.
+- `recordCalendarConnectionSyncFailure` from `sync-failure-recorder.ts` is called on sync errors.
+
+### Slice ordering (TDD vertical slices)
+
+**Slice 0 — Repository contract test (AC4)**
+- `tests/calendar/imported-busy-intervals-repository-contract.test.ts`: a test suite that runs against both the in-memory repo (from `imported-busy-intervals.ts`) and the Postgres repo (`createPostgresImportedBusyIntervalRepository`), asserting both have identical `upsertBatch` replace-per-connectionId semantics.
+
+**Slice 1 — Mock sync + manual refresh endpoint (AC2)**
+- `src/calendar/sync.ts`: `syncCalendarConnection()` function with seeded mock provider branch and injected `busyIntervalRepository`. Early-returns on empty `contributingCalendarIds`.
+- `src/calendar/sync.test.ts`: tests that mock sync produces deterministic busy intervals and calls `upsertBatch` with correct data.
+- `src/calendar/sync-failure-recorder.ts` integration: on error, calls `recordCalendarConnectionSyncFailure`.
+- `app/me/calendar-connections/[id]/refresh/route.ts`: POST handler — auth, connection ownership check, CSRF, enqueues sync job via `quickAddJob`, returns `202 Accepted`.
+- `src/worker/sync.ts`: Graphile Worker task `sync_calendar_connection` — calls `syncCalendarConnection()` with the DB-backed `importedBusyIntervalRepository`.
+- Register `sync_calendar_connection` in `src/worker/run.ts` taskList.
+
+**Slice 2 — Poll scheduler (AC3)**
+- `src/calendar/poll.ts`: `createPollCalendarConnectionsTask(cronExpression)` — returns a crontask that calls `listActiveConnections()` and enqueues a sync job per active connection.
+- `src/calendar/poll.test.ts`: tests poll task schedules correct interval and enqueues one job per active connection.
+- Add `listActiveConnections()` to `src/calendar/repository.ts` (combined Google + Microsoft listing filtered to `status === "connected"`).
+- Register cron task in `src/worker/run.ts` with `withPgCron` and cron `"*/5 * * * *"` in local / `"*/15 * * * *"` in production.
+
+**Slice 3 — Webhook handlers (AC1)**
+- `app/webhooks/google/calendar/route.ts`: POST handler — when `requirePublicWebhookHttps` is false, returns `200 OK` without processing. When true, verifies Google channel ID header and enqueues `sync_calendar_connection`.
+- `app/webhooks/microsoft/calendar/route.ts`: POST handler — when `requirePublicWebhookHttps` is false, returns `200 OK` without processing. When true, handles Microsoft validation token handshake and enqueues `sync_calendar_connection`.
+- `src/worker/sync.ts` tests: cover both `requirePublicWebhookHttps` true and false branches.
 
 ### Assumptions / risks
-- The repo does not yet have the future public "send me a link" request form, so the privacy requirement is represented here by the generic missing-invite response at the verify boundary.
-- The failure response must stay generic enough that missing-invite and future request-form failures do not enumerate email existence.
+
+- Real OAuth free/busy API calls are out of scope; `calendarProviderMode === "mock"` is the only path exercised locally.
+- Token refresh (when `accessTokenExpiresAt` is past) is deferred; in OAuth mode, expired tokens surface as sync errors recorded via `sync-failure-recorder`.
+- `listActiveConnections()` enumerates connections by listing all users then their connections — acceptable for MVP scale.
+- Google webhooks use channel ID verification; Microsoft uses a validation token handshake — these are two distinct code paths.
+- Cron scheduling uses `graphile-worker` + `withPgCron` pattern.
+- Existing `sync-failure-recorder.ts` is reused rather than inlined.
 
 ## Next Step
 
-Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+PR-Review (sandman-pr-review) — PR #170 at https://github.com/rafaelromao/slotmerge/pull/170
 
 ## Already Resolved
 

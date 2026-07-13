@@ -48,16 +48,16 @@ export function getImportedBusyIntervalRepository(): ImportedBusyIntervalReposit
 const inMemoryImportedBusyIntervalRepository: ImportedBusyIntervalRepository = {
   async upsertBatch(intervals) {
     const filtered = intervals.filter((i) => isWithinRollingWindow(i.startAt));
-    for (const interval of filtered) {
-      const idx = inMemoryStore.findIndex(
-        (i) => i.connectionId === interval.connectionId && i.id === interval.id,
+    if (filtered.length === 0) return;
+
+    const connectionIds = [...new Set(filtered.map((i) => i.connectionId))];
+    for (const connectionId of connectionIds) {
+      inMemoryStore = inMemoryStore.filter(
+        (i) => i.connectionId !== connectionId,
       );
-      if (idx >= 0) {
-        inMemoryStore[idx] = interval;
-      } else {
-        inMemoryStore.push(interval);
-      }
     }
+
+    inMemoryStore.push(...filtered);
     await Promise.resolve();
   },
   async deleteByConnectionId(connectionId) {

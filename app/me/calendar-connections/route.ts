@@ -1,9 +1,7 @@
 import { getSessionFromRequest } from "../../../src/auth/session";
 import { presentGoogleCalendarConnection } from "../../../src/calendar/google-calendar-connections";
 import { presentMicrosoftCalendarConnection } from "../../../src/calendar/microsoft-calendar-connections";
-import {
-  buildCalendarConnectionHealthFields,
-} from "../../../src/calendar/calendar-connection-health";
+import { buildCalendarConnectionHealthFields } from "../../../src/calendar/calendar-connection-health";
 import type { GoogleCalendarConnectionView } from "../../../src/calendar/google-calendar-connections";
 import type { MicrosoftCalendarConnectionView } from "../../../src/calendar/microsoft-calendar-connections";
 import {

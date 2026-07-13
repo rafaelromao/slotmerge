@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { isCalendarConnectionStale, STALE_THRESHOLD_HOURS } from "./calendar-connection-health";
+import {
+  isCalendarConnectionStale,
+  STALE_THRESHOLD_HOURS,
+} from "./calendar-connection-health";
 
 describe("isCalendarConnectionStale", () => {
   const now = new Date("2025-01-15T12:00:00Z");
@@ -18,7 +21,9 @@ describe("isCalendarConnectionStale", () => {
   });
 
   it("returns true when more than 24 hours have passed since lastSyncAt", () => {
-    const tooOld = new Date(now.getTime() - (STALE_THRESHOLD_HOURS + 1) * 60 * 60 * 1000);
+    const tooOld = new Date(
+      now.getTime() - (STALE_THRESHOLD_HOURS + 1) * 60 * 60 * 1000,
+    );
     const connection = {
       id: "conn-1",
       status: "connected" as const,
@@ -44,7 +49,9 @@ describe("isCalendarConnectionStale", () => {
   });
 
   it("returns false when status is disconnected regardless of lastSyncAt", () => {
-    const tooOld = new Date(now.getTime() - (STALE_THRESHOLD_HOURS + 1) * 60 * 60 * 1000);
+    const tooOld = new Date(
+      now.getTime() - (STALE_THRESHOLD_HOURS + 1) * 60 * 60 * 1000,
+    );
     const connection = {
       id: "conn-1",
       status: "disconnected" as const,
@@ -57,7 +64,9 @@ describe("isCalendarConnectionStale", () => {
   });
 
   it("returns false when status is unsupported regardless of lastSyncAt", () => {
-    const tooOld = new Date(now.getTime() - (STALE_THRESHOLD_HOURS + 1) * 60 * 60 * 1000);
+    const tooOld = new Date(
+      now.getTime() - (STALE_THRESHOLD_HOURS + 1) * 60 * 60 * 1000,
+    );
     const connection = {
       id: "conn-1",
       status: "unsupported" as const,

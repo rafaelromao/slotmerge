@@ -61,7 +61,10 @@ export function isCalendarConnectionStale(
   now: Date,
   staleThresholdHours: number = STALE_THRESHOLD_HOURS,
 ): boolean {
-  if (connection.status === "disconnected" || connection.status === "unsupported") {
+  if (
+    connection.status === "disconnected" ||
+    connection.status === "unsupported"
+  ) {
     return false;
   }
 

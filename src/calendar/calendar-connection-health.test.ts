@@ -14,7 +14,9 @@ describe("computeCalendarConnectionHealthStatus", () => {
       lastErrorMessage: null,
       lastSyncAt: null,
     };
-    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe("unsupported");
+    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe(
+      "unsupported",
+    );
   });
 
   it("returns 'disconnected' when connection status is disconnected", () => {
@@ -26,7 +28,9 @@ describe("computeCalendarConnectionHealthStatus", () => {
       lastErrorMessage: null,
       lastSyncAt: null,
     };
-    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe("disconnected");
+    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe(
+      "disconnected",
+    );
   });
 
   it("returns 'needs_reconnect' when lastErrorCode is invalid_grant", () => {
@@ -38,7 +42,9 @@ describe("computeCalendarConnectionHealthStatus", () => {
       lastErrorMessage: "Token has been revoked",
       lastSyncAt: now,
     };
-    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe("needs_reconnect");
+    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe(
+      "needs_reconnect",
+    );
   });
 
   it("returns 'needs_reconnect' when lastErrorCode is token_revoked", () => {
@@ -50,7 +56,9 @@ describe("computeCalendarConnectionHealthStatus", () => {
       lastErrorMessage: null,
       lastSyncAt: now,
     };
-    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe("needs_reconnect");
+    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe(
+      "needs_reconnect",
+    );
   });
 
   it("returns 'sync_delayed' when lastSyncAt is more than 1 hour ago", () => {
@@ -63,7 +71,9 @@ describe("computeCalendarConnectionHealthStatus", () => {
       lastErrorMessage: null,
       lastSyncAt: oneHourAgo,
     };
-    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe("sync_delayed");
+    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe(
+      "sync_delayed",
+    );
   });
 
   it("returns 'connected' when fresh sync and no errors", () => {
@@ -76,7 +86,9 @@ describe("computeCalendarConnectionHealthStatus", () => {
       lastErrorMessage: null,
       lastSyncAt: recentSync,
     };
-    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe("connected");
+    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe(
+      "connected",
+    );
   });
 
   it("returns 'needs_reconnect' over 'sync_delayed' when both conditions are true", () => {
@@ -89,6 +101,8 @@ describe("computeCalendarConnectionHealthStatus", () => {
       lastErrorMessage: "Token revoked",
       lastSyncAt: oneHourAgo,
     };
-    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe("needs_reconnect");
+    expect(computeCalendarConnectionHealthStatus(connection, now)).toBe(
+      "needs_reconnect",
+    );
   });
 });

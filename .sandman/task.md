@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #48: Reconcile Calendar Connection sync and process webhook events
+Implement GitHub issue #48: Reconcile Calendar Connection background jobs and process webhook events
 
 ## Issue Context
 
@@ -10,7 +10,7 @@ Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerg
 
 ## What to build
 
-Calendar Connection sync runs as a background job: provider webhooks update intervals promptly, scheduled reconciliation fills gaps, and transient failures use exponential backoff and provider `Retry-After` semantics. Quota handling avoids spikes.
+Calendar Connection import runs as a background job: provider webhooks update imported busy intervals promptly, scheduled reconciliation fills gaps, and transient failures use exponential backoff and provider `Retry-After` semantics. Quota handling avoids spikes.
 
 ## Acceptance criteria
 
@@ -39,7 +39,7 @@ The worktree MUST be checked out on `sandman/48-reconcile-calendar-connection-sy
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -49,64 +49,29 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+sandman-pr-review (PR #166)
 
 ## Plan
 
-### Behaviors to test (TDD slice order)
-
-1. **Webhook handler extracts connectionId and enqueues sync job** (Slice 1 - tracer bullet)
-   - `POST /webhooks/google/calendar` verifies signature, parses payload, enqueues `sync_calendar_connection` job.
-   - `POST /webhooks/microsoft/calendar` verifies signature, parses payload, enqueues `sync_calendar_connection` job.
-   - Invalid signatures rejected with 401.
-
-2. **Sync job fetches Google free/busy and upserts intervals** (Slice 2)
-   - Calls Google FreeBusy API with OAuth refresh via `OAuthTokenClient`.
-   - Parses response into `ImportedBusyIntervalRecord[]` and upserts via `ImportedBusyIntervalRepository`.
-
-3. **Sync job fetches Microsoft free/busy and upserts intervals** (Slice 3)
-   - Calls Microsoft `getSchedule` API with OAuth refresh via `OAuthTokenClient`.
-   - Parses response into `ImportedBusyIntervalRecord[]` and upserts via `ImportedBusyIntervalRepository`.
-   - Handles Microsoft-specific `5006` error (calendar with >1000 entries) as permanent failure.
-
-4. **Transient failures trigger exponential backoff with Retry-After** (Slice 4)
-   - On 429: extracts `Retry-After` header, re-enqueues job with delay.
-   - On other transient errors: exponential backoff with jitter, max 3 retries before permanent failure.
-
-5. **Sync errors update Calendar Connection status** (Slice 5)
-   - Calls `recordCalendarConnectionSyncFailure` which updates `lastErrorCode`/`lastErrorMessage`.
-   - Triggers action-required email via existing `triggerCalendarActionRequiredEmail`.
-
-6. **Reconciliation scheduler refreshes all connected calendar connections** (Slice 6)
-   - `reconcile_calendar_connections` task runs periodically (hourly).
-   - Lists all `connected` calendar connections, enqueues `sync_calendar_connection` jobs with randomized jitter.
-
-7. **Quota spikes avoided via randomized traffic** (Slice 7)
-   - Reconciliation enqueues with random delay (0–10 minutes) per connection.
+### Behaviors to test
+- A webhook notification for a connected Calendar Connection validates provider-specific ingress, is handled idempotently for duplicate deliveries, and causes the imported busy intervals for that connection to refresh promptly.
+- A scheduled reconciliation pass refreshes the full rolling 90-day window for active Calendar Connections and leaves disconnected or unsupported connections untouched.
+- A provider throttling response with `Retry-After` produces a retryable delay from that header, while other transient provider failures fall back to exponential backoff.
+- Repeated import work is staggered with randomized traffic patterns so Calendar Connections do not retry or reconcile in lockstep.
+- Import failures update the Calendar Connection status metadata, including last error code and message, while preserving usable stale data for later Search reads.
 
 ### Testable interfaces
-
-1. **`WebhookHandler`** — `POST /webhooks/google/calendar` and `POST /webhooks/microsoft/calendar` with injected `verifyWebhookSignature`, `parseWebhookPayload`, and `enqueueSyncJob`.
-
-2. **`OAuthTokenClient`** — `refreshGoogleToken(connectionId)` and `refreshMicrosoftToken(connectionId)` with injected `decryptToken`, `fetchImpl`, and `updateConnectionAccessToken`.
-
-3. **`FreeBusyClient`** — `fetchGoogleFreeBusy(tokens, calendarIds, timeMin, timeMax)` and `fetchMicrosoftGetSchedule(token, userId, timeMin, timeMax)` with injected `fetchImpl`.
-
-4. **`ImportedBusyIntervalRepository`** — already exists at `src/calendar/imported-busy-intervals.ts:25-34` with `upsertBatch`, `deleteByConnectionId`, `findByUserIdAndDateRange`, `deleteExpiredBefore`.
-
-5. **`recordCalendarConnectionSyncFailure`** — already exists at `src/calendar/sync-failure-recorder.ts` with test override via `setRecordCalendarConnectionSyncFailureForTests`.
-
-6. **`CalendarConnectionRepository`** — `listConnected()` to list all `connected` calendar connections for reconciliation, with test override via existing repository pattern.
-
-7. **`enqueueSyncJob(connectionId, runAt?)`** and **`enqueueReconciliation()`** — wraps `quickAddJob` with injected `connectionString`.
+- A webhook-ingress seam that validates provider signatures, deduplicates duplicate webhook deliveries, and hands off exactly one import attempt per notification.
+- An import orchestration seam that accepts a connection record, current time, provider client, imported-interval repository, and failure recorder.
+- A provider client seam that returns free/busy results and exposes retry hints without reaching live provider APIs in tests.
+- A retry-policy seam that computes delay from `Retry-After`, exponential backoff, and jitter.
+- A scheduling/enqueue seam that can be seeded or stubbed so randomized traffic patterns are deterministic under test.
 
 ### Assumptions / risks
-
-- Webhook secrets: `GOOGLE_WEBHOOK_SECRET`, `MICROSOFT_WEBHOOK_SECRET` env vars; local dev uses polling instead.
-- Token refresh: `OAuthTokenClient` wraps existing token encryption from `google-calendar-connections.ts` and `microsoft-calendar-connections.ts`.
-- Microsoft `5006` error is permanent failure (user calendar overflow — cannot be retried).
-- Graphile Worker task names: `sync_calendar_connection` and `reconcile_calendar_connections` (verify against existing convention).
-- Webhook channel renewal (Google channel expiry, Microsoft subscription renewal) is out of scope for this ticket.
+- Issue #47's interval persistence is the only hard precondition; this issue should build on it rather than duplicate it.
+- Webhook processing and scheduled reconciliation likely belong behind the same orchestration seam so retry/error handling stays consistent.
+- If the current route/worker layout lacks a reusable job abstraction, the implementation may need one small new module rather than putting retry logic in the routes.
+- The plan stays aligned with the repo's glossary: `Calendar Connection`, `imported busy intervals`, `Search`, and `stale`.
 
 ## Already Resolved
 
@@ -173,8 +138,9 @@ The Required Skill Chain defines specific tools for each review type:
 | Step | Designated Mechanism | Notes |
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
-| Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
+| Self-review | `sandman-self-review` skill | - |
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
+| PR merge | `sandman-pr-merge` skill | Only after PR is fully approved, checks green, mergeable |
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 

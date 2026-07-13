@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { calendarConnections } from "../db/schema";
+import type { CalendarConnectionSyncRecord } from "./sync";
 import {
   type GoogleCalendarConnectionRecord,
   type GoogleCalendarConnectionRepository,
@@ -35,6 +36,30 @@ export function getMicrosoftCalendarConnectionRepository(): MicrosoftCalendarCon
   return (
     microsoftRepositoryOverride ?? databaseMicrosoftCalendarConnectionRepository
   );
+}
+
+export async function listConnectedCalendarConnectionsByProvider(
+  provider: "google" | "microsoft",
+): Promise<CalendarConnectionSyncRecord[]> {
+  const rows = await getDb()
+    .select(calendarConnectionSelectColumns)
+    .from(calendarConnections)
+    .where(
+      and(
+        eq(calendarConnections.provider, provider),
+        eq(calendarConnections.status, "connected"),
+      ),
+    );
+
+  return rows.map((row) => ({
+    id: row.id,
+    userId: row.userId,
+    provider: row.provider,
+    status: row.status,
+    contributingCalendarIds: row.contributingCalendarIds,
+    lastErrorCode: row.lastErrorCode,
+    lastErrorMessage: row.lastErrorMessage,
+  }));
 }
 
 export async function findCalendarConnectionById(

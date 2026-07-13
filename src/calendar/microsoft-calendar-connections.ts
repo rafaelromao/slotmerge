@@ -14,7 +14,12 @@ const MICROSOFT_LOGOUT_ENDPOINT =
 const MICROSOFT_GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0";
 
 export type MicrosoftCalendarConnectionStatus =
-  "pending" | "connected" | "disconnected";
+  | "pending"
+  | "connected"
+  | "disconnected"
+  | "sync_delayed"
+  | "needs_reconnect"
+  | "unsupported";
 
 export type MicrosoftCalendarConnectionRecord = {
   id: string;
@@ -29,6 +34,7 @@ export type MicrosoftCalendarConnectionRecord = {
   accessTokenExpiresAt: Date | null;
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
+  lastSyncAt?: Date | null;
   contributingCalendarIds: string[];
 };
 
@@ -42,6 +48,7 @@ export type MicrosoftCalendarConnectionView = {
   accessTokenExpiresAt: Date | null;
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
+  lastSyncAt: Date | null;
   contributingCalendarIds: string[];
 };
 
@@ -357,6 +364,7 @@ export function presentMicrosoftCalendarConnection(
     accessTokenExpiresAt: connection.accessTokenExpiresAt,
     lastErrorCode: connection.lastErrorCode,
     lastErrorMessage: connection.lastErrorMessage,
+    lastSyncAt: connection.lastSyncAt ?? null,
     contributingCalendarIds: connection.contributingCalendarIds,
   };
 }

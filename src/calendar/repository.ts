@@ -98,6 +98,7 @@ const calendarConnectionSelectColumns = {
   accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
   lastErrorCode: calendarConnections.lastErrorCode,
   lastErrorMessage: calendarConnections.lastErrorMessage,
+  lastSyncAt: calendarConnections.lastSyncAt,
   contributingCalendarIds: calendarConnections.contributingCalendarIds,
 };
 

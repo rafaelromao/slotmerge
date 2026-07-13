@@ -10,7 +10,12 @@ import { decryptCalendarToken, encryptCalendarToken } from "./token-encryption";
 const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 
 export type GoogleCalendarConnectionStatus =
-  "pending" | "connected" | "disconnected";
+  | "pending"
+  | "connected"
+  | "disconnected"
+  | "sync_delayed"
+  | "needs_reconnect"
+  | "unsupported";
 
 export type GoogleCalendarConnectionRecord = {
   id: string;
@@ -25,6 +30,7 @@ export type GoogleCalendarConnectionRecord = {
   accessTokenExpiresAt: Date | null;
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
+  lastSyncAt?: Date | null;
   contributingCalendarIds: string[];
 };
 
@@ -38,6 +44,7 @@ export type GoogleCalendarConnectionView = {
   accessTokenExpiresAt: Date | null;
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
+  lastSyncAt: Date | null;
   contributingCalendarIds: string[];
 };
 
@@ -319,6 +326,7 @@ export function presentGoogleCalendarConnection(
     accessTokenExpiresAt: connection.accessTokenExpiresAt,
     lastErrorCode: connection.lastErrorCode,
     lastErrorMessage: connection.lastErrorMessage,
+    lastSyncAt: connection.lastSyncAt ?? null,
     contributingCalendarIds: connection.contributingCalendarIds,
   };
 }

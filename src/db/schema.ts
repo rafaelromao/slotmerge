@@ -15,7 +15,13 @@ export type UserRole = "user" | "organizer" | "admin";
 export type UserStatus = "active" | "suspended";
 export type InviteRole = UserRole;
 export type InviteStatus = "pending" | "accepted" | "revoked";
-export type CalendarConnectionStatus = "pending" | "connected" | "disconnected";
+export type CalendarConnectionStatus =
+  | "pending"
+  | "connected"
+  | "disconnected"
+  | "sync_delayed"
+  | "needs_reconnect"
+  | "unsupported";
 export type CalendarProvider = "google" | "microsoft";
 export type TopicStatus = "pending" | "active" | "retired";
 export type TopicProposalStatus = "pending" | "approved" | "rejected";
@@ -89,6 +95,7 @@ export const calendarConnections = pgTable("calendar_connections", {
   }),
   lastErrorCode: text("last_error_code"),
   lastErrorMessage: text("last_error_message"),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
   contributingCalendarIds: jsonb("contributing_calendar_ids")
     .$type<string[]>()
     .notNull()

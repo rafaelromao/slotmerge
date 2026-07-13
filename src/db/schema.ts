@@ -412,6 +412,53 @@ export type WeeklyAvailabilityWindowUpdate = Partial<
   Pick<CreateWeeklyAvailabilityWindow, "dayOfWeek" | "startTime" | "endTime">
 >;
 
+export const availabilityOverrides = pgTable(
+  "availability_overrides",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    startTime: text("start_time").notNull(),
+    endTime: text("end_time").notNull(),
+    type: text("type").$type<"add" | "block">().notNull(),
+    profileTimezone: text("profile_timezone").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("availability_overrides_user_id_idx").on(table.userId),
+    userIdDateStartUnique: uniqueIndex(
+      "availability_overrides_user_id_date_start_unique_idx",
+    ).on(table.userId, table.date, table.startTime),
+  }),
+);
+
+export const availabilityOverridesRelations = relations(
+  availabilityOverrides,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [availabilityOverrides.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export type AvailabilityOverride = typeof availabilityOverrides.$inferSelect;
+export type CreateAvailabilityOverride = Pick<
+  AvailabilityOverride,
+  "date" | "startTime" | "endTime" | "type"
+>;
+export type NewAvailabilityOverride = Omit<
+  typeof availabilityOverrides.$inferInsert,
+  "id" | "createdAt" | "updatedAt"
+>;
+
 export const searches = pgTable(
   "searches",
   {

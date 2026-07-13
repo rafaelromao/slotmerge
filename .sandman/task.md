@@ -37,13 +37,17 @@ The worktree MUST be checked out on `sandman/67-e2e-test-clock-injection-helper-
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
+
+## Next Step
+
+PR-Review (sandman-pr-review)
 
 ## Plan
 
@@ -78,15 +82,11 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 - `src/search/search-input.ts` already uses `Clock = { now(): Date }` interface — no change needed.
 - `sync.ts:137` (`updateLastSyncAt`) and `sync.ts:107-111` (`timeMin`/`timeMax` rolling window) use wall-clock `new Date()` — out of scope (define search time range and last-sync marker, not time-sensitive behavior per the AC).
 
-## Next Step
-
-Load sandman-tdd and execute vertical slices (TestClock helper → worker clock injection seams → tests).
-
 ## Already Resolved
 
 If the issue is already implemented on `main`, after fetching and checking the current `origin/main` HEAD against the issue acceptance criteria, update `.sandman/task.md` so it contains the exact line `## Status: already resolved`.
 
-Do not use issue closure, a matching local branch, or unmerged worktree changes as proof that the issue is already resolved. If any acceptance criterion is missing or you are not certain, continue with Plan.
+Do not use issue closure, a matching local branch, or unmerged worktree changes as proof that the issue is already resolved. If any acceptance criterion is missing or you are not certain, continue to Plan.
 
 Do not paraphrase this line. Do not use `already implemented`, `no action required`, or any other wording for this marker.
 
@@ -117,7 +117,7 @@ This task must be executed through the Sandman skill workflow, not by ad-hoc imp
 
 ## AFK Rule — Absolute
 
-This is a fully automated Away From Keyboard workflow. **The user will never be available to answer questions, give approval, or make decisions during execution.**
+This is a fully automated Away From Keyboard workflow. **The user will never be available to answer questions, give approval, or decisions during execution.**
 
 ### Hard Ban
 

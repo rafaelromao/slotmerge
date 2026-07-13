@@ -20,7 +20,6 @@ describe("POST /topic-proposals", () => {
     findSimilarTopics: vi.fn(),
     findPendingByUserAndName: vi.fn(),
     insertProposal: vi.fn(),
-    listUserTopicProposals: vi.fn(),
   };
 
   const mockGetSession = vi.fn();

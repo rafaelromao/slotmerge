@@ -4,20 +4,12 @@ import { getDb } from "../db/client";
 import {
   topicProposals,
   topics,
-  type TopicProposalStatus,
 } from "../db/schema";
 import { getSessionFromRequest, type Session } from "../auth/session";
 import {
   createTopicProposal,
   findSimilarTopics,
 } from "./proposals";
-
-export type UserTopicProposal = {
-  id: string;
-  candidateName: string;
-  status: TopicProposalStatus;
-  createdAt: Date;
-};
 
 export type TopicProposalsDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
@@ -36,9 +28,6 @@ export type TopicProposalRouteRepository = {
     userId: string,
     candidateName: string,
   ): Promise<{ id: string; candidateName: string; status: string; createdAt: Date }>;
-  listUserTopicProposals(
-    userId: string,
-  ): Promise<UserTopicProposal[]>;
 };
 
 export function createTopicProposalsHandlers({
@@ -46,18 +35,6 @@ export function createTopicProposalsHandlers({
   repository = databaseTopicProposalRouteRepository,
 }: TopicProposalsDependencies = {}) {
   return {
-    async GET(request: Request): Promise<Response> {
-      const session = await getSession(request);
-
-      if (!session) {
-        return Response.json({ error: "unauthenticated" }, { status: 401 });
-      }
-
-      const proposals = await repository.listUserTopicProposals(session.user.id);
-
-      return Response.json({ proposals });
-    },
-
     async POST(request: Request): Promise<Response> {
       const session = await getSession(request);
 
@@ -168,17 +145,4 @@ const databaseTopicProposalRouteRepository: TopicProposalRouteRepository = {
     return row;
   },
 
-  async listUserTopicProposals(userId) {
-    const rows = await getDb()
-      .select({
-        id: topicProposals.id,
-        candidateName: topicProposals.candidateName,
-        status: topicProposals.status,
-        createdAt: topicProposals.createdAt,
-      })
-      .from(topicProposals)
-      .where(eq(topicProposals.proposedByUserId, userId))
-      .orderBy(topicProposals.createdAt);
-    return rows;
-  },
 };

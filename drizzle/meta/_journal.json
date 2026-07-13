@@ -71,6 +71,13 @@
       "when": 1783780000008,
       "tag": "0008_availability_windows",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783780000009,
+      "tag": "0009_calendar_connection_last_sync",
+      "breakpoints": true
     }
   ]
 }

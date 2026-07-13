@@ -25,6 +25,10 @@ export type ImportedBusyIntervalRecord = {
 export type ImportedBusyIntervalRepository = {
   upsertBatch(intervals: ImportedBusyIntervalRecord[]): Promise<void>;
   deleteByConnectionId(connectionId: string): Promise<void>;
+  deleteByConnectionIdAndCalendarId(
+    connectionId: string,
+    providerCalendarId: string,
+  ): Promise<void>;
   findByUserIdAndDateRange(
     userId: string,
     start: Date,
@@ -50,19 +54,41 @@ const inMemoryImportedBusyIntervalRepository: ImportedBusyIntervalRepository = {
     const filtered = intervals.filter((i) => isWithinRollingWindow(i.startAt));
     if (filtered.length === 0) return;
 
-    const connectionIds = [...new Set(filtered.map((i) => i.connectionId))];
-    for (const connectionId of connectionIds) {
-      inMemoryStore = inMemoryStore.filter(
-        (i) => i.connectionId !== connectionId,
-      );
+    const groups = new Map<string, ImportedBusyIntervalRecord[]>();
+    for (const interval of filtered) {
+      const key = `${interval.connectionId}:${interval.providerCalendarId}`;
+      const group = groups.get(key) ?? [];
+      group.push(interval);
+      groups.set(key, group);
     }
 
-    inMemoryStore.push(...filtered);
+    for (const [, groupIntervals] of groups) {
+      const { connectionId, providerCalendarId } = groupIntervals[0];
+      inMemoryStore = inMemoryStore.filter(
+        (i) =>
+          !(
+            i.connectionId === connectionId &&
+            i.providerCalendarId === providerCalendarId
+          ),
+      );
+      inMemoryStore.push(...groupIntervals);
+    }
+
     await Promise.resolve();
   },
   async deleteByConnectionId(connectionId) {
     inMemoryStore = inMemoryStore.filter(
       (i) => i.connectionId !== connectionId,
+    );
+    await Promise.resolve();
+  },
+  async deleteByConnectionIdAndCalendarId(connectionId, providerCalendarId) {
+    inMemoryStore = inMemoryStore.filter(
+      (i) =>
+        !(
+          i.connectionId === connectionId &&
+          i.providerCalendarId === providerCalendarId
+        ),
     );
     await Promise.resolve();
   },

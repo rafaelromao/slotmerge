@@ -91,7 +91,9 @@ async function updateConnectionErrorMetadata(
   input: RecordCalendarConnectionSyncFailureInput,
 ): Promise<void> {
   const needsReconnect =
-    input.code === "invalid_grant" || input.code === "token_revoked";
+    input.code === "invalid_grant" ||
+    input.code === "token_revoked" ||
+    input.code === "AUTH_ERROR";
 
   if (input.provider === "google") {
     await getGoogleCalendarConnectionRepository().updateById(

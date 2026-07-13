@@ -1,10 +1,17 @@
-import { randomUUID } from "node:crypto";
-
 import type {
   ImportedBusyIntervalRecord,
   ImportedBusyIntervalRepository,
 } from "./imported-busy-intervals";
-import type { BusyIntervalStatus } from "../db/schema";
+import { fetchGoogleFreeBusy } from "./freebusy/google";
+import { fetchMicrosoftFreeBusy } from "./freebusy/microsoft";
+import {
+  GoogleFreeBusyAuthError,
+  GoogleFreeBusyRateLimitError,
+  GoogleFreeBusyServerError,
+  MicrosoftFreeBusyAuthError,
+  MicrosoftFreeBusyRateLimitError,
+  MicrosoftFreeBusyServerError,
+} from "./freebusy/types";
 
 export type SyncCalendarConnectionParams = {
   connectionId: string;
@@ -12,6 +19,8 @@ export type SyncCalendarConnectionParams = {
   accessToken: string;
   contributingCalendarIds: string[];
   userId: string;
+  timeMin: string;
+  timeMax: string;
   fetchImpl: typeof fetch;
   busyIntervalRepository: ImportedBusyIntervalRepository;
   recordFailure: (input: { code: string; message: string }) => Promise<unknown>;
@@ -25,9 +34,14 @@ export async function syncCalendarConnection(
     connectionId,
     userId,
     contributingCalendarIds,
+    timeMin,
+    timeMax,
     busyIntervalRepository,
     recordFailure,
     clock,
+    provider,
+    accessToken,
+    fetchImpl,
   } = params;
 
   if (contributingCalendarIds.length === 0) {
@@ -35,78 +49,117 @@ export async function syncCalendarConnection(
   }
 
   try {
-    const intervals = generateMockBusyIntervals({
-      connectionId,
-      userId,
-      contributingCalendarIds,
-      now: clock(),
+    const intervals = await fetchBusyIntervals({
+      provider,
+      accessToken,
+      calendarIds: contributingCalendarIds,
+      timeMin,
+      timeMax,
+      fetchImpl,
     });
 
-    await busyIntervalRepository.upsertBatch(intervals);
+    const now = clock();
+
+    const records: ImportedBusyIntervalRecord[] = intervals.map((interval) => {
+      const eventKey = interval.eventId ?? interval.startAt.getTime();
+      return {
+        id: `${connectionId}-${interval.providerCalendarId}-${eventKey}`,
+        userId,
+        connectionId,
+        providerCalendarId: interval.providerCalendarId,
+        providerEventReference: interval.eventId ?? null,
+        status: interval.status,
+        startAt: interval.startAt,
+        endAt: interval.endAt,
+        importedAt: now,
+      };
+    });
+
+    await busyIntervalRepository.upsertBatch(records);
   } catch (error) {
+    if (
+      error instanceof GoogleFreeBusyAuthError ||
+      error instanceof MicrosoftFreeBusyAuthError
+    ) {
+      await recordFailure({ code: "AUTH_ERROR", message: error.message });
+      return;
+    }
+
+    if (
+      error instanceof GoogleFreeBusyRateLimitError ||
+      error instanceof MicrosoftFreeBusyRateLimitError
+    ) {
+      const retryAfterSeconds = error.retryAfterSeconds;
+      throw new RateLimitError(
+        retryAfterSeconds !== undefined ? retryAfterSeconds * 1000 : undefined,
+      );
+    }
+
+    if (
+      error instanceof GoogleFreeBusyServerError ||
+      error instanceof MicrosoftFreeBusyServerError
+    ) {
+      throw new ServerError(
+        error.retryAfterSeconds !== undefined
+          ? error.retryAfterSeconds * 1000
+          : undefined,
+      );
+    }
+
     const message = error instanceof Error ? error.message : String(error);
     await recordFailure({ code: "SYNC_ERROR", message });
   }
 }
 
-function generateMockBusyIntervals(params: {
-  connectionId: string;
-  userId: string;
-  contributingCalendarIds: string[];
-  now: Date;
-}): ImportedBusyIntervalRecord[] {
-  const { connectionId, userId, contributingCalendarIds, now } = params;
-
-  const seed = hashString(connectionId);
-  const rng = seededRandom(seed);
-
-  const intervals: ImportedBusyIntervalRecord[] = [];
-  const statuses: BusyIntervalStatus[] = ["busy", "out-of-office", "tentative"];
-
-  for (const calendarId of contributingCalendarIds) {
-    const numIntervals = Math.floor(rng() * 5) + 2;
-
-    for (let i = 0; i < numIntervals; i++) {
-      const daysAhead = Math.floor(rng() * 14) + 1;
-      const startHour = Math.floor(rng() * 12) + 8;
-      const durationHours = Math.floor(rng() * 3) + 1;
-
-      const startAt = new Date(now);
-      startAt.setDate(startAt.getDate() + daysAhead);
-      startAt.setHours(startHour, 0, 0, 0);
-
-      const endAt = new Date(startAt.getTime() + durationHours * 3600000);
-
-      intervals.push({
-        id: randomUUID(),
-        userId,
-        connectionId,
-        providerCalendarId: calendarId,
-        providerEventReference: null,
-        status: statuses[Math.floor(rng() * statuses.length)],
-        startAt,
-        endAt,
-        importedAt: now,
-      });
-    }
+export class RateLimitError extends Error {
+  readonly retryAfterMs: number | undefined;
+  constructor(retryAfterMs: number | undefined) {
+    super(
+      retryAfterMs !== undefined
+        ? `Rate limited, retry after ${retryAfterMs}ms`
+        : "Rate limited",
+    );
+    this.name = "RateLimitError";
+    this.retryAfterMs = retryAfterMs;
   }
-
-  return intervals;
 }
 
-function hashString(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
+export class ServerError extends Error {
+  readonly retryAfterMs: number | undefined;
+  constructor(retryAfterMs: number | undefined) {
+    super(
+      retryAfterMs !== undefined
+        ? `Server error, retry after ${retryAfterMs}ms`
+        : "Server error",
+    );
+    this.name = "ServerError";
+    this.retryAfterMs = retryAfterMs;
   }
-  return Math.abs(hash);
 }
 
-function seededRandom(seed: number): () => number {
-  let s = seed;
-  return () => {
-    s = (s * 1664525 + 1013904223) & 0xffffffff;
-    return (s >>> 0) / 0xffffffff;
-  };
+async function fetchBusyIntervals(params: {
+  provider: "google" | "microsoft";
+  accessToken: string;
+  calendarIds: string[];
+  timeMin: string;
+  timeMax: string;
+  fetchImpl: typeof fetch;
+}) {
+  if (params.provider === "google") {
+    return fetchGoogleFreeBusy({
+      accessToken: params.accessToken,
+      calendarIds: params.calendarIds,
+      timeMin: params.timeMin,
+      timeMax: params.timeMax,
+      fetchImpl: params.fetchImpl,
+    });
+  } else {
+    return fetchMicrosoftFreeBusy({
+      accessToken: params.accessToken,
+      calendarIds: params.calendarIds,
+      timeMin: params.timeMin,
+      timeMax: params.timeMax,
+      fetchImpl: params.fetchImpl,
+    });
+  }
 }

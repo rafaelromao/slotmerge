@@ -22,26 +22,42 @@ export function createPostgresImportedBusyIntervalRepository(): ImportedBusyInte
       const db = getDb();
 
       await db.transaction(async (tx) => {
-        const connectionIds = [...new Set(filtered.map((i) => i.connectionId))];
-        for (const connectionId of connectionIds) {
-          await tx
-            .delete(importedBusyIntervals)
-            .where(eq(importedBusyIntervals.connectionId, connectionId));
+        const groups = new Map<string, typeof filtered>();
+        for (const interval of filtered) {
+          const key = `${interval.connectionId}:${interval.providerCalendarId}`;
+          const group = groups.get(key) ?? [];
+          group.push(interval);
+          groups.set(key, group);
         }
 
-        await tx.insert(importedBusyIntervals).values(
-          filtered.map((interval) => ({
-            id: interval.id,
-            userId: interval.userId,
-            connectionId: interval.connectionId,
-            providerCalendarId: interval.providerCalendarId,
-            providerEventReference: interval.providerEventReference,
-            status: interval.status,
-            startAt: interval.startAt,
-            endAt: interval.endAt,
-            importedAt: interval.importedAt,
-          })),
-        );
+        for (const [, groupIntervals] of groups) {
+          const { connectionId, providerCalendarId } = groupIntervals[0];
+          await tx
+            .delete(importedBusyIntervals)
+            .where(
+              and(
+                eq(importedBusyIntervals.connectionId, connectionId),
+                eq(
+                  importedBusyIntervals.providerCalendarId,
+                  providerCalendarId,
+                ),
+              ),
+            );
+
+          await tx.insert(importedBusyIntervals).values(
+            groupIntervals.map((interval) => ({
+              id: interval.id,
+              userId: interval.userId,
+              connectionId: interval.connectionId,
+              providerCalendarId: interval.providerCalendarId,
+              providerEventReference: interval.providerEventReference,
+              status: interval.status,
+              startAt: interval.startAt,
+              endAt: interval.endAt,
+              importedAt: interval.importedAt,
+            })),
+          );
+        }
       });
     },
 
@@ -50,6 +66,18 @@ export function createPostgresImportedBusyIntervalRepository(): ImportedBusyInte
       await db
         .delete(importedBusyIntervals)
         .where(eq(importedBusyIntervals.connectionId, connectionId));
+    },
+
+    async deleteByConnectionIdAndCalendarId(connectionId, providerCalendarId) {
+      const db = getDb();
+      await db
+        .delete(importedBusyIntervals)
+        .where(
+          and(
+            eq(importedBusyIntervals.connectionId, connectionId),
+            eq(importedBusyIntervals.providerCalendarId, providerCalendarId),
+          ),
+        );
     },
 
     async findByUserIdAndDateRange(userId, start, end) {

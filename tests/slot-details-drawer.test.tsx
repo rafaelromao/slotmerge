@@ -14,6 +14,10 @@ describe("SlotDetailsDrawer", () => {
         avatarUrl: null,
         shortBio: "Computing pioneer",
         topics: [{ id: "topic-1", name: "Compilers" }],
+        topicProfile: [
+          { id: "topic-1", name: "Compilers" },
+          { id: "topic-3", name: "Parsing" },
+        ],
         availabilityIndicator: "available",
         calendarFreshness: "fresh",
       },
@@ -23,6 +27,10 @@ describe("SlotDetailsDrawer", () => {
         avatarUrl: null,
         shortBio: "COBOL pioneer",
         topics: [{ id: "topic-2", name: "Programming Languages" }],
+        topicProfile: [
+          { id: "topic-2", name: "Programming Languages" },
+          { id: "topic-4", name: "Formal Languages" },
+        ],
         availabilityIndicator: "partial",
         calendarFreshness: "stale",
       },

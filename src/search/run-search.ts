@@ -104,6 +104,11 @@ export async function runSearch(
         .filter((t): t is NonNullable<typeof t> => t != null)
         .map((t) => ({ id: t.id, name: t.name }));
 
+      const topicProfile = userTopicIds
+        .map((id) => topicMap.get(id))
+        .filter((t): t is NonNullable<typeof t> => t != null)
+        .map((t) => ({ id: t.id, name: t.name }));
+
       let calendarFreshness: CalendarFreshness = "none";
       if (userAvailData.busyIntervals.length > 0) {
         const lastSync = userAvailData.busyIntervals.reduce(
@@ -122,6 +127,7 @@ export async function runSearch(
         avatarUrl: profile?.avatarUrl ?? null,
         shortBio: profile?.shortBio ?? null,
         topics: matchedTopics,
+        topicProfile,
         availabilityIndicator: availIndicator,
         calendarFreshness,
       });

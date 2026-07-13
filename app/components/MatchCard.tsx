@@ -47,7 +47,7 @@ export function MatchCard({ match }: MatchCardProps) {
   const displayName = match.displayName ?? "Anonymous";
   const avatarUrl = match.avatarUrl ?? getInitialsAvatar(match.displayName);
   const bio = match.shortBio ?? "";
-  const topicNames = match.topics.map((t) => t.name).join(", ");
+  const topicNames = match.topicProfile.map((t) => t.name).join(", ");
   const availabilityText = getAvailabilityText(match.availabilityIndicator);
   const calendar = getCalendarText(match.calendarFreshness);
 

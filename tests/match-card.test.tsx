@@ -13,6 +13,11 @@ describe("MatchCard", () => {
       { id: "topic-1", name: "Compilers" },
       { id: "topic-2", name: "Type Theory" },
     ],
+    topicProfile: [
+      { id: "topic-1", name: "Compilers" },
+      { id: "topic-2", name: "Type Theory" },
+      { id: "topic-3", name: "Parsing" },
+    ],
     availabilityIndicator: "available",
     calendarFreshness: "fresh",
   };
@@ -23,6 +28,7 @@ describe("MatchCard", () => {
     avatarUrl: null,
     shortBio: null,
     topics: [{ id: "topic-3", name: "Parsing" }],
+    topicProfile: [{ id: "topic-3", name: "Parsing" }],
     availabilityIndicator: "partial",
     calendarFreshness: "stale",
   };
@@ -33,6 +39,7 @@ describe("MatchCard", () => {
     avatarUrl: null,
     shortBio: "COBOL pioneer",
     topics: [],
+    topicProfile: [],
     availabilityIndicator: "unavailable",
     calendarFreshness: "none",
   };

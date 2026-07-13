@@ -11,15 +11,9 @@ import { computeEffectiveAvailability } from "./effective-availability";
 
 import { getProfileByUserId } from "../profile/repository";
 import { getTopicCatalogueRepository } from "../topics/repository";
-import {
-  listWeeklyAvailabilityWindowsByUserId,
-} from "../profile/availability-windows";
-import {
-  listAvailabilityOverridesByUserId,
-} from "../profile/availability-overrides";
-import {
-  getImportedBusyIntervalRepository,
-} from "../calendar/imported-busy-intervals";
+import { listWeeklyAvailabilityWindowsByUserId } from "../profile/availability-windows";
+import { listAvailabilityOverridesByUserId } from "../profile/availability-overrides";
+import { getImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals";
 import { isUserEligibleForSearch } from "../search/eligibility";
 
 export { findEligibleMatches };

@@ -539,9 +539,6 @@ export type TopicDetail = {
   name: string;
 };
 
-export type AvailabilityIndicator =
-  | "available"
-  | "partial"
-  | "unavailable";
+export type AvailabilityIndicator = "available" | "partial" | "unavailable";
 
 export type CalendarFreshness = "fresh" | "stale" | "none";

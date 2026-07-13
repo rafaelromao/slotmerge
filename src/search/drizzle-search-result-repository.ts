@@ -3,7 +3,10 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../db/client";
 import { searchResults } from "../db/schema";
 
-import type { SearchResultRecord, SearchResultRepository } from "./search-result-repository";
+import type {
+  SearchResultRecord,
+  SearchResultRepository,
+} from "./search-result-repository";
 
 export function createPostgresSearchResultRepository(): SearchResultRepository {
   return {

@@ -1,7 +1,11 @@
 import type { Clock } from "./search-input";
 import type { SearchInput } from "./search-input";
 import type { SearchRecord } from "./repository";
-import type { SearchResultRecord, SearchSnapshot, CalendarFreshness } from "./search-result-repository";
+import type {
+  SearchResultRecord,
+  SearchSnapshot,
+  CalendarFreshness,
+} from "./search-result-repository";
 
 import {
   findEligibleMatches,

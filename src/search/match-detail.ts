@@ -1,8 +1,5 @@
 import type { Interval } from "../matching/find-eligible-matches";
-import type {
-  AvailabilityIndicator,
-  CalendarFreshness,
-} from "../db/schema";
+import type { AvailabilityIndicator, CalendarFreshness } from "../db/schema";
 
 export const CALENDAR_STALENESS_THRESHOLD_MS = 24 * 60 * 60 * 1000;
 
@@ -25,9 +22,7 @@ export function availabilityIndicator(
   effectiveAvailability: Interval[],
   durationMinutes: number,
 ): AvailabilityIndicator {
-  const slotEnd = new Date(
-    slotStart.getTime() + durationMinutes * 60 * 1000,
-  );
+  const slotEnd = new Date(slotStart.getTime() + durationMinutes * 60 * 1000);
   const slotEndMs = slotEnd.getTime();
   const slotStartMs = slotStart.getTime();
 

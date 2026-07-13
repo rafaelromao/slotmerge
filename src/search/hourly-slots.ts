@@ -1,7 +1,4 @@
-export function generateHourlySlots(
-  rangeStart: Date,
-  rangeEnd: Date,
-): Date[] {
+export function generateHourlySlots(rangeStart: Date, rangeEnd: Date): Date[] {
   if (rangeStart >= rangeEnd) {
     return [];
   }

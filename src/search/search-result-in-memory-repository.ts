@@ -5,9 +5,7 @@ import type {
   SearchResultRepository,
 } from "./search-result-repository";
 
-export class InMemorySearchResultRepository
-  implements SearchResultRepository
-{
+export class InMemorySearchResultRepository implements SearchResultRepository {
   private readonly byId = new Map<string, SearchResultRecord>();
   private readonly bySearchId = new Map<string, SearchResultRecord>();
 

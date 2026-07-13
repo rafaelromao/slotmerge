@@ -14,7 +14,10 @@ import {
 } from "./search-input";
 import { setSearchRepositoryForTests } from "./repository";
 import { setSearchResultRepositoryForTests } from "./search-result-repository";
-import type { SearchResultRepository, SearchResultRecord } from "./search-result-repository";
+import type {
+  SearchResultRepository,
+  SearchResultRecord,
+} from "./search-result-repository";
 import type { DiscoverableUserRepository } from "./discoverable-user-repository";
 import type { MatchingDependencies } from "../matching/find-eligible-matches";
 
@@ -69,8 +72,14 @@ class InMemorySearchResultRepository implements SearchResultRepository {
     await Promise.resolve();
     return { ...record, id: record.id ?? "sr-1" };
   }
-  async findById() { await Promise.resolve(); return null; }
-  async findBySearchId() { await Promise.resolve(); return null; }
+  async findById() {
+    await Promise.resolve();
+    return null;
+  }
+  async findBySearchId() {
+    await Promise.resolve();
+    return null;
+  }
 }
 
 class InMemoryDiscoverableUserRepository implements DiscoverableUserRepository {
@@ -81,8 +90,12 @@ class InMemoryDiscoverableUserRepository implements DiscoverableUserRepository {
 }
 
 const mockMatchingDependencies: MatchingDependencies = {
-  listSelectedTopicIds() { return Promise.resolve([]); },
-  computeEffectiveAvailability() { return []; },
+  listSelectedTopicIds() {
+    return Promise.resolve([]);
+  },
+  computeEffectiveAvailability() {
+    return [];
+  },
   getUserAvailabilityData() {
     return Promise.resolve({
       profileTimezone: "UTC",
@@ -92,7 +105,9 @@ const mockMatchingDependencies: MatchingDependencies = {
       busyIntervals: [],
     });
   },
-  isUserEligibleForSearch() { return Promise.resolve(false); },
+  isUserEligibleForSearch() {
+    return Promise.resolve(false);
+  },
 };
 
 describe("buildSearchInput", () => {

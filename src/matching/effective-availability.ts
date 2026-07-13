@@ -120,8 +120,9 @@ function expandWindowsInTimezone(
         );
 
         const interval = { startUtc, endUtc };
-        if (isInRange(interval, rangeStart, rangeEnd)) {
-          results.push(interval);
+        const clipped = clipInterval(interval, rangeStart, rangeEnd);
+        if (clipped) {
+          results.push(clipped);
         }
       }
 

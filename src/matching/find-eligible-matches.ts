@@ -57,6 +57,7 @@ export type FindEligibleMatchesParams = {
   durationMinutes: number;
   rangeStart: Date;
   rangeEnd: Date;
+  slotStart?: Date;
 };
 
 export type EffectiveAvailabilityInputs = {
@@ -103,6 +104,19 @@ export async function findEligibleMatches(
     const userTopicIds = await deps.listSelectedTopicIds(userId);
     if (!hasAllSelectedTopics(params.selectedTopicIds, userTopicIds)) {
       continue;
+    }
+
+    if (params.slotStart != null) {
+      const userAvail = await deps.getUserAvailabilityData(userId);
+      const effectiveAvail = deps.computeEffectiveAvailability({
+        ...userAvail,
+        userId,
+        rangeStart: params.rangeStart,
+        rangeEnd: params.rangeEnd,
+      });
+      if (!hasFullDurationCoverage(effectiveAvail, params.slotStart, params.durationMinutes)) {
+        continue;
+      }
     }
 
     matches.push(userId);

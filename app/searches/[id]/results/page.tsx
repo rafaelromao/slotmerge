@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { getSessionFromRequest } from "../../../../src/auth/session";
 import { getSearchRepository } from "../../../../src/search/repository";
 import { getSearchResultRepository } from "../../../../src/search/search-result-repository";
@@ -10,7 +11,13 @@ export default async function SearchResultPage({
 }) {
   const { id } = await params;
 
-  const session = await getSessionFromRequest(new Request("http://localhost"));
+  const cookieStore = await cookies();
+  const request = new Request("http://localhost", {
+    headers: {
+      cookie: cookieStore.toString(),
+    },
+  });
+  const session = await getSessionFromRequest(request);
 
   if (!session) {
     return (

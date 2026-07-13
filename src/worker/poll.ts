@@ -15,10 +15,6 @@ export async function handlePollCalendarConnectionsJob(): Promise<void> {
   const activeConnections = await listActiveConnections();
 
   for (const { record: connection } of activeConnections) {
-    if (connection.status !== "connected") {
-      continue;
-    }
-
     const tokenEncryptionKey = config.calendarTokenEncryptionKey;
     const accessToken = decryptCalendarToken({
       ciphertext: connection.accessTokenEncrypted ?? "",
@@ -59,8 +55,6 @@ export async function handlePollCalendarConnectionsJob(): Promise<void> {
           { connectionLookup },
         ),
       clock: () => new Date(),
-    }).catch(() => {
-      // errors are recorded via recordFailure inside syncCalendarConnection
     });
   }
 }

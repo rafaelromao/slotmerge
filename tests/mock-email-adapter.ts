@@ -16,7 +16,7 @@ export type MockEmailAdapter = {
   send(job: QueueEmailJobInput): Promise<{ providerMessageId: string }>;
   setPersistentFailure(error: string): void;
   setNextSendFailure(error: string): void;
-  setFailsAfterAttempts(n: number, error?: string): void;
+  setSucceedsOnAttempt(n: number, error?: string): void;
   getSendsByRecipient(recipient: string): MockEmailSendRecord[];
   getSendsByType(type: QueueEmailJobInput["type"]): MockEmailSendRecord[];
   reset(): void;
@@ -108,7 +108,7 @@ export function buildMockEmailAdapter(): MockEmailAdapter {
     failureMode = { kind: "next", error };
   }
 
-  function setFailsAfterAttempts(n: number, error = defaultError): void {
+  function setSucceedsOnAttempt(n: number, error = defaultError): void {
     failureMode = { kind: "after-attempts", n, error };
   }
 
@@ -137,7 +137,7 @@ export function buildMockEmailAdapter(): MockEmailAdapter {
     send,
     setPersistentFailure,
     setNextSendFailure,
-    setFailsAfterAttempts,
+    setSucceedsOnAttempt,
     getSendsByRecipient,
     getSendsByType,
     reset,

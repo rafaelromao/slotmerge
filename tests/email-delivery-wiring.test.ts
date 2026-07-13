@@ -81,9 +81,9 @@ describe("MockEmailAdapter", () => {
     expect(adapter.sends[1].status).toBe("sent");
   });
 
-  it("simulates failure after N attempts then success", async () => {
+  it("simulates failure before Nth attempt then success", async () => {
     const adapter = buildMockEmailAdapter();
-    adapter.setFailsAfterAttempts(3);
+    adapter.setSucceedsOnAttempt(3);
 
     await expect(
       adapter.send({
@@ -119,7 +119,7 @@ describe("MockEmailAdapter", () => {
 
   it("tracks attempts per emailEventId for retry simulation", async () => {
     const adapter = buildMockEmailAdapter();
-    adapter.setFailsAfterAttempts(2);
+    adapter.setSucceedsOnAttempt(2);
 
     await expect(
       adapter.send({

@@ -104,7 +104,9 @@ describe("SlotDetailsDrawer", () => {
   it("calls onClose when backdrop is clicked", () => {
     const onClose = vi.fn();
     const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const overlay = drawer.props.children;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
     overlay.props.onClick();
     expect(onClose).toHaveBeenCalledOnce();
   });

@@ -39,6 +39,7 @@ describe("MatchCard", () => {
 
   it("renders with data-testid match-card", () => {
     const card = MatchCard({ match: availableMatch });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     expect(card.props["data-testid"]).toBe("match-card");
   });
 

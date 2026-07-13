@@ -37,7 +37,7 @@ The worktree MUST be checked out on `sandman/65-e2e-test-ephemeral-postgresql-da
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -47,7 +47,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Implement: Slice 1 — ephemeral DB creation + migrations (sandman-tdd)
+PR-Review: delegate to sandman-pr-review skill for PR #174
 
 ## Plan
 

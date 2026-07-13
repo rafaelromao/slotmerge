@@ -9,5 +9,7 @@ export default defineConfig({
     globals: true,
     include: ["src/**/*.test.ts", "scripts/**/*.test.ts", "tests/**/*.test.ts"],
     exclude: ["tests/helpers/**/*.test.ts"],
+    globalSetup: ["./tests/helpers/global-setup.ts"],
+    setupFiles: ["./tests/helpers/setup.ts"],
   },
 });

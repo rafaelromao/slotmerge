@@ -1,49 +1,44 @@
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
 import * as schema from "../../src/db/schema";
 
-const execAsync = promisify(exec);
-
-let globalPool: Pool | null = null;
 let globalTestPool: Pool | null = null;
 let globalTestDb: ReturnType<typeof drizzle> | null = null;
 
-function getSystemPool(): Pool {
-  if (!globalPool) {
-    const baseUrl =
-      process.env.DATABASE_URL ?? "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
-    const match = baseUrl.match(/^(postgres:\/\/[^:]+:[^@]+@[^:]+:\d+)\//);
-    if (!match) {
-      throw new Error(
-        "Cannot derive system DATABASE_URL from DATABASE_URL. Expected format: postgres://user:pass@host:port/dbname",
-      );
-    }
-    globalPool = new Pool({ connectionString: match[1] + "/postgres" });
-  }
-  return globalPool;
-}
-
 async function createDatabase(dbName: string): Promise<void> {
-  const pool = getSystemPool();
+  const baseUrl =
+    process.env.DATABASE_URL ?? "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
+  const match = baseUrl.match(/^(postgres:\/\/[^:]+:[^@]+@[^:]+:\d+)\//);
+  if (!match) {
+    throw new Error(
+      "Cannot derive system DATABASE_URL from DATABASE_URL. Expected format: postgres://user:pass@host:port/dbname",
+    );
+  }
+  const pool = new Pool({ connectionString: match[1] + "/postgres" });
   try {
     await pool.query(`DROP DATABASE IF EXISTS "${dbName}" WITH (FORCE)`);
     await pool.query(`CREATE DATABASE "${dbName}"`);
   } finally {
     await pool.end();
-    globalPool = null;
   }
 }
 
 async function runMigrations(url: string): Promise<void> {
-  const { stderr } = await execAsync(
-    `DATABASE_URL="${url}" pnpm drizzle-kit push --force`,
-    { cwd: process.cwd() },
-  );
-  if (stderr) {
-    console.error("drizzle-kit push stderr:", stderr);
+  const pool = new Pool({ connectionString: url });
+  try {
+    const drizzleDir = join(process.cwd(), "drizzle");
+    const files = (await readdir(drizzleDir))
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
+    for (const file of files) {
+      const sql = await readFile(join(drizzleDir, file), "utf-8");
+      await pool.query(sql);
+    }
+  } finally {
+    await pool.end();
   }
 }
 
@@ -111,10 +106,6 @@ export async function closeEphemeralDatabase(): Promise<void> {
     await globalTestPool.end();
     globalTestPool = null;
     globalTestDb = null;
-  }
-  if (globalPool) {
-    await globalPool.end();
-    globalPool = null;
   }
 }
 

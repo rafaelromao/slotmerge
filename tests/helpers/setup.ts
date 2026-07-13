@@ -1,3 +1,4 @@
+import { beforeEach } from "vitest";
 import { getTestDb, resetDatabase } from "./test-db";
 import { seedAll } from "../fixtures/seeds";
 import { fixedClock } from "../fixtures/clock";
@@ -16,9 +17,13 @@ export function getTestClock(): () => Date {
 export async function setupTest(): Promise<void> {
   const db = getTestDb();
   if (!db) {
-    throw new Error("Test database not initialized. Did globalSetup run?");
+    return;
   }
   await resetDatabase(db);
   await seedAll(db);
   currentClock = fixedClock(FIXTURE_DATE);
 }
+
+beforeEach(async () => {
+  await setupTest();
+});

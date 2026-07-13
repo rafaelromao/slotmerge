@@ -26,6 +26,23 @@ async function createDatabase(dbName: string): Promise<void> {
   }
 }
 
+async function dropDatabase(dbName: string): Promise<void> {
+  const baseUrl =
+    process.env.DATABASE_URL ?? "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
+  const match = baseUrl.match(/^(postgres:\/\/[^:]+:[^@]+@[^:]+:\d+)\//);
+  if (!match) {
+    return;
+  }
+  const pool = new Pool({ connectionString: match[1] + "/postgres" });
+  try {
+    await pool.query(`DROP DATABASE IF EXISTS "${dbName}" WITH (FORCE)`);
+  } catch {
+    // ignore cleanup errors
+  } finally {
+    await pool.end();
+  }
+}
+
 async function runMigrations(url: string): Promise<void> {
   const pool = new Pool({ connectionString: url });
   try {
@@ -65,7 +82,12 @@ export async function createEphemeralDatabase(): Promise<{
   }
   const url = `${match[1]}/${dbName}`;
 
-  await runMigrations(url);
+  try {
+    await runMigrations(url);
+  } catch (e) {
+    await dropDatabase(dbName);
+    throw e;
+  }
 
   const pool = new Pool({ connectionString: url });
   globalTestPool = pool;
@@ -112,5 +134,3 @@ export async function closeEphemeralDatabase(): Promise<void> {
 export function getTestDb(): ReturnType<typeof drizzle> | null {
   return globalTestDb;
 }
-
-

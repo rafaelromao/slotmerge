@@ -119,7 +119,9 @@ describe("expandBusyIntervalsWithBuffer", () => {
       startAt: new Date("2026-07-15T08:50:00.000Z"),
       endAt: new Date("2026-07-15T09:30:00.000Z"),
     };
-    const result = expandBusyIntervalsWithBuffer([earlyInterval], 15, [window9to17]);
+    const result = expandBusyIntervalsWithBuffer([earlyInterval], 15, [
+      window9to17,
+    ]);
     expect(result).toHaveLength(1);
     expect(result[0].startAt).toEqual(window9to17.startUtc);
     expect(result[0].endAt).toEqual(new Date("2026-07-15T09:45:00.000Z"));
@@ -132,7 +134,9 @@ describe("expandBusyIntervalsWithBuffer", () => {
       startAt: new Date("2026-07-15T16:30:00.000Z"),
       endAt: new Date("2026-07-15T17:10:00.000Z"),
     };
-    const result = expandBusyIntervalsWithBuffer([lateInterval], 15, [window9to17]);
+    const result = expandBusyIntervalsWithBuffer([lateInterval], 15, [
+      window9to17,
+    ]);
     expect(result).toHaveLength(1);
     expect(result[0].startAt).toEqual(new Date("2026-07-15T16:15:00.000Z"));
     expect(result[0].endAt).toEqual(window9to17.endUtc);
@@ -145,7 +149,9 @@ describe("expandBusyIntervalsWithBuffer", () => {
       startAt: new Date("2026-07-16T09:00:00.000Z"),
       endAt: new Date("2026-07-16T10:00:00.000Z"),
     };
-    const result = expandBusyIntervalsWithBuffer([outsideInterval], 15, [window9to17]);
+    const result = expandBusyIntervalsWithBuffer([outsideInterval], 15, [
+      window9to17,
+    ]);
     expect(result).toHaveLength(0);
   });
 
@@ -156,7 +162,9 @@ describe("expandBusyIntervalsWithBuffer", () => {
       startAt: new Date("2026-07-15T08:50:00.000Z"),
       endAt: new Date("2026-07-15T10:00:00.000Z"),
     };
-    const result = expandBusyIntervalsWithBuffer([partialInterval], 15, [window9to17]);
+    const result = expandBusyIntervalsWithBuffer([partialInterval], 15, [
+      window9to17,
+    ]);
     expect(result).toHaveLength(1);
     expect(result[0].startAt).toEqual(window9to17.startUtc);
     expect(result[0].endAt).toEqual(new Date("2026-07-15T10:15:00.000Z"));

@@ -12,6 +12,10 @@ export async function GET(
     return Response.json({ error: "unauthenticated" }, { status: 401 });
   }
 
+  if (session.user.role !== "organizer" && session.user.role !== "admin") {
+    return Response.json({ error: "forbidden" }, { status: 403 });
+  }
+
   const { id } = await params;
 
   const searchRepo = getSearchRepository();

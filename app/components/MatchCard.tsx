@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import type { SlotMatchDetail } from "../../src/db/schema";
 
 type MatchCardProps = {
@@ -32,20 +31,21 @@ function getCalendarText(freshness: SlotMatchDetail["calendarFreshness"]): {
   return { label: "no calendar connected", className: "calendar-none" };
 }
 
-function getAvatarUrl(
-  avatarUrl: string | null,
-  displayName: string | null,
-): string {
-  if (avatarUrl) {
-    return avatarUrl;
-  }
+function getInitialsAvatar(displayName: string | null): string {
   const name = displayName ?? "Anonymous";
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+  const encoded = encodeURIComponent(initials);
+  return `https://ui-avatars.com/api/?name=${encoded}&background=random&size=80`;
 }
 
 export function MatchCard({ match }: MatchCardProps) {
   const displayName = match.displayName ?? "Anonymous";
-  const avatarUrl = getAvatarUrl(match.avatarUrl, match.displayName);
+  const avatarUrl = match.avatarUrl ?? getInitialsAvatar(match.displayName);
   const bio = match.shortBio ?? "";
   const topicNames = match.topics.map((t) => t.name).join(", ");
   const availabilityText = getAvailabilityText(match.availabilityIndicator);
@@ -54,7 +54,7 @@ export function MatchCard({ match }: MatchCardProps) {
   return (
     <div className="match-card" data-testid="match-card">
       <div className="match-card-header">
-        <Image
+        <img
           src={avatarUrl}
           alt={`${displayName}'s avatar`}
           className="match-card-avatar"

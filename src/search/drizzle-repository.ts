@@ -4,6 +4,7 @@ import { getDb } from "../db/client";
 import { searches, searchResults } from "../db/schema";
 
 import type { SearchRecord, SearchRepository } from "./repository";
+import { deriveSearchSnapshotStaleness } from "./match-detail";
 
 export function createPostgresSearchRepository(): SearchRepository {
   return {
@@ -57,6 +58,8 @@ export function createPostgresSearchRepository(): SearchRepository {
         .leftJoin(searchResults, eq(searches.id, searchResults.searchId))
         .orderBy(desc(searches.generatedAt));
 
+      const now = new Date();
+
       return rows
         .filter(
           (row): row is typeof row & { snapshotId: string } =>
@@ -73,6 +76,7 @@ export function createPostgresSearchRepository(): SearchRepository {
           organizerTimezone: row.organizerTimezone,
           generatedAt: row.generatedAt,
           snapshotId: row.snapshotId,
+          stale: deriveSearchSnapshotStaleness(row.generatedAt, now),
         }));
     },
   };

@@ -138,6 +138,36 @@ describe("SearchRepository.listSearchHistory", () => {
     expect(history[0]?.id).toBe("search-1");
   });
 
+  it("marks old snapshots as stale", async () => {
+    const repo = new InMemorySearchRepository();
+
+    const oldSearch = await repo.save({
+      ...baseRecord,
+      id: "search-old",
+      generatedAt: new Date("2026-07-01T12:00:00.000Z"),
+    });
+    repo.setSnapshotId(oldSearch.id!, "snapshot-old");
+
+    const history = await repo.listSearchHistory();
+    expect(history.length).toBe(1);
+    expect(history[0]?.stale).toBe(true);
+  });
+
+  it("marks recent snapshots as not stale", async () => {
+    const repo = new InMemorySearchRepository();
+
+    const recentSearch = await repo.save({
+      ...baseRecord,
+      id: "search-recent",
+      generatedAt: new Date(), // now
+    });
+    repo.setSnapshotId(recentSearch.id!, "snapshot-recent");
+
+    const history = await repo.listSearchHistory();
+    expect(history.length).toBe(1);
+    expect(history[0]?.stale).toBe(false);
+  });
+
   it("returns empty list when no searches exist", async () => {
     const repo = new InMemorySearchRepository();
     const history = await repo.listSearchHistory();

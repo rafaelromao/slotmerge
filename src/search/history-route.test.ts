@@ -125,6 +125,39 @@ describe("createSearchHistoryHandlers", () => {
       expect((body.history[0] as { id: string }).id).toBe("search-1");
     });
 
+    it("returns stale field in history items", async () => {
+      const repo = new InMemorySearchRepository();
+      await repo.save({
+        id: "search-1",
+        organizerId: "user-1",
+        selectedTopicIds: ["topic-1"],
+        minimumMatchingUsers: 2,
+        durationMinutes: 60,
+        dateRangeStart: new Date(),
+        dateRangeEnd: new Date(),
+        organizerTimezone: "UTC",
+        generatedAt: new Date(),
+      });
+      repo.setSnapshotId("search-1", "snapshot-1");
+
+      setSearchRepositoryForTests(repo);
+
+      const handlers = createSearchHistoryHandlers({
+        getSession: () => Promise.resolve(baseSession),
+      });
+
+      const response = await handlers.getHistory(
+        new Request("http://localhost/search/history"),
+      );
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        history: Array<{ id: string; stale: boolean }>;
+      };
+      expect(body.history).toHaveLength(1);
+      expect(body.history[0].stale).toBe(false);
+    });
+
     it("returns 200 with history for admin role", async () => {
       const repo = new InMemorySearchRepository();
       await repo.save({

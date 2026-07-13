@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #60: Re-run a Search to create a new snapshot
+Implement GitHub issue #61: Mark Search Results stale when underlying data changes
 
 ## Issue Context
 
@@ -10,13 +10,13 @@ Sub-PRD: [Sub-PRD: Search & Matching](https://github.com/rafaelromao/slotmerge/i
 
 ## What to build
 
-An Organizer can re-run a Search from history, creating a new snapshot. The original snapshot is preserved.
+Saved Search Results remain immutable, but the Search history view shows a staleness indicator when re-opening a Search whose underlying data has changed since the snapshot was generated.
 
 ## Acceptance criteria
 
-- [ ] Re-run action creates a new Search Result snapshot.
-- [ ] The original snapshot remains immutable.
-- [ ] New snapshot inherits the original's query parameters.
+- [ ] Snapshots are never mutated.
+- [ ] Search history flags re-opened snapshots as stale when underlying data has changed.
+- [ ] Re-running creates a new snapshot to clear staleness.
 
 ## Blocked by
 
@@ -26,12 +26,12 @@ An Organizer can re-run a Search from history, creating a new snapshot. The orig
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/60-re-run-a-search-to-create-a-new-snapshot`
-- Source branch: `sandman/60-re-run-a-search-to-create-a-new-snapshot`
+- Current branch: `sandman/61-mark-search-results-stale-when-underlying-data-changes`
+- Source branch: `sandman/61-mark-search-results-stale-when-underlying-data-changes`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/60-re-run-a-search-to-create-a-new-snapshot` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/61-mark-search-results-stale-when-underlying-data-changes` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -45,40 +45,47 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Plan
-
-### Behaviors to test
-1. **Rerun creates new search with inherited parameters** - Given an existing search ID, `rerunSearch` creates a new `SearchRecord` with identical query parameters but new ID and `generatedAt`
-2. **Rerun creates new snapshot** - The new search gets its own new snapshot via `runSearch`
-3. **Original snapshot remains immutable** - Original `SearchResultRecord` is never modified
-4. **Rerun returns the new search** - `rerunSearch` returns the newly created `SearchRecord`
-5. **Rerun with invalid ID returns null** - If original search ID doesn't exist, `rerunSearch` returns `null`
-6. **Rerun with deactivated topics returns error** - If topics in the original search are no longer active, `rerunSearch` returns an error
-
-### Testable interfaces
-- `rerunSearch(existingSearchId: string, deps: RunSearchDeps): Promise<RerunSearchResult>` - new function in `search-input.ts`
-- `RerunSearchResult = { ok: true, search: SearchRecord } | { ok: false, reason: "not_found" | "topics_invalid" }`
-- Uses `SearchRepository.findById()` to fetch original search
-
-### Implementation approach
-1. Add `RerunSearchResult` type and `rerunSearch` function to `search-input.ts`
-2. `rerunSearch` uses `RunSearchDeps` (same deps as `runSearch`)
-3. Fetch original `SearchRecord` by ID
-4. If not found, return `{ ok: false, reason: "not_found" }`
-5. Create new `SearchInput` from original record parameters
-6. Attempt to validate topics via `createSearchInputBuilder` - if it throws due to inactive topics, return `{ ok: false, reason: "topics_invalid" }`
-7. Create new `SearchRecord` with copied parameters (new ID, new `generatedAt`)
-8. Save new `SearchRecord`
-9. Call `runSearch` to create new snapshot
-10. Return `{ ok: true, search: newSearchRecord }`
-
-### Assumptions / risks
-- The `runSearch` function already handles all matching logic correctly
-- The original search's parameters (except id and generatedAt) are copied directly
-
 ## Next Step
 
-The registered next step is: **Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)**
+PR-Review (sandman-pr-review)
+
+## Plan
+
+### Confirmation: AC1 and AC3 already hold
+
+**AC1 (Snapshots are never mutated):** Confirmed in `drizzle-search-result-repository.ts` — the `save` method only inserts new rows; `SearchSnapshot` JSONB column is immutable once written.
+
+**AC3 (Re-running creates a new snapshot):** Confirmed in `run-search.ts` — each call to `runSearch()` creates a new `SearchResultRecord` via `searchResultRepository.save()`. The old snapshot is never updated.
+
+**AC2 (Staleness indicator in history):** Not yet implemented. This plan addresses it.
+
+### Behaviors to test
+
+1. **Fresh snapshot not flagged:** A `SearchHistoryItem` with `generatedAt` within 24 hours has `stale: false`.
+2. **Old snapshot flagged:** A `SearchHistoryItem` with `generatedAt` older than 24 hours has `stale: true`.
+3. **Stale field in API response:** `GET /search/history` returns `stale: boolean` per item.
+
+### TDD slice ordering (vertical)
+
+1. Add `stale: boolean` to `SearchHistoryItem` type (`src/search/repository.ts:14-25`); add JSDoc noting it's derived at read time.
+2. Add `deriveSearchSnapshotStaleness(generatedAt: Date, now: Date): boolean` in `src/search/match-detail.ts` using `CALENDAR_STALENESS_THRESHOLD_MS`.
+3. Compute `stale` in `InMemorySearchRepository.listSearchHistory()` (`src/search/in-memory-repository.ts:35-60`).
+4. Compute `stale` in `createPostgresSearchRepository().listSearchHistory()` (`src/search/drizzle-repository.ts:42-77`).
+5. Add `stale` to history route response in `createSearchHistoryHandlers().getHistory()` (`src/search/history-route.ts:35-38`).
+6. Add unit tests to `src/search/repository.test.ts` for fresh/stale threshold cases.
+7. Add integration test to `src/search/history-route.test.ts` for `stale` in response.
+
+### Testable interfaces
+- `SearchHistoryItem.stale: boolean` — new field, derived at read time from `generatedAt`
+- `deriveSearchSnapshotStaleness(generatedAt, now)` — pure function using 24h threshold
+- `SearchRepository.listSearchHistory()` — returns items with computed `stale`
+- `createSearchHistoryHandlers().getHistory()` — HTTP response includes `stale` per item
+
+### Assumptions / risks
+
+- **24h heuristic limitation:** If calendar data changes within 24 hours, staleness won't be detected. Future enhancement: denormalize `maxLastSyncAt` at snapshot creation time and compare at read time.
+- **No schema changes required:** Staleness computed at read time using existing `generatedAt` field.
+- **Snapshots remain immutable:** No mutation; staleness is a derived view concern.
 
 ## Already Resolved
 

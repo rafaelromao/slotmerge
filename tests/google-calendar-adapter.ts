@@ -53,7 +53,7 @@ export function buildMockGoogleCalendarAdapter(
   const oauthCallbacks: OAuthCallback[] = [];
   const freeBusyQueries: FreeBusyQuery[] = [];
   const webhookDeliveries: WebhookDelivery[] = [];
-  const requestedScopes: string[] = [];
+  const requestedScopes = new Set<string>();
   const freeBusyResponses = new Map<string, FreeBusyInterval[]>();
 
   function getFetchImpl(): typeof fetch {
@@ -85,7 +85,7 @@ export function buildMockGoogleCalendarAdapter(
         };
         oauthCallbacks.push(callback);
         if (callback.scope) {
-          requestedScopes.push(callback.scope);
+          requestedScopes.add(callback.scope);
         }
 
         return Promise.resolve(
@@ -194,7 +194,7 @@ export function buildMockGoogleCalendarAdapter(
     oauthCallbacks.length = 0;
     freeBusyQueries.length = 0;
     webhookDeliveries.length = 0;
-    requestedScopes.length = 0;
+    requestedScopes.clear();
     freeBusyResponses.clear();
   }
 
@@ -209,7 +209,7 @@ export function buildMockGoogleCalendarAdapter(
       return webhookDeliveries;
     },
     get requestedScopes() {
-      return requestedScopes;
+      return Array.from(requestedScopes);
     },
     getFetchImpl,
     getWebhookNotifier,

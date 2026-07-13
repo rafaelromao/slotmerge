@@ -1,37 +1,42 @@
 # Task
 
-Implement GitHub issue #67: E2E test: clock injection helper advances time without sleeping
+Implement GitHub issue #53: Compute effective Availability from windows, overrides, and imported busy intervals
 
 ## Issue Context
 
 ## Parent
 
-E2E test plan: [E2E test plan: SlotMerge MVP](https://github.com/rafaelromao/slotmerge/issues/62). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Search & Matching](https://github.com/rafaelromao/slotmerge/issues/15). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Single global clock injected at the app boundary covering auth, scheduling, staleness, retention, and backoff windows. Tests advance the clock to simulate expiration, staleness, and retry intervals without sleeping.
+An internal matching helper computes effective Availability for a User over a date range: weekly Availability Windows plus one-off add/block overrides, minus buffered imported busy intervals (busy/out-of-office/tentative). The helper is timezone-aware and respects DST.
 
 ## Acceptance criteria
 
-- [ ] All time-sensitive behavior reads from the injected clock.
-- [ ] Tests can advance the clock without `sleep`.
-- [ ] Per-test reset returns the clock to a known starting state.
+- [ ] Weekly Availability Windows are applied with the user's profile timezone.
+- [ ] One-off add and block overrides apply correctly.
+- [ ] Buffered imported busy intervals subtract from effective Availability.
+- [ ] Imported free/working-elsewhere statuses do not block Availability.
+- [ ] DST transitions are handled correctly.
 
 ## Blocked by
 
-None — can start immediately.
+- [Define weekly Availability Windows in profile timezone](https://github.com/rafaelromao/slotmerge/issues/31)
+- [Add one-off add/block Availability overrides](https://github.com/rafaelromao/slotmerge/issues/33)
+- [Apply global Calendar Connection buffer around imported busy intervals](https://github.com/rafaelromao/slotmerge/issues/34)
+- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/47)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/67-e2e-test-clock-injection-helper-advances-time-without-sleeping`
-- Source branch: `sandman/67-e2e-test-clock-injection-helper-advances-time-without-sleeping`
+- Current branch: `sandman/53-compute-effective-availability-from-windows-overrides-and-imported-busy-intervals`
+- Source branch: `sandman/53-compute-effective-availability-from-windows-overrides-and-imported-busy-intervals`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/67-e2e-test-clock-injection-helper-advances-time-without-sleeping` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/53-compute-effective-availability-from-windows-overrides-and-imported-busy-intervals` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -45,42 +50,66 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Next Step
-
-PR-Review (sandman-pr-review)
-
 ## Plan
 
 ### Behaviors to test
 
-1. **TestClock helper** — `buildTestClock(initialTime?)` returns a mutable clock with `now()`, `advance(ms)`, `reset(date?)`. `now()` returns the current virtual time without wall-clock reads.
-2. **Per-test reset** — after `clock.reset(date)`, subsequent `now()` calls return the reset time.
-3. **Per-test isolation** — `advance()` on one clock instance does not affect another.
-4. **Worker clock injection (email)** — `handleEmailDeliveryJob` uses injected clock via `setClockForTests`; after `clock.advance()`, the job uses the advanced `now`.
-5. **Worker clock injection (sync)** — `handleSyncCalendarConnectionJob` uses injected clock via `setClockForTests`; after `clock.advance()`, the job uses the advanced `now` for `syncCalendarConnection`. Note: `timeMin`/`timeMax` rolling window uses wall-clock `new Date()` and is out of scope (defines the search time range, not time-sensitive behavior per the AC).
-6. **Worker clock injection (poll)** — `handlePollCalendarConnectionsJob` accepts a clock option `{ clock?: () => Date }`; after `clock.advance()`, jitter calculation uses the advanced `now`.
+1. **Returns empty when no inputs** — effective availability is empty list when user has no weekly windows, no overrides, and no busy intervals.
+2. **Weekly windows expand to UTC** — given weekly windows in profile timezone, returns correct UTC intervals for a date range.
+3. **Add overrides union with weekly windows** — an "add" override produces additional available intervals on top of windows.
+4. **Block overrides subtract from weekly windows** — a "block" override removes time from existing windows.
+5. **Busy intervals (busy/out-of-office/tentative) subtract from effective availability** — all three statuses remove from availability.
+6. **Buffer expands busy intervals symmetrically** — user's bufferMinutes expands each busy interval start (minus) and end (plus), then result is intersected with the search range.
+7. **Overrides and busy intervals outside search range are ignored** — only overlapping intervals affect the result.
+8. **Composition order is: windows → add overrides → block overrides → busy intervals** — each layer applies in sequence.
+9. **DST: weekly window on DST transition day preserves wall-clock duration** — 09:00–17:00 local on a DST change day still produces the correct actual hours (not naive hour-count).
+10. **Multiple overlapping intervals merge** — overlapping available intervals are coalesced into a single interval.
+11. **Block inside window, busy outside: only window portion removed** — block overrides apply to expanded windows before busy intervals are subtracted.
+12. **Free and working-elsewhere statuses do not block** — when schema adds these statuses, they are excluded from blocking (documented behavior, validated by integration test against import pipeline).
 
 ### Testable interfaces
 
-- `tests/test-clock.ts` — `buildTestClock(startTime?: Date)` factory returning `{ now, advance, reset }`
-- `src/worker/email.ts` — add `setClockForTests(clock: (() => Date) | null)` seam (null restores `() => new Date()`, matching existing `setXxxForTests(null)` pattern)
-- `src/worker/sync.ts` — add `setClockForTests(clock: (() => Date) | null)` seam
-- `src/worker/poll.ts` — add `{ clock?: () => Date }` option to `handlePollCalendarConnectionsJob`
+```typescript
+// New module: src/matching/effective-availability.ts
 
-### Execution order for sandman-tdd
+export type EffectiveAvailabilityInputs = {
+  userId: string;
+  profileTimezone: string;
+  bufferMinutes: number;
+  windows: WeeklyAvailabilityWindow[];
+  overrides: AvailabilityOverride[];
+  busyIntervals: ImportedBusyIntervalRecord[];
+  rangeStart: Date;
+  rangeEnd: Date;
+};
 
-1. `buildTestClock` + tests for now/advance/reset/isolation (vertical slice 1)
-2. `setClockForTests` seam in `email.ts` + test that clock flows into `handleEmailDeliveryJob` (vertical slice 2)
-3. `setClockForTests` seam in `sync.ts` + test that clock flows into `handleSyncCalendarConnectionJob` (vertical slice 3)
-4. `clock` option in `poll.ts` + test that clock flows into jitter calculation (vertical slice 4)
+export function computeEffectiveAvailability(
+  inputs: EffectiveAvailabilityInputs,
+): Array<{ startUtc: Date; endUtc: Date }>;
+```
 
 ### Assumptions / risks
 
-- Graphile Worker `run()` in `src/worker/run.ts` is the production entry point; E2E tests call worker handler functions directly with injected clock.
-- `src/auth/session.ts` uses `new Date()` in SQL WHERE clauses — out of scope (session expiration checked by application layer).
-- Auth clock injection (`magic-link-verify.ts`) already exists — no change needed.
-- `src/search/search-input.ts` already uses `Clock = { now(): Date }` interface — no change needed.
-- `sync.ts:137` (`updateLastSyncAt`) and `sync.ts:107-111` (`timeMin`/`timeMax` rolling window) use wall-clock `new Date()` — out of scope (define search time range and last-sync marker, not time-sensitive behavior per the AC).
+- Helper is pure (no DB access) — all inputs passed in by caller.
+- Repository calls (windows, overrides, busy intervals) happen outside the helper.
+- Buffer is applied symmetrically (start − buffer, end + buffer) then intersected with search range.
+- Block overrides apply after expanding weekly windows but before subtracting busy intervals.
+- Only busy/out-of-office/tentative statuses block; free/working-elsewhere are no-ops.
+- When free/working-elsewhere are added to schema, this behavior must be preserved by the import pipeline integration test.
+
+### TDD slice order
+
+1. Empty input → empty output
+2. Weekly windows only (UTC expansion)
+3. Add overrides (union)
+4. Block overrides (subtraction from windows)
+5. Busy intervals with buffer (subtraction, clipped to range)
+6. DST transitions
+7. Full composition (all layers)
+
+## Next Step
+
+PR-Review (sandman-pr-review)
 
 ## Already Resolved
 
@@ -148,7 +177,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 
@@ -171,7 +200,7 @@ If `codeindex.json` exists in the repository root, use `codeindex` before `grep`
 
 Never run grep, rg, find, or any recursive content/file search against directories outside the current working directory (e.g. /tmp, /var, /usr, /etc, /opt, /home, node_modules, .git, target, dist, build, vendor). Such searches return massive output that floods the context window. Restrict searches to the cwd or explicit sub-paths within it; use the Glob/Grep tools which already scope to the project by default.
 
-This restriction applies to the current agent and to every subagent invoked in the current session, including subagents launched directly and subagents launched by any Sandman or other skill loaded during the run. When spawning, delegating to, or handing work off to a subagent, pass this Search Scope Restriction into the subagent's instructions verbatim, or reference this section by name, so the subagent obeys the same rule.
+This restriction applies to the current agent and to every subagent invoked in the current session, including subagents launched directly and subagents launched by any Sandman or other skill loaded during the run. When spawning, delegating to, or handing off to a subagent, pass this Search Scope Restriction into the subagent's instructions verbatim, or reference this section by name, so the subagent obeys the same rule.
 
 ## Required Skill Chain
 

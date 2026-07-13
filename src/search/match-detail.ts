@@ -17,6 +17,14 @@ export function deriveCalendarFreshness(
   return "stale";
 }
 
+export function deriveSearchSnapshotStaleness(
+  generatedAt: Date,
+  now: Date,
+): boolean {
+  const elapsed = now.getTime() - generatedAt.getTime();
+  return elapsed >= CALENDAR_STALENESS_THRESHOLD_MS;
+}
+
 export function availabilityIndicator(
   slotStart: Date,
   effectiveAvailability: Interval[],

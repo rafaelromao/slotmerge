@@ -5,6 +5,7 @@ import type {
   SearchRecord,
   SearchRepository,
 } from "./repository";
+import { deriveSearchSnapshotStaleness } from "./match-detail";
 
 export class InMemorySearchRepository implements SearchRepository {
   private readonly byId = new Map<string, SearchRecord>();
@@ -37,6 +38,7 @@ export class InMemorySearchRepository implements SearchRepository {
     const searches = Array.from(this.byId.values()).sort(
       (a, b) => b.generatedAt.getTime() - a.generatedAt.getTime(),
     );
+    const now = new Date();
 
     return searches
       .map((s): SearchHistoryItem | null => {
@@ -54,6 +56,7 @@ export class InMemorySearchRepository implements SearchRepository {
           organizerTimezone: s.organizerTimezone,
           generatedAt: s.generatedAt,
           snapshotId,
+          stale: deriveSearchSnapshotStaleness(s.generatedAt, now),
         };
       })
       .filter((item): item is SearchHistoryItem => item !== null);

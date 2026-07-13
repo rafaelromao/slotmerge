@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #59: List and open Search history with immutable snapshots
+Implement GitHub issue #61: Mark Search Results stale when underlying data changes
 
 ## Issue Context
 
@@ -10,14 +10,13 @@ Sub-PRD: [Sub-PRD: Search & Matching](https://github.com/rafaelromao/slotmerge/i
 
 ## What to build
 
-A Search history view is visible to all Organizers and Admins, lists saved Search Result snapshots with parameters and generation timestamps, and opens the original snapshot on demand.
+Saved Search Results remain immutable, but the Search history view shows a staleness indicator when re-opening a Search whose underlying data has changed since the snapshot was generated.
 
 ## Acceptance criteria
 
-- [ ] All Organizers and Admins can view Search history.
-- [ ] Saved snapshots include parameters and a generation timestamp.
-- [ ] Opening a saved Search opens the original immutable snapshot.
-- [ ] Saved snapshots do not change when underlying data changes.
+- [ ] Snapshots are never mutated.
+- [ ] Search history flags re-opened snapshots as stale when underlying data has changed.
+- [ ] Re-running creates a new snapshot to clear staleness.
 
 ## Blocked by
 
@@ -27,12 +26,12 @@ A Search history view is visible to all Organizers and Admins, lists saved Searc
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/59-list-and-open-search-history-with-immutable-snapshots`
-- Source branch: `sandman/59-list-and-open-search-history-with-immutable-snapshots`
+- Current branch: `sandman/61-mark-search-results-stale-when-underlying-data-changes`
+- Source branch: `sandman/61-mark-search-results-stale-when-underlying-data-changes`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/59-list-and-open-search-history-with-immutable-snapshots` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/61-mark-search-results-stale-when-underlying-data-changes` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -46,44 +45,48 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Next Step
+
+Implement (sandman-implement)
+
 ## Plan
+
+### Confirmation: AC1 and AC3 already hold
+
+**AC1 (Snapshots are never mutated):** Confirmed in `drizzle-search-result-repository.ts` — the `save` method only inserts new rows; `SearchSnapshot` JSONB column is immutable once written.
+
+**AC3 (Re-running creates a new snapshot):** Confirmed in `run-search.ts` — each call to `runSearch()` creates a new `SearchResultRecord` via `searchResultRepository.save()`. The old snapshot is never updated.
+
+**AC2 (Staleness indicator in history):** Not yet implemented. This plan addresses it.
 
 ### Behaviors to test
 
-1. **Role guard: Organizer/Admin can access Search history** — Route checks session role; returns 403 for "user" role
-2. **List Search history with parameters and timestamp** — New method `listSearchHistory()` returns all searches with snapshotId joined
-3. **Open saved Search returns immutable snapshot** — `findBySearchId` returns the exact JSON stored at creation
-4. **Snapshots are immutable by design** — No update method on SearchResultRepository
+1. **Fresh snapshot not flagged:** A `SearchHistoryItem` with `generatedAt` within 24 hours has `stale: false`.
+2. **Old snapshot flagged:** A `SearchHistoryItem` with `generatedAt` older than 24 hours has `stale: true`.
+3. **Stale field in API response:** `GET /search/history` returns `stale: boolean` per item.
+
+### TDD slice ordering (vertical)
+
+1. Add `stale: boolean` to `SearchHistoryItem` type (`src/search/repository.ts:14-25`); add JSDoc noting it's derived at read time.
+2. Add `deriveSearchSnapshotStaleness(generatedAt: Date, now: Date): boolean` in `src/search/match-detail.ts` using `CALENDAR_STALENESS_THRESHOLD_MS`.
+3. Compute `stale` in `InMemorySearchRepository.listSearchHistory()` (`src/search/in-memory-repository.ts:35-60`).
+4. Compute `stale` in `createPostgresSearchRepository().listSearchHistory()` (`src/search/drizzle-repository.ts:42-77`).
+5. Add `stale` to history route response in `createSearchHistoryHandlers().getHistory()` (`src/search/history-route.ts:35-38`).
+6. Add unit tests to `src/search/repository.test.ts` for fresh/stale threshold cases.
+7. Add integration test to `src/search/history-route.test.ts` for `stale` in response.
 
 ### Testable interfaces
 
-- `isOrganizerOrAdminSession(session: Session | null): boolean` — new pure function in `src/auth/session.ts`
-- `SearchRepository.listSearchHistory(): Promise<SearchHistoryItem[]>` — new method returning joined search+snapshot records
-- `SearchResultRepository.findBySearchId(searchId: string)` — existing interface for snapshot retrieval
-
-### Implementation slices
-
-1. Add `isOrganizerOrAdminSession` to `src/auth/session.ts`
-2. Define `SearchHistoryItem` type in `src/search/repository.ts`
-3. Extend `SearchRepository` interface with `listSearchHistory`
-4. Implement `listSearchHistory` in `drizzle-repository.ts` (join with `searchResults`)
-5. Extend `InMemorySearchRepository` to hold `SearchResultRecord` entries and implement `listSearchHistory`
-6. Create `GET /search/history` route handler with role guard
-7. Create `GET /search/[id]/snapshot` route handler with role guard
-8. Tests for role guard + list behavior
-
-### Route path
-
-- `/search/history` and `/search/[id]/snapshot` (not `/admin/search/`) — follows `/me/topics` vs `/admin/topics` distinction
+- `SearchHistoryItem.stale: boolean` — new field, derived at read time from `generatedAt`
+- `deriveSearchSnapshotStaleness(generatedAt, now)` — pure function using 24h threshold
+- `SearchRepository.listSearchHistory()` — returns items with computed `stale`
+- `createSearchHistoryHandlers().getHistory()` — HTTP response includes `stale` per item
 
 ### Assumptions / risks
 
-- "All Organizers and Admins" means ALL searches visible to all Organizers/Admins (not filtered by session user)
-- Immutability guaranteed by absence of update on SearchResultRepository
-
-## Next Step
-
-The registered next step is the first unchecked item in the Execution Checklist: **Implement** (sandman-implement).
+- **24h heuristic limitation:** If calendar data changes within 24 hours, staleness won't be detected. Future enhancement: denormalize `maxLastSyncAt` at snapshot creation time and compare at read time.
+- **No schema changes required:** Staleness computed at read time using existing `generatedAt` field.
+- **Snapshots remain immutable:** No mutation; staleness is a derived view concern.
 
 ## Already Resolved
 

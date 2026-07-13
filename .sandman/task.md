@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #65: E2E test: ephemeral PostgreSQL database with per-test reset
+Implement GitHub issue #66: E2E test: mock email delivery adapter records sends, delivery state, and retries
 
 ## Issue Context
 
@@ -10,13 +10,13 @@ E2E test plan: [E2E test plan: SlotMerge MVP](https://github.com/rafaelromao/slo
 
 ## What to build
 
-Ephemeral PostgreSQL database that is created fresh per test run, has the schema migrated, and is reset between tests so each test starts from a known state. Fixtures seed catalogue, users, weekly windows, one-off overrides, and imported busy intervals deterministically.
+Mock email delivery adapter used by every email-touching E2E test. Records each send with recipient, type, and payload. Simulates delivery failures and configurable retries so backoff and throttling tests are deterministic. Provides helpers for asserting Email Event state.
 
 ## Acceptance criteria
 
-- [ ] Each test run starts from a freshly migrated schema.
-- [ ] Each test resets DB, fixtures, and clock to a known state.
-- [ ] Fixtures provide deterministic seeds for catalogue, users, windows, overrides, and busy intervals.
+- [ ] Records every send with recipient, type, payload, and delivery status.
+- [ ] Simulates delivery failures with configurable retry behaviour.
+- [ ] Captures Email Event records visible via the API.
 
 ## Blocked by
 
@@ -26,19 +26,19 @@ None — can start immediately.
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/65-e2e-test-ephemeral-postgresql-database-with-per-test-reset`
-- Source branch: `sandman/65-e2e-test-ephemeral-postgresql-database-with-per-test-reset`
+- Current branch: `sandman/66-e2e-test-mock-email-delivery-adapter-records-sends-delivery-state-and-retries`
+- Source branch: `sandman/66-e2e-test-mock-email-delivery-adapter-records-sends-delivery-state-and-retries`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/65-e2e-test-ephemeral-postgresql-database-with-per-test-reset` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/66-e2e-test-mock-email-delivery-adapter-records-sends-delivery-state-and-retries` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
 - [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
-- [ ] PR-Review (sandman-pr-review)
+- [x] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
@@ -47,118 +47,70 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-PR-Review: delegate to sandman-pr-review skill for PR #174
+PR-Merge (sandman-pr-merge)
 
 ## Plan
 
-### Context
-
-E2E test infrastructure: ephemeral PostgreSQL database with per-test reset for the SlotMerge MVP E2E test plan (#62). Vitest is the test framework. Drizzle ORM with PostgreSQL. Clock DI already exists via `clock?: () => Date` parameters.
-
 ### Behaviors to test
 
-1. A fresh PostgreSQL database can be created with the Drizzle schema migrated
-2. All tables can be truncated and reseeded to a deterministic state
-3. Fixture data (topics, users, windows, overrides, busy intervals) is reproducible across test runs
-4. E2E tests run in isolation with their own database state
+1. **Recording every send** — `send()` records recipient, type, payload, status ("sent" | "failed"), providerMessageId, attempt number, and error if any
+2. **Simulating delivery failures** — when configured, `send()` throws instead of succeeding
+3. **Configurable retry behavior** — `setFailsAfterAttempts(n)` causes first n-1 sends to throw, nth succeeds; `setPersistentFailure()` causes all sends to throw
+4. **State inspection helpers** — getter properties for sends, by-recipient, by-type; `reset()` clears state
+5. **Email Event records visible via API** — `processEmailDeliveryJob` writes to `eventRepository` so tests can query `EmailEvent` state
+
+### Scope clarification
+
+- `MockEmailAdapter` is for **E2E tests** that exercise `handleEmailDeliveryJob` end-to-end through the graphile-worker task runner
+- The existing `src/email/worker.test.ts` unit-tests `processEmailDeliveryJob` in isolation with inline mocks — this is a different testing mode; MockEmailAdapter does not replace it
+- "Email Event records visible via the API" means `eventRepository` state is queryable in tests (not a separate HTTP API route)
 
 ### Testable interfaces
 
-**`tests/helpers/test-db.ts`**:
-- `createEphemeralDatabase(): Promise<{ url: string; db: Database }>` — creates a unique database, applies all migrations, returns connection info
-- `resetDatabase(db: Database): Promise<void>` — truncates all tables in FK-aware order using `TRUNCATE CASCADE`
-- `closeEphemeralDatabase(): Promise<void>` — drops the test database
+- **EmailTransport seam** (`src/email/service.ts`): `send(job) → Promise<{providerMessageId}>` — the primary mock target
+- **EmailEventRepository seam** (`src/email/service.ts`): `createQueuedEvent`, `recordAttempt`, `markDelivered`, `markFailed` — visible via DB in tests
+- **Module-level singleton seam** in `src/worker/email.ts`: `setEmailTransportForTests()` — allows E2E tests to inject mock transport into `handleEmailDeliveryJob`
 
-**`tests/fixtures/seeds.ts`**:
-- `CATALOGUE_FIXTURES` — 3 topics (active, pending, retired)
-- `USER_FIXTURES` — 3 users (user, organizer, admin) with fixed UUIDs
-- `WEEKLY_WINDOW_FIXTURES` — weekly windows per user
-- `OVERRIDE_FIXTURES` — one-off availability overrides
-- `BUSY_INTERVAL_FIXTURES` — imported busy intervals for calendar connections
-- `seedAll(db: Database): Promise<void>` — seeds all fixtures in dependency order
+### Adapter state design
 
-**`tests/helpers/global-setup.ts`** (Vitest globalSetup):
-- Creates ephemeral database once at test run start
-- Stores global `testDbUrl` and `testDb` for use by tests
+- Adapter tracks `attemptsByEmailEventId: Map<string, number>` internally — incremented on each `send()` call
+- This allows `setFailsAfterAttempts(n)` to work correctly across graphile-worker retries (fresh task invocation with same `emailEventId`)
+- State is per-adapter-instance; `reset()` clears all recorded sends and the attempts map
 
-**`tests/helpers/setup.ts`** (Vitest setupFiles per test file):
-- Before each test file: resetDatabase() + seedAll()
+### Key design decisions
 
-**`tests/fixtures/clock.ts`**:
-- `fixedClock(startDate: string): () => Date` — returns a clock function for tests
+1. **Factory in `tests/mock-email-adapter.ts`** — follows `tests/google-calendar-adapter.ts` pattern
+2. **Test injection via `setEmailTransportForTests()`** in `src/worker/email.ts` — module-level override, mirrors `setEmailDeliveryServiceForTests`
+3. **Failure modes**: `setFailsAfterAttempts(n)`, `setPersistentFailure(error?)`, `setNextSendFailure(error?)`
+4. **State exposed via getter properties** — matches `google-calendar-adapter.ts` conventions (not methods)
+5. **Retry logic lives in graphile-worker** — MockEmailAdapter throws when configured; the retry loop is in `processEmailDeliveryJob`
+6. **Clock seam** — `processEmailDeliveryJob` accepts a `clock` option; tests pass a controlled clock to verify timing-sensitive retry behavior
 
-### Example E2E test skeleton
+### Files to create
 
-```typescript
-// tests/availability-windows.e2e.test.ts
-import { beforeEach, describe, expect, it } from "vitest";
-import { getTestDb } from "../helpers/test-db";
-import { seedAll } from "../fixtures/seeds";
-import { fixedClock } from "../fixtures/clock";
+- `tests/mock-email-adapter.ts` — MockEmailAdapter factory (type + implementation)
+- `tests/email-delivery-wiring.test.ts` — wiring tests for the adapter
 
-describe("availability windows E2E", () => {
-  let db: Database;
-  beforeEach(async () => {
-    db = getTestDb();
-    await resetDatabase(db);
-    await seedAll(db);
-  });
+### Files to modify
 
-  it("lists weekly windows for a user", async () => {
-    const windows = await listWeeklyWindows(db, USER_FIXTURES[0].id, fixedClock("2026-07-12T12:00:00Z"));
-    expect(windows).toHaveLength(2);
-  });
-});
-```
+- `src/worker/email.ts` — add `setEmailTransportForTests()` and `getEmailTransport()` module-level seam
 
-### Implementation order (vertical slices)
+### Tracer bullet (first TDD iteration)
 
-**Slice 1 — Ephemeral DB creation + migrations:**
-1. Create `tests/helpers/test-db.ts` with `createEphemeralDatabase()`
-2. Read migration SQL files from `./drizzle/*.sql` in order
-3. Execute migrations on the fresh database
-4. Write a test that verifies the migrated schema has expected tables
+1. Create `MockEmailAdapter` that records a single `send()` call and returns success
+2. Test: verify `getSends()` returns the recorded send with correct fields
+3. Implement the minimal recording logic to pass the test
 
-**Slice 2 — Reset mechanism:**
-1. Implement `resetDatabase()` using `TRUNCATE CASCADE`
-2. Write a test that inserts data, resets, and verifies all tables are empty
+### Assumptions / risks
 
-**Slice 3 — Deterministic fixtures:**
-1. Create `tests/fixtures/seeds.ts` with typed fixture constants
-2. Implement `seedAll()` inserting in FK-safe order
-3. Write a test that seeds and verifies row counts per table
-
-**Slice 4 — Vitest integration:**
-1. Create `tests/helpers/global-setup.ts` for one-time DB creation
-2. Create `tests/helpers/setup.ts` for per-file reset+seed
-3. Update `vitest.config.ts` to reference both files
-4. Create example E2E test demonstrating the full flow
-
-### Reset strategy
-
-`TRUNCATE CASCADE` for all tables. Order: revoke invites → sessions → email events → imported busy intervals → calendar connections → user topics → availability windows → topic proposals → searches → topics → users. Or rely on CASCADE and just truncate in reverse dependency order.
-
-### Migration strategy
-
-Execute migration SQL files directly via `db.execute(sql)`. Read `./drizzle/*.sql`, sort by filename, execute in order. This avoids drizzle-kit CLI overhead and keeps tests fast and self-contained.
-
-### Clock integration
-
-E2E tests pass `clock: fixedClock("2026-07-12T12:00:00Z")` explicitly to functions that accept `clock?: () => Date`. The global test clock state is not propagated implicitly — each test is explicit about time.
-
-### Coexistence with existing tests
-
-Existing mock-based tests in `tests/` and `src/**/*.test.ts` are **unchanged**. This infrastructure is for new E2E tests only. E2E tests live in `tests/e2e/` (new directory) and opt into the real DB via `getTestDb()`.
-
-### Risks / assumptions
-
-- PostgreSQL must be running locally on port 5432
-- Test PostgreSQL user must have `CREATEDB` privilege
-- Existing tests do not need the ephemeral DB — they're orthogonal
+- graphile-worker's retry behavior (exponential backoff) is already tested elsewhere; MockEmailAdapter only needs to provide deterministic failure/success for retry scenarios
+- No new API routes needed — Email Event visibility is through `eventRepository` DB state in tests
 
 ## Already Resolved
 
 If the issue is already implemented on `main`, after fetching and checking the current `origin/main` HEAD against the issue acceptance criteria, update `.sandman/task.md` so it contains the exact line `## Status: already resolved`.
+
+Do not use issue closure, a matching local branch, or unmerged worktree changes as proof that the issue is already resolved. If any acceptance criterion is missing or you are not certain, continue with Plan.
 
 Do not paraphrase this line. Do not use `already implemented`, `no action required`, or any other wording for this marker.
 
@@ -243,7 +195,7 @@ If `codeindex.json` exists in the repository root, use `codeindex` before `grep`
 
 Never run grep, rg, find, or any recursive content/file search against directories outside the current working directory (e.g. /tmp, /var, /usr, /etc, /opt, /home, node_modules, .git, target, dist, build, vendor). Such searches return massive output that floods the context window. Restrict searches to the cwd or explicit sub-paths within it; use the Glob/Grep tools which already scope to the project by default.
 
-This restriction applies to the current agent and to every subagent invoked in the current session, including subagents launched directly and subagents launched by any Sandman or other skill loaded during the run. When spawning, delegating to, or handing off to a subagent, pass this Search Scope Restriction into the subagent's instructions verbatim, or reference this section by name, so the subagent obeys the same rule.
+This restriction applies to the current agent and to every subagent invoked in the current session, including subagents launched directly and subagents launched by any Sandman or other skill loaded during the run. When spawning, delegating to, or handing work off to a subagent, pass this Search Scope Restriction into the subagent's instructions verbatim, or reference this section by name, so the subagent obeys the same rule.
 
 ## Required Skill Chain
 
@@ -258,7 +210,7 @@ During `sandman implement`, follow all delegated subskills it calls:
 ## Required Order
 
 1. Complete checklist items in order: Create branch, Plan, Implement, PR-Review, PR-Merge.
-2. For plan approval, use subagent review. For self-review, use `sandman-self-review` skill. For PR-review, use `sandman-pr-review` skill — subagent review is banned there. Proceed after consensus/completion. Do not ask the user.
+2. For plan-approval, use subagent review. For self-review, use `sandman-self-review` skill. For PR-review, use `sandman-pr-review` skill — subagent review is banned there. Proceed after consensus/completion. Do not ask the user.
 3. **PR creation is not PR review.** A PR existing does not mean it has been reviewed or is ready to merge. Before loading `sandman-pr-merge`, the agent MUST confirm that `sandman-pr-review` was actually executed and produced a reviewed/approved state. If the last completed step is "PR Created" and the PR is not approved or not mergeable, the agent MUST call `sandman-pr-review` before `sandman-pr-merge` — do not skip the review step. If any merge gate is false or ambiguous, call `sandman-pr-review` and continue the review loop instead of reporting blockers to the user.
 4. If `PR-Review` completes with full approval and all merge gates are true, load and run `sandman-pr-merge`.
 5. If a `sandman-pr-review` pass times out or returns without approval, do not mark `PR-Review` complete and do not advance to `PR-Merge` on the next retry. Re-enter `sandman-pr-review` and keep the review loop open until approval is observed or a stop condition is reached.

@@ -1,110 +1,122 @@
 # Task
 
-Implement GitHub issue #66: E2E test: mock email delivery adapter records sends, delivery state, and retries
+Implement GitHub issue #31: Propose a new Topic
 
 ## Issue Context
 
 ## Parent
 
-E2E test plan: [E2E test plan: SlotMerge MVP](https://github.com/rafaelromao/slotmerge/issues/62). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Mock email delivery adapter used by every email-touching E2E test. Records each send with recipient, type, and payload. Simulates delivery failures and configurable retries so backoff and throttling tests are deterministic. Provides helpers for asserting Email Event state.
+A User submits a Topic Proposal from `My Topics`. Submissions are similarity-blocked against existing active and pending Topic names so the catalogue does not fragment. Blocked submissions surface a clear "too similar to" message.
 
 ## Acceptance criteria
 
-- [ ] Records every send with recipient, type, payload, and delivery status.
-- [ ] Simulates delivery failures with configurable retry behaviour.
-- [ ] Captures Email Event records visible via the API.
+- [ ] User submits a proposal name from `My Topics`.
+- [ ] Submissions near an existing name (case-insensitive, whitespace-normalized, similarity threshold) are blocked.
+- [ ] Blocked submissions show the closest existing Topic name(s).
+- [ ] Accepted submissions create a pending Topic Proposal attached to the user.
 
 ## Blocked by
 
-None — can start immediately.
+- [View controlled Topic catalogue](https://github.com/rafaelromao/slotmerge/issues/30)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/66-e2e-test-mock-email-delivery-adapter-records-sends-delivery-state-and-retries`
-- Source branch: `sandman/66-e2e-test-mock-email-delivery-adapter-records-sends-delivery-state-and-retries`
+- Current branch: `sandman/31-propose-a-new-topic`
+- Source branch: `sandman/31-propose-a-new-topic`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/66-e2e-test-mock-email-delivery-adapter-records-sends-delivery-state-and-retries` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/31-propose-a-new-topic` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
 - [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
-- [x] PR-Review (sandman-pr-review)
+- [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Next Step
-
-PR-Merge (sandman-pr-merge)
-
 ## Plan
 
 ### Behaviors to test
 
-1. **Recording every send** — `send()` records recipient, type, payload, status ("sent" | "failed"), providerMessageId, attempt number, and error if any
-2. **Simulating delivery failures** — when configured, `send()` throws instead of succeeding
-3. **Configurable retry behavior** — `setFailsAfterAttempts(n)` causes first n-1 sends to throw, nth succeeds; `setPersistentFailure()` causes all sends to throw
-4. **State inspection helpers** — getter properties for sends, by-recipient, by-type; `reset()` clears state
-5. **Email Event records visible via API** — `processEmailDeliveryJob` writes to `eventRepository` so tests can query `EmailEvent` state
+1. **Submit a valid topic proposal**  
+   Authenticated user POSTs to `/topic-proposals` with a candidate name. Name is whitespace-collapsed + lowercased. No existing active or pending topic name is similar at ≥0.8 ratio. A `pending` TopicProposal record is created in DB, linked to the user. Returns 201 with the created proposal.
 
-### Scope clarification
+2. **Submit a proposal blocked by an active topic (similarity)**  
+   Candidate name is similar (≥0.8 ratio) to an existing active topic name. Returns 409 `{"error": "too_similar", "matches": [{"name": "...", "type": "active"}]}` and no record is created.
 
-- `MockEmailAdapter` is for **E2E tests** that exercise `handleEmailDeliveryJob` end-to-end through the graphile-worker task runner
-- The existing `src/email/worker.test.ts` unit-tests `processEmailDeliveryJob` in isolation with inline mocks — this is a different testing mode; MockEmailAdapter does not replace it
-- "Email Event records visible via the API" means `eventRepository` state is queryable in tests (not a separate HTTP API route)
+3. **Submit a proposal blocked by a pending proposal (similarity)**  
+   Candidate name is similar (≥0.8 ratio) to another user's pending topic proposal. Returns 409 with `type: "pending"` in matches. No record created.
+
+4. **Submit a proposal blocked by exact match**  
+   Candidate name is identical (case-insensitive, whitespace-collapsed) to an existing active or pending name. Blocked same as similarity — ratio 1.0 is covered by ≥0.8 threshold.
+
+5. **Submit a duplicate of own pending proposal**  
+   User already has a pending proposal "Sailing". Submitting "Sailing" again returns 409 `{"error": "already_pending", "proposalId": "..."}`. No duplicate created.
+
+6. **Submit a proposal with empty/invalid name**  
+   Name is empty or whitespace-only after trimming. Returns 400 `{"error": "invalid_name"}`.
+
+7. **Submit a proposal similar to multiple entries**  
+   Candidate name is similar to both an active topic AND a pending proposal. All above-threshold matches are returned in the `matches` array.
+
+8. **View own topic proposals**  
+   Authenticated user GETs `/me/topic-proposals`. Returns list of their own proposals with id, candidateName, status, createdAt.
+
+9. **"My Topics" page shows proposal form and pending proposals**  
+   GET `/me/topics` renders a "Propose a new Topic" text input + submit button. Below it, lists the user's own pending proposals (name + status). Proposal form submits via POST to `/topic-proposals` with CSRF token.
+
+10. **Proposal submission integrates into "My Topics" page**  
+    After a successful POST, the new pending proposal appears in the pending proposals list on `/me/topics`.
 
 ### Testable interfaces
 
-- **EmailTransport seam** (`src/email/service.ts`): `send(job) → Promise<{providerMessageId}>` — the primary mock target
-- **EmailEventRepository seam** (`src/email/service.ts`): `createQueuedEvent`, `recordAttempt`, `markDelivered`, `markFailed` — visible via DB in tests
-- **Module-level singleton seam** in `src/worker/email.ts`: `setEmailTransportForTests()` — allows E2E tests to inject mock transport into `handleEmailDeliveryJob`
+- `src/topics/proposals.ts` — new module:
+  - `computeSimilarity(a: string, b: string): number` — pure Levenshtein ratio (0–1)
+  - `normalizeTopicName(name: string): string` — trim + collapse internal whitespace to single space + lowercase
+  - `isSimilar(a: string, b: string): boolean` — true if normalized similarity ≥ 0.8
+  - `findSimilarTopics(candidateName: string, repository: TopicCatalogueWithProposals): Promise<SimilarMatch[]>`
+  - `createTopicProposal(userId: string, candidateName: string, repository: TopicProposalDbRepository): Promise<TopicProposal>`
+  - `listUserTopicProposals(userId: string, repository: TopicProposalDbRepository): Promise<UserTopicProposal[]>`
 
-### Adapter state design
+- `app/topic-proposals/route.ts` — POST `/topic-proposals`
+- `app/me/topic-proposals/route.ts` — GET `/me/topic-proposals`
 
-- Adapter tracks `attemptsByEmailEventId: Map<string, number>` internally — incremented on each `send()` call
-- This allows `setFailsAfterAttempts(n)` to work correctly across graphile-worker retries (fresh task invocation with same `emailEventId`)
-- State is per-adapter-instance; `reset()` clears all recorded sends and the attempts map
-
-### Key design decisions
-
-1. **Factory in `tests/mock-email-adapter.ts`** — follows `tests/google-calendar-adapter.ts` pattern
-2. **Test injection via `setEmailTransportForTests()`** in `src/worker/email.ts` — module-level override, mirrors `setEmailDeliveryServiceForTests`
-3. **Failure modes**: `setFailsAfterAttempts(n)`, `setPersistentFailure(error?)`, `setNextSendFailure(error?)`
-4. **State exposed via getter properties** — matches `google-calendar-adapter.ts` conventions (not methods)
-5. **Retry logic lives in graphile-worker** — MockEmailAdapter throws when configured; the retry loop is in `processEmailDeliveryJob`
-6. **Clock seam** — `processEmailDeliveryJob` accepts a `clock` option; tests pass a controlled clock to verify timing-sensitive retry behavior
-
-### Files to create
-
-- `tests/mock-email-adapter.ts` — MockEmailAdapter factory (type + implementation)
-- `tests/email-delivery-wiring.test.ts` — wiring tests for the adapter
-
-### Files to modify
-
-- `src/worker/email.ts` — add `setEmailTransportForTests()` and `getEmailTransport()` module-level seam
-
-### Tracer bullet (first TDD iteration)
-
-1. Create `MockEmailAdapter` that records a single `send()` call and returns success
-2. Test: verify `getSends()` returns the recorded send with correct fields
-3. Implement the minimal recording logic to pass the test
+- `app/me/topics/route.ts` — updated to render proposal form and user pending proposals list
 
 ### Assumptions / risks
 
-- graphile-worker's retry behavior (exponential backoff) is already tested elsewhere; MockEmailAdapter only needs to provide deterministic failure/success for retry scenarios
-- No new API routes needed — Email Event visibility is through `eventRepository` DB state in tests
+- `fast-levenshtein` is a transitive dep (via graphile-worker). Risk: future graphile-worker drops it. Mitigation: add as direct dep in same PR.
+- Threshold 0.8: calibrate with examples during TDD ("Sailing" vs "Sailng", "React" vs "React.js", "TypeScript" vs "Typescript")
+- Normalization: trim leading/trailing whitespace, collapse internal runs of whitespace to single space, then lowercase
+- Similarity check targets: all `status = 'active'` topics + all `status = 'pending'` topic proposals
+- Proposal form uses existing HTML-form + CSRF pattern from `app/me/topics/route.ts`
+
+### Test execution order (sandman-tdd)
+
+1. `computeSimilarity` pure unit tests (red-green first)
+2. `isSimilar` threshold boundary tests (exact 0.8, just above/below)
+3. `normalizeTopicName` edge case tests (empty, whitespace, case)
+4. `findSimilarTopics` with in-memory repository mock
+5. `createTopicProposal` with in-memory repository mock (valid case)
+6. `createTopicProposal` error paths (too similar, duplicate, invalid)
+7. Route handler tests with mocked dependencies
+8. HTML rendering in `me/topics/route.ts`
+
+## Next Step
+
+PR-Review (sandman-pr-review)
 
 ## Already Resolved
 
@@ -172,7 +184,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 

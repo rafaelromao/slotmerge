@@ -9,6 +9,10 @@ import {
   setTopicCatalogueRepositoryForTests,
   type TopicCatalogueRepository,
 } from "../src/topics/repository";
+import {
+  setMeTopicProposalsRepositoryForTests,
+  type MeTopicProposalsRepository,
+} from "../src/topics/me-topic-proposals-route";
 
 describe("/me/topics route", () => {
   it("rejects unauthenticated requests", async () => {
@@ -55,6 +59,11 @@ describe("/me/topics route", () => {
       saveAssociations: () => Promise.resolve(),
     });
 
+    const mockMeProposalsRepository: MeTopicProposalsRepository = {
+      listUserTopicProposals: () => Promise.resolve([]),
+    };
+    setMeTopicProposalsRepositoryForTests(mockMeProposalsRepository);
+
     const cookie = await sealSessionCookie({ sessionId: "session-1" });
     const response = await GET(
       new Request("http://localhost/me/topics", {
@@ -75,6 +84,7 @@ describe("/me/topics route", () => {
 
     setSessionRepositoryForTests(null);
     setTopicCatalogueRepositoryForTests(null);
+    setMeTopicProposalsRepositoryForTests(null);
   });
 
   it("persists active topic selections via PUT", async () => {
@@ -148,6 +158,7 @@ describe("/me/topics route", () => {
 
     setSessionRepositoryForTests(null);
     setTopicCatalogueRepositoryForTests(null);
+    setMeTopicProposalsRepositoryForTests(null);
   });
 
   it("rejects a mutation with an invalid CSRF token", async () => {
@@ -199,5 +210,6 @@ describe("/me/topics route", () => {
 
     setSessionRepositoryForTests(null);
     setTopicCatalogueRepositoryForTests(null);
+    setMeTopicProposalsRepositoryForTests(null);
   });
 });

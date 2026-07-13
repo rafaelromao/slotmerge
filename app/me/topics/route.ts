@@ -5,6 +5,8 @@ import {
   getTopicPageState,
   saveUserTopicSelection,
 } from "../../../src/topics/repository";
+import { createMeTopicProposalsHandlers } from "../../../src/topics/me-topic-proposals-route";
+import { createTopicProposalsHandlers } from "../../../src/topics/proposals-route";
 
 export async function GET(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);
@@ -17,11 +19,28 @@ export async function GET(request: Request): Promise<Response> {
     session.user.id,
   );
 
+  const meProposalsHandlers = createMeTopicProposalsHandlers();
+  const proposalsResponse = await meProposalsHandlers.GET(request);
+  const proposalsData = (await proposalsResponse.json()) as {
+    proposals: {
+      id: string;
+      candidateName: string;
+      status: string;
+      createdAt: string;
+    }[];
+  };
+
+  const url = new URL(request.url);
+  const errorParam = url.searchParams.get("error");
+  const proposalError = errorParam ? decodeURIComponent(errorParam) : null;
+
   return htmlResponse(
     renderTopicsPage({
       catalogue,
       selectedTopicIds,
       csrfToken: session.csrfToken,
+      proposals: proposalsData.proposals,
+      proposalError,
     }),
   );
 }
@@ -54,6 +73,65 @@ async function updateTopics(request: Request): Promise<Response> {
   }
 
   return Response.redirect(new URL("/me/topics", request.url), 303);
+}
+
+export async function submitTopicProposal(request: Request): Promise<Response> {
+  const session = await getSessionFromRequest(request);
+
+  if (!session) {
+    return Response.redirect(
+      new URL("/me/topics?error=unauthenticated", request.url),
+      303,
+    );
+  }
+
+  const formData = await request.formData();
+  const candidateName = formData.get("candidateName");
+  const csrfToken = formData.get("csrfToken");
+
+  if (typeof candidateName !== "string" || typeof csrfToken !== "string") {
+    return Response.redirect(
+      new URL("/me/topics?error=invalid_request", request.url),
+      303,
+    );
+  }
+
+  if (!hasValidCsrfToken(csrfToken, session.csrfToken)) {
+    return Response.redirect(
+      new URL("/me/topics?error=csrf", request.url),
+      303,
+    );
+  }
+
+  const jsonRequest = new Request(request.url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ candidateName }),
+  });
+
+  const proposalsHandlers = createTopicProposalsHandlers();
+  const result = await proposalsHandlers.POST(jsonRequest);
+
+  if (result.status === 201) {
+    return Response.redirect(new URL("/me/topics", request.url), 303);
+  }
+
+  const body = (await result.json()) as {
+    error: string;
+    matches?: { name: string; type: string }[];
+  };
+
+  const errorParam =
+    body.error === "too_similar"
+      ? encodeURIComponent(
+          `too_similar:${(body.matches ?? []).map((m) => m.name).join(",")}`,
+        )
+      : encodeURIComponent(body.error);
+
+  return Response.redirect(
+    new URL(`/me/topics?error=${errorParam}`, request.url),
+    303,
+  );
 }
 
 async function readMutationPayload(request: Request): Promise<{
@@ -116,16 +194,27 @@ function htmlResponse(body: string, status = 200): Response {
 
 type CatalogueEntry = { id: string; name: string };
 
+type ProposalEntry = {
+  id: string;
+  candidateName: string;
+  status: string;
+  createdAt: string;
+};
+
 function renderTopicsPage({
   catalogue,
   selectedTopicIds,
   csrfToken,
+  proposals,
+  proposalError,
 }: {
   catalogue: CatalogueEntry[];
   selectedTopicIds: string[];
   csrfToken: string;
+  proposals: ProposalEntry[];
+  proposalError: string | null;
 }): string {
-  const rows = catalogue
+  const topicRows = catalogue
     .map(
       (topic) => `
       <li>
@@ -137,6 +226,29 @@ function renderTopicsPage({
     )
     .join("");
 
+  const proposalRows =
+    proposals.length > 0
+      ? proposals
+          .map(
+            (p) => `
+          <li>
+            <span>${escapeHtml(p.candidateName)}</span>
+            <span style="margin-left:0.5rem;color:#6b7280;">(${escapeHtml(p.status)})</span>
+          </li>`,
+          )
+          .join("")
+      : `<li><span style="color:#6b7280;">No pending proposals.</span></li>`;
+
+  const errorBanner = proposalError
+    ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:0.75rem;border-radius:0.375rem;margin-bottom:1rem;">
+           ${
+             proposalError.startsWith("too_similar:")
+               ? `Too similar to existing: ${escapeHtml(proposalError.replace("too_similar:", ""))}`
+               : escapeHtml(proposalError.replace(/_/g, " "))
+           }
+         </div>`
+    : "";
+
   return `<!doctype html>
 <html lang="en">
   <body>
@@ -145,12 +257,30 @@ function renderTopicsPage({
         <h1 style="margin:0;font-size:2rem;">My Topics</h1>
         <p style="margin:0.5rem 0 0;color:#4b5563;">Browse the active Topic catalogue and choose which Topics belong on your profile.</p>
       </header>
-      <form action="/me/topics" method="post" style="border-top:1px solid #e5e7eb;padding-top:1rem;">
-        <input type="hidden" name="csrfToken" value="${escapeHtml(csrfToken)}" />
+      <section style="border-top:1px solid #e5e7eb;padding-top:1rem;">
         <h2 id="active-topics" style="margin:0 0 0.75rem;font-size:1.125rem;">Active Topics</h2>
-        <ul style="margin:0;padding-left:1.25rem;">${rows}</ul>
-        <button type="submit" style="margin-top:1rem;padding:0.625rem 1rem;">Save topics</button>
-      </form>
+        <form action="/me/topics" method="post">
+          <input type="hidden" name="csrfToken" value="${escapeHtml(csrfToken)}" />
+          <ul style="margin:0;padding-left:1.25rem;">${topicRows}</ul>
+          <button type="submit" style="margin-top:1rem;padding:0.625rem 1rem;">Save topics</button>
+        </form>
+      </section>
+      <section style="border-top:1px solid #e5e7eb;padding-top:1rem;margin-top:1.5rem;">
+        <h2 id="propose-topic" style="margin:0 0 0.75rem;font-size:1.125rem;">Propose a new Topic</h2>
+        ${errorBanner}
+        <form action="/me/topics/propose" method="post">
+          <input type="hidden" name="csrfToken" value="${escapeHtml(csrfToken)}" />
+          <div style="display:flex;gap:0.5rem;align-items:flex-start;">
+            <input type="text" name="candidateName" placeholder="Topic name" required style="flex:1;padding:0.625rem;border:1px solid #d1d5db;border-radius:0.375rem;" />
+            <button type="submit" style="padding:0.625rem 1rem;">Submit proposal</button>
+          </div>
+          <p style="margin:0.5rem 0 0;color:#6b7280;font-size:0.875rem;">Proposals are reviewed by admins. Similar names will be blocked to avoid catalogue fragmentation.</p>
+        </form>
+      </section>
+      <section style="border-top:1px solid #e5e7eb;padding-top:1rem;margin-top:1.5rem;">
+        <h2 id="my-proposals" style="margin:0 0 0.75rem;font-size:1.125rem;">My Proposals</h2>
+        <ul style="margin:0;padding-left:1.25rem;">${proposalRows}</ul>
+      </section>
     </main>
   </body>
 </html>`;

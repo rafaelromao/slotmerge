@@ -73,10 +73,10 @@ export type EffectiveAvailabilityInputs = {
 
 export type MatchingDependencies = {
   listSelectedTopicIds: (userId: string) => Promise<string[]>;
-  computeEffectiveAvailability: (inputs: EffectiveAvailabilityInputs) => Interval[];
-  getUserAvailabilityData: (
-    userId: string,
-  ) => Promise<{
+  computeEffectiveAvailability: (
+    inputs: EffectiveAvailabilityInputs,
+  ) => Interval[];
+  getUserAvailabilityData: (userId: string) => Promise<{
     profileTimezone: string;
     bufferMinutes: number;
     windows: WeeklyAvailabilityWindow[];
@@ -114,7 +114,13 @@ export async function findEligibleMatches(
         rangeStart: params.rangeStart,
         rangeEnd: params.rangeEnd,
       });
-      if (!hasFullDurationCoverage(effectiveAvail, params.slotStart, params.durationMinutes)) {
+      if (
+        !hasFullDurationCoverage(
+          effectiveAvail,
+          params.slotStart,
+          params.durationMinutes,
+        )
+      ) {
         continue;
       }
     }

@@ -87,6 +87,64 @@ describe("SearchRepository contract", () => {
   });
 });
 
+describe("SearchRepository.listSearchHistory", () => {
+  afterEach(() => {
+    setSearchRepositoryForTests(null);
+  });
+
+  it("lists all searches with snapshotId joined from searchResults", async () => {
+    const repo = new InMemorySearchRepository();
+
+    const search1 = await repo.save({
+      ...baseRecord,
+      id: "search-1",
+      generatedAt: new Date("2026-07-01T12:00:00.000Z"),
+    });
+    const search2 = await repo.save({
+      ...baseRecord,
+      id: "search-2",
+      organizerId: "organizer-2",
+      generatedAt: new Date("2026-07-08T12:00:00.000Z"),
+    });
+
+    repo.setSnapshotId(search1.id!, "snapshot-1");
+    repo.setSnapshotId(search2.id!, "snapshot-2");
+
+    const history = await repo.listSearchHistory();
+    expect(history.length).toBe(2);
+    expect(history[0]?.snapshotId).toBe("snapshot-2");
+    expect(history[1]?.snapshotId).toBe("snapshot-1");
+  });
+
+  it("excludes searches without snapshots", async () => {
+    const repo = new InMemorySearchRepository();
+
+    const search1 = await repo.save({
+      ...baseRecord,
+      id: "search-1",
+      generatedAt: new Date("2026-07-01T12:00:00.000Z"),
+    });
+    await repo.save({
+      ...baseRecord,
+      id: "search-2",
+      organizerId: "organizer-2",
+      generatedAt: new Date("2026-07-08T12:00:00.000Z"),
+    });
+
+    repo.setSnapshotId(search1.id!, "snapshot-1");
+
+    const history = await repo.listSearchHistory();
+    expect(history.length).toBe(1);
+    expect(history[0]?.id).toBe("search-1");
+  });
+
+  it("returns empty list when no searches exist", async () => {
+    const repo = new InMemorySearchRepository();
+    const history = await repo.listSearchHistory();
+    expect(history).toEqual([]);
+  });
+});
+
 describe("SearchRepository override wiring", () => {
   afterEach(() => {
     setSearchRepositoryForTests(null);

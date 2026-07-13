@@ -2,6 +2,9 @@ import type { UserProfile } from "../profile/repository";
 
 import { getSearchRepository, type SearchRecord } from "./repository";
 import { runSearch } from "./run-search";
+import type { MatchingDependencies } from "../matching/find-eligible-matches";
+import type { DiscoverableUserRepository } from "./discoverable-user-repository";
+import type { SearchResultRepository } from "./search-result-repository";
 
 export type Clock = {
   now(): Date;
@@ -268,6 +271,19 @@ export type SubmitSearchResult =
       errors: SearchInputError[];
     };
 
+export type RerunSearchResult =
+  | { ok: true; search: SearchRecord }
+  | { ok: false; reason: "not_found" | "topics_invalid" };
+
+export type RerunSearchDeps = {
+  matchingDependencies: MatchingDependencies;
+  discoverableUserRepository: DiscoverableUserRepository;
+  clock: Clock;
+  searchResultRepository: SearchResultRepository;
+  topicRepository: ActiveTopicsRepository;
+  profileRepository: ProfileRepository;
+};
+
 export async function submitSearch(
   deps: SubmitSearchDeps,
   overrides: SubmitSearchOverrides = {},
@@ -306,6 +322,63 @@ export async function submitSearch(
       clock: deps.clock,
       searchResultRepository: deps.searchResultRepository,
       topicRepository: deps.activeTopicsRepository,
+      profileRepository: deps.profileRepository,
+    },
+  );
+
+  return { ok: true, search: stored };
+}
+
+export async function rerunSearch(
+  existingSearchId: string,
+  deps: RerunSearchDeps,
+): Promise<RerunSearchResult> {
+  const existing = await getSearchRepository().findById(existingSearchId);
+  if (!existing) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  let input: SearchInput;
+  try {
+    const builder = createSearchInputBuilder({
+      organizerId: existing.organizerId,
+      activeTopicsRepository: deps.topicRepository,
+      profileRepository: deps.profileRepository,
+      clock: deps.clock,
+    });
+    input = await builder.build({
+      selectedTopicIds: existing.selectedTopicIds,
+      minimumMatchingUsers: existing.minimumMatchingUsers,
+      durationMinutes: existing.durationMinutes,
+      dateRangeStart: existing.dateRangeStart,
+      dateRangeEnd: existing.dateRangeEnd,
+      organizerTimezone: existing.organizerTimezone,
+    });
+  } catch {
+    return { ok: false, reason: "topics_invalid" };
+  }
+
+  const record: SearchRecord = {
+    organizerId: existing.organizerId,
+    selectedTopicIds: existing.selectedTopicIds,
+    minimumMatchingUsers: existing.minimumMatchingUsers,
+    durationMinutes: existing.durationMinutes,
+    dateRangeStart: existing.dateRangeStart,
+    dateRangeEnd: existing.dateRangeEnd,
+    organizerTimezone: existing.organizerTimezone,
+    generatedAt: deps.clock.now(),
+  };
+
+  const stored = await getSearchRepository().save(record);
+
+  await runSearch(
+    { searchRecord: stored, input },
+    {
+      matchingDependencies: deps.matchingDependencies,
+      discoverableUserRepository: deps.discoverableUserRepository,
+      clock: deps.clock,
+      searchResultRepository: deps.searchResultRepository,
+      topicRepository: deps.topicRepository,
       profileRepository: deps.profileRepository,
     },
   );

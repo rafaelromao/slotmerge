@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #56: Run a Search and persist an immutable Search Result snapshot
+Implement GitHub issue #60: Re-run a Search to create a new snapshot
 
 ## Issue Context
 
@@ -10,31 +10,28 @@ Sub-PRD: [Sub-PRD: Search & Matching](https://github.com/rafaelromao/slotmerge/i
 
 ## What to build
 
-Running a Search computes the weekly grid, per-Slot match counts, and per-Slot Match details from current DB state. The Search row stores normalized query parameters; the Search Result snapshot stores an immutable JSON result.
+An Organizer can re-run a Search from history, creating a new snapshot. The original snapshot is preserved.
 
 ## Acceptance criteria
 
-- [ ] A Search row stores normalized query parameters.
-- [ ] A Search Result snapshot stores an immutable JSON result.
-- [ ] Search computation reads current data and never calls provider APIs.
-- [ ] Hourly Slot start times align to the hourly grid.
-- [ ] Snapshots are not modified after creation.
+- [ ] Re-run action creates a new Search Result snapshot.
+- [ ] The original snapshot remains immutable.
+- [ ] New snapshot inherits the original's query parameters.
 
 ## Blocked by
 
-- [Match Users against active Topics, full-duration Availability, and eligibility](https://github.com/rafaelromao/slotmerge/issues/54)
-- [Define Search query parameters and validate them](https://github.com/rafaelromao/slotmerge/issues/55)
+- [Run a Search and persist an immutable Search Result snapshot](https://github.com/rafaelromao/slotmerge/issues/56)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/56-run-a-search-and-persist-an-immutable-search-result-snapshot`
-- Source branch: `sandman/56-run-a-search-and-persist-an-immutable-search-result-snapshot`
+- Current branch: `sandman/60-re-run-a-search-to-create-a-new-snapshot`
+- Source branch: `sandman/60-re-run-a-search-to-create-a-new-snapshot`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/56-run-a-search-and-persist-an-immutable-search-result-snapshot` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/60-re-run-a-search-to-create-a-new-snapshot` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -48,60 +45,40 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Next Step
-
-Execute sandman-tdd for the first slice: Add searchResults table to schema.
-
 ## Plan
 
 ### Behaviors to test
-
-1. **submitSearch persists a Search record with normalized parameters** — already implemented; AC met by existing `submitSearch`.
-2. **generateHourlySlots produces hour-aligned start times** — given `rangeStart` and `rangeEnd`, returns an array of `Date` objects at XX:00:00.000Z. Misaligned `rangeStart` is corrected to the previous hour boundary; `rangeEnd` is exclusive.
-3. **runSearch produces a SearchSnapshot JSON with all slots in the range, including zero-match slots** — the snapshot covers every hourly slot from rangeStart to rangeEnd, with matchCount=0 for slots that have no eligible users.
-4. **runSearch reads only from DB repositories; no provider API calls are made** — all data (users, topics, availability, busy intervals) comes from existing repository interfaces. No Google/Microsoft Graph calls.
-5. **SearchResult snapshot is immutable — only insert exists; no update method** — the `SearchResultRepository` interface has no `update` operation. The DB table has no `updatedAt` column.
-6. **A SearchResult snapshot can be retrieved by id or by searchId** — `findById(id)` and `findBySearchId(searchId)` operations exist on `SearchResultRepository`.
-7. **Slots within the date range are correctly enumerated with hour-aligned starts** — slot starts run from the hour-aligned `rangeStart` in 1-hour increments up to but not exceeding `rangeEnd`.
+1. **Rerun creates new search with inherited parameters** - Given an existing search ID, `rerunSearch` creates a new `SearchRecord` with identical query parameters but new ID and `generatedAt`
+2. **Rerun creates new snapshot** - The new search gets its own new snapshot via `runSearch`
+3. **Original snapshot remains immutable** - Original `SearchResultRecord` is never modified
+4. **Rerun returns the new search** - `rerunSearch` returns the newly created `SearchRecord`
+5. **Rerun with invalid ID returns null** - If original search ID doesn't exist, `rerunSearch` returns `null`
+6. **Rerun with deactivated topics returns error** - If topics in the original search are no longer active, `rerunSearch` returns an error
 
 ### Testable interfaces
+- `rerunSearch(existingSearchId: string, deps: RunSearchDeps): Promise<RerunSearchResult>` - new function in `search-input.ts`
+- `RerunSearchResult = { ok: true, search: SearchRecord } | { ok: false, reason: "not_found" | "topics_invalid" }`
+- Uses `SearchRepository.findById()` to fetch original search
 
-- **`SearchResultRepository`** — `save(result: SearchResultRecord): Promise<SearchResultRecord>`, `findById(id: string): Promise<SearchResultRecord | null>`, `findBySearchId(searchId: string): Promise<SearchResultRecord | null>`. **No update method.**
-- **`SearchResultRecord`** — `{ id: string; searchId: string; snapshotJson: SearchSnapshot; createdAt: Date }`
-- **`SearchSnapshot`** — `{ generatedAt: string; organizerTimezone: string; dateRangeStart: string; dateRangeEnd: string; durationMinutes: number; slots: Slot[] }`
-- **`Slot`** — `{ startUtc: string; matchCount: number; matches: SlotMatchDetail[] }`
-- **`SlotMatchDetail`** — `{ userId: string; displayName: string | null; avatarUrl: string | null; shortBio: string | null; topics: TopicDetail[]; availabilityIndicator: AvailabilityIndicator; calendarFreshness: CalendarFreshness }`
-- **`TopicDetail`** — `{ id: string; name: string }`
-- **`AvailabilityIndicator`** — `'available' | 'partial' | 'unavailable'`
-- **`CalendarFreshness`** — `'fresh' | 'stale' | 'none'`
-- **`generateHourlySlots(rangeStart: Date, rangeEnd: Date): Date[]`** — pure function; corrects `rangeStart` to previous hour boundary if misaligned; returns empty array if `rangeStart >= rangeEnd`.
-- **`availabilityIndicator(slotStart: Date, effectiveAvailability: Interval[], durationMinutes: number): AvailabilityIndicator`** — pure function derived from `hasFullDurationCoverage`. Returns `'available'` if full coverage, `'partial'` if partial overlap exists, `'unavailable'` if no coverage.
-- **`deriveCalendarFreshness(lastSyncAt: Date | null, now: Date): CalendarFreshness`** — `'none'` if `lastSyncAt === null`; `'fresh'` if `now - lastSyncAt < CALENDAR_STALENESS_THRESHOLD_MS`; `'stale'` otherwise.
-- **`CALENDAR_STALENESS_THRESHOLD_MS = 24 * 60 * 60 * 1000`** — 24-hour threshold.
-- **`DiscoverableUserRepository`** — `listDiscoverableUserIds(selectedTopicIds: string[]): Promise<string[]>` — returns IDs of active, consented users who have at least one of the selected topics. Used to build the candidate pool.
-- **`RunSearchDeps`** — `{ matchingDependencies: MatchingDependencies; discoverableUserRepository: DiscoverableUserRepository; getUserAvailabilityData: MatchingDependencies['getUserAvailabilityData']; clock: Clock; searchResultRepository: SearchResultRepository; topicRepository: ActiveTopicsRepository; profileRepository: ProfileRepository }`
-- **`runSearch(params: { searchRecord: SearchRecord; input: SearchInput }, deps: RunSearchDeps): Promise<SearchResultRecord>`** — computes slots, finds matches per slot, builds snapshot JSON, persists via `searchResultRepository`.
-
-### Implementation slices (sandman-tdd execution order)
-
-1. **Add searchResults table to schema** — `search_results` with: `id (uuid, PK)`, `search_id (uuid, FK -> searches, not null, unique)`, `snapshot_json (jsonb, not null)`, `created_at (timestamp, notNull, defaultNow)`. No `updatedAt` column. Index on `search_id`.
-2. **Add SearchResultRepository interface and InMemorySearchResultRepository** — save, findById, findBySearchId. No update method.
-3. **Add generateHourlySlots pure function with tests** — aligns rangeStart to previous hour; generates 1-hour slots up to rangeEnd.
-4. **Add TopicDetail, AvailabilityIndicator, CalendarFreshness types and availabilityIndicator, deriveCalendarFreshness pure functions** — availabilityIndicator delegates to `hasFullDurationCoverage` logic.
-5. **Add DiscoverableUserRepository interface** — `listDiscoverableUserIds(selectedTopicIds)` queries active users with discoverability consent.
-6. **Add SearchSnapshot, Slot, SlotMatchDetail types** — full JSON shape for the snapshot.
-7. **Add runSearch function** — orchestrates: generateHourlySlots → for each slot call `findEligibleMatches` with slotStart → build `SearchSnapshot` JSON → save via `SearchResultRepository`. Uses only DB-backed repositories; no provider API calls.
-8. **Wire runSearch into submitSearch** — after saving Search record, call `runSearch` with the stored record and built input. Update Search record's `snapshotReference` to point to the SearchResult id.
-9. **Add Drizzle SearchResult repository** — `createPostgresSearchResultRepository()` implementation.
+### Implementation approach
+1. Add `RerunSearchResult` type and `rerunSearch` function to `search-input.ts`
+2. `rerunSearch` uses `RunSearchDeps` (same deps as `runSearch`)
+3. Fetch original `SearchRecord` by ID
+4. If not found, return `{ ok: false, reason: "not_found" }`
+5. Create new `SearchInput` from original record parameters
+6. Attempt to validate topics via `createSearchInputBuilder` - if it throws due to inactive topics, return `{ ok: false, reason: "topics_invalid" }`
+7. Create new `SearchRecord` with copied parameters (new ID, new `generatedAt`)
+8. Save new `SearchRecord`
+9. Call `runSearch` to create new snapshot
+10. Return `{ ok: true, search: newSearchRecord }`
 
 ### Assumptions / risks
+- The `runSearch` function already handles all matching logic correctly
+- The original search's parameters (except id and generatedAt) are copied directly
 
-- `findEligibleMatches` (from `find-eligible-matches.ts`) already handles per-slot matching logic including full-duration coverage check. `runSearch` reuses it.
-- `computeEffectiveAvailability` (from `effective-availability.ts`) handles all availability sources (windows, overrides, busy intervals with buffer). `runSearch` uses it as-is.
-- `matchingPoolSize` validation in `validateSearchInput` uses the count passed in; the caller provides the correct count. This is existing behavior.
-- Calendar freshness threshold of 24 hours is a reasonable default matching the `sync.ts` staleness marker behavior.
-- `availabilityIndicator` derives from `hasFullDurationCoverage`: full coverage → `'available'`; partial overlap (start of interval covers part of slot) → `'partial'`; no coverage → `'unavailable'`.
-- `listDiscoverableUserIds` will be a new repository that queries the `users`, `discoverability_consents`, `user_topics`, and availability source tables to find eligible candidates.
+## Next Step
+
+The registered next step is: **Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)**
 
 ## Already Resolved
 
@@ -169,7 +146,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 

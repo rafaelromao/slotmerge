@@ -84,7 +84,7 @@ describe("SearchResultClient click-to-open flow", () => {
       ...slot1,
       matches: [
         {
-          ...slot1.matches[0]!,
+          ...slot1.matches[0],
           calendarFreshness: "stale",
         },
       ],

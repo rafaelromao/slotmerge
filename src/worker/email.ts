@@ -32,10 +32,12 @@ export async function handleEmailDeliveryJob(payload: unknown): Promise<void> {
   const config = loadRuntimeConfig();
 
   const eventRepository = createPostgresEmailEventRepository();
-  const transport = emailTransportOverride ?? createEmailTransport({
-    adapter: config.emailAdapter,
-    env: process.env,
-  });
+  const transport =
+    emailTransportOverride ??
+    createEmailTransport({
+      adapter: config.emailAdapter,
+      env: process.env,
+    });
   const emailDeliveryService = createEmailDeliveryService({
     eventRepository,
     queueJob: (queued) => enqueueEmailDeliveryJob(queued, config.databaseUrl),

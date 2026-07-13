@@ -465,7 +465,10 @@ describe("computeEffectiveAvailability", () => {
         userId: "user-1",
         profileTimezone: "UTC",
         bufferMinutes: 0,
-        windows: [makeWindow(1, "09:00", "12:00"), makeWindow(1, "11:00", "14:00")],
+        windows: [
+          makeWindow(1, "09:00", "12:00"),
+          makeWindow(1, "11:00", "14:00"),
+        ],
         overrides: [],
         busyIntervals: [],
         rangeStart: new Date("2026-07-13T00:00:00.000Z"),

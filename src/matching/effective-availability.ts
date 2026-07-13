@@ -16,7 +16,11 @@ export type EffectiveAvailabilityInputs = {
 
 type Interval = { startUtc: Date; endUtc: Date };
 
-function isInRange(interval: Interval, rangeStart: Date, rangeEnd: Date): boolean {
+function isInRange(
+  interval: Interval,
+  rangeStart: Date,
+  rangeEnd: Date,
+): boolean {
   return interval.startUtc < rangeEnd && interval.endUtc > rangeStart;
 }
 
@@ -90,8 +94,12 @@ function expandWindowsInTimezone(
       );
 
       if (localDayOfWeek === window.dayOfWeek) {
-        const { hours: startHours, minutes: startMinutes } = parseTime(window.startTime);
-        const { hours: endHours, minutes: endMinutes } = parseTime(window.endTime);
+        const { hours: startHours, minutes: startMinutes } = parseTime(
+          window.startTime,
+        );
+        const { hours: endHours, minutes: endMinutes } = parseTime(
+          window.endTime,
+        );
 
         const startUtc = toUtcDateForTimezone(
           utcYear,
@@ -127,20 +135,36 @@ function expandWindowsInTimezone(
 export function computeEffectiveAvailability(
   inputs: EffectiveAvailabilityInputs,
 ): Interval[] {
-  const { bufferMinutes, windows, overrides, busyIntervals, rangeStart, rangeEnd } = inputs;
+  const {
+    bufferMinutes,
+    windows,
+    overrides,
+    busyIntervals,
+    rangeStart,
+    rangeEnd,
+  } = inputs;
 
   if (rangeStart >= rangeEnd) {
     return [];
   }
 
-  let available: Interval[] = expandWindowsInTimezone(windows, rangeStart, rangeEnd);
+  let available: Interval[] = expandWindowsInTimezone(
+    windows,
+    rangeStart,
+    rangeEnd,
+  );
 
   for (const override of overrides) {
     if (override.type !== "add") {
       continue;
     }
     const range = expandOverrideToUtcRange(
-      { date: override.date, startTime: override.startTime, endTime: override.endTime, type: override.type },
+      {
+        date: override.date,
+        startTime: override.startTime,
+        endTime: override.endTime,
+        type: override.type,
+      },
       override.profileTimezone,
     );
     if (isInRange(range, rangeStart, rangeEnd)) {
@@ -156,7 +180,12 @@ export function computeEffectiveAvailability(
       continue;
     }
     const range = expandOverrideToUtcRange(
-      { date: override.date, startTime: override.startTime, endTime: override.endTime, type: override.type },
+      {
+        date: override.date,
+        startTime: override.startTime,
+        endTime: override.endTime,
+        type: override.type,
+      },
       override.profileTimezone,
     );
     if (isInRange(range, rangeStart, rangeEnd)) {
@@ -167,7 +196,11 @@ export function computeEffectiveAvailability(
     }
   }
 
-  const blockingStatuses: Set<string> = new Set(["busy", "out-of-office", "tentative"]);
+  const blockingStatuses: Set<string> = new Set([
+    "busy",
+    "out-of-office",
+    "tentative",
+  ]);
 
   for (const busy of busyIntervals) {
     if (!blockingStatuses.has(busy.status)) {
@@ -203,7 +236,10 @@ function clipInterval(
   return { startUtc: start, endUtc: end };
 }
 
-function subtractInterval(available: Interval[], toRemove: Interval): Interval[] {
+function subtractInterval(
+  available: Interval[],
+  toRemove: Interval,
+): Interval[] {
   const result: Interval[] = [];
   for (const interval of available) {
     const remaining = subtractPortion(interval, toRemove);
@@ -215,19 +251,34 @@ function subtractInterval(available: Interval[], toRemove: Interval): Interval[]
 }
 
 function subtractPortion(interval: Interval, toRemove: Interval): Interval[] {
-  if (toRemove.endUtc <= interval.startUtc || toRemove.startUtc >= interval.endUtc) {
+  if (
+    toRemove.endUtc <= interval.startUtc ||
+    toRemove.startUtc >= interval.endUtc
+  ) {
     return [interval];
   }
-  if (toRemove.startUtc <= interval.startUtc && toRemove.endUtc >= interval.endUtc) {
+  if (
+    toRemove.startUtc <= interval.startUtc &&
+    toRemove.endUtc >= interval.endUtc
+  ) {
     return [];
   }
-  if (toRemove.startUtc <= interval.startUtc && toRemove.endUtc < interval.endUtc) {
+  if (
+    toRemove.startUtc <= interval.startUtc &&
+    toRemove.endUtc < interval.endUtc
+  ) {
     return [{ startUtc: toRemove.endUtc, endUtc: interval.endUtc }];
   }
-  if (toRemove.startUtc > interval.startUtc && toRemove.endUtc >= interval.endUtc) {
+  if (
+    toRemove.startUtc > interval.startUtc &&
+    toRemove.endUtc >= interval.endUtc
+  ) {
     return [{ startUtc: interval.startUtc, endUtc: toRemove.startUtc }];
   }
-  if (toRemove.startUtc > interval.startUtc && toRemove.endUtc < interval.endUtc) {
+  if (
+    toRemove.startUtc > interval.startUtc &&
+    toRemove.endUtc < interval.endUtc
+  ) {
     return [
       { startUtc: interval.startUtc, endUtc: toRemove.startUtc },
       { startUtc: toRemove.endUtc, endUtc: interval.endUtc },
@@ -240,14 +291,22 @@ function mergeOverlapping(intervals: Interval[]): Interval[] {
   if (intervals.length === 0) {
     return [];
   }
-  const sorted = [...intervals].sort((a, b) => a.startUtc.getTime() - b.startUtc.getTime());
+  const sorted = [...intervals].sort(
+    (a, b) => a.startUtc.getTime() - b.startUtc.getTime(),
+  );
   const result: Interval[] = [sorted[0]];
   for (let i = 1; i < sorted.length; i++) {
     const current = sorted[i];
     const last = result[result.length - 1];
     if (current.startUtc.getTime() <= last.endUtc.getTime()) {
-      const mergedEnd = current.endUtc.getTime() > last.endUtc.getTime() ? current.endUtc : last.endUtc;
-      result[result.length - 1] = { startUtc: last.startUtc, endUtc: mergedEnd };
+      const mergedEnd =
+        current.endUtc.getTime() > last.endUtc.getTime()
+          ? current.endUtc
+          : last.endUtc;
+      result[result.length - 1] = {
+        startUtc: last.startUtc,
+        endUtc: mergedEnd,
+      };
     } else {
       result.push(current);
     }

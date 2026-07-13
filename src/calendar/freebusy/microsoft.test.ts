@@ -75,11 +75,6 @@ describe("fetchMicrosoftFreeBusy", () => {
     expect(body.endTime.dateTime).toBe(FIXED_TIME_MAX);
     expect(body.startTime.timeZone).toBe("UTC");
     expect(body.endTime.timeZone).toBe("UTC");
-    expect(body.schedules).toEqual(["user@domain.com"]);
-    expect(body.startTime.dateTime).toBe(FIXED_TIME_MIN);
-    expect(body.endTime.dateTime).toBe(FIXED_TIME_MAX);
-    expect(body.startTime.timeZone).toBe("UTC");
-    expect(body.endTime.timeZone).toBe("UTC");
   });
 
   it("throws MicrosoftFreeBusyAuthError on 401", async () => {

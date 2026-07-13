@@ -1,14 +1,18 @@
 import type { BusyIntervalStatus } from "../../db/schema";
 
+export const RATE_LIMIT_BASE_MS = 30_000;
+export const SERVER_ERROR_BASE_MS = 60_000;
+
 export type FreeBusyInterval = {
   providerCalendarId: string;
+  eventId?: string;
   status: BusyIntervalStatus;
   startAt: Date;
   endAt: Date;
 };
 
 export class GoogleFreeBusyAuthError extends Error {
-  readonly retryAfterSeconds: undefined;
+  readonly retryAfterSeconds: number | undefined;
   constructor() {
     super("Google authentication failed");
     this.name = "GoogleFreeBusyAuthError";
@@ -36,7 +40,7 @@ export class GoogleFreeBusyServerError extends Error {
 }
 
 export class MicrosoftFreeBusyAuthError extends Error {
-  readonly retryAfterSeconds: undefined;
+  readonly retryAfterSeconds: number | undefined;
   constructor() {
     super("Microsoft authentication failed");
     this.name = "MicrosoftFreeBusyAuthError";

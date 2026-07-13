@@ -63,6 +63,7 @@ export async function fetchGoogleFreeBusy(params: {
     for (const busy of calendarData.busy ?? []) {
       intervals.push({
         providerCalendarId: calendarId,
+        eventId: busy.id,
         status: "busy",
         startAt: new Date(busy.start),
         endAt: new Date(busy.end),
@@ -96,7 +97,7 @@ type GoogleFreeBusyResponse = {
   calendars?: Record<
     string,
     {
-      busy?: Array<{ start: string; end: string }>;
+      busy?: Array<{ start: string; end: string; id?: string }>;
       outOfOffice?: Array<{
         startTime?: string;
         endTime?: string;

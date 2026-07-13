@@ -14,6 +14,10 @@ import {
   ServerError,
 } from "../calendar/sync";
 import {
+  RATE_LIMIT_BASE_MS,
+  SERVER_ERROR_BASE_MS,
+} from "../calendar/freebusy/types";
+import {
   recordCalendarConnectionSyncFailure,
   type CalendarConnectionUserLookup,
 } from "../calendar/sync-failure-recorder";
@@ -55,33 +59,50 @@ export async function handleSyncCalendarConnectionJob(
   const config = loadRuntimeConfig();
   const tokenEncryptionKey = config.calendarTokenEncryptionKey;
 
-  const accessToken = decryptCalendarToken({
-    ciphertext: connection.accessTokenEncrypted ?? "",
-    key: tokenEncryptionKey,
-  });
+  let accessToken: string;
+  let connectionLookup: CalendarConnectionUserLookup;
+
+  try {
+    accessToken = decryptCalendarToken({
+      ciphertext: connection.accessTokenEncrypted ?? "",
+      key: tokenEncryptionKey,
+    });
+
+    connectionLookup = async (connId) => {
+      const conn = await findCalendarConnectionById(connId);
+      if (!conn) return null;
+
+      const [user] = await getDb()
+        .select({ email: users.email, displayName: users.displayName })
+        .from(users)
+        .where(eq(users.id, conn.record.userId))
+        .limit(1);
+
+      return {
+        id: conn.record.id,
+        userId: conn.record.userId,
+        provider: conn.provider,
+        user: {
+          email: user?.email ?? "",
+          displayName: user?.displayName ?? null,
+        },
+      };
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await recordCalendarConnectionSyncFailure(
+      {
+        connectionId: connection.id,
+        provider: connection.provider,
+        code: "SYNC_ERROR",
+        message,
+      },
+      { connectionLookup: () => Promise.resolve(null) },
+    );
+    throw error;
+  }
 
   const busyIntervalRepository = createPostgresImportedBusyIntervalRepository();
-
-  const connectionLookup: CalendarConnectionUserLookup = async (connId) => {
-    const conn = await findCalendarConnectionById(connId);
-    if (!conn) return null;
-
-    const [user] = await getDb()
-      .select({ email: users.email, displayName: users.displayName })
-      .from(users)
-      .where(eq(users.id, conn.record.userId))
-      .limit(1);
-
-    return {
-      id: conn.record.id,
-      userId: conn.record.userId,
-      provider: conn.provider,
-      user: {
-        email: user?.email ?? "",
-        displayName: user?.displayName ?? null,
-      },
-    };
-  };
 
   const now = new Date();
   const timeMax = now.toISOString();
@@ -149,7 +170,7 @@ async function updateLastSyncAt(
 }
 
 function getExponentialBackoffBase(isRateLimit: boolean): number {
-  return isRateLimit ? 30_000 : 60_000;
+  return isRateLimit ? RATE_LIMIT_BASE_MS : SERVER_ERROR_BASE_MS;
 }
 
 type SyncCalendarConnectionPayload = {

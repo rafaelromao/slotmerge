@@ -65,7 +65,7 @@ export async function syncCalendarConnection(
       userId,
       connectionId,
       providerCalendarId: interval.providerCalendarId,
-      providerEventReference: null,
+      providerEventReference: interval.eventId ?? null,
       status: interval.status,
       startAt: interval.startAt,
       endAt: interval.endAt,

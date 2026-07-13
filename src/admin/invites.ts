@@ -26,6 +26,7 @@ export type InviteListItem = {
 
 export type InviteRecord = InviteListItem & {
   expiresAt: Date;
+  magicLinkGeneration?: number;
 };
 
 export type InviteRepository = {
@@ -137,6 +138,7 @@ export function createAdminInvitesHandlers({
         inviteId: result.invite.id,
         email: result.invite.email,
         expiresAt: result.invite.expiresAt,
+        generation: result.invite.magicLinkGeneration ?? 0,
       });
 
       const service =
@@ -150,6 +152,7 @@ export function createAdminInvitesHandlers({
             email: result.invite.email,
             role: result.invite.role,
             invitedByAdminId: result.invite.invitedByAdminId,
+            magicLinkGeneration: result.invite.magicLinkGeneration ?? 0,
             magicLinkUrl: magicLink.magicLinkUrl,
             magicLinkToken: magicLink.token,
             expiresAt: magicLink.expiresAt.toISOString(),
@@ -323,6 +326,7 @@ const databaseInviteRepository: InviteRepository = {
         status: invites.status,
         invitedByAdminId: invites.invitedByAdminId,
         invitedByAdminEmail: users.email,
+        magicLinkGeneration: invites.magicLinkGeneration,
       })
       .from(invites)
       .leftJoin(users, eq(invites.invitedByAdminId, users.id))
@@ -341,6 +345,7 @@ const databaseInviteRepository: InviteRepository = {
           status: "pending",
           invitedByAdminId,
           expiresAt: getDefaultInviteExpiration(now ?? new Date()),
+          magicLinkGeneration: 0,
         })
         .returning({
           id: invites.id,
@@ -349,6 +354,7 @@ const databaseInviteRepository: InviteRepository = {
           status: invites.status,
           invitedByAdminId: invites.invitedByAdminId,
           expiresAt: invites.expiresAt,
+          magicLinkGeneration: invites.magicLinkGeneration,
         });
 
       if (!row) {
@@ -371,6 +377,7 @@ const databaseInviteRepository: InviteRepository = {
           invitedByAdminId: row.invitedByAdminId,
           invitedByAdminEmail: admin?.email ?? "",
           expiresAt: row.expiresAt,
+          magicLinkGeneration: row.magicLinkGeneration,
         },
       };
     } catch (error) {

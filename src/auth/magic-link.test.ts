@@ -15,6 +15,7 @@ describe("magic link token issuer", () => {
       inviteId: "invite-1",
       email: "alice@example.com",
       expiresAt,
+      generation: 2,
     });
 
     expect(result.token).toMatch(/^[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/);
@@ -37,6 +38,7 @@ describe("magic link token issuer", () => {
       inviteId: "invite-1",
       email: "alice@example.com",
       expiresAt,
+      generation: 2,
     });
 
     const [payloadEncoded, signature] = result.token.split(".");
@@ -53,6 +55,7 @@ describe("magic link token issuer", () => {
       inviteId: "invite-1",
       email: "alice@example.com",
       expiresAt: "2026-08-11T00:00:00.000Z",
+      generation: 2,
     });
     expect(signature.length).toBeGreaterThan(0);
   });
@@ -69,6 +72,7 @@ describe("magic link token verifier", () => {
       inviteId: "invite-1",
       email: "alice@example.com",
       expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      generation: 1,
     });
 
     const payload = verifyMagicLinkToken(
@@ -80,6 +84,7 @@ describe("magic link token verifier", () => {
     expect(payload.inviteId).toBe("invite-1");
     expect(payload.email).toBe("alice@example.com");
     expect(payload.expiresAt).toBe("2026-08-11T00:00:00.000Z");
+    expect(payload.generation).toBe(1);
   });
 
   it("throws InvalidToken for a token with wrong secret", () => {
@@ -92,6 +97,7 @@ describe("magic link token verifier", () => {
       inviteId: "invite-1",
       email: "alice@example.com",
       expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      generation: 1,
     });
 
     expect(() =>
@@ -123,6 +129,7 @@ describe("magic link token verifier", () => {
       inviteId: "invite-1",
       email: "alice@example.com",
       expiresAt: new Date("2026-07-20T00:00:00.000Z"),
+      generation: 1,
     });
 
     expect(() =>

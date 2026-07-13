@@ -3,8 +3,6 @@ import {
   type MagicLinkTokenIssuer,
 } from "./magic-link";
 import { and, eq, gt } from "drizzle-orm";
-import type { InviteRecord, InviteRepository } from "./magic-link-verify";
-import type { UserRecord, UserRepository } from "./magic-link-verify";
 import type { EmailDeliveryService } from "../email/service";
 import { createEmailDeliveryService } from "../email/service";
 import { createPostgresEmailEventRepository } from "../email/repository";
@@ -13,11 +11,43 @@ import { loadRuntimeConfig } from "../config/runtime";
 import { getDb } from "../db/client";
 import { invites, users, type UserRole } from "../db/schema";
 
+export type MagicLinkRequestInviteRecord = {
+  id: string;
+  email: string;
+  role: string;
+  status: "pending" | "accepted" | "revoked";
+  expiresAt: Date;
+};
+
+export type MagicLinkRequestUserRecord = {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+};
+
+export type MagicLinkRequestInviteRepository = {
+  findById(id: string): Promise<MagicLinkRequestInviteRecord | null>;
+  findPendingByEmail(
+    email: string,
+  ): Promise<MagicLinkRequestInviteRecord | null>;
+  accept(id: string): Promise<void>;
+};
+
+export type MagicLinkRequestUserRepository = {
+  findById(id: string): Promise<MagicLinkRequestUserRecord | null>;
+  findByEmail(email: string): Promise<MagicLinkRequestUserRecord | null>;
+  create(data: {
+    email: string;
+    role: string;
+  }): Promise<MagicLinkRequestUserRecord>;
+};
+
 export type MagicLinkRequestDependencies = {
   clock?: () => Date;
   magicLinkSecret?: string;
-  inviteRepository?: InviteRepository;
-  userRepository?: UserRepository;
+  inviteRepository?: MagicLinkRequestInviteRepository;
+  userRepository?: MagicLinkRequestUserRepository;
   magicLinkTokenIssuer?: MagicLinkTokenIssuer;
   emailDeliveryService?: EmailDeliveryService;
   baseUrl?: string;
@@ -102,7 +132,7 @@ async function handlePendingInvite({
   emailService,
   clock,
 }: {
-  invite: InviteRecord;
+  invite: MagicLinkRequestInviteRecord;
   issuer: MagicLinkTokenIssuer;
   emailService: EmailDeliveryService | undefined;
   clock: () => Date;
@@ -138,7 +168,7 @@ async function handleExistingUser({
   emailService,
   clock,
 }: {
-  user: UserRecord;
+  user: MagicLinkRequestUserRecord;
   issuer: MagicLinkTokenIssuer;
   emailService: EmailDeliveryService | undefined;
   clock: () => Date;
@@ -227,7 +257,9 @@ function createDefaultEmailDeliveryService({
   });
 }
 
-function createDatabaseInviteRepository(clock: () => Date): InviteRepository {
+function createDatabaseInviteRepository(
+  clock: () => Date,
+): MagicLinkRequestInviteRepository {
   return {
     findById: async (id) => {
       const [row] = await getDb()
@@ -274,7 +306,7 @@ function createDatabaseInviteRepository(clock: () => Date): InviteRepository {
   };
 }
 
-function createDatabaseUserRepository(): UserRepository {
+function createDatabaseUserRepository(): MagicLinkRequestUserRepository {
   return {
     findById: async (id) => {
       const [row] = await getDb()

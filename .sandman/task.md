@@ -38,7 +38,7 @@ The worktree MUST be checked out on `sandman/66-e2e-test-mock-email-delivery-ada
 - [x] Create branch
 - [x] Plan (sandman-plan)
 - [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
-- [ ] PR-Review (sandman-pr-review)
+- [x] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
@@ -47,7 +47,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-PR-Review (sandman-pr-review)
+PR-Merge (sandman-pr-merge)
 
 ## Plan
 

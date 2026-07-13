@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #50: Show Calendar Connection health, last sync time, and stale markers
+Implement GitHub issue #48: Reconcile Calendar Connection sync and process webhook events
 
 ## Issue Context
 
@@ -10,13 +10,15 @@ Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerg
 
 ## What to build
 
-Calendar Connection status (connected, sync delayed, needs reconnect, disconnected, unsupported) is visible on `My availability` with last sync time and stale markers. Stale markers also surface in matching Search Result Slot details.
+Calendar Connection sync runs as a background job: provider webhooks update intervals promptly, scheduled reconciliation fills gaps, and transient failures use exponential backoff and provider `Retry-After` semantics. Quota handling avoids spikes.
 
 ## Acceptance criteria
 
-- [ ] `My availability` shows current status, last sync time, and stale state.
-- [ ] Stale markers appear in matching Search Result Slot details.
-- [ ] Reconnect prompt appears when token is revoked or refresh fails.
+- [ ] Provider webhook events update imported busy intervals.
+- [ ] Scheduled reconciliation refreshes the rolling 90-day window.
+- [ ] Transient failures use exponential backoff and `Retry-After`.
+- [ ] Quotas are respected via randomized traffic patterns.
+- [ ] Sync errors update Calendar Connection status.
 
 ## Blocked by
 
@@ -26,12 +28,12 @@ Calendar Connection status (connected, sync delayed, needs reconnect, disconnect
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/50-show-calendar-connection-health-last-sync-time-and-stale-markers`
-- Source branch: `sandman/50-show-calendar-connection-health-last-sync-time-and-stale-markers`
+- Current branch: `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events`
+- Source branch: `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/50-show-calendar-connection-health-last-sync-time-and-stale-markers` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -45,49 +47,57 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Next Step
-
-Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
-
 ## Plan
 
 ### Behaviors to test
 
-1. **`CalendarConnectionStatus` type is extended in schema** — `CalendarConnectionStatus` in `src/db/schema.ts` includes `pending | connected | disconnected | sync_delayed | needs_reconnect | unsupported`. Provider-specific types (`GoogleCalendarConnectionStatus`, `MicrosoftCalendarConnectionStatus`) remain unchanged.
+1. **Google provider API returns busy intervals that get persisted**
+   - When `syncCalendarConnection()` is called with Google provider, it calls the Google FreeBusy API (`POST /calendar/v3/freeBusy`) and the returned busy/out-of-office/tentative intervals are upserted via `busyIntervalRepository.upsertBatch()`
+   - Microsoft provider uses Microsoft Graph `POST /me/calendar/getSchedule` similarly
 
-2. **`lastSyncAt` column exists on `calendar_connections`** — Migration adds the column; repository layer includes it in selects and updates; `updateLastSyncAt(connectionId)` repository method exists.
+2. **lastSyncAt is updated after successful sync**
+   - After `upsertBatch` succeeds, `lastSyncAt` is set to the current clock on the Calendar Connection record
 
-3. **Calendar Connection health status is computed correctly** — `computeCalendarConnectionHealthStatus(connection, now)` returns the appropriate status:
-   - `unsupported`: provider is microsoft personal account (detected at OAuth callback)
-   - `disconnected`: connection status is `disconnected`
-   - `needs_reconnect`: `lastErrorCode` is `invalid_grant` or `token_revoked`
-   - `sync_delayed`: `lastSyncAt` is more than 1 hour ago and no recent error
-   - `connected`: fresh sync, no errors
+3. **Transient failures trigger exponential backoff retry with Retry-After**
+   - On 429 (rate limit) or 5xx errors, `sync.ts` throws a typed `RateLimitedError` or `ServerError` carrying the `Retry-After` value if present
+   - The worker catches these and re-queues the job with `runAt = now + delay`
 
-4. **Stale flag is computed correctly** — `isCalendarConnectionStale(connection, now, staleThresholdHours = 24)` returns `true` when: `lastSyncAt` is null and connection is `connected`, OR more than 24 hours since `lastSyncAt`.
+4. **Quota exhaustion (429) is handled with randomized backoff**
+   - On 429 without `Retry-After`, use exponential backoff with jitter (base delay × random factor)
 
-5. **Calendar Connection view exposes health data** — `buildCalendarConnectionView(connection, now)` returns `lastSyncAt`, `stale: boolean`, and `healthStatus: CalendarConnectionHealthStatus` alongside existing fields.
+5. **Auth failures (401/403) mark connection as needs_reconnect**
+   - On 401/403 responses, `sync.ts` calls `recordFailure` with `AUTH_ERROR` code; `sync-failure-recorder` maps this to `needs_reconnect` status
 
-6. **`GET /me/calendar-connections` returns health fields** — Each connection in the list response includes `lastSyncAt`, `stale`, and `healthStatus`.
-
-7. **`invalid_grant` OAuth refresh failure transitions status to `needs_reconnect`** — When Google or Microsoft token refresh fails with `invalid_grant` error, the connection status is updated to `needs_reconnect`. This requires finding where OAuth refresh is called and adding status transition logic.
-
-8. **Successful busy-interval import updates `lastSyncAt`** — After calendar sync job successfully imports busy intervals, `updateLastSyncAt(connectionId)` is called with the current timestamp.
+6. **Poll job randomizes sync timing to avoid traffic spikes**
+   - Each connection's sync job is scheduled with a random initial delay (0–5 minutes) to spread load using `quickAddJob` with `runAt`
 
 ### Testable interfaces
 
-- `computeCalendarConnectionHealthStatus(connection, now)` — pure function returning `CalendarConnectionHealthStatus`.
-- `isCalendarConnectionStale(connection, now, staleThresholdHours?)` — pure function returning boolean.
-- `buildCalendarConnectionView(connection, now)` — extends existing view with `lastSyncAt`, `stale`, `healthStatus`.
-- `updateLastSyncAt(connectionId)` — repository method to set `lastSyncAt`.
+- `src/calendar/freebusy/google.ts` — `fetchGoogleFreeBusy(token, calendarIds, timeMin, timeMax, fetchImpl)`. Returns normalized `FreeBusyInterval[]`. Throws `GoogleFreeBusyError` (rate-limited, server-error, auth-failure).
+- `src/calendar/freebusy/microsoft.ts` — `fetchMicrosoftFreeBusy(token, calendarIds, timeMin, timeMax, fetchImpl)`. Returns normalized `FreeBusyInterval[]`. Throws `MicrosoftFreeBusyError` (rate-limited, server-error, auth-failure).
+- `src/calendar/sync.ts` — `syncCalendarConnection()` updated to call freebusy clients, catch typed errors, and propagate `Retry-After` values.
+- `src/worker/sync.ts` — After successful sync, update `lastSyncAt` on the connection record. Catch `RateLimitedError`/`ServerError` and re-queue with `runAt`.
+- `src/worker/poll.ts` — Add random jitter (`0–5 min`) to each enqueue using `runAt`.
+
+### Execution order
+
+1. Create `src/calendar/freebusy/google.ts` and `src/calendar/freebusy/microsoft.ts` with typed responses and error classes
+2. Update `SyncCalendarConnectionParams` to include `timeMin`/`timeMax` and update `sync.ts` to call freebusy clients instead of `generateMockBusyIntervals`
+3. Add auth failure detection (401/403 → `AUTH_ERROR`) in `sync.ts`
+4. Add Retry-After-aware retry: `sync.ts` throws typed errors, worker re-queues with `runAt`
+5. Add `lastSyncAt` update in `src/worker/sync.ts` after successful sync
+6. Add jitter to poll job in `src/worker/poll.ts`
+7. Rewrite `sync.test.ts` and add new tests for Retry-After, auth failure, and jitter
 
 ### Assumptions / risks
 
-- `lastSyncAt` column needs a migration.
-- Stale threshold of 24 hours is assumed (issue does not specify; 24h is reasonable for calendar sync). Named constant `STALE_THRESHOLD_HOURS` should be used.
-- `sync_delayed` threshold of 1 hour is assumed (named constant `SYNC_DELAYED_THRESHOLD_HOURS`).
-- Search snapshot generation does not exist yet; stale markers in search results depend on that infrastructure being built.
-- `invalid_grant` handling: where OAuth refresh is called in `google-calendar-connections.ts` and `microsoft-calendar-connections.ts` needs to be identified and updated.
+- Token refresh during sync is NOT in scope (blocked by a separate issue).
+- The 90-day rolling window time range is computed by the worker as `timeMin = clock() - 90 days`, `timeMax = clock()`.
+- Graphile Worker's built-in `attempts`/`backoff` retry is NOT used for Retry-After handling; instead, typed errors are caught in the worker and re-queued manually with `runAt`.
+
+## Next Step
+
+Load sandman-tdd and execute the first vertical slice: create freebusy API clients (google + microsoft).
 
 ## Already Resolved
 

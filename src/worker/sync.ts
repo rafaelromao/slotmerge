@@ -1,13 +1,18 @@
 import { eq } from "drizzle-orm";
 import { quickAddJob } from "graphile-worker";
 
+import { ROLLING_WINDOW_DAYS } from "../calendar/imported-busy-intervals";
 import { createPostgresImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals.repository";
 import { decryptCalendarToken } from "../calendar/token-encryption";
 import {
   getGoogleCalendarConnectionRepository,
   getMicrosoftCalendarConnectionRepository,
 } from "../calendar/repository";
-import { syncCalendarConnection } from "../calendar/sync";
+import {
+  syncCalendarConnection,
+  RateLimitError,
+  ServerError,
+} from "../calendar/sync";
 import {
   recordCalendarConnectionSyncFailure,
   type CalendarConnectionUserLookup,
@@ -21,11 +26,13 @@ export const syncCalendarConnectionTaskName = "sync_calendar_connection";
 export async function enqueueSyncCalendarConnectionJob(
   connectionId: string,
   databaseUrl: string,
+  runAt?: Date,
 ): Promise<void> {
   await quickAddJob(
     { connectionString: databaseUrl },
     syncCalendarConnectionTaskName,
     { connectionId },
+    { runAt },
   );
 }
 
@@ -76,26 +83,71 @@ export async function handleSyncCalendarConnectionJob(
     };
   };
 
-  await syncCalendarConnection({
-    connectionId: connection.id,
-    provider: connection.provider,
-    accessToken,
-    contributingCalendarIds: connection.contributingCalendarIds,
-    userId: connection.userId,
-    fetchImpl: fetch,
-    busyIntervalRepository,
-    recordFailure: (input) =>
-      recordCalendarConnectionSyncFailure(
-        {
-          connectionId: connection.id,
-          provider: connection.provider,
-          code: input.code,
-          message: input.message,
-        },
-        { connectionLookup },
-      ),
-    clock: () => new Date(),
-  });
+  const now = new Date();
+  const timeMax = now.toISOString();
+  const timeMin = new Date(
+    now.getTime() - ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  try {
+    await syncCalendarConnection({
+      connectionId: connection.id,
+      provider: connection.provider,
+      accessToken,
+      contributingCalendarIds: connection.contributingCalendarIds,
+      userId: connection.userId,
+      timeMin,
+      timeMax,
+      fetchImpl: fetch,
+      busyIntervalRepository,
+      recordFailure: (input) =>
+        recordCalendarConnectionSyncFailure(
+          {
+            connectionId: connection.id,
+            provider: connection.provider,
+            code: input.code,
+            message: input.message,
+          },
+          { connectionLookup },
+        ),
+      clock: () => new Date(),
+    });
+
+    await updateLastSyncAt(connection.id, new Date());
+  } catch (error) {
+    if (error instanceof RateLimitError || error instanceof ServerError) {
+      const baseDelayMs = error.retryAfterMs ?? getExponentialBackoffBase(error instanceof RateLimitError);
+      const jitterMs = Math.floor(Math.random() * baseDelayMs);
+      const delayMs = baseDelayMs + jitterMs;
+      await enqueueSyncCalendarConnectionJob(
+        connection.id,
+        config.databaseUrl,
+        new Date(Date.now() + delayMs),
+      );
+      return;
+    }
+    throw error;
+  }
+}
+
+async function updateLastSyncAt(connectionId: string, lastSyncAt: Date) {
+  const googleRepo = getGoogleCalendarConnectionRepository();
+  const microsoftRepo = getMicrosoftCalendarConnectionRepository();
+
+  const googleRecord = await googleRepo.findById(connectionId);
+  if (googleRecord) {
+    await googleRepo.updateById(connectionId, { lastSyncAt });
+    return;
+  }
+
+  const microsoftRecord = await microsoftRepo.findById(connectionId);
+  if (microsoftRecord) {
+    await microsoftRepo.updateById(connectionId, { lastSyncAt });
+  }
+}
+
+function getExponentialBackoffBase(isRateLimit: boolean): number {
+  return isRateLimit ? 30_000 : 60_000;
 }
 
 type SyncCalendarConnectionPayload = {

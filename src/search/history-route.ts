@@ -1,6 +1,17 @@
-import { getSessionFromRequest, isOrganizerOrAdminSession, type Session } from "../auth/session";
-import { getSearchRepository, type SearchHistoryItem, type SearchRepository } from "./repository";
-import { getSearchResultRepository, type SearchResultRepository } from "./search-result-repository";
+import {
+  getSessionFromRequest,
+  isOrganizerOrAdminSession,
+  type Session,
+} from "../auth/session";
+import {
+  getSearchRepository,
+  type SearchHistoryItem,
+  type SearchRepository,
+} from "./repository";
+import {
+  getSearchResultRepository,
+  type SearchResultRepository,
+} from "./search-result-repository";
 
 export type SearchHistoryDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
@@ -21,7 +32,8 @@ export function createSearchHistoryHandlers({
         return Response.json({ error: "forbidden" }, { status: 403 });
       }
 
-      const history: SearchHistoryItem[] = await searchRepository.listSearchHistory();
+      const history: SearchHistoryItem[] =
+        await searchRepository.listSearchHistory();
 
       return Response.json({ history });
     },

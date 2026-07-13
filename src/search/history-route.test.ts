@@ -48,14 +48,17 @@ function createMockSearchResultRepository() {
   const repo = {
     save: async (record: SearchResultRecord) => Promise.resolve(record),
     findById: async () => Promise.resolve(null),
-    findBySearchId: async (searchId: string) => Promise.resolve(bySearchId.get(searchId) ?? null),
+    findBySearchId: async (searchId: string) =>
+      Promise.resolve(bySearchId.get(searchId) ?? null),
   };
   (repo as { _storage: Map<string, SearchResultRecord> })._storage = bySearchId;
   return repo;
 }
 
 describe("createSearchHistoryHandlers", () => {
-  let mockResultRepo: SearchResultRepository & { _storage: Map<string, SearchResultRecord> };
+  let mockResultRepo: SearchResultRepository & {
+    _storage: Map<string, SearchResultRecord>;
+  };
 
   beforeEach(() => {
     mockResultRepo = createMockSearchResultRepository();
@@ -72,7 +75,9 @@ describe("createSearchHistoryHandlers", () => {
         getSession: () => Promise.resolve(null),
       });
 
-      const response = await handlers.getHistory(new Request("http://localhost/search/history"));
+      const response = await handlers.getHistory(
+        new Request("http://localhost/search/history"),
+      );
       expect(response.status).toBe(403);
     });
 
@@ -81,7 +86,9 @@ describe("createSearchHistoryHandlers", () => {
         getSession: () => Promise.resolve(userSession),
       });
 
-      const response = await handlers.getHistory(new Request("http://localhost/search/history"));
+      const response = await handlers.getHistory(
+        new Request("http://localhost/search/history"),
+      );
       expect(response.status).toBe(403);
     });
 
@@ -106,10 +113,12 @@ describe("createSearchHistoryHandlers", () => {
         getSession: () => Promise.resolve(baseSession),
       });
 
-      const response = await handlers.getHistory(new Request("http://localhost/search/history"));
+      const response = await handlers.getHistory(
+        new Request("http://localhost/search/history"),
+      );
       expect(response.status).toBe(200);
 
-      const body = await response.json() as { history: unknown[] };
+      const body = (await response.json()) as { history: unknown[] };
       expect(body.history).toHaveLength(1);
       expect((body.history[0] as { id: string }).id).toBe("search-1");
     });
@@ -135,10 +144,12 @@ describe("createSearchHistoryHandlers", () => {
         getSession: () => Promise.resolve(adminSession),
       });
 
-      const response = await handlers.getHistory(new Request("http://localhost/search/history"));
+      const response = await handlers.getHistory(
+        new Request("http://localhost/search/history"),
+      );
       expect(response.status).toBe(200);
 
-      const body = await response.json() as { history: unknown[] };
+      const body = (await response.json()) as { history: unknown[] };
       expect(body.history).toHaveLength(1);
     });
   });
@@ -149,7 +160,10 @@ describe("createSearchHistoryHandlers", () => {
         getSession: () => Promise.resolve(null),
       });
 
-      const response = await handlers.getSnapshot(new Request("http://localhost/search/123/snapshot"), "123");
+      const response = await handlers.getSnapshot(
+        new Request("http://localhost/search/123/snapshot"),
+        "123",
+      );
       expect(response.status).toBe(403);
     });
 
@@ -158,7 +172,10 @@ describe("createSearchHistoryHandlers", () => {
         getSession: () => Promise.resolve(userSession),
       });
 
-      const response = await handlers.getSnapshot(new Request("http://localhost/search/123/snapshot"), "123");
+      const response = await handlers.getSnapshot(
+        new Request("http://localhost/search/123/snapshot"),
+        "123",
+      );
       expect(response.status).toBe(403);
     });
 
@@ -169,7 +186,10 @@ describe("createSearchHistoryHandlers", () => {
         getSession: () => Promise.resolve(baseSession),
       });
 
-      const response = await handlers.getSnapshot(new Request("http://localhost/search/123/snapshot"), "123");
+      const response = await handlers.getSnapshot(
+        new Request("http://localhost/search/123/snapshot"),
+        "123",
+      );
       expect(response.status).toBe(404);
     });
 
@@ -180,17 +200,28 @@ describe("createSearchHistoryHandlers", () => {
         snapshotJson: baseSnapshotJson,
         createdAt: new Date("2026-07-08T15:00:00.000Z"),
       };
-      (mockResultRepo as unknown as { _storage: Map<string, SearchResultRecord> })._storage.set("search-1", snapshotRecord);
+      (
+        mockResultRepo as unknown as {
+          _storage: Map<string, SearchResultRecord>;
+        }
+      )._storage.set("search-1", snapshotRecord);
       setSearchResultRepositoryForTests(mockResultRepo);
 
       const handlers = createSearchHistoryHandlers({
         getSession: () => Promise.resolve(baseSession),
       });
 
-      const response = await handlers.getSnapshot(new Request("http://localhost/search/search-1/snapshot"), "search-1");
+      const response = await handlers.getSnapshot(
+        new Request("http://localhost/search/search-1/snapshot"),
+        "search-1",
+      );
       expect(response.status).toBe(200);
 
-      const body = await response.json() as { id: string; searchId: string; snapshotJson: typeof baseSnapshotJson };
+      const body = (await response.json()) as {
+        id: string;
+        searchId: string;
+        snapshotJson: typeof baseSnapshotJson;
+      };
       expect(body.id).toBe("snapshot-1");
       expect(body.searchId).toBe("search-1");
       expect(body.snapshotJson).toEqual(baseSnapshotJson);

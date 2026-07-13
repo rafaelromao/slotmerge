@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 
-import type { SearchHistoryItem, SearchRecord, SearchRepository } from "./repository";
+import type {
+  SearchHistoryItem,
+  SearchRecord,
+  SearchRepository,
+} from "./repository";
 
 export class InMemorySearchRepository implements SearchRepository {
   private readonly byId = new Map<string, SearchRecord>();
@@ -30,8 +34,9 @@ export class InMemorySearchRepository implements SearchRepository {
 
   async listSearchHistory(): Promise<SearchHistoryItem[]> {
     await Promise.resolve();
-    const searches = Array.from(this.byId.values())
-      .sort((a, b) => b.generatedAt.getTime() - a.generatedAt.getTime());
+    const searches = Array.from(this.byId.values()).sort(
+      (a, b) => b.generatedAt.getTime() - a.generatedAt.getTime(),
+    );
 
     return searches
       .map((s): SearchHistoryItem | null => {

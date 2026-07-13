@@ -58,7 +58,10 @@ export function createPostgresSearchRepository(): SearchRepository {
         .orderBy(desc(searches.generatedAt));
 
       return rows
-        .filter((row): row is typeof row & { snapshotId: string } => row.snapshotId != null)
+        .filter(
+          (row): row is typeof row & { snapshotId: string } =>
+            row.snapshotId != null,
+        )
         .map((row) => ({
           id: row.id,
           organizerId: row.organizerId,

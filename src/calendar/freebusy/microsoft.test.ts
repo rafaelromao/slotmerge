@@ -150,14 +150,12 @@ describe("fetchMicrosoftFreeBusy", () => {
   });
 
   it("skips schedules absent from the response", async () => {
-    const mockFetch = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ value: [] }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
-      );
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ value: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
 
     const intervals = await fetchMicrosoftFreeBusy({
       accessToken: "ey.aFakeToken",

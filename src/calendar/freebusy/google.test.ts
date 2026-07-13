@@ -137,14 +137,12 @@ describe("fetchGoogleFreeBusy", () => {
   });
 
   it("skips calendars absent from the response", async () => {
-    const mockFetch = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ calendars: {} }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
-      );
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ calendars: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
 
     const intervals = await fetchGoogleFreeBusy({
       accessToken: "ya1.aFakeToken",

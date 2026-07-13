@@ -18,6 +18,16 @@ function createMockInviteRepository() {
         magicLinkGeneration?: number;
       } | null>
     >(),
+    findPendingByEmail: vi.fn<
+      (email: string) => Promise<{
+        id: string;
+        email: string;
+        role: string;
+        status: "pending" | "accepted" | "revoked";
+        invitedByAdminId: string | null;
+        expiresAt: Date;
+      } | null>
+    >(),
     accept: vi.fn<(id: string) => Promise<void>>(),
     resendInvite: vi.fn<
       (
@@ -38,6 +48,14 @@ function createMockInviteRepository() {
 
 function createMockUserRepository() {
   return {
+    findById: vi.fn<
+      (id: string) => Promise<{
+        id: string;
+        email: string;
+        role: string;
+        status: string;
+      } | null>
+    >(),
     findByEmail: vi.fn<
       (email: string) => Promise<{
         id: string;
@@ -175,7 +193,7 @@ describe("magic link verify handler", () => {
       const html = await response.text();
       expect(html).toContain("token_expired");
       expect(html).toContain("Send a new link");
-      expect(html).toContain("/auth/magic-link/request");
+      expect(html).toContain("/auth/magic-link/resend");
     });
 
     it("returns error for non-existent invite", async () => {
@@ -193,10 +211,15 @@ describe("magic link verify handler", () => {
       const mockInviteRepo = createMockInviteRepository();
       mockInviteRepo.findById.mockResolvedValue(null);
 
+      const mockUserRepo = createMockUserRepository();
+      const mockSessionRepo = createMockSessionRepository();
+
       const { POST } = createMagicLinkVerifyHandlers({
         clock: () => new Date("2026-07-15T00:00:00.000Z"),
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+        sessionRepository: mockSessionRepo,
       });
 
       const response = await POST(
@@ -208,7 +231,11 @@ describe("magic link verify handler", () => {
 
       expect(response.status).toBe(400);
       const html = await response.text();
-      expect(html).toContain("invite_not_found");
+      expect(html).toContain("not_invited");
+      expect(mockUserRepo.findByEmail).not.toHaveBeenCalled();
+      expect(mockUserRepo.create).not.toHaveBeenCalled();
+      expect(mockSessionRepo.create).not.toHaveBeenCalled();
+      expect(mockInviteRepo.accept).not.toHaveBeenCalled();
     });
 
     it("returns error for already-accepted invite", async () => {
@@ -586,7 +613,7 @@ describe("magic link verify handler", () => {
       expect(response.status).toBe(400);
       const html = await response.text();
       expect(html).toContain("token_expired");
-      expect(html).toContain('action="/auth/magic-link/request"');
+      expect(html).toContain('action="/auth/magic-link/resend"');
       expect(html).toContain("Send a new link");
     });
 

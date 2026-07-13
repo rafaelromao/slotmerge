@@ -122,7 +122,7 @@ export function createMagicLinkVerifyHandlers(
       ).findById(payload.inviteId);
 
       if (!invite) {
-        return errorResponse("invite_not_found", 400, token);
+        return errorResponse("not_invited", 400, token);
       }
 
       if (invite.status === "accepted") {
@@ -227,7 +227,7 @@ function errorResponse(
     <p>Please contact an administrator if you believe this is an error.</p>
     ${
       resendToken
-        ? `<form method="POST" action="/auth/magic-link/request">
+        ? `<form method="POST" action="/auth/magic-link/resend">
       <input type="hidden" name="token" value="${escapeHtml(resendToken)}" />
       <button type="submit">Send a new link</button>
     </form>`

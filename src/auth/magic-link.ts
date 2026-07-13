@@ -7,7 +7,8 @@ export type MagicLinkTokenIssuerOptions = {
 };
 
 export type MagicLinkTokenInput = {
-  inviteId: string;
+  inviteId?: string;
+  userId?: string;
   email: string;
   expiresAt: Date;
   generation?: number;
@@ -20,7 +21,8 @@ export type MagicLinkToken = {
 };
 
 export type MagicLinkTokenPayload = {
-  inviteId: string;
+  inviteId?: string;
+  userId?: string;
   email: string;
   expiresAt: string;
   generation?: number;
@@ -33,6 +35,10 @@ export class MagicLinkTokenError extends Error {
   }
 }
 
+export type MagicLinkTokenIssuer = ReturnType<
+  typeof createMagicLinkTokenIssuer
+>;
+
 export function createMagicLinkTokenIssuer({
   baseUrl,
   clock = () => new Date(),
@@ -41,13 +47,18 @@ export function createMagicLinkTokenIssuer({
   return {
     issueMagicLinkToken(input: MagicLinkTokenInput): MagicLinkToken {
       const issuedAt = clock();
-      const payload = {
-        inviteId: input.inviteId,
+      const payload: Record<string, string> = {
         email: input.email,
         expiresAt: input.expiresAt.toISOString(),
         generation: input.generation ?? 0,
         issuedAt: issuedAt.toISOString(),
       };
+      if (input.inviteId !== undefined) {
+        payload.inviteId = input.inviteId;
+      }
+      if (input.userId !== undefined) {
+        payload.userId = input.userId;
+      }
       const payloadEncoded = base64UrlEncode(JSON.stringify(payload));
       const signature = signPayload({ payloadEncoded, secret });
       const token = `${payloadEncoded}.${signature}`;
@@ -124,9 +135,9 @@ export function decodeMagicLinkTokenPayload(
   }
 
   if (
-    typeof payload.inviteId !== "string" ||
     typeof payload.email !== "string" ||
-    typeof payload.expiresAt !== "string"
+    typeof payload.expiresAt !== "string" ||
+    (typeof payload.inviteId !== "string" && typeof payload.userId !== "string")
   ) {
     throw new MagicLinkTokenError("invalid_token");
   }

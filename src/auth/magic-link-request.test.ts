@@ -2,337 +2,618 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createMagicLinkRequestHandlers } from "./magic-link-request";
 import { createMagicLinkTokenIssuer } from "./magic-link";
-import type { EmailEvent } from "../email/service";
-
-type MockInvite = {
-  id: string;
-  email: string;
-  role: string;
-  status: "pending" | "accepted" | "revoked";
-  invitedByAdminId: string | null;
-  expiresAt: Date;
-  magicLinkGeneration: number;
-};
-
-type MagicLinkEmailPayload = {
-  inviteId: string;
-  email: string;
-  role: string;
-  magicLinkUrl: string;
-  magicLinkToken: string;
-  generation: number;
-  expiresAt: string;
-};
-
-type MagicLinkEmailInput = {
-  recipient: string;
-  type: "magic-link";
-  payload: MagicLinkEmailPayload;
-};
-
-function createMockEmailEvent(id: string): EmailEvent {
-  const now = new Date("2026-07-15T00:00:00.000Z");
-  return {
-    id,
-    recipient: "alice@example.com",
-    type: "magic-link",
-    payloadReference: `${id}-payload-ref`,
-    status: "queued",
-    attempts: 0,
-    createdAt: now,
-    updatedAt: now,
-    sentAt: null,
-    failedAt: null,
-    lastAttemptAt: null,
-    lastErrorCode: null,
-    lastErrorMessage: null,
-  };
-}
+import type { EmailType } from "../email/service";
 
 function createMockInviteRepository() {
   return {
-    findById: vi.fn<(id: string) => Promise<MockInvite | null>>(),
-    setMagicLinkGeneration:
-      vi.fn<(id: string, generation: number) => Promise<MockInvite | null>>(),
+    findById: vi.fn<
+      (id: string) => Promise<{
+        id: string;
+        email: string;
+        role: string;
+        status: "pending" | "accepted" | "revoked";
+        invitedByAdminId: string | null;
+        expiresAt: Date;
+      } | null>
+    >(),
+    findPendingByEmail: vi.fn<
+      (email: string) => Promise<{
+        id: string;
+        email: string;
+        role: string;
+        status: "pending" | "accepted" | "revoked";
+        invitedByAdminId: string | null;
+        expiresAt: Date;
+      } | null>
+    >(),
+    accept: vi.fn<(id: string) => Promise<void>>(),
+  };
+}
+
+function createMockUserRepository() {
+  return {
+    findById: vi.fn<
+      (id: string) => Promise<{
+        id: string;
+        email: string;
+        role: string;
+        status: string;
+      } | null>
+    >(),
+    findByEmail: vi.fn<
+      (email: string) => Promise<{
+        id: string;
+        email: string;
+        role: string;
+        status: string;
+      } | null>
+    >(),
+    create: vi.fn<
+      (data: { email: string; role: string }) => Promise<{
+        id: string;
+        email: string;
+        role: string;
+        status: string;
+      }>
+    >(),
   };
 }
 
 function createMockEmailDeliveryService() {
   return {
-    sendEmail:
-      vi.fn<
-        (input: MagicLinkEmailInput) => Promise<{ emailEvent: EmailEvent }>
-      >(),
+    sendEmail: vi.fn<
+      (input: {
+        recipient: string;
+        type: "magic-link";
+        payload: Record<string, unknown>;
+      }) => Promise<{
+        emailEvent: {
+          id: string;
+          recipient: string;
+          type: EmailType;
+          payloadReference: string;
+          status: "queued" | "sending" | "sent" | "failed";
+          attempts: number;
+          createdAt: Date;
+          updatedAt: Date;
+          sentAt: Date | null;
+          failedAt: Date | null;
+          lastAttemptAt: Date | null;
+          lastErrorCode: string | null;
+          lastErrorMessage: string | null;
+        };
+      }>
+    >(),
   };
 }
 
 describe("magic link request handler", () => {
-  it("sends a fresh magic link to the invited email", async () => {
-    const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
-      baseUrl: "https://slotmerge.example.com",
-      secret: "test-secret",
-    });
-    const token = issuer.issueMagicLinkToken({
-      inviteId: "invite-1",
-      email: "alice@example.com",
-      expiresAt: new Date("2026-07-10T00:00:00.000Z"),
-      generation: 0,
-    });
+  describe("POST", () => {
+    it("returns not_invited for unknown email (no pending invite, no user)", async () => {
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findPendingByEmail.mockResolvedValue(null);
 
-    const invite: MockInvite = {
-      id: "invite-1",
-      email: "alice@example.com",
-      role: "user",
-      status: "pending",
-      invitedByAdminId: null,
-      magicLinkGeneration: 0,
-      expiresAt: new Date("2026-08-11T00:00:00.000Z"),
-    };
+      const mockUserRepo = createMockUserRepository();
+      mockUserRepo.findByEmail.mockResolvedValue(null);
 
-    const mockInviteRepo = createMockInviteRepository();
-    mockInviteRepo.findById.mockResolvedValue(invite);
-    mockInviteRepo.setMagicLinkGeneration.mockResolvedValue({
-      ...invite,
-      magicLinkGeneration: 1,
-    });
-
-    const mockEmailService = createMockEmailDeliveryService();
-    let sentEmail: MagicLinkEmailInput | undefined;
-    mockEmailService.sendEmail.mockImplementation((input) => {
-      sentEmail = input;
-      return Promise.resolve({
-        emailEvent: createMockEmailEvent("email-event-1"),
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
       });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "unknown@example.com" }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as {
+        error?: string;
+        sent?: boolean;
+      };
+      expect(body).toEqual({ error: "not_invited" });
     });
 
-    const { POST } = createMagicLinkRequestHandlers({
-      clock: () => new Date("2026-07-15T00:00:00.000Z"),
-      magicLinkSecret: "test-secret",
-      inviteRepository: mockInviteRepo,
-      emailDeliveryService: mockEmailService,
-      rateLimiter: { allow: () => true },
+    it("returns not_invited for email with only accepted invite (no user)", async () => {
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findPendingByEmail.mockResolvedValue(null);
+
+      const mockUserRepo = createMockUserRepository();
+      mockUserRepo.findByEmail.mockResolvedValue(null);
+
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "accepted@example.com" }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as {
+        error?: string;
+        sent?: boolean;
+      };
+      expect(body).toEqual({ error: "not_invited" });
     });
 
-    const response = await POST(
-      new Request("http://localhost/auth/magic-link/request", {
-        method: "POST",
-        body: new URLSearchParams({ token: token.token }),
-      }),
-    );
+    it("returns not_invited for suspended user", async () => {
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findPendingByEmail.mockResolvedValue(null);
 
-    expect(response.status).toBe(200);
-    const html = await response.text();
-    expect(html).toContain("fresh magic link");
+      const mockUserRepo = createMockUserRepository();
+      mockUserRepo.findByEmail.mockResolvedValue({
+        id: "user-1",
+        email: "suspended@example.com",
+        role: "user",
+        status: "suspended",
+      });
 
-    expect(mockInviteRepo.findById).toHaveBeenCalledWith("invite-1");
-    expect(mockInviteRepo.setMagicLinkGeneration).toHaveBeenCalledWith(
-      "invite-1",
-      1,
-    );
-    expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ recipient: "alice@example.com" }),
-    );
-    expect(sentEmail).toMatchObject({
-      recipient: "alice@example.com",
-      type: "magic-link",
-      payload: {
-        inviteId: "invite-1",
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "suspended@example.com" }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as {
+        error?: string;
+        sent?: boolean;
+      };
+      expect(body).toEqual({ error: "not_invited" });
+    });
+
+    it("returns not_invited for suspended user even with pending invite", async () => {
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findPendingByEmail.mockResolvedValue({
+        id: "invite-1",
+        email: "suspended@example.com",
+        role: "user",
+        status: "pending",
+        invitedByAdminId: "admin-1",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      });
+
+      const mockUserRepo = createMockUserRepository();
+      mockUserRepo.findByEmail.mockResolvedValue({
+        id: "user-1",
+        email: "suspended@example.com",
+        role: "user",
+        status: "suspended",
+      });
+
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "suspended@example.com" }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as {
+        error?: string;
+        sent?: boolean;
+      };
+      expect(body).toEqual({ error: "not_invited" });
+      expect(mockInviteRepo.findPendingByEmail).not.toHaveBeenCalled();
+    });
+
+    it("rate limits repeated request attempts from the same client", async () => {
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findPendingByEmail.mockResolvedValue(null);
+
+      const mockUserRepo = createMockUserRepository();
+      mockUserRepo.findByEmail.mockResolvedValue(null);
+
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+      });
+
+      const request = () =>
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "unknown@example.com" }),
+        });
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const response = await POST(request());
+        expect(response.status).toBe(400);
+      }
+
+      const response = await POST(request());
+      expect(response.status).toBe(429);
+      const body = (await response.json()) as { error?: string };
+      expect(body).toEqual({ error: "rate_limited" });
+    });
+
+    it("returns invalid_email for missing email", async () => {
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams(),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as {
+        error?: string;
+        sent?: boolean;
+      };
+      expect(body).toEqual({ error: "invalid_email" });
+    });
+
+    it("returns invalid_email for empty email", async () => {
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "   " }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as {
+        error?: string;
+        sent?: boolean;
+      };
+      expect(body).toEqual({ error: "invalid_email" });
+    });
+
+    it("issues magic link and sends email for pending invite", async () => {
+      const issuer = createMagicLinkTokenIssuer({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        baseUrl: "https://slotmerge.example.com",
+        secret: "test-secret",
+      });
+
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findPendingByEmail.mockResolvedValue({
+        id: "invite-1",
         email: "alice@example.com",
-        generation: 1,
-      },
-    });
-  });
+        role: "user",
+        status: "pending",
+        invitedByAdminId: "admin-1",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      });
 
-  it("rotates the magic-link generation on repeated requests", async () => {
-    const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
-      baseUrl: "https://slotmerge.example.com",
-      secret: "test-secret",
-    });
-    const token = issuer.issueMagicLinkToken({
-      inviteId: "invite-1",
-      email: "alice@example.com",
-      expiresAt: new Date("2026-07-10T00:00:00.000Z"),
-      generation: 0,
-    });
+      const mockUserRepo = createMockUserRepository();
+      mockUserRepo.findByEmail.mockResolvedValue(null);
 
-    let currentGeneration = 0;
-    const invite: MockInvite = {
-      id: "invite-1",
-      email: "alice@example.com",
-      role: "user",
-      status: "pending",
-      invitedByAdminId: null,
-      magicLinkGeneration: 0,
-      expiresAt: new Date("2026-08-11T00:00:00.000Z"),
-    };
+      const mockEmailService = createMockEmailDeliveryService();
+      mockEmailService.sendEmail.mockResolvedValue({
+        emailEvent: {
+          id: "event-1",
+          recipient: "",
+          type: "magic-link",
+          payloadReference: "",
+          status: "sent",
+          attempts: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          sentAt: new Date(),
+          failedAt: null,
+          lastAttemptAt: null,
+          lastErrorCode: null,
+          lastErrorMessage: null,
+        },
+      });
 
-    const mockInviteRepo = createMockInviteRepository();
-    mockInviteRepo.findById.mockImplementation(() =>
-      Promise.resolve({
-        ...invite,
-        magicLinkGeneration: currentGeneration,
-      }),
-    );
-    mockInviteRepo.setMagicLinkGeneration.mockImplementation(
-      (_id, nextGeneration) => {
-        currentGeneration = nextGeneration;
-        return Promise.resolve({
-          ...invite,
-          magicLinkGeneration: nextGeneration,
-        });
-      },
-    );
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+        magicLinkTokenIssuer: issuer,
+        emailDeliveryService: mockEmailService,
+      });
 
-    const mockEmailService = createMockEmailDeliveryService();
-    mockEmailService.sendEmail.mockResolvedValue({
-      emailEvent: createMockEmailEvent("email-event-1"),
-    });
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "alice@example.com" }),
+        }),
+      );
 
-    const { POST } = createMagicLinkRequestHandlers({
-      clock: () => new Date("2026-07-15T00:00:00.000Z"),
-      magicLinkSecret: "test-secret",
-      inviteRepository: mockInviteRepo,
-      emailDeliveryService: mockEmailService,
-      rateLimiter: { allow: () => true },
-    });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        error?: string;
+        sent?: boolean;
+      };
+      expect(body).toEqual({ sent: true });
 
-    await POST(
-      new Request("http://localhost/auth/magic-link/request", {
-        method: "POST",
-        body: new URLSearchParams({ token: token.token }),
-      }),
-    );
-    await POST(
-      new Request("http://localhost/auth/magic-link/request", {
-        method: "POST",
-        body: new URLSearchParams({ token: token.token }),
-      }),
-    );
-
-    const firstPayload = mockEmailService.sendEmail.mock.calls[0]?.[0].payload;
-    const secondPayload = mockEmailService.sendEmail.mock.calls[1]?.[0].payload;
-    expect(firstPayload).toMatchObject({ generation: 1 });
-    expect(secondPayload).toMatchObject({ generation: 2 });
-  });
-
-  it("returns a rate-limited response without sending email", async () => {
-    const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
-      baseUrl: "https://slotmerge.example.com",
-      secret: "test-secret",
-    });
-    const token = issuer.issueMagicLinkToken({
-      inviteId: "invite-1",
-      email: "alice@example.com",
-      expiresAt: new Date("2026-07-10T00:00:00.000Z"),
-      generation: 0,
+      expect(mockInviteRepo.findPendingByEmail).toHaveBeenCalledWith(
+        "alice@example.com",
+      );
+      expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipient: "alice@example.com",
+          type: "magic-link",
+        }),
+      );
     });
 
-    const mockInviteRepo = createMockInviteRepository();
-    mockInviteRepo.findById.mockResolvedValue({
-      id: "invite-1",
-      email: "alice@example.com",
-      role: "user",
-      status: "pending",
-      invitedByAdminId: null,
-      magicLinkGeneration: 0,
-      expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+    it("issues magic link and sends email for existing active user", async () => {
+      const issuer = createMagicLinkTokenIssuer({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        baseUrl: "https://slotmerge.example.com",
+        secret: "test-secret",
+      });
+
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findPendingByEmail.mockResolvedValue(null);
+
+      const mockUserRepo = createMockUserRepository();
+      mockUserRepo.findByEmail.mockResolvedValue({
+        id: "user-1",
+        email: "existing@example.com",
+        role: "user",
+        status: "active",
+      });
+
+      const mockEmailService = createMockEmailDeliveryService();
+      mockEmailService.sendEmail.mockResolvedValue({
+        emailEvent: {
+          id: "event-1",
+          recipient: "",
+          type: "magic-link",
+          payloadReference: "",
+          status: "sent",
+          attempts: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          sentAt: new Date(),
+          failedAt: null,
+          lastAttemptAt: null,
+          lastErrorCode: null,
+          lastErrorMessage: null,
+        },
+      });
+
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+        magicLinkTokenIssuer: issuer,
+        emailDeliveryService: mockEmailService,
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "existing@example.com" }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        error?: string;
+        sent?: boolean;
+      };
+      expect(body).toEqual({ sent: true });
+
+      expect(mockUserRepo.findByEmail).toHaveBeenCalledWith(
+        "existing@example.com",
+      );
+      expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipient: "existing@example.com",
+          type: "magic-link",
+        }),
+      );
     });
 
-    const mockEmailService = createMockEmailDeliveryService();
+    it("sends magic link to existing user even when pending invite also exists for same email", async () => {
+      const issuer = createMagicLinkTokenIssuer({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        baseUrl: "https://slotmerge.example.com",
+        secret: "test-secret",
+      });
 
-    const { POST } = createMagicLinkRequestHandlers({
-      clock: () => new Date("2026-07-15T00:00:00.000Z"),
-      magicLinkSecret: "test-secret",
-      inviteRepository: mockInviteRepo,
-      emailDeliveryService: mockEmailService,
-      rateLimiter: { allow: () => false },
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findPendingByEmail.mockResolvedValue({
+        id: "invite-1",
+        email: "both@example.com",
+        role: "user",
+        status: "pending",
+        invitedByAdminId: "admin-1",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      });
+
+      const mockUserRepo = createMockUserRepository();
+      mockUserRepo.findByEmail.mockResolvedValue({
+        id: "user-1",
+        email: "both@example.com",
+        role: "user",
+        status: "active",
+      });
+
+      const mockEmailService = createMockEmailDeliveryService();
+      mockEmailService.sendEmail.mockResolvedValue({
+        emailEvent: {
+          id: "event-1",
+          recipient: "",
+          type: "magic-link",
+          payloadReference: "",
+          status: "sent",
+          attempts: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          sentAt: new Date(),
+          failedAt: null,
+          lastAttemptAt: null,
+          lastErrorCode: null,
+          lastErrorMessage: null,
+        },
+      });
+
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+        magicLinkTokenIssuer: issuer,
+        emailDeliveryService: mockEmailService,
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "both@example.com" }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        error?: string;
+        sent?: boolean;
+      };
+      expect(body).toEqual({ sent: true });
+
+      expect(mockUserRepo.findByEmail).toHaveBeenCalledWith("both@example.com");
+      expect(mockInviteRepo.findPendingByEmail).toHaveBeenCalled();
+      expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipient: "both@example.com",
+          type: "magic-link",
+        }),
+      );
     });
 
-    const response = await POST(
-      new Request("http://localhost/auth/magic-link/request", {
-        method: "POST",
-        body: new URLSearchParams({ token: token.token }),
-      }),
-    );
+    it("normalizes email to lowercase before lookup", async () => {
+      const issuer = createMagicLinkTokenIssuer({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        baseUrl: "https://slotmerge.example.com",
+        secret: "test-secret",
+      });
 
-    expect(response.status).toBe(429);
-    expect(mockInviteRepo.setMagicLinkGeneration).not.toHaveBeenCalled();
-    expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
-  });
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findPendingByEmail.mockResolvedValue({
+        id: "invite-1",
+        email: "alice@example.com",
+        role: "user",
+        status: "pending",
+        invitedByAdminId: "admin-1",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      });
 
-  it("rolls back the generation if email delivery fails", async () => {
-    const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
-      baseUrl: "https://slotmerge.example.com",
-      secret: "test-secret",
-    });
-    const token = issuer.issueMagicLinkToken({
-      inviteId: "invite-1",
-      email: "alice@example.com",
-      expiresAt: new Date("2026-07-10T00:00:00.000Z"),
-      generation: 0,
-    });
+      const mockUserRepo = createMockUserRepository();
 
-    let currentGeneration = 0;
-    const invite: MockInvite = {
-      id: "invite-1",
-      email: "alice@example.com",
-      role: "user",
-      status: "pending",
-      invitedByAdminId: null,
-      magicLinkGeneration: 0,
-      expiresAt: new Date("2026-08-11T00:00:00.000Z"),
-    };
+      const mockEmailService = createMockEmailDeliveryService();
+      mockEmailService.sendEmail.mockResolvedValue({
+        emailEvent: {
+          id: "event-1",
+          recipient: "",
+          type: "magic-link",
+          payloadReference: "",
+          status: "sent",
+          attempts: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          sentAt: new Date(),
+          failedAt: null,
+          lastAttemptAt: null,
+          lastErrorCode: null,
+          lastErrorMessage: null,
+        },
+      });
 
-    const mockInviteRepo = createMockInviteRepository();
-    mockInviteRepo.findById.mockImplementation(() =>
-      Promise.resolve({
-        ...invite,
-        magicLinkGeneration: currentGeneration,
-      }),
-    );
-    mockInviteRepo.setMagicLinkGeneration.mockImplementation(
-      (_id, nextGeneration) => {
-        currentGeneration = nextGeneration;
-        return Promise.resolve({
-          ...invite,
-          magicLinkGeneration: nextGeneration,
-        });
-      },
-    );
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+        magicLinkTokenIssuer: issuer,
+        emailDeliveryService: mockEmailService,
+      });
 
-    const mockEmailService = createMockEmailDeliveryService();
-    mockEmailService.sendEmail.mockRejectedValue(new Error("queue failed"));
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "Alice@EXAMPLE.COM" }),
+        }),
+      );
 
-    const { POST } = createMagicLinkRequestHandlers({
-      clock: () => new Date("2026-07-15T00:00:00.000Z"),
-      magicLinkSecret: "test-secret",
-      inviteRepository: mockInviteRepo,
-      emailDeliveryService: mockEmailService,
-      rateLimiter: { allow: () => true },
+      expect(response.status).toBe(200);
+      expect(mockInviteRepo.findPendingByEmail).toHaveBeenCalledWith(
+        "alice@example.com",
+      );
     });
 
-    const response = await POST(
-      new Request("http://localhost/auth/magic-link/request", {
-        method: "POST",
-        body: new URLSearchParams({ token: token.token }),
-      }),
-    );
+    it("returns same error for unknown email and uninvited-but-known email", async () => {
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findPendingByEmail.mockResolvedValue(null);
 
-    expect(response.status).toBe(502);
-    expect(mockInviteRepo.setMagicLinkGeneration).toHaveBeenNthCalledWith(
-      1,
-      "invite-1",
-      1,
-    );
-    expect(mockInviteRepo.setMagicLinkGeneration).toHaveBeenNthCalledWith(
-      2,
-      "invite-1",
-      0,
-    );
-    expect(currentGeneration).toBe(0);
+      const mockUserRepo = createMockUserRepository();
+      mockUserRepo.findByEmail.mockResolvedValue(null);
+
+      const { POST } = createMagicLinkRequestHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+      });
+
+      const unknownResponse = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "unknown@example.com" }),
+        }),
+      );
+
+      const knownButNotInvitedResponse = await POST(
+        new Request("http://localhost/auth/magic-link/request", {
+          method: "POST",
+          body: new URLSearchParams({ email: "notinvited@example.com" }),
+        }),
+      );
+
+      expect(unknownResponse.status).toBe(400);
+      expect(knownButNotInvitedResponse.status).toBe(400);
+
+      const unknownBody = (await unknownResponse.json()) as { error?: string };
+      const knownBody = (await knownButNotInvitedResponse.json()) as {
+        error?: string;
+      };
+      expect(unknownBody).toEqual(knownBody);
+      expect(unknownBody).toEqual({ error: "not_invited" });
+    });
   });
 });

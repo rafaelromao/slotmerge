@@ -5,20 +5,24 @@
  * E2E coverage: all slices — tests 1-62
  */
 
+import { randomUUID } from "node:crypto";
+
 export async function insertSession(
   userId: string,
-  sessionId: string,
+  sessionId?: string,
   csrfToken = "e2e-csrf-token",
-) {
+): Promise<string> {
   const { getDb } = await import("../../../src/db/client");
   const { sessions } = await import("../../../src/db/schema");
   const db = getDb();
+  const id = sessionId ?? randomUUID();
   await db.insert(sessions).values({
-    id: sessionId,
+    id,
     userId,
     csrfToken,
     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
+  return id;
 }
 
 export async function insertTopic(

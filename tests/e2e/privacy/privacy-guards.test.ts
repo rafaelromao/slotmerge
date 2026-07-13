@@ -46,10 +46,8 @@ describe("Privacy guards", () => {
       role: "organizer",
       status: "active",
     });
-    await insertSession(searcher.id, `session-privacy-${Date.now()}`);
-    const searcherCookie = await sealSessionCookie({
-      sessionId: `session-privacy-${Date.now()}`,
-    });
+    const sessionId0 = await insertSession(searcher.id);
+    const searcherCookie = await sealSessionCookie({ sessionId: sessionId0 });
 
     const searchesRes = await searchesGet(
       new Request("http://localhost/searches", {
@@ -91,10 +89,8 @@ describe("Privacy guards", () => {
       role: "organizer",
       status: "active",
     });
-    await insertSession(searcher.id, `session-cal-privacy-${Date.now()}`);
-    const searcherCookie = await sealSessionCookie({
-      sessionId: `session-cal-privacy-${Date.now()}`,
-    });
+    const sessionId1 = await insertSession(searcher.id);
+    const searcherCookie = await sealSessionCookie({ sessionId: sessionId1 });
 
     const { searchResultPage } = await import("../helpers/search-result-page");
     const result = await searchResultPage(searcherCookie, {
@@ -145,10 +141,8 @@ describe("Non-goal UI absence guards", () => {
       role: "organizer",
       status: "active",
     });
-    await insertSession(searcher.id, `session-nobooking-${Date.now()}`);
-    const cookie = await sealSessionCookie({
-      sessionId: `session-nobooking-${Date.now()}`,
-    });
+    const sessionId2 = await insertSession(searcher.id);
+    const cookie = await sealSessionCookie({ sessionId: sessionId2, });
 
     const { searchResultPage } = await import("../helpers/search-result-page");
     const result = await searchResultPage(cookie, {
@@ -192,10 +186,8 @@ describe("Non-goal UI absence guards", () => {
       role: "user",
       status: "active",
     });
-    await insertSession(user.id, `session-nonotify-${Date.now()}`);
-    const cookie = await sealSessionCookie({
-      sessionId: `session-nonotify-${Date.now()}`,
-    });
+    const sessionId3 = await insertSession(user.id);
+    const cookie = await sealSessionCookie({ sessionId: sessionId3, });
 
     const { GET: meGet } = await import("../../../app/me/route");
     const res = await meGet(
@@ -226,10 +218,8 @@ describe("Non-goal UI absence guards", () => {
       role: "user",
       status: "active",
     });
-    await insertSession(user.id, `session-calwrite-${Date.now()}`);
-    const cookie = await sealSessionCookie({
-      sessionId: `session-calwrite-${Date.now()}`,
-    });
+    const sessionId4 = await insertSession(user.id);
+    const cookie = await sealSessionCookie({ sessionId: sessionId4, });
 
     const { GET: connectionsGet } = await import(
       "../../../app/me/calendar-connections/route",
@@ -267,10 +257,8 @@ describe("Non-goal UI absence guards", () => {
       role: "organizer",
       status: "active",
     });
-    await insertSession(searcher.id, `session-noexport-${Date.now()}`);
-    const cookie = await sealSessionCookie({
-      sessionId: `session-noexport-${Date.now()}`,
-    });
+    const sessionId5 = await insertSession(searcher.id);
+    const cookie = await sealSessionCookie({ sessionId: sessionId5, });
 
     const { searchResultPage } = await import("../helpers/search-result-page");
     const result = await searchResultPage(cookie, {

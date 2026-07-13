@@ -12,6 +12,7 @@ import { MockEmailAdapter } from "./helpers/email";
 import { MockGoogleCalendar } from "./helpers/google-calendar";
 import { MockMicrosoftGraph } from "./helpers/microsoft-graph";
 import { resetDatabase } from "./helpers/db";
+import { setClockForTests } from "../../src/config/runtime";
 
 const TEST_ENV = {
   APP_ENV: "test",
@@ -48,6 +49,7 @@ beforeAll(() => {
 beforeEach(async () => {
   await resetDatabase();
   TestClock.reset();
+  setClockForTests(() => TestClock.now());
   MockEmailAdapter.reset();
   MockGoogleCalendar.reset();
   MockMicrosoftGraph.reset();

@@ -9,5 +9,6 @@ export default defineConfig({
     globals: true,
     include: ["tests/e2e/**/*.test.ts"],
     setupFiles: ["tests/e2e/setup.ts"],
+    maxWorkers: 1,
   },
 });

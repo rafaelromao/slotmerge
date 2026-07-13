@@ -37,8 +37,8 @@ describe("Setup, consent, and topic associations", () => {
       status: "active",
     });
 
-    await insertSession(user.id, "session-setup-incomplete");
-    const cookie = await sealSessionCookie({ sessionId: "session-setup-incomplete" });
+    const sessionId0 = await insertSession(user.id);
+    const cookie = await sealSessionCookie({ sessionId: sessionId0 });
 
     const res = await setupStatusGet(
       new Request("http://localhost/me/setup-status", {
@@ -74,8 +74,8 @@ describe("Setup, consent, and topic associations", () => {
       status: "active",
     });
 
-    await insertSession(user.id, "session-setup-checklist");
-    const cookie = await sealSessionCookie({ sessionId: "session-setup-checklist" });
+    const sessionId1 = await insertSession(user.id);
+    const cookie = await sealSessionCookie({ sessionId: sessionId1 });
 
     const beforeRes = await setupStatusGet(
       new Request("http://localhost/me/setup-status", {
@@ -122,8 +122,8 @@ describe("Setup, consent, and topic associations", () => {
       status: "active",
     });
 
-    await insertSession(user.id, "session-proposal");
-    const cookie = await sealSessionCookie({ sessionId: "session-proposal" });
+    const sessionId2 = await insertSession(user.id);
+    const cookie = await sealSessionCookie({ sessionId: sessionId2 });
 
     const res = await proposalPost(
       new Request("http://localhost/topic-proposals", {
@@ -167,9 +167,9 @@ describe("Setup, consent, and topic associations", () => {
       status: "active",
     });
 
-    await insertSession(user.id, "session-proposal-matching");
+    const sessionId3 = await insertSession(user.id);
     const cookie = await sealSessionCookie({
-      sessionId: "session-proposal-matching",
+      sessionId: sessionId3,
     });
 
     const proposalRes = await proposalPost(
@@ -224,8 +224,8 @@ describe("Setup, consent, and topic associations", () => {
 
     const topic = await insertTopic("Machine Learning", "active");
 
-    await insertSession(user.id, "session-topic-assoc");
-    const cookie = await sealSessionCookie({ sessionId: "session-topic-assoc" });
+    const sessionId4 = await insertSession(user.id);
+    const cookie = await sealSessionCookie({ sessionId: sessionId4 });
 
     await insertUserTopic(user.id, topic.id, "active");
 

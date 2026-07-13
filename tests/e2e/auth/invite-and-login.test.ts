@@ -50,16 +50,19 @@ function constructMagicLinkToken(params: {
   return `${payloadEncoded}.${signature}`;
 }
 
-async function insertSession(userId: string, sessionId: string) {
+async function insertSession(userId: string, sessionId?: string): Promise<string> {
+  const { randomUUID } = await import("node:crypto");
   const { getDb } = await import("../../../src/db/client");
   const { sessions } = await import("../../../src/db/schema");
   const db = getDb();
+  const id = sessionId ?? randomUUID();
   await db.insert(sessions).values({
-    id: sessionId,
+    id,
     userId,
     csrfToken: "e2e-csrf-token",
     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
+  return id;
 }
 
 describe("Invite and magic link authentication", () => {
@@ -250,10 +253,10 @@ describe("Invite and magic link authentication", () => {
       status: "active",
     });
 
-    await insertSession(user.id, "session-self-delete");
+    const sessionId = await insertSession(user.id);
 
     const sessionCookie = await sealSessionCookie({
-      sessionId: "session-self-delete",
+      sessionId,
     });
 
     const deleteRes = await selfDelete(
@@ -266,7 +269,7 @@ describe("Invite and magic link authentication", () => {
       }),
     );
 
-    expect(deleteRes.status).toBe(200);
+    expect(deleteRes.status).toBe(204);
 
     const { getDb } = await import("../../../src/db/client");
     const { eq } = await import("drizzle-orm");

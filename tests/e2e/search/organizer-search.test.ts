@@ -52,9 +52,9 @@ describe("Organizer search", () => {
       status: "active",
     });
 
-    await insertSession(normalUser.id, `session-normal-search`);
+    const sessionId0 = await insertSession(normalUser.id);
     const cookie = await sealSessionCookie({
-      sessionId: `session-normal-search`,
+      sessionId: sessionId0,
     });
 
     const res = await createSearch(
@@ -96,9 +96,9 @@ describe("Organizer search", () => {
     });
 
     const searcher = await createSearcher();
-    await insertSession(searcher.id, `session-searcher-${Date.now()}`);
+    const sessionId1 = await insertSession(searcher.id);
     const cookie = await sealSessionCookie({
-      sessionId: `session-searcher-${Date.now()}`,
+      sessionId: sessionId1,
     });
 
     const result = await searchResultPage(cookie, {
@@ -148,9 +148,9 @@ describe("Organizer search", () => {
     await insertUserTopic(userWithOnlyA.id, topicA.id, "active");
 
     const searcher = await createSearcher();
-    await insertSession(searcher.id, `session-searcher-multi-${Date.now()}`);
+    const sessionId2 = await insertSession(searcher.id);
     const cookie = await sealSessionCookie({
-      sessionId: `session-searcher-multi-${Date.now()}`,
+      sessionId: sessionId2,
     });
 
     const result = await searchResultPage(cookie, {
@@ -180,9 +180,9 @@ describe("Organizer search", () => {
     const searcher = await createSearcher();
     await insertUserTopic(searcher.id, topic.id, "active");
 
-    await insertSession(searcher.id, `session-searcher-self-${Date.now()}`);
+    const sessionId3 = await insertSession(searcher.id);
     const cookie = await sealSessionCookie({
-      sessionId: `session-searcher-self-${Date.now()}`,
+      sessionId: sessionId3,
     });
 
     const result = await searchResultPage(cookie, {
@@ -208,10 +208,8 @@ describe("Organizer search", () => {
     const topic = await insertTopic("Cloud Computing", "active");
 
     const searcher = await createSearcher();
-    await insertSession(searcher.id, `session-searcher-grid-${Date.now()}`);
-    const cookie = await sealSessionCookie({
-      sessionId: `session-searcher-grid-${Date.now()}`,
-    });
+    const sessionId0 = await insertSession(searcher.id);
+    const cookie = await sealSessionCookie({ sessionId: sessionId0, });
 
     const result = await searchResultPage(cookie, {
       selectedTopicIds: [topic.id],
@@ -266,10 +264,8 @@ describe("Organizer search", () => {
     });
 
     const searcher = await createSearcher();
-    await insertSession(searcher.id, `session-searcher-stale-${Date.now()}`);
-    const cookie = await sealSessionCookie({
-      sessionId: `session-searcher-stale-${Date.now()}`,
-    });
+    const sessionId1 = await insertSession(searcher.id);
+    const cookie = await sealSessionCookie({ sessionId: sessionId1, });
 
     const result = await searchResultPage(cookie, {
       selectedTopicIds: [topic.id],
@@ -305,10 +301,8 @@ describe("Organizer search", () => {
     await insertUserTopic(user.id, topic.id, "active");
 
     const searcher = await createSearcher();
-    await insertSession(searcher.id, `session-immutable-${Date.now()}`);
-    const cookie = await sealSessionCookie({
-      sessionId: `session-immutable-${Date.now()}`,
-    });
+    const sessionId2 = await insertSession(searcher.id);
+    const cookie = await sealSessionCookie({ sessionId: sessionId2, });
 
     const result1 = await searchResultPage(cookie, {
       selectedTopicIds: [topic.id],
@@ -342,9 +336,9 @@ describe("Organizer search", () => {
     const topic = await insertTopic("Compilers", "active");
 
     const searcher = await createSearcher();
-    await insertSession(searcher.id, `session-searcher-history-${Date.now()}`);
+    const sessionId4 = await insertSession(searcher.id);
     const searcherCookie = await sealSessionCookie({
-      sessionId: `session-searcher-history-${Date.now()}`,
+      sessionId: sessionId4,
     });
 
     await searchResultPage(searcherCookie, {
@@ -360,9 +354,9 @@ describe("Organizer search", () => {
       role: "organizer",
       status: "active",
     });
-    await insertSession(anotherOrganizer.id, `session-another-org-${Date.now()}`);
+    const sessionId5 = await insertSession(anotherOrganizer.id);
     const anotherCookie = await sealSessionCookie({
-      sessionId: `session-another-org-${Date.now()}`,
+      sessionId: sessionId5,
     });
 
     const { GET: listSearches } = await import("../../../app/searches/route");

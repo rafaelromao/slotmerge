@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 
 import { verifyMagicLinkToken, type MagicLinkTokenPayload } from "./magic-link";
 import { sealSessionCookie, getSessionSecret } from "./session";
+import { getClockForTests } from "../config/runtime";
 import type { UserRole } from "../db/schema";
 
 export type MagicLinkVerifyDependencies = {
@@ -78,7 +79,11 @@ function getSessionLifetimeDays(): number {
 export function createMagicLinkVerifyHandlers(
   deps: MagicLinkVerifyDependencies = {},
 ) {
-  const clock = deps.clock ?? (() => new Date());
+  const baseClock = deps.clock ?? (() => new Date());
+  const clock: () => Date = () => {
+    const testClock = getClockForTests();
+    return testClock ? testClock() : baseClock();
+  };
   const sessionLifetimeDays =
     deps.sessionLifetimeDays ?? getSessionLifetimeDays();
 

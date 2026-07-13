@@ -96,3 +96,13 @@ function requireEnv(
     throw new Error(`${name} is required outside local/test runtime mode`);
   }
 }
+
+let clockForTests: (() => Date) | undefined;
+
+export function setClockForTests(clock: () => Date): void {
+  clockForTests = clock;
+}
+
+export function getClockForTests(): (() => Date) | undefined {
+  return clockForTests;
+}

@@ -7,7 +7,7 @@ import type { EmailDeliveryService } from "../email/service";
 import { createEmailDeliveryService } from "../email/service";
 import { createPostgresEmailEventRepository } from "../email/repository";
 import { enqueueInviteEmailJob } from "../email/invite-jobs";
-import { loadRuntimeConfig } from "../config/runtime";
+import { loadRuntimeConfig, getClockForTests } from "../config/runtime";
 import { getDb } from "../db/client";
 import { invites, users, type UserRole } from "../db/schema";
 
@@ -63,7 +63,11 @@ const magicLinkLifetimeHours = 1;
 export function createMagicLinkRequestHandlers(
   deps: MagicLinkRequestDependencies = {},
 ) {
-  const clock = deps.clock ?? (() => new Date());
+  const baseClock = deps.clock ?? (() => new Date());
+  const clock: () => Date = () => {
+    const testClock = getClockForTests();
+    return testClock ? testClock() : baseClock();
+  };
   const rateLimiter = deps.rateLimiter ?? createInMemoryRateLimiter();
 
   return {
@@ -90,7 +94,7 @@ export function createMagicLinkRequestHandlers(
         });
 
       const inviteRepo =
-        deps.inviteRepository ?? createDatabaseInviteRepository(clock);
+        deps.inviteRepository ?? createDatabaseInviteRepository(() => clock);
       const userRepo = deps.userRepository ?? createDatabaseUserRepository();
       const emailService =
         deps.emailDeliveryService ??
@@ -258,7 +262,7 @@ function createDefaultEmailDeliveryService({
 }
 
 function createDatabaseInviteRepository(
-  clock: () => Date,
+  getClock: () => () => Date,
 ): MagicLinkRequestInviteRepository {
   return {
     findById: async (id) => {
@@ -290,7 +294,7 @@ function createDatabaseInviteRepository(
           and(
             eq(invites.email, email),
             eq(invites.status, "pending"),
-            gt(invites.expiresAt, clock()),
+            gt(invites.expiresAt, getClock()()),
           ),
         )
         .limit(1);
@@ -300,7 +304,7 @@ function createDatabaseInviteRepository(
     accept: async (id) => {
       await getDb()
         .update(invites)
-        .set({ status: "accepted", updatedAt: clock() })
+        .set({ status: "accepted", updatedAt: getClock()() })
         .where(eq(invites.id, id));
     },
   };

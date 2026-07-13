@@ -133,6 +133,8 @@ export async function createUser(data: {
   const pool = new Pool({ connectionString: TEST_DATABASE_URL });
 
   try {
+    const columns =
+      "email, display_name, role, status, profile_timezone, buffer_minutes";
     const result = await pool.query<{
       id: string;
       email: string;
@@ -142,11 +144,8 @@ export async function createUser(data: {
       profile_timezone: string | null;
       buffer_minutes: number;
     }>(
-      `INSERT INTO users (id, email, display_name, role, status, profile_timezone, buffer_minutes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, email, display_name, role, status, profile_timezone, buffer_minutes`,
+      `INSERT INTO users (${columns}) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, display_name, role, status, profile_timezone, buffer_minutes`,
       [
-        data.id ?? null,
         data.email,
         data.displayName ?? null,
         data.role ?? "user",

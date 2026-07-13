@@ -27,6 +27,12 @@ export function setEmailTransportForTests(
   emailTransportOverride = transport;
 }
 
+let clockOverride: (() => Date) | null = null;
+
+export function setClockForTests(clock: (() => Date) | null): void {
+  clockOverride = clock;
+}
+
 export async function handleEmailDeliveryJob(payload: unknown): Promise<void> {
   const job = parseEmailDeliveryJob(payload);
   const config = loadRuntimeConfig();
@@ -49,7 +55,7 @@ export async function handleEmailDeliveryJob(payload: unknown): Promise<void> {
   });
 
   await processEmailDeliveryJob(job, {
-    clock: () => new Date(),
+    clock: clockOverride ?? (() => new Date()),
     eventRepository,
     transport,
     criticalEmail,

@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #66: E2E test: mock email delivery adapter records sends, delivery state, and retries
+Implement GitHub issue #67: E2E test: clock injection helper advances time without sleeping
 
 ## Issue Context
 
@@ -10,13 +10,13 @@ E2E test plan: [E2E test plan: SlotMerge MVP](https://github.com/rafaelromao/slo
 
 ## What to build
 
-Mock email delivery adapter used by every email-touching E2E test. Records each send with recipient, type, and payload. Simulates delivery failures and configurable retries so backoff and throttling tests are deterministic. Provides helpers for asserting Email Event state.
+Single global clock injected at the app boundary covering auth, scheduling, staleness, retention, and backoff windows. Tests advance the clock to simulate expiration, staleness, and retry intervals without sleeping.
 
 ## Acceptance criteria
 
-- [ ] Records every send with recipient, type, payload, and delivery status.
-- [ ] Simulates delivery failures with configurable retry behaviour.
-- [ ] Captures Email Event records visible via the API.
+- [ ] All time-sensitive behavior reads from the injected clock.
+- [ ] Tests can advance the clock without `sleep`.
+- [ ] Per-test reset returns the clock to a known starting state.
 
 ## Blocked by
 
@@ -26,85 +26,61 @@ None — can start immediately.
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/66-e2e-test-mock-email-delivery-adapter-records-sends-delivery-state-and-retries`
-- Source branch: `sandman/66-e2e-test-mock-email-delivery-adapter-records-sends-delivery-state-and-retries`
+- Current branch: `sandman/67-e2e-test-clock-injection-helper-advances-time-without-sleeping`
+- Source branch: `sandman/67-e2e-test-clock-injection-helper-advances-time-without-sleeping`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/66-e2e-test-mock-email-delivery-adapter-records-sends-delivery-state-and-retries` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/67-e2e-test-clock-injection-helper-advances-time-without-sleeping` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
-- [x] PR-Review (sandman-pr-review)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Next Step
-
-PR-Merge (sandman-pr-merge)
-
 ## Plan
 
 ### Behaviors to test
 
-1. **Recording every send** — `send()` records recipient, type, payload, status ("sent" | "failed"), providerMessageId, attempt number, and error if any
-2. **Simulating delivery failures** — when configured, `send()` throws instead of succeeding
-3. **Configurable retry behavior** — `setFailsAfterAttempts(n)` causes first n-1 sends to throw, nth succeeds; `setPersistentFailure()` causes all sends to throw
-4. **State inspection helpers** — getter properties for sends, by-recipient, by-type; `reset()` clears state
-5. **Email Event records visible via API** — `processEmailDeliveryJob` writes to `eventRepository` so tests can query `EmailEvent` state
-
-### Scope clarification
-
-- `MockEmailAdapter` is for **E2E tests** that exercise `handleEmailDeliveryJob` end-to-end through the graphile-worker task runner
-- The existing `src/email/worker.test.ts` unit-tests `processEmailDeliveryJob` in isolation with inline mocks — this is a different testing mode; MockEmailAdapter does not replace it
-- "Email Event records visible via the API" means `eventRepository` state is queryable in tests (not a separate HTTP API route)
+1. **TestClock helper** — `buildTestClock(initialTime?)` returns a mutable clock with `now()`, `advance(ms)`, `reset(date?)`. `now()` returns the current virtual time without wall-clock reads.
+2. **Per-test reset** — after `clock.reset(date)`, subsequent `now()` calls return the reset time.
+3. **Per-test isolation** — `advance()` on one clock instance does not affect another.
+4. **Worker clock injection (email)** — `handleEmailDeliveryJob` uses injected clock via `setClockForTests`; after `clock.advance()`, the job uses the advanced `now`.
+5. **Worker clock injection (sync)** — `handleSyncCalendarConnectionJob` uses injected clock via `setClockForTests`; after `clock.advance()`, the job uses the advanced `now` for `syncCalendarConnection`. Note: `timeMin`/`timeMax` rolling window uses wall-clock `new Date()` and is out of scope (defines the search time range, not time-sensitive behavior per the AC).
+6. **Worker clock injection (poll)** — `handlePollCalendarConnectionsJob` accepts a clock option `{ clock?: () => Date }`; after `clock.advance()`, jitter calculation uses the advanced `now`.
 
 ### Testable interfaces
 
-- **EmailTransport seam** (`src/email/service.ts`): `send(job) → Promise<{providerMessageId}>` — the primary mock target
-- **EmailEventRepository seam** (`src/email/service.ts`): `createQueuedEvent`, `recordAttempt`, `markDelivered`, `markFailed` — visible via DB in tests
-- **Module-level singleton seam** in `src/worker/email.ts`: `setEmailTransportForTests()` — allows E2E tests to inject mock transport into `handleEmailDeliveryJob`
+- `tests/test-clock.ts` — `buildTestClock(startTime?: Date)` factory returning `{ now, advance, reset }`
+- `src/worker/email.ts` — add `setClockForTests(clock: (() => Date) | null)` seam (null restores `() => new Date()`, matching existing `setXxxForTests(null)` pattern)
+- `src/worker/sync.ts` — add `setClockForTests(clock: (() => Date) | null)` seam
+- `src/worker/poll.ts` — add `{ clock?: () => Date }` option to `handlePollCalendarConnectionsJob`
 
-### Adapter state design
+### Execution order for sandman-tdd
 
-- Adapter tracks `attemptsByEmailEventId: Map<string, number>` internally — incremented on each `send()` call
-- This allows `setFailsAfterAttempts(n)` to work correctly across graphile-worker retries (fresh task invocation with same `emailEventId`)
-- State is per-adapter-instance; `reset()` clears all recorded sends and the attempts map
-
-### Key design decisions
-
-1. **Factory in `tests/mock-email-adapter.ts`** — follows `tests/google-calendar-adapter.ts` pattern
-2. **Test injection via `setEmailTransportForTests()`** in `src/worker/email.ts` — module-level override, mirrors `setEmailDeliveryServiceForTests`
-3. **Failure modes**: `setFailsAfterAttempts(n)`, `setPersistentFailure(error?)`, `setNextSendFailure(error?)`
-4. **State exposed via getter properties** — matches `google-calendar-adapter.ts` conventions (not methods)
-5. **Retry logic lives in graphile-worker** — MockEmailAdapter throws when configured; the retry loop is in `processEmailDeliveryJob`
-6. **Clock seam** — `processEmailDeliveryJob` accepts a `clock` option; tests pass a controlled clock to verify timing-sensitive retry behavior
-
-### Files to create
-
-- `tests/mock-email-adapter.ts` — MockEmailAdapter factory (type + implementation)
-- `tests/email-delivery-wiring.test.ts` — wiring tests for the adapter
-
-### Files to modify
-
-- `src/worker/email.ts` — add `setEmailTransportForTests()` and `getEmailTransport()` module-level seam
-
-### Tracer bullet (first TDD iteration)
-
-1. Create `MockEmailAdapter` that records a single `send()` call and returns success
-2. Test: verify `getSends()` returns the recorded send with correct fields
-3. Implement the minimal recording logic to pass the test
+1. `buildTestClock` + tests for now/advance/reset/isolation (vertical slice 1)
+2. `setClockForTests` seam in `email.ts` + test that clock flows into `handleEmailDeliveryJob` (vertical slice 2)
+3. `setClockForTests` seam in `sync.ts` + test that clock flows into `handleSyncCalendarConnectionJob` (vertical slice 3)
+4. `clock` option in `poll.ts` + test that clock flows into jitter calculation (vertical slice 4)
 
 ### Assumptions / risks
 
-- graphile-worker's retry behavior (exponential backoff) is already tested elsewhere; MockEmailAdapter only needs to provide deterministic failure/success for retry scenarios
-- No new API routes needed — Email Event visibility is through `eventRepository` DB state in tests
+- Graphile Worker `run()` in `src/worker/run.ts` is the production entry point; E2E tests call worker handler functions directly with injected clock.
+- `src/auth/session.ts` uses `new Date()` in SQL WHERE clauses — out of scope (session expiration checked by application layer).
+- Auth clock injection (`magic-link-verify.ts`) already exists — no change needed.
+- `src/search/search-input.ts` already uses `Clock = { now(): Date }` interface — no change needed.
+- `sync.ts:137` (`updateLastSyncAt`) and `sync.ts:107-111` (`timeMin`/`timeMax` rolling window) use wall-clock `new Date()` — out of scope (define search time range and last-sync marker, not time-sensitive behavior per the AC).
+
+## Next Step
+
+Load sandman-tdd and execute vertical slices (TestClock helper → worker clock injection seams → tests).
 
 ## Already Resolved
 
@@ -172,7 +148,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 

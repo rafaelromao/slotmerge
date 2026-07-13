@@ -1,38 +1,39 @@
 # Task
 
-Implement GitHub issue #25: Reject sign-in for non-invited email
+Implement GitHub issue #48: Reconcile Calendar Connection sync and process webhook events
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Auth & Invites](https://github.com/rafaelromao/slotmerge/issues/16). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerge/issues/17). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Requesting a magic link for an email that has no valid invite or existing user produces a clear "not invited" error and never authenticates. The behavior applies both to a magic-link attempt from a link and to any future "send me a link" form.
+Calendar Connection sync runs as a background job: provider webhooks update intervals promptly, scheduled reconciliation fills gaps, and transient failures use exponential backoff and provider `Retry-After` semantics. Quota handling avoids spikes.
 
 ## Acceptance criteria
 
-- [ ] A magic-link attempt for an unknown email shows a clear "not invited" error.
-- [ ] No session is created.
-- [ ] No user is implicitly created.
-- [ ] Error responses are indistinguishable between non-existent and uninvited emails (no email enumeration).
+- [ ] Provider webhook events update imported busy intervals.
+- [ ] Scheduled reconciliation refreshes the rolling 90-day window.
+- [ ] Transient failures use exponential backoff and `Retry-After`.
+- [ ] Quotas are respected via randomized traffic patterns.
+- [ ] Sync errors update Calendar Connection status.
 
 ## Blocked by
 
-- [Sign in via magic link](https://github.com/rafaelromao/slotmerge/issues/23)
+- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/47)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/25-reject-sign-in-for-non-invited-email`
-- Source branch: `sandman/25-reject-sign-in-for-non-invited-email`
+- Current branch: `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events`
+- Source branch: `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/25-reject-sign-in-for-non-invited-email` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -46,22 +47,66 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Plan
-
-### Behaviors to test
-- When `/auth/magic-link/verify` receives a valid token whose invite lookup fails, it responds with HTTP 400 and a `not_invited` error, and it does not create a user or session.
-- The invited-email happy path still works unchanged, so this rejection only covers the missing-invite case.
-
-### Testable interfaces
-- `createMagicLinkVerifyHandlers` at the POST boundary, with injected invite, user, and session repositories plus the transaction callback.
-
-### Assumptions / risks
-- The repo does not yet have the future public "send me a link" request form, so the privacy requirement is represented here by the generic missing-invite response at the verify boundary.
-- The failure response must stay generic enough that missing-invite and future request-form failures do not enumerate email existence.
-
 ## Next Step
 
 Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+
+## Plan
+
+### Behaviors to test (TDD slice order)
+
+1. **Webhook handler extracts connectionId and enqueues sync job** (Slice 1 - tracer bullet)
+   - `POST /webhooks/google/calendar` verifies signature, parses payload, enqueues `sync_calendar_connection` job.
+   - `POST /webhooks/microsoft/calendar` verifies signature, parses payload, enqueues `sync_calendar_connection` job.
+   - Invalid signatures rejected with 401.
+
+2. **Sync job fetches Google free/busy and upserts intervals** (Slice 2)
+   - Calls Google FreeBusy API with OAuth refresh via `OAuthTokenClient`.
+   - Parses response into `ImportedBusyIntervalRecord[]` and upserts via `ImportedBusyIntervalRepository`.
+
+3. **Sync job fetches Microsoft free/busy and upserts intervals** (Slice 3)
+   - Calls Microsoft `getSchedule` API with OAuth refresh via `OAuthTokenClient`.
+   - Parses response into `ImportedBusyIntervalRecord[]` and upserts via `ImportedBusyIntervalRepository`.
+   - Handles Microsoft-specific `5006` error (calendar with >1000 entries) as permanent failure.
+
+4. **Transient failures trigger exponential backoff with Retry-After** (Slice 4)
+   - On 429: extracts `Retry-After` header, re-enqueues job with delay.
+   - On other transient errors: exponential backoff with jitter, max 3 retries before permanent failure.
+
+5. **Sync errors update Calendar Connection status** (Slice 5)
+   - Calls `recordCalendarConnectionSyncFailure` which updates `lastErrorCode`/`lastErrorMessage`.
+   - Triggers action-required email via existing `triggerCalendarActionRequiredEmail`.
+
+6. **Reconciliation scheduler refreshes all connected calendar connections** (Slice 6)
+   - `reconcile_calendar_connections` task runs periodically (hourly).
+   - Lists all `connected` calendar connections, enqueues `sync_calendar_connection` jobs with randomized jitter.
+
+7. **Quota spikes avoided via randomized traffic** (Slice 7)
+   - Reconciliation enqueues with random delay (0–10 minutes) per connection.
+
+### Testable interfaces
+
+1. **`WebhookHandler`** — `POST /webhooks/google/calendar` and `POST /webhooks/microsoft/calendar` with injected `verifyWebhookSignature`, `parseWebhookPayload`, and `enqueueSyncJob`.
+
+2. **`OAuthTokenClient`** — `refreshGoogleToken(connectionId)` and `refreshMicrosoftToken(connectionId)` with injected `decryptToken`, `fetchImpl`, and `updateConnectionAccessToken`.
+
+3. **`FreeBusyClient`** — `fetchGoogleFreeBusy(tokens, calendarIds, timeMin, timeMax)` and `fetchMicrosoftGetSchedule(token, userId, timeMin, timeMax)` with injected `fetchImpl`.
+
+4. **`ImportedBusyIntervalRepository`** — already exists at `src/calendar/imported-busy-intervals.ts:25-34` with `upsertBatch`, `deleteByConnectionId`, `findByUserIdAndDateRange`, `deleteExpiredBefore`.
+
+5. **`recordCalendarConnectionSyncFailure`** — already exists at `src/calendar/sync-failure-recorder.ts` with test override via `setRecordCalendarConnectionSyncFailureForTests`.
+
+6. **`CalendarConnectionRepository`** — `listConnected()` to list all `connected` calendar connections for reconciliation, with test override via existing repository pattern.
+
+7. **`enqueueSyncJob(connectionId, runAt?)`** and **`enqueueReconciliation()`** — wraps `quickAddJob` with injected `connectionString`.
+
+### Assumptions / risks
+
+- Webhook secrets: `GOOGLE_WEBHOOK_SECRET`, `MICROSOFT_WEBHOOK_SECRET` env vars; local dev uses polling instead.
+- Token refresh: `OAuthTokenClient` wraps existing token encryption from `google-calendar-connections.ts` and `microsoft-calendar-connections.ts`.
+- Microsoft `5006` error is permanent failure (user calendar overflow — cannot be retried).
+- Graphile Worker task names: `sync_calendar_connection` and `reconcile_calendar_connections` (verify against existing convention).
+- Webhook channel renewal (Google channel expiry, Microsoft subscription renewal) is out of scope for this ticket.
 
 ## Already Resolved
 

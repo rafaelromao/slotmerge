@@ -29,7 +29,7 @@ export function createMicrosoftCalendarSyncClient({
           schedules:
             connection.contributingCalendarIds.length > 0
               ? connection.contributingCalendarIds
-              : [connection.userId],
+              : ["me"],
           startTime: {
             dateTime: now.toISOString(),
             timeZone: "UTC",

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { reconcileCalendarConnections } from "./reconciliation";
 
 describe("reconcileCalendarConnections", () => {
-  it("refreshes only active connections inside the rolling window", async () => {
+  it("refreshes all connections regardless of status", async () => {
     const enqueueJob = vi.fn().mockResolvedValue(undefined);
 
     await reconcileCalendarConnections({
@@ -32,10 +32,15 @@ describe("reconcileCalendarConnections", () => {
       enqueueJob,
     });
 
-    expect(enqueueJob).toHaveBeenCalledTimes(1);
+    expect(enqueueJob).toHaveBeenCalledTimes(2);
     expect(enqueueJob.mock.calls[0]?.[0]).toMatchObject({
       connectionId: "connection-1",
       provider: "google",
+      source: "reconciliation",
+    });
+    expect(enqueueJob.mock.calls[1]?.[0]).toMatchObject({
+      connectionId: "connection-2",
+      provider: "microsoft",
       source: "reconciliation",
     });
   });

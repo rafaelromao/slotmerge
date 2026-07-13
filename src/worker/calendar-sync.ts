@@ -36,6 +36,7 @@ export async function handleCalendarConnectionSyncJob(
       throw new Error("Google calendar connection not found.");
     }
 
+    const now = new Date();
     await processCalendarConnectionSync({
       attempt: job.attempt,
       connection,
@@ -43,7 +44,7 @@ export async function handleCalendarConnectionSyncJob(
       importedBusyIntervalRepository: (
         await import("../calendar/imported-busy-intervals")
       ).getImportedBusyIntervalRepository(),
-      now: new Date(),
+      now,
       providerClient: createGoogleCalendarSyncClient({
         tokenEncryptionKey: config.calendarTokenEncryptionKey,
       }),
@@ -53,7 +54,7 @@ export async function handleCalendarConnectionSyncJob(
           provider: "google",
           source: job.source,
           attempt: input.attempt,
-          runAt: new Date(Date.now() + input.delayMs),
+          runAt: new Date(now.getTime() + input.delayMs),
         }),
     });
     return;
@@ -65,6 +66,7 @@ export async function handleCalendarConnectionSyncJob(
     throw new Error("Microsoft calendar connection not found.");
   }
 
+  const now = new Date();
   await processCalendarConnectionSync({
     attempt: job.attempt,
     connection,
@@ -72,7 +74,7 @@ export async function handleCalendarConnectionSyncJob(
     importedBusyIntervalRepository: (
       await import("../calendar/imported-busy-intervals")
     ).getImportedBusyIntervalRepository(),
-    now: new Date(),
+    now,
     providerClient: createMicrosoftCalendarSyncClient({
       tokenEncryptionKey: config.calendarTokenEncryptionKey,
     }),
@@ -82,7 +84,7 @@ export async function handleCalendarConnectionSyncJob(
         provider: "microsoft",
         source: job.source,
         attempt: input.attempt,
-        runAt: new Date(Date.now() + input.delayMs),
+        runAt: new Date(now.getTime() + input.delayMs),
       }),
   });
 }

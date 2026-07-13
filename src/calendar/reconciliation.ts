@@ -13,9 +13,7 @@ export async function reconcileCalendarConnections({
   now: Date;
   random: () => number;
 }): Promise<void> {
-  const connections = (await listConnections()).filter(
-    (connection) => connection.status === "connected",
-  );
+  const connections = await listConnections();
 
   await scheduleCalendarConnectionSyncJobs({
     connections,

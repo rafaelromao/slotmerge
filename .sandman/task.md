@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #59: List and open Search history with immutable snapshots
+Implement GitHub issue #60: Re-run a Search to create a new snapshot
 
 ## Issue Context
 
@@ -10,14 +10,13 @@ Sub-PRD: [Sub-PRD: Search & Matching](https://github.com/rafaelromao/slotmerge/i
 
 ## What to build
 
-A Search history view is visible to all Organizers and Admins, lists saved Search Result snapshots with parameters and generation timestamps, and opens the original snapshot on demand.
+An Organizer can re-run a Search from history, creating a new snapshot. The original snapshot is preserved.
 
 ## Acceptance criteria
 
-- [ ] All Organizers and Admins can view Search history.
-- [ ] Saved snapshots include parameters and a generation timestamp.
-- [ ] Opening a saved Search opens the original immutable snapshot.
-- [ ] Saved snapshots do not change when underlying data changes.
+- [ ] Re-run action creates a new Search Result snapshot.
+- [ ] The original snapshot remains immutable.
+- [ ] New snapshot inherits the original's query parameters.
 
 ## Blocked by
 
@@ -27,18 +26,18 @@ A Search history view is visible to all Organizers and Admins, lists saved Searc
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/59-list-and-open-search-history-with-immutable-snapshots`
-- Source branch: `sandman/59-list-and-open-search-history-with-immutable-snapshots`
+- Current branch: `sandman/60-re-run-a-search-to-create-a-new-snapshot`
+- Source branch: `sandman/60-re-run-a-search-to-create-a-new-snapshot`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/59-list-and-open-search-history-with-immutable-snapshots` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/60-re-run-a-search-to-create-a-new-snapshot` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -49,41 +48,37 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 ## Plan
 
 ### Behaviors to test
-
-1. **Role guard: Organizer/Admin can access Search history** — Route checks session role; returns 403 for "user" role
-2. **List Search history with parameters and timestamp** — New method `listSearchHistory()` returns all searches with snapshotId joined
-3. **Open saved Search returns immutable snapshot** — `findBySearchId` returns the exact JSON stored at creation
-4. **Snapshots are immutable by design** — No update method on SearchResultRepository
+1. **Rerun creates new search with inherited parameters** - Given an existing search ID, `rerunSearch` creates a new `SearchRecord` with identical query parameters but new ID and `generatedAt`
+2. **Rerun creates new snapshot** - The new search gets its own new snapshot via `runSearch`
+3. **Original snapshot remains immutable** - Original `SearchResultRecord` is never modified
+4. **Rerun returns the new search** - `rerunSearch` returns the newly created `SearchRecord`
+5. **Rerun with invalid ID returns null** - If original search ID doesn't exist, `rerunSearch` returns `null`
+6. **Rerun with deactivated topics returns error** - If topics in the original search are no longer active, `rerunSearch` returns an error
 
 ### Testable interfaces
+- `rerunSearch(existingSearchId: string, deps: RunSearchDeps): Promise<RerunSearchResult>` - new function in `search-input.ts`
+- `RerunSearchResult = { ok: true, search: SearchRecord } | { ok: false, reason: "not_found" | "topics_invalid" }`
+- Uses `SearchRepository.findById()` to fetch original search
 
-- `isOrganizerOrAdminSession(session: Session | null): boolean` — new pure function in `src/auth/session.ts`
-- `SearchRepository.listSearchHistory(): Promise<SearchHistoryItem[]>` — new method returning joined search+snapshot records
-- `SearchResultRepository.findBySearchId(searchId: string)` — existing interface for snapshot retrieval
-
-### Implementation slices
-
-1. Add `isOrganizerOrAdminSession` to `src/auth/session.ts`
-2. Define `SearchHistoryItem` type in `src/search/repository.ts`
-3. Extend `SearchRepository` interface with `listSearchHistory`
-4. Implement `listSearchHistory` in `drizzle-repository.ts` (join with `searchResults`)
-5. Extend `InMemorySearchRepository` to hold `SearchResultRecord` entries and implement `listSearchHistory`
-6. Create `GET /search/history` route handler with role guard
-7. Create `GET /search/[id]/snapshot` route handler with role guard
-8. Tests for role guard + list behavior
-
-### Route path
-
-- `/search/history` and `/search/[id]/snapshot` (not `/admin/search/`) — follows `/me/topics` vs `/admin/topics` distinction
+### Implementation approach
+1. Add `RerunSearchResult` type and `rerunSearch` function to `search-input.ts`
+2. `rerunSearch` uses `RunSearchDeps` (same deps as `runSearch`)
+3. Fetch original `SearchRecord` by ID
+4. If not found, return `{ ok: false, reason: "not_found" }`
+5. Create new `SearchInput` from original record parameters
+6. Attempt to validate topics via `createSearchInputBuilder` - if it throws due to inactive topics, return `{ ok: false, reason: "topics_invalid" }`
+7. Create new `SearchRecord` with copied parameters (new ID, new `generatedAt`)
+8. Save new `SearchRecord`
+9. Call `runSearch` to create new snapshot
+10. Return `{ ok: true, search: newSearchRecord }`
 
 ### Assumptions / risks
-
-- "All Organizers and Admins" means ALL searches visible to all Organizers/Admins (not filtered by session user)
-- Immutability guaranteed by absence of update on SearchResultRepository
+- The `runSearch` function already handles all matching logic correctly
+- The original search's parameters (except id and generatedAt) are copied directly
 
 ## Next Step
 
-The registered next step is the first unchecked item in the Execution Checklist: **Implement** (sandman-implement).
+The registered next step is: **Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)**
 
 ## Already Resolved
 
@@ -151,7 +146,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 

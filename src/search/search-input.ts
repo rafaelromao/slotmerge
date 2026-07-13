@@ -1,6 +1,7 @@
 import type { UserProfile } from "../profile/repository";
 
 import { getSearchRepository, type SearchRecord } from "./repository";
+import { runSearch } from "./run-search";
 
 export type Clock = {
   now(): Date;
@@ -252,6 +253,9 @@ export function validateSearchInput(
 
 export type SubmitSearchDeps = SearchInputBuilderDeps & {
   matchingPoolSize: number;
+  matchingDependencies: import("../matching/find-eligible-matches").MatchingDependencies;
+  discoverableUserRepository: import("./discoverable-user-repository").DiscoverableUserRepository;
+  searchResultRepository: import("./search-result-repository").SearchResultRepository;
 };
 
 export type SubmitSearchOverrides = SearchInputOverrides;
@@ -293,5 +297,18 @@ export async function submitSearch(
   };
 
   const stored = await getSearchRepository().save(record);
+
+  await runSearch(
+    { searchRecord: stored, input },
+    {
+      matchingDependencies: deps.matchingDependencies,
+      discoverableUserRepository: deps.discoverableUserRepository,
+      clock: deps.clock,
+      searchResultRepository: deps.searchResultRepository,
+      topicRepository: deps.activeTopicsRepository,
+      profileRepository: deps.profileRepository,
+    },
+  );
+
   return { ok: true, search: stored };
 }

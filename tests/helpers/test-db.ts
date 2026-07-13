@@ -108,7 +108,4 @@ export function getTestDb(): ReturnType<typeof drizzle> | null {
   return globalTestDb;
 }
 
-export function getTestDbUrl(): string | null {
-  if (!globalTestPool) return null;
-  return (globalTestPool as { connectionString?: string }).connectionString ?? null;
-}
+

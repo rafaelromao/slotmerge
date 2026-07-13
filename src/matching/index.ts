@@ -1,9 +1,4 @@
-import type { WeeklyAvailabilityWindow } from "../profile/availability-windows";
-import type { AvailabilityOverride } from "../profile/availability-overrides";
-import type { ImportedBusyIntervalRecord } from "../calendar/imported-busy-intervals";
-
 import {
-  type Interval,
   type MatchingDependencies,
   findEligibleMatches,
 } from "./find-eligible-matches";
@@ -43,9 +38,9 @@ export function createMatchingDependencies(): MatchingDependencies {
       return {
         profileTimezone: profile?.profileTimezone ?? "UTC",
         bufferMinutes: profile?.bufferMinutes ?? 0,
-        windows: windows as WeeklyAvailabilityWindow[],
-        overrides: overrides as AvailabilityOverride[],
-        busyIntervals: busyIntervals as ImportedBusyIntervalRecord[],
+        windows,
+        overrides,
+        busyIntervals,
       };
     },
     async isUserEligibleForSearch(userId) {

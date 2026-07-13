@@ -40,7 +40,7 @@ export function expandBusyIntervalsWithBuffer(
         continue;
       }
       hasIntersection = true;
-      if (rawStart < window.startUtc && interval.endAt > window.startUtc) {
+      if (rawStart < window.startUtc) {
         latestStart = window.startUtc;
       }
       if (rawEnd > window.endUtc) {

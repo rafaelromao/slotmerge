@@ -82,7 +82,9 @@ describe("POST /topic-proposals", () => {
 
   it("returns 409 when user already has a pending proposal with same name", async () => {
     mockRepository.findSimilarTopics.mockResolvedValue([]);
-    mockRepository.findPendingByUserAndName.mockResolvedValue({ id: "existing" });
+    mockRepository.findPendingByUserAndName.mockResolvedValue({
+      id: "existing",
+    });
 
     const response = await makeRequest({ candidateName: "Sailing" });
 

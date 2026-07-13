@@ -17,9 +17,7 @@ export type MeTopicProposalsDependencies = {
 };
 
 export type MeTopicProposalsRepository = {
-  listUserTopicProposals(
-    userId: string,
-  ): Promise<UserTopicProposal[]>;
+  listUserTopicProposals(userId: string): Promise<UserTopicProposal[]>;
 };
 
 export function createMeTopicProposalsHandlers({

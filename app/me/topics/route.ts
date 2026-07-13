@@ -79,7 +79,10 @@ export async function submitTopicProposal(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);
 
   if (!session) {
-    return Response.redirect(new URL("/me/topics?error=unauthenticated", request.url), 303);
+    return Response.redirect(
+      new URL("/me/topics?error=unauthenticated", request.url),
+      303,
+    );
   }
 
   const formData = await request.formData();
@@ -87,11 +90,17 @@ export async function submitTopicProposal(request: Request): Promise<Response> {
   const csrfToken = formData.get("csrfToken");
 
   if (typeof candidateName !== "string" || typeof csrfToken !== "string") {
-    return Response.redirect(new URL("/me/topics?error=invalid_request", request.url), 303);
+    return Response.redirect(
+      new URL("/me/topics?error=invalid_request", request.url),
+      303,
+    );
   }
 
   if (!hasValidCsrfToken(csrfToken, session.csrfToken)) {
-    return Response.redirect(new URL("/me/topics?error=csrf", request.url), 303);
+    return Response.redirect(
+      new URL("/me/topics?error=csrf", request.url),
+      303,
+    );
   }
 
   const jsonRequest = new Request(request.url, {
@@ -107,11 +116,16 @@ export async function submitTopicProposal(request: Request): Promise<Response> {
     return Response.redirect(new URL("/me/topics", request.url), 303);
   }
 
-  const body = (await result.json()) as { error: string; matches?: { name: string; type: string }[] };
+  const body = (await result.json()) as {
+    error: string;
+    matches?: { name: string; type: string }[];
+  };
 
   const errorParam =
     body.error === "too_similar"
-      ? encodeURIComponent(`too_similar:${(body.matches ?? []).map((m) => m.name).join(",")}`)
+      ? encodeURIComponent(
+          `too_similar:${(body.matches ?? []).map((m) => m.name).join(",")}`,
+        )
       : encodeURIComponent(body.error);
 
   return Response.redirect(
@@ -225,14 +239,15 @@ function renderTopicsPage({
           .join("")
       : `<li><span style="color:#6b7280;">No pending proposals.</span></li>`;
 
-  const errorBanner =
-    proposalError
-      ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:0.75rem;border-radius:0.375rem;margin-bottom:1rem;">
-           ${proposalError.startsWith("too_similar:")
-             ? `Too similar to existing: ${escapeHtml(proposalError.replace("too_similar:", ""))}`
-             : escapeHtml(proposalError.replace(/_/g, " "))}
+  const errorBanner = proposalError
+    ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:0.75rem;border-radius:0.375rem;margin-bottom:1rem;">
+           ${
+             proposalError.startsWith("too_similar:")
+               ? `Too similar to existing: ${escapeHtml(proposalError.replace("too_similar:", ""))}`
+               : escapeHtml(proposalError.replace(/_/g, " "))
+           }
          </div>`
-      : "";
+    : "";
 
   return `<!doctype html>
 <html lang="en">

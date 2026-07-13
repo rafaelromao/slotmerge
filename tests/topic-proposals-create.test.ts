@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  createTopicProposal,
-} from "../src/topics/proposals";
+import { createTopicProposal } from "../src/topics/proposals";
 
 describe("createTopicProposal", () => {
   const mockRepository = {
@@ -52,11 +50,18 @@ describe("createTopicProposal", () => {
       { name: "Sailing", type: "active" },
     ]);
 
-    const result = await createTopicProposal("user-1", "Sailing", mockRepository);
+    const result = await createTopicProposal(
+      "user-1",
+      "Sailing",
+      mockRepository,
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok && result.reason === "too_similar") {
-      expect(result.matches).toContainEqual({ name: "Sailing", type: "active" });
+      expect(result.matches).toContainEqual({
+        name: "Sailing",
+        type: "active",
+      });
     }
     expect(mockRepository.insertProposal).not.toHaveBeenCalled();
   });
@@ -66,7 +71,11 @@ describe("createTopicProposal", () => {
       { name: "Sailing", type: "pending" },
     ]);
 
-    const result = await createTopicProposal("user-1", "Sailing", mockRepository);
+    const result = await createTopicProposal(
+      "user-1",
+      "Sailing",
+      mockRepository,
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -86,7 +95,11 @@ describe("createTopicProposal", () => {
       updatedAt: new Date(),
     });
 
-    const result = await createTopicProposal("user-1", "Sailing", mockRepository);
+    const result = await createTopicProposal(
+      "user-1",
+      "Sailing",
+      mockRepository,
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok && result.reason === "already_pending") {
@@ -121,7 +134,11 @@ describe("createTopicProposal", () => {
       { name: "sailing", type: "pending" },
     ]);
 
-    const result = await createTopicProposal("user-1", "Sailing", mockRepository);
+    const result = await createTopicProposal(
+      "user-1",
+      "Sailing",
+      mockRepository,
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok && result.reason === "too_similar") {

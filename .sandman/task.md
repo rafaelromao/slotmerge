@@ -38,7 +38,7 @@ The worktree MUST be checked out on `sandman/31-propose-a-new-topic` when the ru
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -116,7 +116,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Implement (sandman-implement)
+PR-Review (sandman-pr-review)
 
 ## Already Resolved
 

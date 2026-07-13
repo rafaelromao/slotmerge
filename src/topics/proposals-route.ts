@@ -1,15 +1,9 @@
 import { eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
-import {
-  topicProposals,
-  topics,
-} from "../db/schema";
+import { topicProposals, topics } from "../db/schema";
 import { getSessionFromRequest, type Session } from "../auth/session";
-import {
-  createTopicProposal,
-  findSimilarTopics,
-} from "./proposals";
+import { createTopicProposal, findSimilarTopics } from "./proposals";
 
 export type TopicProposalsDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
@@ -17,9 +11,9 @@ export type TopicProposalsDependencies = {
 };
 
 export type TopicProposalRouteRepository = {
-  findSimilarTopics(candidateName: string): Promise<
-    { name: string; type: "active" | "pending" }[]
-  >;
+  findSimilarTopics(
+    candidateName: string,
+  ): Promise<{ name: string; type: "active" | "pending" }[]>;
   findPendingByUserAndName(
     userId: string,
     candidateName: string,
@@ -27,7 +21,12 @@ export type TopicProposalRouteRepository = {
   insertProposal(
     userId: string,
     candidateName: string,
-  ): Promise<{ id: string; candidateName: string; status: string; createdAt: Date }>;
+  ): Promise<{
+    id: string;
+    candidateName: string;
+    status: string;
+    createdAt: Date;
+  }>;
 };
 
 export function createTopicProposalsHandlers({
@@ -144,5 +143,4 @@ const databaseTopicProposalRouteRepository: TopicProposalRouteRepository = {
       });
     return row;
   },
-
 };

@@ -50,7 +50,12 @@ describe("GET /me/topic-proposals", () => {
   it("returns list of user's topic proposals", async () => {
     const createdAt = new Date("2024-01-01");
     mockRepository.listUserTopicProposals.mockResolvedValue([
-      { id: "proposal-1", candidateName: "Sailing", status: "pending", createdAt },
+      {
+        id: "proposal-1",
+        candidateName: "Sailing",
+        status: "pending",
+        createdAt,
+      },
       {
         id: "proposal-2",
         candidateName: "Engineering",

@@ -37,7 +37,9 @@ export type SimilarMatch = {
 };
 
 export type TopicCatalogueWithProposals = {
-  listActiveTopics(): Promise<{ id: string; name: string; status: TopicStatus }[]>;
+  listActiveTopics(): Promise<
+    { id: string; name: string; status: TopicStatus }[]
+  >;
   listPendingProposals(): Promise<
     { id: string; candidateName: string; status: TopicProposalStatus }[]
   >;
@@ -73,7 +75,15 @@ export async function findSimilarTopics(
 }
 
 export type CreateTopicProposalResult =
-  | { ok: true; proposal: { id: string; candidateName: string; status: string; createdAt: Date } }
+  | {
+      ok: true;
+      proposal: {
+        id: string;
+        candidateName: string;
+        status: string;
+        createdAt: Date;
+      };
+    }
   | { ok: false; reason: "too_similar"; matches: SimilarMatch[] }
   | { ok: false; reason: "already_pending"; proposalId: string }
   | { ok: false; reason: "invalid_name" };
@@ -87,7 +97,12 @@ export type TopicProposalDbRepository = {
   insertProposal(
     userId: string,
     candidateName: string,
-  ): Promise<{ id: string; candidateName: string; status: string; createdAt: Date }>;
+  ): Promise<{
+    id: string;
+    candidateName: string;
+    status: string;
+    createdAt: Date;
+  }>;
 };
 
 export async function createTopicProposal(

@@ -36,7 +36,11 @@ describe("findSimilarTopics", () => {
   it("finds similar pending proposal by name", async () => {
     mockRepository.listActiveTopics.mockResolvedValue([]);
     mockRepository.listPendingProposals.mockResolvedValue([
-      { id: "proposal-1", candidateName: "Sailing", status: "pending" as const },
+      {
+        id: "proposal-1",
+        candidateName: "Sailing",
+        status: "pending" as const,
+      },
     ]);
 
     const result = await findSimilarTopics("Sailing", mockRepository);
@@ -49,14 +53,21 @@ describe("findSimilarTopics", () => {
       { id: "topic-1", name: "Product Strategy", status: "active" as const },
     ]);
     mockRepository.listPendingProposals.mockResolvedValue([
-      { id: "proposal-1", candidateName: "Product strategy", status: "pending" as const },
+      {
+        id: "proposal-1",
+        candidateName: "Product strategy",
+        status: "pending" as const,
+      },
     ]);
 
     const result = await findSimilarTopics("Product  Strategy", mockRepository);
 
     expect(result).toHaveLength(2);
     expect(result).toContainEqual({ name: "Product Strategy", type: "active" });
-    expect(result).toContainEqual({ name: "Product strategy", type: "pending" });
+    expect(result).toContainEqual({
+      name: "Product strategy",
+      type: "pending",
+    });
   });
 
   it("does not return non-matching topics", async () => {

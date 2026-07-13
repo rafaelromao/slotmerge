@@ -105,7 +105,11 @@ describe("computeSimilarity", () => {
   });
 
   it("treats whitespace-normalized strings as identical at ratio 1.0", () => {
-    expect(computeSimilarity("Product  Strategy", "Product Strategy")).toBe(1.0);
-    expect(computeSimilarity("Product  Strategy", "product  strategy")).toBe(1.0);
+    expect(computeSimilarity("Product  Strategy", "Product Strategy")).toBe(
+      1.0,
+    );
+    expect(computeSimilarity("Product  Strategy", "product  strategy")).toBe(
+      1.0,
+    );
   });
 });

@@ -18,6 +18,7 @@ import { setSearchResultRepositoryForTests } from "./search-result-repository";
 import type {
   SearchResultRepository,
   SearchResultRecord,
+  SearchSnapshot,
 } from "./search-result-repository";
 import type { DiscoverableUserRepository } from "./discoverable-user-repository";
 import type { MatchingDependencies } from "../matching/find-eligible-matches";
@@ -626,8 +627,6 @@ describe("rerunSearch", () => {
   it("preserves the original search and its snapshot when rerunning", async () => {
     const repo = new InMemorySearchRepository();
     setSearchRepositoryForTests(repo);
-    const searchResultRepo = new InMemorySearchResultRepository();
-    setSearchResultRepositoryForTests(searchResultRepo);
 
     const originalSearch = await repo.save({
       organizerId: "organizer-1",
@@ -640,19 +639,64 @@ describe("rerunSearch", () => {
       generatedAt: new Date("2026-07-01T10:00:00.000Z"),
     });
 
+    const originalSnapshotJson: SearchSnapshot = {
+      generatedAt: "2026-07-01T10:00:00.000Z",
+      organizerTimezone: "America/Sao_Paulo",
+      dateRangeStart: "2026-07-06T03:00:00.000Z",
+      dateRangeEnd: "2026-07-13T03:00:00.000Z",
+      durationMinutes: 60,
+      slots: [],
+    };
+
+    const savedSnapshots: SearchResultRecord[] = [];
+    const trackingRepo: SearchResultRepository = {
+      save(record) {
+        const saved = { ...record, id: record.id ?? `sr-${savedSnapshots.length}` };
+        savedSnapshots.push(saved);
+        return Promise.resolve(saved);
+      },
+      findById() {
+        return Promise.resolve(null);
+      },
+      findBySearchId(searchId: string) {
+        const found = savedSnapshots.find((s) => s.searchId === searchId) ?? null;
+        return Promise.resolve(found);
+      },
+    };
+
+    savedSnapshots.push({
+      id: "sr-original",
+      searchId: originalSearch.id!,
+      snapshotJson: originalSnapshotJson,
+      createdAt: new Date("2026-07-01T10:00:00.000Z"),
+    });
+
+    setSearchResultRepositoryForTests(trackingRepo);
+
     await rerunSearch(originalSearch.id!, {
       matchingDependencies: mockMatchingDependencies,
       discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
       clock: pinnedClock("2026-07-08T15:00:00.000Z"),
-      searchResultRepository: searchResultRepo,
+      searchResultRepository: trackingRepo,
       topicRepository: new InMemoryActiveTopicsRepository([
         { id: "topic-1", name: "Product strategy" },
       ]),
       profileRepository: new InMemoryProfileRepository(organizerProfile),
     });
 
-    const originalStillExists = await repo.findById(originalSearch.id!);
-    expect(originalStillExists).not.toBeNull();
-    expect(originalStillExists!.id).toBe(originalSearch.id);
+    const originalSearchStillExists = await repo.findById(originalSearch.id!);
+    expect(originalSearchStillExists).not.toBeNull();
+    expect(originalSearchStillExists!.id).toBe(originalSearch.id);
+
+    const originalSnapshot = await trackingRepo.findBySearchId(originalSearch.id!);
+    expect(originalSnapshot).not.toBeNull();
+    expect(originalSnapshot!.searchId).toBe(originalSearch.id);
+    expect(originalSnapshot!.snapshotJson).toEqual(originalSnapshotJson);
+
+    const allSnapshots = savedSnapshots.filter(
+      (s) => s.searchId === originalSearch.id,
+    );
+    expect(allSnapshots.length).toBe(1);
+    expect(allSnapshots[0].id).toBe("sr-original");
   });
 });

@@ -354,8 +354,14 @@ export async function rerunSearch(
       dateRangeEnd: existing.dateRangeEnd,
       organizerTimezone: existing.organizerTimezone,
     });
-  } catch {
-    return { ok: false, reason: "topics_invalid" };
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      err.message.includes("is not in the active Topics catalogue")
+    ) {
+      return { ok: false, reason: "topics_invalid" };
+    }
+    throw err;
   }
 
   const record: SearchRecord = {

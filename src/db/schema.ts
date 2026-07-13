@@ -530,6 +530,7 @@ export type SlotMatchDetail = {
   avatarUrl: string | null;
   shortBio: string | null;
   topics: TopicDetail[];
+  topicProfile: TopicDetail[];
   availabilityIndicator: AvailabilityIndicator;
   calendarFreshness: CalendarFreshness;
 };

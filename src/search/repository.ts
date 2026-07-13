@@ -30,6 +30,7 @@ export type SearchRepository = {
   findById(id: string): Promise<SearchRecord | null>;
   listByOrganizer(organizerId: string): Promise<SearchRecord[]>;
   listSearchHistory(): Promise<SearchHistoryItem[]>;
+  listAll(): Promise<SearchRecord[]>;
 };
 
 import { createPostgresSearchRepository } from "./drizzle-repository";

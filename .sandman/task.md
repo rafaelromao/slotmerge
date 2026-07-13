@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #56: Run a Search and persist an immutable Search Result snapshot
+Implement GitHub issue #58: Open Slot details drawer with matching Users and stale markers
 
 ## Issue Context
 
@@ -10,31 +10,29 @@ Sub-PRD: [Sub-PRD: Search & Matching](https://github.com/rafaelromao/slotmerge/i
 
 ## What to build
 
-Running a Search computes the weekly grid, per-Slot match counts, and per-Slot Match details from current DB state. The Search row stores normalized query parameters; the Search Result snapshot stores an immutable JSON result.
+Clicking a Slot opens a drawer listing matching Users with display name, avatar, full Topic profile, topic-filtered availability in the Search window, and Calendar Connection freshness. No booking or invitation actions exist.
 
 ## Acceptance criteria
 
-- [ ] A Search row stores normalized query parameters.
-- [ ] A Search Result snapshot stores an immutable JSON result.
-- [ ] Search computation reads current data and never calls provider APIs.
-- [ ] Hourly Slot start times align to the hourly grid.
-- [ ] Snapshots are not modified after creation.
+- [ ] Clicking a Slot opens a drawer.
+- [ ] Each Match shows display name, avatar, bio, and full Topic profile.
+- [ ] Each Match shows Calendar Connection freshness.
+- [ ] No booking, invitation, RSVP, export, or share actions exist on the drawer.
 
 ## Blocked by
 
-- [Match Users against active Topics, full-duration Availability, and eligibility](https://github.com/rafaelromao/slotmerge/issues/54)
-- [Define Search query parameters and validate them](https://github.com/rafaelromao/slotmerge/issues/55)
+- [Run a Search and persist an immutable Search Result snapshot](https://github.com/rafaelromao/slotmerge/issues/56)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/56-run-a-search-and-persist-an-immutable-search-result-snapshot`
-- Source branch: `sandman/56-run-a-search-and-persist-an-immutable-search-result-snapshot`
+- Current branch: `sandman/58-open-slot-details-drawer-with-matching-users-and-stale-markers`
+- Source branch: `sandman/58-open-slot-details-drawer-with-matching-users-and-stale-markers`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/56-run-a-search-and-persist-an-immutable-search-result-snapshot` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/58-open-slot-details-drawer-with-matching-users-and-stale-markers` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -50,58 +48,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Execute sandman-tdd for the first slice: Add searchResults table to schema.
-
-## Plan
-
-### Behaviors to test
-
-1. **submitSearch persists a Search record with normalized parameters** — already implemented; AC met by existing `submitSearch`.
-2. **generateHourlySlots produces hour-aligned start times** — given `rangeStart` and `rangeEnd`, returns an array of `Date` objects at XX:00:00.000Z. Misaligned `rangeStart` is corrected to the previous hour boundary; `rangeEnd` is exclusive.
-3. **runSearch produces a SearchSnapshot JSON with all slots in the range, including zero-match slots** — the snapshot covers every hourly slot from rangeStart to rangeEnd, with matchCount=0 for slots that have no eligible users.
-4. **runSearch reads only from DB repositories; no provider API calls are made** — all data (users, topics, availability, busy intervals) comes from existing repository interfaces. No Google/Microsoft Graph calls.
-5. **SearchResult snapshot is immutable — only insert exists; no update method** — the `SearchResultRepository` interface has no `update` operation. The DB table has no `updatedAt` column.
-6. **A SearchResult snapshot can be retrieved by id or by searchId** — `findById(id)` and `findBySearchId(searchId)` operations exist on `SearchResultRepository`.
-7. **Slots within the date range are correctly enumerated with hour-aligned starts** — slot starts run from the hour-aligned `rangeStart` in 1-hour increments up to but not exceeding `rangeEnd`.
-
-### Testable interfaces
-
-- **`SearchResultRepository`** — `save(result: SearchResultRecord): Promise<SearchResultRecord>`, `findById(id: string): Promise<SearchResultRecord | null>`, `findBySearchId(searchId: string): Promise<SearchResultRecord | null>`. **No update method.**
-- **`SearchResultRecord`** — `{ id: string; searchId: string; snapshotJson: SearchSnapshot; createdAt: Date }`
-- **`SearchSnapshot`** — `{ generatedAt: string; organizerTimezone: string; dateRangeStart: string; dateRangeEnd: string; durationMinutes: number; slots: Slot[] }`
-- **`Slot`** — `{ startUtc: string; matchCount: number; matches: SlotMatchDetail[] }`
-- **`SlotMatchDetail`** — `{ userId: string; displayName: string | null; avatarUrl: string | null; shortBio: string | null; topics: TopicDetail[]; availabilityIndicator: AvailabilityIndicator; calendarFreshness: CalendarFreshness }`
-- **`TopicDetail`** — `{ id: string; name: string }`
-- **`AvailabilityIndicator`** — `'available' | 'partial' | 'unavailable'`
-- **`CalendarFreshness`** — `'fresh' | 'stale' | 'none'`
-- **`generateHourlySlots(rangeStart: Date, rangeEnd: Date): Date[]`** — pure function; corrects `rangeStart` to previous hour boundary if misaligned; returns empty array if `rangeStart >= rangeEnd`.
-- **`availabilityIndicator(slotStart: Date, effectiveAvailability: Interval[], durationMinutes: number): AvailabilityIndicator`** — pure function derived from `hasFullDurationCoverage`. Returns `'available'` if full coverage, `'partial'` if partial overlap exists, `'unavailable'` if no coverage.
-- **`deriveCalendarFreshness(lastSyncAt: Date | null, now: Date): CalendarFreshness`** — `'none'` if `lastSyncAt === null`; `'fresh'` if `now - lastSyncAt < CALENDAR_STALENESS_THRESHOLD_MS`; `'stale'` otherwise.
-- **`CALENDAR_STALENESS_THRESHOLD_MS = 24 * 60 * 60 * 1000`** — 24-hour threshold.
-- **`DiscoverableUserRepository`** — `listDiscoverableUserIds(selectedTopicIds: string[]): Promise<string[]>` — returns IDs of active, consented users who have at least one of the selected topics. Used to build the candidate pool.
-- **`RunSearchDeps`** — `{ matchingDependencies: MatchingDependencies; discoverableUserRepository: DiscoverableUserRepository; getUserAvailabilityData: MatchingDependencies['getUserAvailabilityData']; clock: Clock; searchResultRepository: SearchResultRepository; topicRepository: ActiveTopicsRepository; profileRepository: ProfileRepository }`
-- **`runSearch(params: { searchRecord: SearchRecord; input: SearchInput }, deps: RunSearchDeps): Promise<SearchResultRecord>`** — computes slots, finds matches per slot, builds snapshot JSON, persists via `searchResultRepository`.
-
-### Implementation slices (sandman-tdd execution order)
-
-1. **Add searchResults table to schema** — `search_results` with: `id (uuid, PK)`, `search_id (uuid, FK -> searches, not null, unique)`, `snapshot_json (jsonb, not null)`, `created_at (timestamp, notNull, defaultNow)`. No `updatedAt` column. Index on `search_id`.
-2. **Add SearchResultRepository interface and InMemorySearchResultRepository** — save, findById, findBySearchId. No update method.
-3. **Add generateHourlySlots pure function with tests** — aligns rangeStart to previous hour; generates 1-hour slots up to rangeEnd.
-4. **Add TopicDetail, AvailabilityIndicator, CalendarFreshness types and availabilityIndicator, deriveCalendarFreshness pure functions** — availabilityIndicator delegates to `hasFullDurationCoverage` logic.
-5. **Add DiscoverableUserRepository interface** — `listDiscoverableUserIds(selectedTopicIds)` queries active users with discoverability consent.
-6. **Add SearchSnapshot, Slot, SlotMatchDetail types** — full JSON shape for the snapshot.
-7. **Add runSearch function** — orchestrates: generateHourlySlots → for each slot call `findEligibleMatches` with slotStart → build `SearchSnapshot` JSON → save via `SearchResultRepository`. Uses only DB-backed repositories; no provider API calls.
-8. **Wire runSearch into submitSearch** — after saving Search record, call `runSearch` with the stored record and built input. Update Search record's `snapshotReference` to point to the SearchResult id.
-9. **Add Drizzle SearchResult repository** — `createPostgresSearchResultRepository()` implementation.
-
-### Assumptions / risks
-
-- `findEligibleMatches` (from `find-eligible-matches.ts`) already handles per-slot matching logic including full-duration coverage check. `runSearch` reuses it.
-- `computeEffectiveAvailability` (from `effective-availability.ts`) handles all availability sources (windows, overrides, busy intervals with buffer). `runSearch` uses it as-is.
-- `matchingPoolSize` validation in `validateSearchInput` uses the count passed in; the caller provides the correct count. This is existing behavior.
-- Calendar freshness threshold of 24 hours is a reasonable default matching the `sync.ts` staleness marker behavior.
-- `availabilityIndicator` derives from `hasFullDurationCoverage`: full coverage → `'available'`; partial overlap (start of interval covers part of slot) → `'partial'`; no coverage → `'unavailable'`.
-- `listDiscoverableUserIds` will be a new repository that queries the `users`, `discoverability_consents`, `user_topics`, and availability source tables to find eligible candidates.
+Load `sandman-tdd` and execute the plan from `## Plan` above.
 
 ## Already Resolved
 

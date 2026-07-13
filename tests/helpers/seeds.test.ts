@@ -7,18 +7,20 @@ import {
 } from "./test-db";
 import { seedAll, USER_FIXTURES, TOPIC_FIXTURES } from "../fixtures/seeds";
 
+const HAS_DATABASE = !!process.env.DATABASE_URL;
+
 describe("seeds", () => {
-  it("seeds all fixtures", async () => {
+  it.runIf(HAS_DATABASE)("seeds all fixtures", async () => {
     const { db } = await createEphemeralDatabase();
 
     await seedAll(db);
 
-    const usersResult = await db.execute(`SELECT * FROM users ORDER BY id`);
-    const users = (usersResult as unknown as { rows: unknown[] }).rows;
+    const usersResult = await db.execute(`SELECT id FROM users ORDER BY id`);
+    const users = (usersResult as unknown as { rows: { id: string }[] }).rows;
     expect(users).toHaveLength(USER_FIXTURES.length);
 
-    const topicsResult = await db.execute(`SELECT * FROM topics ORDER BY id`);
-    const topics = (topicsResult as unknown as { rows: unknown[] }).rows;
+    const topicsResult = await db.execute(`SELECT id FROM topics ORDER BY id`);
+    const topics = (topicsResult as unknown as { rows: { id: string }[] }).rows;
     expect(topics).toHaveLength(TOPIC_FIXTURES.length);
 
     const windowsResult = await db.execute(
@@ -31,7 +33,7 @@ describe("seeds", () => {
     await closeEphemeralDatabase();
   });
 
-  it("resetDatabase clears all tables", async () => {
+  it.runIf(HAS_DATABASE)("resetDatabase clears all tables", async () => {
     const { db } = await createEphemeralDatabase();
 
     await seedAll(db);

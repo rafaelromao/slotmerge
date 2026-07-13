@@ -51,6 +51,12 @@ export async function createEphemeralDatabase(): Promise<{
   url: string;
   db: ReturnType<typeof drizzle>;
 }> {
+  if (!process.env.DATABASE_URL) {
+    throw new Error(
+      "DATABASE_URL is not set. E2E infrastructure tests require a running PostgreSQL instance. Set DATABASE_URL or skip these tests.",
+    );
+  }
+
   const dbName = `slotmerge_test_${process.pid}_${Date.now()}`;
   await createDatabase(dbName);
 

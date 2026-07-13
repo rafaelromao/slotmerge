@@ -5,11 +5,15 @@ import {
   closeEphemeralDatabase,
 } from "./test-db";
 
+const HAS_DATABASE = !!process.env.DATABASE_URL;
+
 describe("ephemeral database", () => {
-  it("creates a database with migrations applied", async () => {
+  it.runIf(HAS_DATABASE)("creates a database with migrations applied", async () => {
     const { url, db } = await createEphemeralDatabase();
 
-    expect(url).toMatch(/^postgres:\/\/slotmerge:slotmerge@localhost:5432\/slotmerge_test_\d+_\d+$/);
+    expect(url).toMatch(
+      /^postgres:\/\/slotmerge:slotmerge@localhost:5432\/slotmerge_test_\d+_\d+$/,
+    );
 
     const result = await db.execute(
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`,
@@ -30,7 +34,7 @@ describe("ephemeral database", () => {
     await closeEphemeralDatabase();
   });
 
-  it("database is empty after creation", async () => {
+  it.runIf(HAS_DATABASE)("database is empty after creation", async () => {
     const { db } = await createEphemeralDatabase();
 
     const result = await db.execute(`SELECT COUNT(*) as count FROM users`);

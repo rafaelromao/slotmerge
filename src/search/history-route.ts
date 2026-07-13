@@ -35,7 +35,21 @@ export function createSearchHistoryHandlers({
       const history: SearchHistoryItem[] =
         await searchRepository.listSearchHistory();
 
-      return Response.json({ history });
+      return Response.json({
+        history: history.map((item) => ({
+          id: item.id,
+          organizerId: item.organizerId,
+          selectedTopicIds: item.selectedTopicIds,
+          minimumMatchingUsers: item.minimumMatchingUsers,
+          durationMinutes: item.durationMinutes,
+          dateRangeStart: item.dateRangeStart.toISOString(),
+          dateRangeEnd: item.dateRangeEnd.toISOString(),
+          organizerTimezone: item.organizerTimezone,
+          generatedAt: item.generatedAt.toISOString(),
+          snapshotId: item.snapshotId,
+          stale: item.stale,
+        })),
+      });
     },
 
     async getSnapshot(request: Request, searchId: string): Promise<Response> {

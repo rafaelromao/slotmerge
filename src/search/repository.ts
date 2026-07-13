@@ -22,6 +22,7 @@ export type SearchHistoryItem = {
   organizerTimezone: string;
   generatedAt: Date;
   snapshotId: string;
+  stale: boolean;
 };
 
 export type SearchRepository = {

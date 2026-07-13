@@ -3,8 +3,37 @@ import { describe, expect, it } from "vitest";
 import {
   availabilityIndicator,
   deriveCalendarFreshness,
+  deriveSearchSnapshotStaleness,
   CALENDAR_STALENESS_THRESHOLD_MS,
 } from "./match-detail";
+
+describe("deriveSearchSnapshotStaleness", () => {
+  const now = new Date("2026-07-08T15:00:00.000Z");
+
+  it("returns false when generatedAt is within the staleness threshold", () => {
+    const generatedAt = new Date("2026-07-08T14:00:00.000Z");
+    expect(deriveSearchSnapshotStaleness(generatedAt, now)).toBe(false);
+  });
+
+  it("returns true when generatedAt equals the staleness threshold", () => {
+    const generatedAt = new Date(
+      now.getTime() - CALENDAR_STALENESS_THRESHOLD_MS,
+    );
+    expect(deriveSearchSnapshotStaleness(generatedAt, now)).toBe(true);
+  });
+
+  it("returns true when generatedAt is older than the staleness threshold", () => {
+    const generatedAt = new Date("2026-07-07T14:00:00.000Z");
+    expect(deriveSearchSnapshotStaleness(generatedAt, now)).toBe(true);
+  });
+
+  it("returns false when generatedAt is just before the staleness threshold", () => {
+    const generatedAt = new Date(
+      now.getTime() - CALENDAR_STALENESS_THRESHOLD_MS + 1000,
+    );
+    expect(deriveSearchSnapshotStaleness(generatedAt, now)).toBe(false);
+  });
+});
 
 describe("deriveCalendarFreshness", () => {
   const now = new Date("2026-07-08T15:00:00.000Z");

@@ -113,7 +113,7 @@ export async function handleSyncCalendarConnectionJob(
       clock: () => new Date(),
     });
 
-    await updateLastSyncAt(connection.id, new Date());
+    await updateLastSyncAt(connection.id, connection.provider, new Date());
   } catch (error) {
     if (error instanceof RateLimitError || error instanceof ServerError) {
       const baseDelayMs =
@@ -132,19 +132,19 @@ export async function handleSyncCalendarConnectionJob(
   }
 }
 
-async function updateLastSyncAt(connectionId: string, lastSyncAt: Date) {
-  const googleRepo = getGoogleCalendarConnectionRepository();
-  const microsoftRepo = getMicrosoftCalendarConnectionRepository();
-
-  const googleRecord = await googleRepo.findById(connectionId);
-  if (googleRecord) {
-    await googleRepo.updateById(connectionId, { lastSyncAt });
-    return;
-  }
-
-  const microsoftRecord = await microsoftRepo.findById(connectionId);
-  if (microsoftRecord) {
-    await microsoftRepo.updateById(connectionId, { lastSyncAt });
+async function updateLastSyncAt(
+  connectionId: string,
+  provider: "google" | "microsoft",
+  lastSyncAt: Date,
+) {
+  if (provider === "google") {
+    await getGoogleCalendarConnectionRepository().updateById(connectionId, {
+      lastSyncAt,
+    });
+  } else {
+    await getMicrosoftCalendarConnectionRepository().updateById(connectionId, {
+      lastSyncAt,
+    });
   }
 }
 

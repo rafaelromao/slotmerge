@@ -397,4 +397,70 @@ describe("recordCalendarConnectionSyncFailure", () => {
     expect(storedStatus).toBe("connected");
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
+
+  it("sets status to needs_reconnect for AUTH_ERROR", async () => {
+    let storedStatus = "connected";
+    const updated: Record<string, unknown> = {};
+    const sendEmail = vi.fn().mockResolvedValue({
+      emailEvent: { id: "event-sync-failure" },
+    });
+    setEmailDeliveryServiceForTests({ sendEmail });
+    setConnectionActionRequiredDispatchLookupForTests({
+      findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(null),
+    });
+    setGoogleCalendarConnectionRepositoryForTests({
+      createPending: (record) => Promise.resolve(record),
+      listByUserId: () => Promise.resolve([]),
+      findById: () => Promise.resolve(null),
+      updateById: (id, patch) => {
+        if (id !== "connection-1") return Promise.resolve(null);
+        Object.assign(updated, patch);
+        storedStatus = String(patch.status ?? storedStatus);
+        return Promise.resolve({
+          id: "connection-1",
+          userId: "user-1",
+          provider: "google",
+          providerAccountKey: "google:connection-1",
+          accountIdentifier: "google:connection-1",
+          scopes: "https://www.googleapis.com/auth/calendar.freebusy",
+          status: "connected" as const,
+          refreshTokenEncrypted: null,
+          accessTokenEncrypted: null,
+          accessTokenExpiresAt: null,
+          lastErrorCode: null,
+          lastErrorMessage: null,
+          contributingCalendarIds: [],
+          ...updated,
+        });
+      },
+    });
+    setMicrosoftCalendarConnectionRepositoryForTests({
+      createPending: (record) => Promise.resolve(record),
+      listByUserId: () => Promise.resolve([]),
+      findById: () => Promise.resolve(null),
+      updateById: () => Promise.resolve(null),
+    });
+
+    const result = await recordCalendarConnectionSyncFailure(
+      {
+        connectionId: "connection-1",
+        provider: "google",
+        code: "AUTH_ERROR",
+        message: "Google authentication failed",
+      },
+      {
+        connectionLookup: vi.fn().mockResolvedValue({
+          id: "connection-1",
+          userId: "user-1",
+          provider: "google",
+          user: { email: "user@example.com", displayName: "Ada" },
+        }),
+      },
+    );
+
+    expect(result).toMatchObject({ status: "sent", skipped: false });
+    expect(updated.lastErrorCode).toBe("AUTH_ERROR");
+    expect(storedStatus).toBe("needs_reconnect");
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
 });

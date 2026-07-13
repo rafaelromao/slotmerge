@@ -119,7 +119,7 @@ export function createMagicLinkVerifyHandlers(
 
       const invite = await (
         deps.inviteRepository ?? defaultInviteRepository
-      ).findById(payload.inviteId);
+      ).findById(payload.inviteId!);
 
       if (!invite) {
         return errorResponse("not_invited", 400, token);

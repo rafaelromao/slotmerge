@@ -47,11 +47,11 @@ export function createMagicLinkTokenIssuer({
   return {
     issueMagicLinkToken(input: MagicLinkTokenInput): MagicLinkToken {
       const issuedAt = clock();
-      const payload: Record<string, string> = {
+      const payload: Record<string, unknown> = {
         email: input.email,
         expiresAt: input.expiresAt.toISOString(),
-        generation: input.generation ?? 0,
         issuedAt: issuedAt.toISOString(),
+        generation: input.generation ?? 0,
       };
       if (input.inviteId !== undefined) {
         payload.inviteId = input.inviteId;

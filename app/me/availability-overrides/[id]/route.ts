@@ -1,9 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 
 import { getSessionFromRequest } from "../../../../src/auth/session";
-import {
-  removeAvailabilityOverrideById,
-} from "../../../../src/profile/availability-overrides";
+import { removeAvailabilityOverrideById } from "../../../../src/profile/availability-overrides";
 
 export async function DELETE(
   request: Request,

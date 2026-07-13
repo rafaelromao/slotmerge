@@ -29,7 +29,10 @@ describe("expandOverrideToUtcRange", () => {
       type: "add",
     };
 
-    const newYorkResult = expandOverrideToUtcRange(override, "America/New_York");
+    const newYorkResult = expandOverrideToUtcRange(
+      override,
+      "America/New_York",
+    );
     const londonResult = expandOverrideToUtcRange(override, "Europe/London");
 
     expect(newYorkResult.startUtc).not.toEqual(londonResult.startUtc);

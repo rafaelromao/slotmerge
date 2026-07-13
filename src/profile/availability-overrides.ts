@@ -7,10 +7,7 @@ import {
   type CreateAvailabilityOverride,
 } from "../db/schema";
 
-export type {
-  AvailabilityOverride,
-  CreateAvailabilityOverride,
-};
+export type { AvailabilityOverride, CreateAvailabilityOverride };
 
 export type AvailabilityOverrideRepository = {
   add(
@@ -19,10 +16,7 @@ export type AvailabilityOverrideRepository = {
     profileTimezone: string,
   ): Promise<AvailabilityOverride>;
   listByUserId(userId: string): Promise<AvailabilityOverride[]>;
-  findById(
-    id: string,
-    userId: string,
-  ): Promise<AvailabilityOverride | null>;
+  findById(id: string, userId: string): Promise<AvailabilityOverride | null>;
   removeById(id: string, userId: string): Promise<boolean>;
 };
 
@@ -42,59 +36,58 @@ function getRepository(): AvailabilityOverrideRepository {
   return repositoryOverride ?? databaseAvailabilityOverrideRepository;
 }
 
-const databaseAvailabilityOverrideRepository: AvailabilityOverrideRepository =
-  {
-    add: async (userId, override, profileTimezone) => {
-      const [row] = await getDb()
-        .insert(availabilityOverrides)
-        .values({
-          userId,
-          date: override.date,
-          startTime: override.startTime,
-          endTime: override.endTime,
-          type: override.type,
-          profileTimezone,
-        })
-        .returning();
+const databaseAvailabilityOverrideRepository: AvailabilityOverrideRepository = {
+  add: async (userId, override, profileTimezone) => {
+    const [row] = await getDb()
+      .insert(availabilityOverrides)
+      .values({
+        userId,
+        date: override.date,
+        startTime: override.startTime,
+        endTime: override.endTime,
+        type: override.type,
+        profileTimezone,
+      })
+      .returning();
 
-      return row;
-    },
-    listByUserId: async (userId) => {
-      const rows = await getDb()
-        .select()
-        .from(availabilityOverrides)
-        .where(eq(availabilityOverrides.userId, userId));
+    return row;
+  },
+  listByUserId: async (userId) => {
+    const rows = await getDb()
+      .select()
+      .from(availabilityOverrides)
+      .where(eq(availabilityOverrides.userId, userId));
 
-      return rows;
-    },
-    findById: async (id, userId) => {
-      const rows = await getDb()
-        .select()
-        .from(availabilityOverrides)
-        .where(
-          and(
-            eq(availabilityOverrides.id, id),
-            eq(availabilityOverrides.userId, userId),
-          ),
-        )
-        .limit(1);
+    return rows;
+  },
+  findById: async (id, userId) => {
+    const rows = await getDb()
+      .select()
+      .from(availabilityOverrides)
+      .where(
+        and(
+          eq(availabilityOverrides.id, id),
+          eq(availabilityOverrides.userId, userId),
+        ),
+      )
+      .limit(1);
 
-      return rows[0] ?? null;
-    },
-    removeById: async (id, userId) => {
-      const deleted = await getDb()
-        .delete(availabilityOverrides)
-        .where(
-          and(
-            eq(availabilityOverrides.id, id),
-            eq(availabilityOverrides.userId, userId),
-          ),
-        )
-        .returning({ id: availabilityOverrides.id });
+    return rows[0] ?? null;
+  },
+  removeById: async (id, userId) => {
+    const deleted = await getDb()
+      .delete(availabilityOverrides)
+      .where(
+        and(
+          eq(availabilityOverrides.id, id),
+          eq(availabilityOverrides.userId, userId),
+        ),
+      )
+      .returning({ id: availabilityOverrides.id });
 
-      return deleted.length > 0;
-    },
-  };
+    return deleted.length > 0;
+  },
+};
 
 export async function addAvailabilityOverride(
   userId: string,

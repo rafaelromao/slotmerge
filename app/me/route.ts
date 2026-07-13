@@ -230,14 +230,19 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
-  const [topics, topicProposals, availabilityWindows, availabilityOverrides, calendarConnections] =
-    await Promise.all([
-      getTopicsByUserId(session.user.id),
-      getTopicProposalsByUserId(session.user.id),
-      getAvailabilityWindowsByUserId(session.user.id),
-      getAvailabilityOverridesByUserId(session.user.id),
-      getCalendarConnectionsByUserId(session.user.id),
-    ]);
+  const [
+    topics,
+    topicProposals,
+    availabilityWindows,
+    availabilityOverrides,
+    calendarConnections,
+  ] = await Promise.all([
+    getTopicsByUserId(session.user.id),
+    getTopicProposalsByUserId(session.user.id),
+    getAvailabilityWindowsByUserId(session.user.id),
+    getAvailabilityOverridesByUserId(session.user.id),
+    getCalendarConnectionsByUserId(session.user.id),
+  ]);
 
   return buildMeResponse(
     profile,
@@ -284,14 +289,19 @@ export async function PATCH(request: Request): Promise<Response> {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
-  const [topics, topicProposals, availabilityWindows, availabilityOverrides, calendarConnections] =
-    await Promise.all([
-      getTopicsByUserId(session.user.id),
-      getTopicProposalsByUserId(session.user.id),
-      getAvailabilityWindowsByUserId(session.user.id),
-      getAvailabilityOverridesByUserId(session.user.id),
-      getCalendarConnectionsByUserId(session.user.id),
-    ]);
+  const [
+    topics,
+    topicProposals,
+    availabilityWindows,
+    availabilityOverrides,
+    calendarConnections,
+  ] = await Promise.all([
+    getTopicsByUserId(session.user.id),
+    getTopicProposalsByUserId(session.user.id),
+    getAvailabilityWindowsByUserId(session.user.id),
+    getAvailabilityOverridesByUserId(session.user.id),
+    getCalendarConnectionsByUserId(session.user.id),
+  ]);
 
   return buildMeResponse(
     updatedProfile,

@@ -130,7 +130,7 @@ function renderTopicsPage({
       (topic) => `
       <li>
         <label>
-          <input type="checkbox" name="topicIds" value="${escapeHtml(topic.id)}" ${selectedTopicIds.includes(topic.id) ? "checked=\"\"" : ""} />
+          <input type="checkbox" name="topicIds" value="${escapeHtml(topic.id)}" ${selectedTopicIds.includes(topic.id) ? 'checked=""' : ""} />
           <span>${escapeHtml(topic.name)}</span>
         </label>
       </li>`,

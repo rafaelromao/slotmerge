@@ -6,7 +6,10 @@ import {
 } from "../admin/critical-email.repository";
 import { loadRuntimeConfig } from "../config/runtime";
 import { createPostgresEmailEventRepository } from "../email/repository";
-import { createEmailDeliveryService } from "../email/service";
+import {
+  createEmailDeliveryService,
+  type EmailTransport,
+} from "../email/service";
 import { createEmailTransport } from "../email/transport";
 import {
   createCriticalEmailTrigger,
@@ -16,12 +19,20 @@ import type { QueueEmailJobInput } from "../email/service";
 
 export const emailDeliveryTaskName = "deliver_email";
 
+let emailTransportOverride: EmailTransport | null = null;
+
+export function setEmailTransportForTests(
+  transport: EmailTransport | null,
+): void {
+  emailTransportOverride = transport;
+}
+
 export async function handleEmailDeliveryJob(payload: unknown): Promise<void> {
   const job = parseEmailDeliveryJob(payload);
   const config = loadRuntimeConfig();
 
   const eventRepository = createPostgresEmailEventRepository();
-  const transport = createEmailTransport({
+  const transport = emailTransportOverride ?? createEmailTransport({
     adapter: config.emailAdapter,
     env: process.env,
   });

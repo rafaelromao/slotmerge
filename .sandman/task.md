@@ -1,43 +1,43 @@
 # Task
 
-Implement GitHub issue #30: View controlled Topic catalogue
+Implement GitHub issue #65: E2E test: ephemeral PostgreSQL database with per-test reset
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+E2E test plan: [E2E test plan: SlotMerge MVP](https://github.com/rafaelromao/slotmerge/issues/62). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-A User can browse the active Topic catalogue to choose which Topics to associate with their profile. The list reflects the current state of the controlled catalogue, including similarity-blocking pre-checks for new proposals.
+Ephemeral PostgreSQL database that is created fresh per test run, has the schema migrated, and is reset between tests so each test starts from a known state. Fixtures seed catalogue, users, weekly windows, one-off overrides, and imported busy intervals deterministically.
 
 ## Acceptance criteria
 
-- [ ] User sees the current active Topic catalogue.
-- [ ] Retired Topics are not shown.
-- [ ] The catalogue view is readable on web.
+- [ ] Each test run starts from a freshly migrated schema.
+- [ ] Each test resets DB, fixtures, and clock to a known state.
+- [ ] Fixtures provide deterministic seeds for catalogue, users, windows, overrides, and busy intervals.
 
 ## Blocked by
 
-- [Provision app shell, auth, and Postgres bootstrap](https://github.com/rafaelromao/slotmerge/issues/20)
+None — can start immediately.
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/30-view-controlled-topic-catalogue`
-- Source branch: `sandman/30-view-controlled-topic-catalogue`
+- Current branch: `sandman/65-e2e-test-ephemeral-postgresql-database-with-per-test-reset`
+- Source branch: `sandman/65-e2e-test-ephemeral-postgresql-database-with-per-test-reset`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/30-view-controlled-topic-catalogue` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/65-e2e-test-ephemeral-postgresql-database-with-per-test-reset` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -47,7 +47,114 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-PR-Review (sandman-pr-review)
+Implement: Slice 1 — ephemeral DB creation + migrations (sandman-tdd)
+
+## Plan
+
+### Context
+
+E2E test infrastructure: ephemeral PostgreSQL database with per-test reset for the SlotMerge MVP E2E test plan (#62). Vitest is the test framework. Drizzle ORM with PostgreSQL. Clock DI already exists via `clock?: () => Date` parameters.
+
+### Behaviors to test
+
+1. A fresh PostgreSQL database can be created with the Drizzle schema migrated
+2. All tables can be truncated and reseeded to a deterministic state
+3. Fixture data (topics, users, windows, overrides, busy intervals) is reproducible across test runs
+4. E2E tests run in isolation with their own database state
+
+### Testable interfaces
+
+**`tests/helpers/test-db.ts`**:
+- `createEphemeralDatabase(): Promise<{ url: string; db: Database }>` — creates a unique database, applies all migrations, returns connection info
+- `resetDatabase(db: Database): Promise<void>` — truncates all tables in FK-aware order using `TRUNCATE CASCADE`
+- `closeEphemeralDatabase(): Promise<void>` — drops the test database
+
+**`tests/fixtures/seeds.ts`**:
+- `CATALOGUE_FIXTURES` — 3 topics (active, pending, retired)
+- `USER_FIXTURES` — 3 users (user, organizer, admin) with fixed UUIDs
+- `WEEKLY_WINDOW_FIXTURES` — weekly windows per user
+- `OVERRIDE_FIXTURES` — one-off availability overrides
+- `BUSY_INTERVAL_FIXTURES` — imported busy intervals for calendar connections
+- `seedAll(db: Database): Promise<void>` — seeds all fixtures in dependency order
+
+**`tests/helpers/global-setup.ts`** (Vitest globalSetup):
+- Creates ephemeral database once at test run start
+- Stores global `testDbUrl` and `testDb` for use by tests
+
+**`tests/helpers/setup.ts`** (Vitest setupFiles per test file):
+- Before each test file: resetDatabase() + seedAll()
+
+**`tests/fixtures/clock.ts`**:
+- `fixedClock(startDate: string): () => Date` — returns a clock function for tests
+
+### Example E2E test skeleton
+
+```typescript
+// tests/availability-windows.e2e.test.ts
+import { beforeEach, describe, expect, it } from "vitest";
+import { getTestDb } from "../helpers/test-db";
+import { seedAll } from "../fixtures/seeds";
+import { fixedClock } from "../fixtures/clock";
+
+describe("availability windows E2E", () => {
+  let db: Database;
+  beforeEach(async () => {
+    db = getTestDb();
+    await resetDatabase(db);
+    await seedAll(db);
+  });
+
+  it("lists weekly windows for a user", async () => {
+    const windows = await listWeeklyWindows(db, USER_FIXTURES[0].id, fixedClock("2026-07-12T12:00:00Z"));
+    expect(windows).toHaveLength(2);
+  });
+});
+```
+
+### Implementation order (vertical slices)
+
+**Slice 1 — Ephemeral DB creation + migrations:**
+1. Create `tests/helpers/test-db.ts` with `createEphemeralDatabase()`
+2. Read migration SQL files from `./drizzle/*.sql` in order
+3. Execute migrations on the fresh database
+4. Write a test that verifies the migrated schema has expected tables
+
+**Slice 2 — Reset mechanism:**
+1. Implement `resetDatabase()` using `TRUNCATE CASCADE`
+2. Write a test that inserts data, resets, and verifies all tables are empty
+
+**Slice 3 — Deterministic fixtures:**
+1. Create `tests/fixtures/seeds.ts` with typed fixture constants
+2. Implement `seedAll()` inserting in FK-safe order
+3. Write a test that seeds and verifies row counts per table
+
+**Slice 4 — Vitest integration:**
+1. Create `tests/helpers/global-setup.ts` for one-time DB creation
+2. Create `tests/helpers/setup.ts` for per-file reset+seed
+3. Update `vitest.config.ts` to reference both files
+4. Create example E2E test demonstrating the full flow
+
+### Reset strategy
+
+`TRUNCATE CASCADE` for all tables. Order: revoke invites → sessions → email events → imported busy intervals → calendar connections → user topics → availability windows → topic proposals → searches → topics → users. Or rely on CASCADE and just truncate in reverse dependency order.
+
+### Migration strategy
+
+Execute migration SQL files directly via `db.execute(sql)`. Read `./drizzle/*.sql`, sort by filename, execute in order. This avoids drizzle-kit CLI overhead and keeps tests fast and self-contained.
+
+### Clock integration
+
+E2E tests pass `clock: fixedClock("2026-07-12T12:00:00Z")` explicitly to functions that accept `clock?: () => Date`. The global test clock state is not propagated implicitly — each test is explicit about time.
+
+### Coexistence with existing tests
+
+Existing mock-based tests in `tests/` and `src/**/*.test.ts` are **unchanged**. This infrastructure is for new E2E tests only. E2E tests live in `tests/e2e/` (new directory) and opt into the real DB via `getTestDb()`.
+
+### Risks / assumptions
+
+- PostgreSQL must be running locally on port 5432
+- Test PostgreSQL user must have `CREATEDB` privilege
+- Existing tests do not need the ephemeral DB — they're orthogonal
 
 ## Already Resolved
 
@@ -115,7 +222,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 

@@ -19,7 +19,9 @@ export function getPool(): Pool {
   return pool;
 }
 
-export function getDb() {
+export type AppDb = ReturnType<typeof drizzle>;
+
+export function getDb(): AppDb {
   pool ??= new Pool({ connectionString: requireDatabaseUrl() });
   return drizzle(pool, { schema });
 }

@@ -486,3 +486,59 @@ export const searches = pgTable(
     ),
   }),
 );
+
+export const searchResults = pgTable(
+  "search_results",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    searchId: uuid("search_id")
+      .notNull()
+      .references(() => searches.id, { onDelete: "cascade" }),
+    snapshotJson: jsonb("snapshot_json").$type<SearchSnapshot>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    searchResultsSearchIdIdx: index("search_results_search_id_idx").on(
+      table.searchId,
+    ),
+    searchResultsSearchIdUnique: uniqueIndex(
+      "search_results_search_id_unique_idx",
+    ).on(table.searchId),
+  }),
+);
+
+export type SearchSnapshot = {
+  generatedAt: string;
+  organizerTimezone: string;
+  dateRangeStart: string;
+  dateRangeEnd: string;
+  durationMinutes: number;
+  slots: Slot[];
+};
+
+export type Slot = {
+  startUtc: string;
+  matchCount: number;
+  matches: SlotMatchDetail[];
+};
+
+export type SlotMatchDetail = {
+  userId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  shortBio: string | null;
+  topics: TopicDetail[];
+  availabilityIndicator: AvailabilityIndicator;
+  calendarFreshness: CalendarFreshness;
+};
+
+export type TopicDetail = {
+  id: string;
+  name: string;
+};
+
+export type AvailabilityIndicator = "available" | "partial" | "unavailable";
+
+export type CalendarFreshness = "fresh" | "stale" | "none";

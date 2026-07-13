@@ -13,6 +13,13 @@ import {
   validateSearchInput,
 } from "./search-input";
 import { setSearchRepositoryForTests } from "./repository";
+import { setSearchResultRepositoryForTests } from "./search-result-repository";
+import type {
+  SearchResultRepository,
+  SearchResultRecord,
+} from "./search-result-repository";
+import type { DiscoverableUserRepository } from "./discoverable-user-repository";
+import type { MatchingDependencies } from "../matching/find-eligible-matches";
 
 class InMemoryActiveTopicsRepository implements ActiveTopicsRepository {
   constructor(
@@ -58,6 +65,49 @@ const utcProfile: UserProfile = {
   ...organizerProfile,
   id: "organizer-2",
   profileTimezone: null,
+};
+
+class InMemorySearchResultRepository implements SearchResultRepository {
+  async save(record: SearchResultRecord) {
+    await Promise.resolve();
+    return { ...record, id: record.id ?? "sr-1" };
+  }
+  async findById() {
+    await Promise.resolve();
+    return null;
+  }
+  async findBySearchId() {
+    await Promise.resolve();
+    return null;
+  }
+}
+
+class InMemoryDiscoverableUserRepository implements DiscoverableUserRepository {
+  async listDiscoverableUserIds() {
+    await Promise.resolve();
+    return [];
+  }
+}
+
+const mockMatchingDependencies: MatchingDependencies = {
+  listSelectedTopicIds() {
+    return Promise.resolve([]);
+  },
+  computeEffectiveAvailability() {
+    return [];
+  },
+  getUserAvailabilityData() {
+    return Promise.resolve({
+      profileTimezone: "UTC",
+      bufferMinutes: 0,
+      windows: [],
+      overrides: [],
+      busyIntervals: [],
+    });
+  },
+  isUserEligibleForSearch() {
+    return Promise.resolve(false);
+  },
 };
 
 describe("buildSearchInput", () => {
@@ -355,6 +405,8 @@ describe("submitSearch", () => {
   it("persists a validated Search and returns the stored record", async () => {
     const repo = new InMemorySearchRepository();
     setSearchRepositoryForTests(repo);
+    const searchResultRepo = new InMemorySearchResultRepository();
+    setSearchResultRepositoryForTests(searchResultRepo);
 
     const result = await submitSearch(
       {
@@ -365,6 +417,9 @@ describe("submitSearch", () => {
         profileRepository: new InMemoryProfileRepository(organizerProfile),
         clock: pinnedClock("2026-07-08T15:00:00.000Z"),
         matchingPoolSize: 5,
+        matchingDependencies: mockMatchingDependencies,
+        discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
+        searchResultRepository: searchResultRepo,
       },
       {
         selectedTopicIds: ["topic-1"],
@@ -396,6 +451,9 @@ describe("submitSearch", () => {
         profileRepository: new InMemoryProfileRepository(organizerProfile),
         clock: pinnedClock("2026-07-08T15:00:00.000Z"),
         matchingPoolSize: 5,
+        matchingDependencies: mockMatchingDependencies,
+        discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
+        searchResultRepository: new InMemorySearchResultRepository(),
       },
       {
         selectedTopicIds: [],

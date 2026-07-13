@@ -1,43 +1,45 @@
 # Task
 
-Implement GitHub issue #30: View controlled Topic catalogue
+Implement GitHub issue #48: Reconcile Calendar Connection sync and process webhook events
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerge/issues/17). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-A User can browse the active Topic catalogue to choose which Topics to associate with their profile. The list reflects the current state of the controlled catalogue, including similarity-blocking pre-checks for new proposals.
+Calendar Connection sync runs as a background job: provider webhooks update intervals promptly, scheduled reconciliation fills gaps, and transient failures use exponential backoff and provider `Retry-After` semantics. Quota handling avoids spikes.
 
 ## Acceptance criteria
 
-- [ ] User sees the current active Topic catalogue.
-- [ ] Retired Topics are not shown.
-- [ ] The catalogue view is readable on web.
+- [ ] Provider webhook events update imported busy intervals.
+- [ ] Scheduled reconciliation refreshes the rolling 90-day window.
+- [ ] Transient failures use exponential backoff and `Retry-After`.
+- [ ] Quotas are respected via randomized traffic patterns.
+- [ ] Sync errors update Calendar Connection status.
 
 ## Blocked by
 
-- [Provision app shell, auth, and Postgres bootstrap](https://github.com/rafaelromao/slotmerge/issues/20)
+- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/47)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/30-view-controlled-topic-catalogue`
-- Source branch: `sandman/30-view-controlled-topic-catalogue`
+- Current branch: `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events`
+- Source branch: `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/30-view-controlled-topic-catalogue` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -45,9 +47,57 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Plan
+
+### Behaviors to test
+
+1. **Google provider API returns busy intervals that get persisted**
+   - When `syncCalendarConnection()` is called with Google provider, it calls the Google FreeBusy API (`POST /calendar/v3/freeBusy`) and the returned busy/out-of-office/tentative intervals are upserted via `busyIntervalRepository.upsertBatch()`
+   - Microsoft provider uses Microsoft Graph `POST /me/calendar/getSchedule` similarly
+
+2. **lastSyncAt is updated after successful sync**
+   - After `upsertBatch` succeeds, `lastSyncAt` is set to the current clock on the Calendar Connection record
+
+3. **Transient failures trigger exponential backoff retry with Retry-After**
+   - On 429 (rate limit) or 5xx errors, `sync.ts` throws a typed `RateLimitedError` or `ServerError` carrying the `Retry-After` value if present
+   - The worker catches these and re-queues the job with `runAt = now + delay`
+
+4. **Quota exhaustion (429) is handled with randomized backoff**
+   - On 429 without `Retry-After`, use exponential backoff with jitter (base delay × random factor)
+
+5. **Auth failures (401/403) mark connection as needs_reconnect**
+   - On 401/403 responses, `sync.ts` calls `recordFailure` with `AUTH_ERROR` code; `sync-failure-recorder` maps this to `needs_reconnect` status
+
+6. **Poll job randomizes sync timing to avoid traffic spikes**
+   - Each connection's sync job is scheduled with a random initial delay (0–5 minutes) to spread load using `quickAddJob` with `runAt`
+
+### Testable interfaces
+
+- `src/calendar/freebusy/google.ts` — `fetchGoogleFreeBusy(token, calendarIds, timeMin, timeMax, fetchImpl)`. Returns normalized `FreeBusyInterval[]`. Throws `GoogleFreeBusyError` (rate-limited, server-error, auth-failure).
+- `src/calendar/freebusy/microsoft.ts` — `fetchMicrosoftFreeBusy(token, calendarIds, timeMin, timeMax, fetchImpl)`. Returns normalized `FreeBusyInterval[]`. Throws `MicrosoftFreeBusyError` (rate-limited, server-error, auth-failure).
+- `src/calendar/sync.ts` — `syncCalendarConnection()` updated to call freebusy clients, catch typed errors, and propagate `Retry-After` values.
+- `src/worker/sync.ts` — After successful sync, update `lastSyncAt` on the connection record. Catch `RateLimitedError`/`ServerError` and re-queue with `runAt`.
+- `src/worker/poll.ts` — Add random jitter (`0–5 min`) to each enqueue using `runAt`.
+
+### Execution order
+
+1. Create `src/calendar/freebusy/google.ts` and `src/calendar/freebusy/microsoft.ts` with typed responses and error classes
+2. Update `SyncCalendarConnectionParams` to include `timeMin`/`timeMax` and update `sync.ts` to call freebusy clients instead of `generateMockBusyIntervals`
+3. Add auth failure detection (401/403 → `AUTH_ERROR`) in `sync.ts`
+4. Add Retry-After-aware retry: `sync.ts` throws typed errors, worker re-queues with `runAt`
+5. Add `lastSyncAt` update in `src/worker/sync.ts` after successful sync
+6. Add jitter to poll job in `src/worker/poll.ts`
+7. Rewrite `sync.test.ts` and add new tests for Retry-After, auth failure, and jitter
+
+### Assumptions / risks
+
+- Token refresh during sync is NOT in scope (blocked by a separate issue).
+- The 90-day rolling window time range is computed by the worker as `timeMin = clock() - 90 days`, `timeMax = clock()`.
+- Graphile Worker's built-in `attempts`/`backoff` retry is NOT used for Retry-After handling; instead, typed errors are caught in the worker and re-queued manually with `runAt`.
+
 ## Next Step
 
-PR-Review (sandman-pr-review)
+Load sandman-tdd and execute the first vertical slice: create freebusy API clients (google + microsoft).
 
 ## Already Resolved
 
@@ -115,7 +165,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 

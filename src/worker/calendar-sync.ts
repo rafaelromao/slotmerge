@@ -102,7 +102,7 @@ export async function handleCalendarConnectionReconcileJob(
       listConnections: async () =>
         (
           await import("../calendar/repository")
-        ).listConnectedCalendarConnectionsByProvider("google"),
+        ).listAllCalendarConnectionsByProvider("google"),
       enqueueJob: enqueueCalendarConnectionSyncJob,
     });
     return;
@@ -114,7 +114,7 @@ export async function handleCalendarConnectionReconcileJob(
     listConnections: async () =>
       (
         await import("../calendar/repository")
-      ).listConnectedCalendarConnectionsByProvider("microsoft"),
+      ).listAllCalendarConnectionsByProvider("microsoft"),
     enqueueJob: enqueueCalendarConnectionSyncJob,
   });
 }

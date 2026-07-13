@@ -62,6 +62,25 @@ export async function listConnectedCalendarConnectionsByProvider(
   }));
 }
 
+export async function listAllCalendarConnectionsByProvider(
+  provider: "google" | "microsoft",
+): Promise<CalendarConnectionSyncRecord[]> {
+  const rows = await getDb()
+    .select(calendarConnectionSelectColumns)
+    .from(calendarConnections)
+    .where(eq(calendarConnections.provider, provider));
+
+  return rows.map((row) => ({
+    id: row.id,
+    userId: row.userId,
+    provider: row.provider,
+    status: row.status,
+    contributingCalendarIds: row.contributingCalendarIds,
+    lastErrorCode: row.lastErrorCode,
+    lastErrorMessage: row.lastErrorMessage,
+  }));
+}
+
 export async function findCalendarConnectionById(
   id: string,
 ): Promise<

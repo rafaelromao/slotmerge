@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 
 import { buildMockEmailAdapter } from "./mock-email-adapter";
+import { processEmailDeliveryJob } from "../src/email/worker";
 
 describe("MockEmailAdapter", () => {
   it("records a send call with recipient, type, and payload", async () => {
@@ -214,5 +215,143 @@ describe("MockEmailAdapter", () => {
     const inviteSends = adapter.getSendsByType("invite");
     expect(inviteSends).toHaveLength(2);
     expect(inviteSends.every((s) => s.type === "invite")).toBe(true);
+  });
+});
+
+describe("MockEmailAdapter wiring with processEmailDeliveryJob", () => {
+  const mockEventRepository = {
+    createQueuedEvent: vi.fn(),
+    recordAttempt: vi.fn(),
+    markDelivered: vi.fn(),
+    markFailed: vi.fn(),
+  };
+
+  const mockCriticalEmail = {
+    trigger: vi.fn(),
+  };
+
+  const mockClock = () => new Date("2026-01-01T00:00:00.000Z");
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("records a send through processEmailDeliveryJob", async () => {
+    const adapter = buildMockEmailAdapter();
+
+    mockEventRepository.recordAttempt.mockResolvedValue({
+      id: "evt-wiring-1",
+      recipient: "user@example.com",
+      type: "invite",
+      payloadReference: "ref-1",
+      status: "sending",
+      attempts: 1,
+      createdAt: mockClock(),
+      updatedAt: mockClock(),
+      sentAt: null,
+      failedAt: null,
+      lastAttemptAt: mockClock(),
+      lastErrorCode: null,
+      lastErrorMessage: null,
+    });
+
+    mockEventRepository.markDelivered.mockResolvedValue({
+      id: "evt-wiring-1",
+      recipient: "user@example.com",
+      type: "invite",
+      payloadReference: "ref-1",
+      status: "sent",
+      attempts: 1,
+      createdAt: mockClock(),
+      updatedAt: mockClock(),
+      sentAt: mockClock(),
+      failedAt: null,
+      lastAttemptAt: mockClock(),
+      lastErrorCode: null,
+      lastErrorMessage: null,
+    });
+
+    await processEmailDeliveryJob(
+      {
+        emailEventId: "evt-wiring-1",
+        recipient: "user@example.com",
+        type: "invite",
+        payload: { inviteId: "invite-wiring-1" },
+      },
+      {
+        clock: mockClock,
+        eventRepository: mockEventRepository,
+        transport: adapter,
+        criticalEmail: mockCriticalEmail,
+      },
+    );
+
+    expect(adapter.sends).toHaveLength(1);
+    const send = adapter.sends[0];
+    expect(send.emailEventId).toBe("evt-wiring-1");
+    expect(send.recipient).toBe("user@example.com");
+    expect(send.type).toBe("invite");
+    expect(send.payload).toEqual({ inviteId: "invite-wiring-1" });
+    expect(send.status).toBe("sent");
+  });
+
+  it("records a failed send through processEmailDeliveryJob", async () => {
+    const adapter = buildMockEmailAdapter();
+    adapter.setPersistentFailure("provider unavailable");
+
+    mockEventRepository.recordAttempt.mockResolvedValue({
+      id: "evt-wiring-2",
+      recipient: "user@example.com",
+      type: "magic-link",
+      payloadReference: "ref-2",
+      status: "sending",
+      attempts: 1,
+      createdAt: mockClock(),
+      updatedAt: mockClock(),
+      sentAt: null,
+      failedAt: null,
+      lastAttemptAt: mockClock(),
+      lastErrorCode: null,
+      lastErrorMessage: null,
+    });
+
+    mockEventRepository.markFailed.mockResolvedValue({
+      id: "evt-wiring-2",
+      recipient: "user@example.com",
+      type: "magic-link",
+      payloadReference: "ref-2",
+      status: "failed",
+      attempts: 1,
+      createdAt: mockClock(),
+      updatedAt: mockClock(),
+      sentAt: null,
+      failedAt: mockClock(),
+      lastAttemptAt: mockClock(),
+      lastErrorCode: "provider-unavailable",
+      lastErrorMessage: "provider unavailable",
+    });
+
+    await expect(
+      processEmailDeliveryJob(
+        {
+          emailEventId: "evt-wiring-2",
+          recipient: "user@example.com",
+          type: "magic-link",
+          payload: { token: "token-wiring-2" },
+        },
+        {
+          clock: mockClock,
+          eventRepository: mockEventRepository,
+          transport: adapter,
+          criticalEmail: mockCriticalEmail,
+        },
+      ),
+    ).rejects.toThrow("provider unavailable");
+
+    expect(adapter.sends).toHaveLength(1);
+    const send = adapter.sends[0];
+    expect(send.emailEventId).toBe("evt-wiring-2");
+    expect(send.status).toBe("failed");
+    expect(send.error).toBe("provider unavailable");
   });
 });

@@ -44,9 +44,7 @@ export async function fetchMicrosoftFreeBusy(params: {
 
   if (response.status >= 500) {
     const retryAfter = parseRetryAfterHeader(response.headers.get("retry-after"));
-    const error = new MicrosoftFreeBusyServerError(response.status);
-    (error as unknown as { retryAfterSeconds: number | undefined }).retryAfterSeconds = retryAfter;
-    throw error;
+    throw new MicrosoftFreeBusyServerError(response.status, retryAfter);
   }
 
   if (!response.ok) {

@@ -25,12 +25,13 @@ export class GoogleFreeBusyRateLimitError extends Error {
 }
 
 export class GoogleFreeBusyServerError extends Error {
-  readonly retryAfterSeconds: undefined;
+  readonly retryAfterSeconds: number | undefined;
   readonly statusCode: number;
-  constructor(statusCode: number) {
+  constructor(statusCode: number, retryAfterSeconds: number | undefined) {
     super(`Google FreeBusy server error: ${statusCode}`);
     this.name = "GoogleFreeBusyServerError";
     this.statusCode = statusCode;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -52,11 +53,12 @@ export class MicrosoftFreeBusyRateLimitError extends Error {
 }
 
 export class MicrosoftFreeBusyServerError extends Error {
-  readonly retryAfterSeconds: undefined;
+  readonly retryAfterSeconds: number | undefined;
   readonly statusCode: number;
-  constructor(statusCode: number) {
+  constructor(statusCode: number, retryAfterSeconds: number | undefined) {
     super(`Microsoft FreeBusy server error: ${statusCode}`);
     this.name = "MicrosoftFreeBusyServerError";
     this.statusCode = statusCode;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }

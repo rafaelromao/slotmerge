@@ -1,45 +1,43 @@
 # Task
 
-Implement GitHub issue #63: E2E test: mock Google Calendar adapter records calls and returns scripted free/busy responses
+Implement GitHub issue #30: View controlled Topic catalogue
 
 ## Issue Context
 
 ## Parent
 
-E2E test plan: [E2E test plan: SlotMerge MVP](https://github.com/rafaelromao/slotmerge/issues/62). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Mock Google Calendar adapter used by every Google-touching E2E test. Records OAuth consent callbacks, free/busy query calls, and webhook deliveries. Returns scripted free/busy responses with configurable busy/out-of-office/tentative/free/working-elsewhere intervals. Records requested scopes so tests can assert narrow free/busy scopes.
+A User can browse the active Topic catalogue to choose which Topics to associate with their profile. The list reflects the current state of the controlled catalogue, including similarity-blocking pre-checks for new proposals.
 
 ## Acceptance criteria
 
-- [ ] Records every OAuth consent callback.
-- [ ] Records every free/busy query with the requested time range and calendars.
-- [ ] Returns scripted free/busy intervals with configurable statuses.
-- [ ] Records every webhook delivery.
-- [ ] Records the requested OAuth scopes so scope assertions are possible.
+- [ ] User sees the current active Topic catalogue.
+- [ ] Retired Topics are not shown.
+- [ ] The catalogue view is readable on web.
 
 ## Blocked by
 
-None — can start immediately.
+- [Provision app shell, auth, and Postgres bootstrap](https://github.com/rafaelromao/slotmerge/issues/20)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/63-e2e-test-mock-google-calendar-adapter-records-calls-and-returns-scripted-freebusy-responses`
-- Source branch: `sandman/63-e2e-test-mock-google-calendar-adapter-records-calls-and-returns-scripted-freebusy-responses`
+- Current branch: `sandman/30-view-controlled-topic-catalogue`
+- Source branch: `sandman/30-view-controlled-topic-catalogue`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/63-e2e-test-mock-google-calendar-adapter-records-calls-and-returns-scripted-freebusy-responses` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/30-view-controlled-topic-catalogue` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -47,61 +45,9 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Plan
-
-### Behaviors to test
-
-1. **Records OAuth consent callback** — When the mock's `fetchImpl` receives a POST to `https://oauth2.googleapis.com/token`, it records the call and returns a scripted token response.
-2. **Records OAuth scopes requested** — The mock records the `scope` parameter from the token exchange call so tests can assert scope is narrow.
-3. **Records free/busy query with time range and calendars** — When the mock's `fetchImpl` receives a free/busy query to `https://www.googleapis.com/calendar/v3/freeBusy`, it records the requested time range and calendar IDs.
-4. **Returns scripted free/busy intervals with configurable statuses** — The mock accepts configuration for busy/out-of-office/tentative intervals per calendar and returns them in Google Calendar API format. Status "free" maps to no busy interval (absence = free). "working-elsewhere" maps to "tentative" in our schema.
-5. **Records webhook delivery** — When the mock's `webhookNotifier` receives a POST (simulating Google webhook delivery to the registered endpoint), it records it.
-6. **Records requested OAuth scopes** — The mock aggregates all OAuth scopes seen across calls.
-
-### Testable interfaces
-
-`buildMockGoogleCalendarAdapter()` factory returns a `MockGoogleCalendarAdapter`:
-
-```
-oauthCallbacks: Array<{ code: string; codeVerifier: string; scope: string; state: string }>
-freeBusyQueries: Array<{ timeMin: Date; timeMax: Date; calendarIds: string[] }>
-webhookDeliveries: Array<{ channelId: string; resourceId: string; resourceState: string }>
-requestedScopes: string[]
-freeBusyResponses: Map<calendarId, FreeBusyInterval[]>
-accessToken: string
-refreshToken: string
-expiresIn: number
-
-setFreeBusyResponse(calendarId: string, intervals: FreeBusyInterval[]): void
-getFetchImpl(): typeof fetch
-getWebhookNotifier(): (req: Request) => Promise<void>
-reset(): void
-```
-
-`FreeBusyInterval`: `{ start: Date; end: Date; status: "busy" | "out-of-office" | "tentative" | "free" | "working-elsewhere" }`
-
-### Slice ordering
-
-**Slice 1 — OAuth recording**: Test that `oauthCallbacks` is empty before and populated after calling `adapter.getFetchImpl()` with a token-exchange request. Returns scripted tokens.
-
-**Slice 2 — Scope recording**: After OAuth callback, `requestedScopes` contains the scope from the token exchange.
-
-**Slice 3 — Free/busy recording**: Configure `setFreeBusyResponse()`, call `adapter.getFetchImpl()` with a free/busy request, assert `freeBusyQueries` recorded the time range and calendar IDs.
-
-**Slice 4 — Scripted free/busy response**: After `setFreeBusyResponse(calendarId, intervals)`, calling `fetchImpl` for free/busy returns those intervals in Google API format.
-
-**Slice 5 — Webhook recording**: Call `adapter.getWebhookNotifier()` with a webhook-like POST, assert `webhookDeliveries` recorded it.
-
-### Assumptions / risks
-
-- The `sync.ts` module currently calls `generateMockBusyIntervals()` directly (no network). The mock adapter's `fetchImpl` enables E2E tests to exercise the OAuth + sync flow with recorded/scripted responses. Future work may update `sync.ts` to accept a free/busy API caller; the mock is ready for that seam.
-- `BusyIntervalStatus` in the DB schema supports only "busy" | "out-of-office" | "tentative". The mock accepts all Google API statuses ("free", "working-elsewhere") in configuration; on storage they map to the three-schema statuses.
-- Webhook delivery is recorded via a `getWebhookNotifier()` function that accepts a simulated webhook POST — there is no real Google webhook endpoint in this MVP; the recording enables future webhook testing.
-- Placement: `tests/google-calendar-adapter.ts` — lives alongside tests, imported by test files that need Google API mocking.
-
 ## Next Step
 
-Run `sandman-tdd` for Slice 1 (OAuth recording test + implementation).
+PR-Review (sandman-pr-review)
 
 ## Already Resolved
 
@@ -169,7 +115,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 

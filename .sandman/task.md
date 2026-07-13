@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #53: Compute effective Availability from windows, overrides, and imported busy intervals
+Implement GitHub issue #54: Match Users against active Topics, full-duration Availability, and eligibility
 
 ## Issue Context
 
@@ -10,39 +10,39 @@ Sub-PRD: [Sub-PRD: Search & Matching](https://github.com/rafaelromao/slotmerge/i
 
 ## What to build
 
-An internal matching helper computes effective Availability for a User over a date range: weekly Availability Windows plus one-off add/block overrides, minus buffered imported busy intervals (busy/out-of-office/tentative). The helper is timezone-aware and respects DST.
+A matching function returns eligible Matches for a Search: only Users with all selected active Topics who are available for the full requested Slot duration, who are active, not suspended, discoverable, and setup-complete. The Searcher is excluded.
 
 ## Acceptance criteria
 
-- [ ] Weekly Availability Windows are applied with the user's profile timezone.
-- [ ] One-off add and block overrides apply correctly.
-- [ ] Buffered imported busy intervals subtract from effective Availability.
-- [ ] Imported free/working-elsewhere statuses do not block Availability.
-- [ ] DST transitions are handled correctly.
+- [ ] Only Users with all selected active Topics are eligible.
+- [ ] A User is only counted for a Slot if available for the full requested duration.
+- [ ] Suspended users are not eligible.
+- [ ] Users without discoverability consent are not eligible.
+- [ ] Users missing any required setup item are not eligible.
+- [ ] The Searcher is excluded from candidates and the minimum count.
 
 ## Blocked by
 
-- [Define weekly Availability Windows in profile timezone](https://github.com/rafaelromao/slotmerge/issues/31)
-- [Add one-off add/block Availability overrides](https://github.com/rafaelromao/slotmerge/issues/33)
-- [Apply global Calendar Connection buffer around imported busy intervals](https://github.com/rafaelromao/slotmerge/issues/34)
-- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/47)
+- [Grant and revoke discoverability consent](https://github.com/rafaelromao/slotmerge/issues/28)
+- [Show setup checklist and gate setup completion](https://github.com/rafaelromao/slotmerge/issues/35)
+- [Compute effective Availability from windows, overrides, and imported busy intervals](https://github.com/rafaelromao/slotmerge/issues/53)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/53-compute-effective-availability-from-windows-overrides-and-imported-busy-intervals`
-- Source branch: `sandman/53-compute-effective-availability-from-windows-overrides-and-imported-busy-intervals`
+- Current branch: `sandman/54-match-users-against-active-topics-full-duration-availability-and-eligibility`
+- Source branch: `sandman/54-match-users-against-active-topics-full-duration-availability-and-eligibility`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/53-compute-effective-availability-from-windows-overrides-and-imported-busy-intervals` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/54-match-users-against-active-topics-full-duration-availability-and-eligibility` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -50,27 +50,49 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Next Step
+
+The registered next step is **Implement (sandman-implement)**.
+
 ## Plan
 
 ### Behaviors to test
 
-1. **Returns empty when no inputs** — effective availability is empty list when user has no weekly windows, no overrides, and no busy intervals.
-2. **Weekly windows expand to UTC** — given weekly windows in profile timezone, returns correct UTC intervals for a date range.
-3. **Add overrides union with weekly windows** — an "add" override produces additional available intervals on top of windows.
-4. **Block overrides subtract from weekly windows** — a "block" override removes time from existing windows.
-5. **Busy intervals (busy/out-of-office/tentative) subtract from effective availability** — all three statuses remove from availability.
-6. **Buffer expands busy intervals symmetrically** — user's bufferMinutes expands each busy interval start (minus) and end (plus), then result is intersected with the search range.
-7. **Overrides and busy intervals outside search range are ignored** — only overlapping intervals affect the result.
-8. **Composition order is: windows → add overrides → block overrides → busy intervals** — each layer applies in sequence.
-9. **DST: weekly window on DST transition day preserves wall-clock duration** — 09:00–17:00 local on a DST change day still produces the correct actual hours (not naive hour-count).
-10. **Multiple overlapping intervals merge** — overlapping available intervals are coalesced into a single interval.
-11. **Block inside window, busy outside: only window portion removed** — block overrides apply to expanded windows before busy intervals are subtracted.
-12. **Free and working-elsewhere statuses do not block** — when schema adds these statuses, they are excluded from blocking (documented behavior, validated by integration test against import pipeline).
+**TDD slice order (vertical slices, one per AC or AC group):**
+
+1. **Slice 1 - Topic eligibility (AC1)**: Given `selectedTopicIds = [A, B, C]`, only users who have ALL three topics with status "active" are eligible for this search.
+   - User has [A, B, C], search requires [A, B] → eligible
+   - User has [A, B], search requires [A, B, C] → NOT eligible
+   - User has [], search requires [A] → NOT eligible
+
+2. **Slice 2 - Full-duration availability (AC2)**: Given a slot start time T and duration D, a user is counted only if their effective availability intervals cover `[T, T+D]` with no gaps.
+   - Available [9:00-17:00], slot 10:00-11:00 → eligible
+   - Available [9:00-10:30], slot 10:00-11:00 → NOT eligible (gap 10:30-11:00)
+   - Available [9:00-12:00, 13:00-17:00], slot 10:00-11:00 → eligible
+   - Available [9:00-12:00, 13:00-17:00], slot 12:30-13:30 → NOT eligible (gap 12:00-13:00)
+
+3. **Slice 3 - Searcher exclusion (AC6)**: The organizer (searcher) is never included in the matching pool, even if they meet all other criteria.
+
+4. **Slice 4 - Composite eligibility (AC3/4/5 via delegation)**: A user is an eligible Match only if they are active, consented, and setup-complete. This is delegated to `isEligibleForSearch` which is already tested.
 
 ### Testable interfaces
 
+**New file: `src/matching/find-eligible-matches.ts`**
+
 ```typescript
-// New module: src/matching/effective-availability.ts
+import type { Interval } from "./effective-availability";
+import type { WeeklyAvailabilityWindow } from "../profile/availability-windows";
+import type { AvailabilityOverride } from "../profile/availability-overrides";
+import type { ImportedBusyIntervalRecord } from "../calendar/imported-busy-intervals";
+
+export type FindEligibleMatchesParams = {
+  organizerId: string;
+  selectedTopicIds: string[];
+  candidateUserIds: string[];
+  durationMinutes: number;
+  rangeStart: Date;
+  rangeEnd: Date;
+};
 
 export type EffectiveAvailabilityInputs = {
   userId: string;
@@ -83,39 +105,73 @@ export type EffectiveAvailabilityInputs = {
   rangeEnd: Date;
 };
 
-export function computeEffectiveAvailability(
-  inputs: EffectiveAvailabilityInputs,
-): Array<{ startUtc: Date; endUtc: Date }>;
+export type MatchingDependencies = {
+  listSelectedTopicIds: (userId: string) => Promise<string[]>;
+  computeEffectiveAvailability: (inputs: EffectiveAvailabilityInputs) => Interval[];
+  getUserAvailabilityData: (
+    userId: string,
+  ) => Promise<{
+    profileTimezone: string;
+    bufferMinutes: number;
+    windows: WeeklyAvailabilityWindow[];
+    overrides: AvailabilityOverride[];
+    busyIntervals: ImportedBusyIntervalRecord[];
+  }>;
+  isUserEligibleForSearch: (userId: string) => Promise<boolean>;
+};
+
+export async function findEligibleMatches(
+  params: FindEligibleMatchesParams,
+  deps: MatchingDependencies,
+): Promise<string[]>;
 ```
+
+**Filter loop pseudocode:**
+```typescript
+for (userId of candidateUserIds) {
+  // AC6: Skip organizer
+  if (userId === organizerId) continue;
+  
+  // AC3/4/5: Check eligibility (suspended, consent, setup)
+  if (!await deps.isUserEligibleForSearch(userId)) continue;
+  
+  // AC1: Check all selected topics are active
+  const userTopicIds = await deps.listSelectedTopicIds(userId);
+  if (!selectedTopicIds.every(id => userTopicIds.includes(id))) continue;
+  
+  // AC2: Check full-duration availability for each slot
+  const avail = deps.getUserAvailabilityData(userId);
+  const effectiveAvail = deps.computeEffectiveAvailability({...avail, rangeStart, rangeEnd});
+  if (!hasFullCoverage(effectiveAvail, slotStart, durationMinutes)) continue;
+  
+  matches.push(userId);
+}
+```
+
+**Injection point**: Tests call `findEligibleMatches(params, testDeps)` directly. Production wiring is in `src/matching/index.ts` (to be created).
 
 ### Assumptions / risks
 
-- Helper is pure (no DB access) — all inputs passed in by caller.
-- Repository calls (windows, overrides, busy intervals) happen outside the helper.
-- Buffer is applied symmetrically (start − buffer, end + buffer) then intersected with search range.
-- Block overrides apply after expanding weekly windows but before subtracting busy intervals.
-- Only busy/out-of-office/tentative statuses block; free/working-elsewhere are no-ops.
-- When free/working-elsewhere are added to schema, this behavior must be preserved by the import pipeline integration test.
+- Caller is responsible for fetching the `candidateUserIds` pool (not computed within this function)
+- Effective availability intervals from `computeEffectiveAvailability` are already merged and non-overlapping
+- The function does NOT generate slots - it only filters a candidate pool; slot generation is a separate concern
+- `hasFullCoverage(intervals, slotStart, durationMinutes)` checks if the union of intervals covers `[slotStart, slotStart+duration]`
 
-### TDD slice order
+### TDD execution order
 
-1. Empty input → empty output
-2. Weekly windows only (UTC expansion)
-3. Add overrides (union)
-4. Block overrides (subtraction from windows)
-5. Busy intervals with buffer (subtraction, clipped to range)
-6. DST transitions
-7. Full composition (all layers)
-
-## Next Step
-
-PR-Review (sandman-pr-review)
+1. **RED**: Write test for `hasAllSelectedTopics` (AC1) - simplest slice
+2. **GREEN**: Implement minimal `hasAllSelectedTopics` logic
+3. **RED**: Write test for `hasFullDurationCoverage` (AC2)
+4. **GREEN**: Implement `hasFullDurationCoverage`
+5. **RED**: Write test for AC6 (searcher exclusion) and full `findEligibleMatches`
+6. **GREEN**: Wire everything together in `findEligibleMatches`
+7. **REFACTOR**: Clean up and verify all tests pass
 
 ## Already Resolved
 
 If the issue is already implemented on `main`, after fetching and checking the current `origin/main` HEAD against the issue acceptance criteria, update `.sandman/task.md` so it contains the exact line `## Status: already resolved`.
 
-Do not use issue closure, a matching local branch, or unmerged worktree changes as proof that the issue is already resolved. If any acceptance criterion is missing or you are not certain, continue to Plan.
+Do not use issue closure, a matching local branch, or unmerged worktree changes as proof that the issue is already resolved. If any acceptance criterion is missing or you are not certain, continue with Plan.
 
 Do not paraphrase this line. Do not use `already implemented`, `no action required`, or any other wording for this marker.
 
@@ -146,7 +202,7 @@ This task must be executed through the Sandman skill workflow, not by ad-hoc imp
 
 ## AFK Rule — Absolute
 
-This is a fully automated Away From Keyboard workflow. **The user will never be available to answer questions, give approval, or decisions during execution.**
+This is a fully automated Away From Keyboard workflow. **The user will never be available to answer questions, give approval, or make decisions during execution.**
 
 ### Hard Ban
 
@@ -177,7 +233,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 
@@ -200,7 +256,7 @@ If `codeindex.json` exists in the repository root, use `codeindex` before `grep`
 
 Never run grep, rg, find, or any recursive content/file search against directories outside the current working directory (e.g. /tmp, /var, /usr, /etc, /opt, /home, node_modules, .git, target, dist, build, vendor). Such searches return massive output that floods the context window. Restrict searches to the cwd or explicit sub-paths within it; use the Glob/Grep tools which already scope to the project by default.
 
-This restriction applies to the current agent and to every subagent invoked in the current session, including subagents launched directly and subagents launched by any Sandman or other skill loaded during the run. When spawning, delegating to, or handing off to a subagent, pass this Search Scope Restriction into the subagent's instructions verbatim, or reference this section by name, so the subagent obeys the same rule.
+This restriction applies to the current agent and to every subagent invoked in the current session, including subagents launched directly and subagents launched by any Sandman or other skill loaded during the run. When spawning, delegating to, or handing work off to a subagent, pass this Search Scope Restriction into the subagent's instructions verbatim, or reference this section by name, so the subagent obeys the same rule.
 
 ## Required Skill Chain
 

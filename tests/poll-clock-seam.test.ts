@@ -45,6 +45,8 @@ describe("clock option in poll worker", () => {
     );
     const clock = buildTestClock(new Date("2026-01-01T00:00:00.000Z"));
 
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
     await handlePollCalendarConnectionsJob({ clock: () => clock.now() });
 
     expect(enqueueSyncCalendarConnectionJob).toHaveBeenCalledTimes(2);
@@ -69,6 +71,7 @@ describe("clock option in poll worker", () => {
     const clock = buildTestClock(new Date("2026-01-01T00:00:00.000Z"));
 
     clock.advance(3600 * 1000);
+    vi.spyOn(Math, "random").mockReturnValue(0);
 
     await handlePollCalendarConnectionsJob({ clock: () => clock.now() });
 

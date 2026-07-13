@@ -160,9 +160,7 @@ export default function SearchResultPage({
   return (
     <main>
       <h1>Search Result</h1>
-      <p>
-        Generated: {new Date(search.generatedAt).toLocaleString()}
-      </p>
+      <p>Generated: {new Date(search.generatedAt).toLocaleString()}</p>
       <p>
         Range: {new Date(search.dateRangeStart).toLocaleDateString()} -{" "}
         {new Date(search.dateRangeEnd).toLocaleDateString()}

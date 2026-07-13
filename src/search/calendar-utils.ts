@@ -21,9 +21,7 @@ export function getPreviousWeekStart(
   currentWeekStart: Date,
   today: Date,
 ): Date | null {
-  const lookbackLimit = new Date(
-    today.getTime() - 90 * 24 * 60 * 60 * 1000,
-  );
+  const lookbackLimit = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
   const previousWeekStart = new Date(
     currentWeekStart.getTime() - 7 * 24 * 60 * 60 * 1000,
   );

@@ -177,6 +177,8 @@ function getCookie(cookieHeader: string | null, name: string): string | null {
   return null;
 }
 
-export function isOrganizerOrAdmin(session: Session | null): session is Session {
+export function isOrganizerOrAdmin(
+  session: Session | null,
+): session is Session {
   return session?.user.role === "organizer" || session?.user.role === "admin";
 }

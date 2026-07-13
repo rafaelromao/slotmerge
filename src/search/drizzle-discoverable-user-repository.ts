@@ -27,6 +27,7 @@ export function createPostgresDiscoverableUserRepository(): DiscoverableUserRepo
           and(
             eq(users.id, userTopics.userId),
             eq(users.status, "active" as const),
+            eq(userTopics.status, "active" as const),
           ),
         )
         .innerJoin(

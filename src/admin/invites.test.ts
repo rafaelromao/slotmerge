@@ -47,6 +47,24 @@ describe("admin invites", () => {
         status: "pending",
         invitedByAdminId: "admin-1",
         invitedByAdminEmail: "admin@example.com",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      },
+    });
+    const sendEmail = vi.fn().mockResolvedValue({
+      emailEvent: {
+        id: "email-event-1",
+        recipient: "alice@example.com",
+        type: "invite",
+        payloadReference: "payload-ref-1",
+        status: "queued",
+        attempts: 0,
+        createdAt: new Date("2026-07-12T00:00:00.000Z"),
+        updatedAt: new Date("2026-07-12T00:00:00.000Z"),
+        sentAt: null,
+        failedAt: null,
+        lastAttemptAt: null,
+        lastErrorCode: null,
+        lastErrorMessage: null,
       },
     });
 
@@ -67,6 +85,16 @@ describe("admin invites", () => {
         listInvites: vi.fn().mockResolvedValue([]),
         createInvite,
       },
+      magicLinkTokenIssuer: {
+        issueMagicLinkToken: vi.fn().mockReturnValue({
+          token: "payload.signature",
+          magicLinkUrl:
+            "https://slotmerge.example.com/auth/magic-link/verify?token=payload.signature",
+          expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+        }),
+      },
+      emailDeliveryService: { sendEmail },
+      clock: () => new Date("2026-07-12T00:00:00.000Z"),
     });
 
     const response = await POST(
@@ -90,6 +118,7 @@ describe("admin invites", () => {
       email: "alice@example.com",
       role: "user",
       invitedByAdminId: "admin-1",
+      now: new Date("2026-07-12T00:00:00.000Z"),
     });
   });
 
@@ -274,5 +303,133 @@ describe("admin invites", () => {
     expect(response.status).toBe(400);
     expect(html).toContain("Enter a valid email address and choose a role.");
     expect(createInvite).not.toHaveBeenCalled();
+  });
+
+  it("dispatches an invitation email with a magic-link URL tied to the persisted invite", async () => {
+    const sendEmail = vi.fn().mockResolvedValue({
+      emailEvent: {
+        id: "email-event-1",
+        recipient: "alice@example.com",
+        type: "invite",
+        payloadReference: "payload-ref-1",
+        status: "queued",
+        attempts: 0,
+        createdAt: new Date("2026-07-12T00:00:00.000Z"),
+        updatedAt: new Date("2026-07-12T00:00:00.000Z"),
+        sentAt: null,
+        failedAt: null,
+        lastAttemptAt: null,
+        lastErrorCode: null,
+        lastErrorMessage: null,
+      },
+    });
+    const createInvite = vi.fn().mockResolvedValue({
+      ok: true,
+      invite: {
+        id: "invite-1",
+        email: "alice@example.com",
+        role: "user",
+        status: "pending",
+        invitedByAdminId: "admin-1",
+        invitedByAdminEmail: "admin@example.com",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      },
+    });
+
+    const { POST } = createAdminInvitesHandlers({
+      getSession: vi.fn().mockResolvedValue({
+        user: {
+          id: "admin-1",
+          email: "admin@example.com",
+          displayName: null,
+          role: "admin",
+          status: "active",
+          profileTimezone: null,
+          bufferMinutes: 0,
+        },
+        csrfToken: "csrf-token-1",
+      }),
+      inviteRepository: {
+        listInvites: vi.fn().mockResolvedValue([]),
+        createInvite,
+      },
+      magicLinkTokenIssuer: {
+        issueMagicLinkToken: vi.fn().mockReturnValue({
+          token: "payload.signature",
+          magicLinkUrl:
+            "https://slotmerge.example.com/auth/magic-link/verify?token=payload.signature",
+          expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+        }),
+      },
+      emailDeliveryService: { sendEmail },
+    });
+
+    const response = await POST(
+      new Request("http://localhost/admin/invites", {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          _csrf: "csrf-token-1",
+          email: "alice@example.com",
+        }).toString(),
+      }),
+    );
+
+    expect(response.status).toBe(303);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const sent = sendEmail.mock.calls[0]?.[0] as {
+      recipient: string;
+      type: string;
+      payload: Record<string, unknown>;
+    };
+    expect(sent.recipient).toBe("alice@example.com");
+    expect(sent.type).toBe("invite");
+    expect(sent.payload).toMatchObject({
+      inviteId: "invite-1",
+      email: "alice@example.com",
+      role: "user",
+    });
+    expect(sent.payload.magicLinkUrl).toBe(
+      "https://slotmerge.example.com/auth/magic-link/verify?token=payload.signature",
+    );
+  });
+
+  it("renders '(deleted Admin)' when the inviter has been self-deleted", async () => {
+    const { GET } = createAdminInvitesHandlers({
+      getSession: vi.fn().mockResolvedValue({
+        user: {
+          id: "admin-1",
+          email: "admin@example.com",
+          displayName: null,
+          role: "admin",
+          status: "active",
+          profileTimezone: null,
+          bufferMinutes: 0,
+        },
+        csrfToken: "csrf-token-1",
+      }),
+      inviteRepository: {
+        listInvites: vi.fn().mockResolvedValue([
+          {
+            id: "invite-1",
+            email: "orphan@example.com",
+            role: "user",
+            status: "pending",
+            invitedByAdminId: null,
+            invitedByAdminEmail: null,
+          },
+        ]),
+        createInvite: vi.fn(),
+      },
+    });
+
+    const response = await GET(new Request("http://localhost/admin/invites"));
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain("orphan@example.com");
+    expect(html).toContain("(deleted Admin)");
   });
 });

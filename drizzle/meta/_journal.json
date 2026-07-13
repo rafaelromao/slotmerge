@@ -33,15 +33,50 @@
     {
       "idx": 4,
       "version": "7",
-      "when": 1783789600000,
-      "tag": "0002_controlled_topics",
+      "when": 1783780000002,
+      "tag": "0003_topics",
       "breakpoints": true
     },
     {
       "idx": 5,
       "version": "7",
-      "when": 1783789600001,
-      "tag": "0003_controlled_topics_unique",
+      "when": 1783780000003,
+      "tag": "0004_discoverability_consent",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783780000004,
+      "tag": "0005_self_delete_account",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783780000005,
+      "tag": "0006_searches",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783780000007,
+      "tag": "0007_imported_busy_intervals",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783780000008,
+      "tag": "0008_availability_windows",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783780000009,
+      "tag": "0009_calendar_connection_last_sync",
       "breakpoints": true
     }
   ]

@@ -10,6 +10,7 @@
     "dev:worker": "tsx src/worker/run.ts",
     "build": "next build",
     "start": "next start",
+    "start:worker": "tsx src/worker/run.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "format:check": "prettier --check \"app/**/*.{ts,tsx}\" \"src/**/*.ts\" \"scripts/**/*.ts\" \"docs/local-stack.md\" package.json tsconfig.json vitest.config.ts drizzle.config.ts next.config.ts eslint.config.mjs docker-compose.yml \".github/workflows/*.yml\"",

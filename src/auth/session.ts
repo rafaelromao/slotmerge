@@ -23,6 +23,7 @@ export type Session = {
 
 export type SessionRepository = {
   findById(sessionId: string): Promise<Session | null>;
+  delete?(sessionId: string): Promise<void>;
 };
 
 const sessionCookieName = "slotmerge_session";
@@ -49,6 +50,10 @@ export async function sealSessionCookie({
   return `${sessionCookieName}=${encodeURIComponent(sealed)}; Path=/; HttpOnly; SameSite=Lax`;
 }
 
+export function clearSessionCookie(): string {
+  return `${sessionCookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+
 export async function getSessionFromRequest(
   request: Request,
 ): Promise<Session | null> {
@@ -68,13 +73,39 @@ export async function getSessionFromRequest(
       Iron.defaults,
     )) as { sessionId: string };
 
-    return getSessionRepository().findById(payload.sessionId);
+    const session = await getSessionRepository().findById(payload.sessionId);
+    return session;
   } catch {
     return null;
   }
 }
 
-function getSessionRepository(): SessionRepository {
+export async function extractSessionIdFromRequest(
+  request: Request,
+): Promise<string | null> {
+  const sessionToken = getCookie(
+    request.headers.get("cookie"),
+    sessionCookieName,
+  );
+
+  if (!sessionToken) {
+    return null;
+  }
+
+  try {
+    const payload = (await Iron.unseal(
+      decodeURIComponent(sessionToken),
+      getSessionSecret(),
+      Iron.defaults,
+    )) as { sessionId: string };
+
+    return payload.sessionId;
+  } catch {
+    return null;
+  }
+}
+
+export function getSessionRepository(): SessionRepository {
   if (repositoryOverride) {
     return repositoryOverride;
   }
@@ -83,6 +114,10 @@ function getSessionRepository(): SessionRepository {
 }
 
 const databaseSessionRepository: SessionRepository = {
+  delete: async (sessionId) => {
+    await getDb().delete(sessions).where(eq(sessions.id, sessionId));
+  },
+
   findById: async (sessionId) => {
     const [row] = await getDb()
       .select({
@@ -114,7 +149,7 @@ const databaseSessionRepository: SessionRepository = {
   },
 };
 
-function getSessionSecret(): string {
+export function getSessionSecret(): string {
   if (process.env.SESSION_SECRET) {
     return process.env.SESSION_SECRET;
   }

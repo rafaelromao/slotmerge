@@ -1,7 +1,17 @@
+import { quickAddJob } from "graphile-worker";
+
+import {
+  createPostgresAdminCriticalDispatchLookup,
+  createPostgresAdminDirectory,
+} from "../admin/critical-email.repository";
 import { loadRuntimeConfig } from "../config/runtime";
 import { createPostgresEmailEventRepository } from "../email/repository";
+import { createEmailDeliveryService } from "../email/service";
 import { createEmailTransport } from "../email/transport";
-import { processEmailDeliveryJob } from "../email/worker";
+import {
+  createCriticalEmailTrigger,
+  processEmailDeliveryJob,
+} from "../email/worker";
 import type { QueueEmailJobInput } from "../email/service";
 
 export const emailDeliveryTaskName = "deliver_email";
@@ -10,12 +20,38 @@ export async function handleEmailDeliveryJob(payload: unknown): Promise<void> {
   const job = parseEmailDeliveryJob(payload);
   const config = loadRuntimeConfig();
 
+  const eventRepository = createPostgresEmailEventRepository();
+  const transport = createEmailTransport({
+    adapter: config.emailAdapter,
+    env: process.env,
+  });
+  const emailDeliveryService = createEmailDeliveryService({
+    eventRepository,
+    queueJob: (queued) => enqueueEmailDeliveryJob(queued, config.databaseUrl),
+  });
+  const criticalEmail = createCriticalEmailTrigger({
+    adminDirectory: createPostgresAdminDirectory(),
+    emailDeliveryService,
+    lastDispatchLookup: createPostgresAdminCriticalDispatchLookup(),
+  });
+
   await processEmailDeliveryJob(job, {
-    eventRepository: createPostgresEmailEventRepository(),
-    transport: createEmailTransport({
-      adapter: config.emailAdapter,
-      env: process.env,
-    }),
+    clock: () => new Date(),
+    eventRepository,
+    transport,
+    criticalEmail,
+  });
+}
+
+async function enqueueEmailDeliveryJob(
+  job: QueueEmailJobInput,
+  databaseUrl: string,
+): Promise<void> {
+  await quickAddJob({ connectionString: databaseUrl }, emailDeliveryTaskName, {
+    emailEventId: job.emailEventId,
+    recipient: job.recipient,
+    type: job.type,
+    payload: job.payload,
   });
 }
 

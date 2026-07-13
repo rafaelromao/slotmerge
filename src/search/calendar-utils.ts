@@ -20,9 +20,7 @@ export function getPreviousWeekStart(
   currentWeekStart: Date,
   today: Date,
 ): Date | null {
-  const lookbackLimit = new Date(
-    today.getTime() - 90 * 24 * 60 * 60 * 1000,
-  );
+  const lookbackLimit = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
   const previousWeekStart = new Date(
     currentWeekStart.getTime() - 7 * 24 * 60 * 60 * 1000,
   );
@@ -58,16 +56,14 @@ export function alignToMonday(date: Date, timezone: string): Date {
     hour12: false,
   }).formatToParts(date);
 
-  const get = (type: string) =>
-    parts.find((p) => p.type === type)?.value ?? "";
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
 
   const weekday = get("weekday");
   const year = Number(get("year"));
   const month = Number(get("month"));
   const day = Number(get("day"));
 
-  const offsetMs =
-    Date.UTC(year, month - 1, day, 0, 0, 0) - date.getTime();
+  const offsetMs = Date.UTC(year, month - 1, day, 0, 0, 0) - date.getTime();
   const localMidnightAsUtc = Date.UTC(year, month - 1, day, 0, 0, 0) - offsetMs;
 
   const weekdayIndex =

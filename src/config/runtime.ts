@@ -10,9 +10,11 @@ const envSchema = z.object({
   EMAIL_ADAPTER: z.enum(["mock", "postmark"]).optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_WEBHOOK_SECRET: z.string().optional(),
   MAGIC_LINK_SECRET: z.string().optional(),
   MICROSOFT_OAUTH_CLIENT_ID: z.string().optional(),
   MICROSOFT_OAUTH_CLIENT_SECRET: z.string().optional(),
+  MICROSOFT_WEBHOOK_SECRET: z.string().optional(),
   NODE_ENV: z.string().optional(),
   POSTMARK_SERVER_TOKEN: z.string().optional(),
   SESSION_SECRET: z.string().optional(),
@@ -26,7 +28,9 @@ export type RuntimeConfig = {
   calendarTokenEncryptionKey: string;
   databaseUrl: string;
   emailAdapter: "mock" | "postmark";
+  googleWebhookSecret: string;
   magicLinkSecret: string;
+  microsoftWebhookSecret: string;
   requirePublicWebhookHttps: boolean;
   sessionSecret: string;
   usesGcpSecretManager: false;
@@ -51,9 +55,15 @@ export function loadRuntimeConfig(
       "local-calendar-token-encryption-key-do-not-use-in-production",
     databaseUrl: parsed.DATABASE_URL,
     emailAdapter: parsed.EMAIL_ADAPTER ?? (isLocal ? "mock" : "postmark"),
+    googleWebhookSecret:
+      parsed.GOOGLE_WEBHOOK_SECRET ??
+      "local-google-webhook-secret-do-not-use-in-production",
     magicLinkSecret:
       parsed.MAGIC_LINK_SECRET ??
       "local-magic-link-secret-do-not-use-in-production",
+    microsoftWebhookSecret:
+      parsed.MICROSOFT_WEBHOOK_SECRET ??
+      "local-microsoft-webhook-secret-do-not-use-in-production",
     requirePublicWebhookHttps: !isLocal,
     sessionSecret:
       parsed.SESSION_SECRET ?? "local-session-secret-do-not-use-in-production",
@@ -62,7 +72,9 @@ export function loadRuntimeConfig(
 
   if (!isLocal) {
     requireEnv(parsed.APP_BASE_URL, "APP_BASE_URL");
+    requireEnv(parsed.GOOGLE_WEBHOOK_SECRET, "GOOGLE_WEBHOOK_SECRET");
     requireEnv(parsed.MAGIC_LINK_SECRET, "MAGIC_LINK_SECRET");
+    requireEnv(parsed.MICROSOFT_WEBHOOK_SECRET, "MICROSOFT_WEBHOOK_SECRET");
     requireEnv(parsed.SESSION_SECRET, "SESSION_SECRET");
     requireEnv(
       parsed.CALENDAR_TOKEN_ENCRYPTION_KEY,

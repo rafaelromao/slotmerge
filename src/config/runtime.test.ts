@@ -42,6 +42,8 @@ describe("loadRuntimeConfig", () => {
         APP_BASE_URL: "https://slotmerge.example.com",
         SESSION_SECRET: "production-session-secret",
         CALENDAR_TOKEN_ENCRYPTION_KEY: "production-calendar-token-key",
+        GOOGLE_WEBHOOK_SECRET: "google-webhook-secret",
+        MICROSOFT_WEBHOOK_SECRET: "microsoft-webhook-secret",
       }),
     ).toThrow(/MAGIC_LINK_SECRET/);
   });
@@ -73,6 +75,8 @@ describe("loadRuntimeConfig", () => {
       GOOGLE_OAUTH_CLIENT_SECRET: "google-secret",
       MICROSOFT_OAUTH_CLIENT_ID: "microsoft-id",
       MICROSOFT_OAUTH_CLIENT_SECRET: "microsoft-secret",
+      GOOGLE_WEBHOOK_SECRET: "google-webhook-secret",
+      MICROSOFT_WEBHOOK_SECRET: "microsoft-webhook-secret",
     });
 
     expect(config.appBaseUrl).toBe("https://slotmerge.example.com");

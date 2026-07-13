@@ -33,6 +33,8 @@ describe("local smoke web endpoints", () => {
         GOOGLE_OAUTH_CLIENT_SECRET: "google-secret",
         MICROSOFT_OAUTH_CLIENT_ID: "microsoft-id",
         MICROSOFT_OAUTH_CLIENT_SECRET: "microsoft-secret",
+        GOOGLE_WEBHOOK_SECRET: "google-webhook-secret",
+        MICROSOFT_WEBHOOK_SECRET: "microsoft-webhook-secret",
       },
       checkDatabase: vi.fn().mockResolvedValue(undefined),
     });

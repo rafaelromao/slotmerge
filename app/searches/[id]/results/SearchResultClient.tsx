@@ -25,15 +25,20 @@ function buildWeeklyGrid(
     timeZone: timezone,
   });
 
+  const dayDateFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+  });
+
+  const slotDateFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+  });
+
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dayDate = new Date(d);
+    const dayKey = dayDateFormatter.format(dayDate);
     const daySlots = snapshot.slots.filter((slot) => {
       const slotDate = new Date(slot.startUtc);
-      return (
-        slotDate.getFullYear() === dayDate.getFullYear() &&
-        slotDate.getMonth() === dayDate.getMonth() &&
-        slotDate.getDate() === dayDate.getDate()
-      );
+      return slotDateFormatter.format(slotDate) === dayKey;
     });
 
     days.push({

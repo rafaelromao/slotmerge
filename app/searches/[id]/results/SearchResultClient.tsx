@@ -65,7 +65,10 @@ export function SearchResultClient({
         {days.length !== 1 ? "s" : ""}
       </p>
 
-      <div className="calendar-grid" style={{ "--day-count": days.length } as React.CSSProperties}>
+      <div
+        className="calendar-grid"
+        style={{ "--day-count": days.length } as React.CSSProperties}
+      >
         <div className="calendar-header">
           {days.map((day, i) => (
             <div key={i} className="calendar-day-header">

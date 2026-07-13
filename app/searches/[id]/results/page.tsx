@@ -10,9 +10,7 @@ export default async function SearchResultPage({
 }) {
   const { id } = await params;
 
-  const session = await getSessionFromRequest(
-    new Request("http://localhost"),
-  );
+  const session = await getSessionFromRequest(new Request("http://localhost"));
 
   if (!session) {
     return (

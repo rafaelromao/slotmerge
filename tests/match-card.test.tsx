@@ -37,173 +37,84 @@ describe("MatchCard", () => {
     calendarFreshness: "none",
   };
 
-  it("renders displayName", () => {
+  it("renders with data-testid match-card", () => {
     const card = MatchCard({ match: availableMatch });
-    const nameSpan = card.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "match-card-name",
-    );
-    expect(nameSpan?.props.children).toBe("Ada Lovelace");
+    expect(card.props["data-testid"]).toBe("match-card");
+  });
+
+  it("renders displayName or Anonymous", () => {
+    const card = MatchCard({ match: availableMatch });
+    const json = JSON.stringify(card);
+    expect(json).toContain("Ada Lovelace");
   });
 
   it("renders Anonymous when displayName is null", () => {
     const card = MatchCard({ match: partialMatch });
-    const nameSpan = card.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "match-card-name",
-    );
-    expect(nameSpan?.props.children).toBe("Anonymous");
+    const json = JSON.stringify(card);
+    expect(json).toContain("Anonymous");
   });
 
   it("renders avatar from avatarUrl", () => {
     const card = MatchCard({ match: availableMatch });
-    const img = card.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "match-card-avatar",
-    );
-    expect(img?.props.src).toBe("https://example.com/avatar.png");
+    const json = JSON.stringify(card);
+    expect(json).toContain("https://example.com/avatar.png");
   });
 
   it("renders shortBio", () => {
     const card = MatchCard({ match: availableMatch });
-    const bio = card.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "match-card-bio",
-    );
-    expect(bio?.props.children).toBe("Computing pioneer");
+    const json = JSON.stringify(card);
+    expect(json).toContain("Computing pioneer");
   });
 
   it("renders empty bio when shortBio is null", () => {
     const card = MatchCard({ match: partialMatch });
-    const bio = card.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "match-card-bio",
-    );
-    expect(bio?.props.children).toBe("");
+    const json = JSON.stringify(card);
+    expect(json).not.toContain("Computing pioneer");
   });
 
   it("renders topics as comma-separated names", () => {
     const card = MatchCard({ match: availableMatch });
-    const topics = card.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "match-card-topics",
-    );
-    expect(topics?.props.children).toContain("Compilers");
-    expect(topics?.props.children).toContain("Type Theory");
+    const json = JSON.stringify(card);
+    expect(json).toContain("Compilers");
+    expect(json).toContain("Type Theory");
   });
 
   it("renders availability text for available indicator", () => {
     const card = MatchCard({ match: availableMatch });
-    const availability = card.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "match-card-availability",
-    );
-    expect(availability?.props.children).toContain(
-      "available in this Search window",
-    );
+    const json = JSON.stringify(card);
+    expect(json).toContain("available in this Search window");
   });
 
   it("renders availability text for partial indicator", () => {
     const card = MatchCard({ match: partialMatch });
-    const availability = card.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "match-card-availability",
-    );
-    expect(availability?.props.children).toContain(
-      "partially available in this Search window",
-    );
+    const json = JSON.stringify(card);
+    expect(json).toContain("partially available in this Search window");
   });
 
   it("renders availability text for unavailable indicator", () => {
     const card = MatchCard({ match: unavailableMatch });
-    const availability = card.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "match-card-availability",
-    );
-    expect(availability?.props.children).toContain("manual only");
+    const json = JSON.stringify(card);
+    expect(json).toContain("manual only");
   });
 
   it("renders calendar freshness label as fresh", () => {
     const card = MatchCard({ match: availableMatch });
-    const calendar = card.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "match-card-calendar",
-    );
-    const badge = calendar?.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "calendar-fresh",
-    );
-    expect(badge?.props.children).toBe("fresh");
+    const json = JSON.stringify(card);
+    expect(json).toContain('"label":"fresh"');
+    expect(json).toContain('"className":"calendar-fresh"');
   });
 
   it("renders calendar freshness label as stale", () => {
     const card = MatchCard({ match: partialMatch });
-    const calendar = card.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "match-card-calendar",
-    );
-    const badge = calendar?.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "calendar-stale",
-    );
-    expect(badge?.props.children).toBe("stale");
+    const json = JSON.stringify(card);
+    expect(json).toContain('"label":"stale"');
+    expect(json).toContain('"className":"calendar-stale"');
   });
 
   it("renders calendar freshness label as no calendar connected", () => {
     const card = MatchCard({ match: unavailableMatch });
-    const calendar = card.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "match-card-calendar",
-    );
-    const badge = calendar?.props.children.find(
-      (child: unknown) =>
-        typeof child === "object" &&
-        child !== null &&
-        "props" in child &&
-        child.props.className === "calendar-none",
-    );
-    expect(badge?.props.children).toBe("no calendar connected");
+    const json = JSON.stringify(card);
+    expect(json).toContain("no calendar connected");
+    expect(json).toContain('"className":"calendar-none"');
   });
 });

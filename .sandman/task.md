@@ -1,103 +1,110 @@
 # Task
 
-Implement GitHub issue #48: Reconcile Calendar Connection sync and process webhook events
+Implement GitHub issue #66: E2E test: mock email delivery adapter records sends, delivery state, and retries
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerge/issues/17). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+E2E test plan: [E2E test plan: SlotMerge MVP](https://github.com/rafaelromao/slotmerge/issues/62). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Calendar Connection sync runs as a background job: provider webhooks update intervals promptly, scheduled reconciliation fills gaps, and transient failures use exponential backoff and provider `Retry-After` semantics. Quota handling avoids spikes.
+Mock email delivery adapter used by every email-touching E2E test. Records each send with recipient, type, and payload. Simulates delivery failures and configurable retries so backoff and throttling tests are deterministic. Provides helpers for asserting Email Event state.
 
 ## Acceptance criteria
 
-- [ ] Provider webhook events update imported busy intervals.
-- [ ] Scheduled reconciliation refreshes the rolling 90-day window.
-- [ ] Transient failures use exponential backoff and `Retry-After`.
-- [ ] Quotas are respected via randomized traffic patterns.
-- [ ] Sync errors update Calendar Connection status.
+- [ ] Records every send with recipient, type, payload, and delivery status.
+- [ ] Simulates delivery failures with configurable retry behaviour.
+- [ ] Captures Email Event records visible via the API.
 
 ## Blocked by
 
-- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/47)
+None — can start immediately.
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events`
-- Source branch: `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events`
+- Current branch: `sandman/66-e2e-test-mock-email-delivery-adapter-records-sends-delivery-state-and-retries`
+- Source branch: `sandman/66-e2e-test-mock-email-delivery-adapter-records-sends-delivery-state-and-retries`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/48-reconcile-calendar-connection-sync-and-process-webhook-events` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/66-e2e-test-mock-email-delivery-adapter-records-sends-delivery-state-and-retries` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
-- [ ] PR-Review (sandman-pr-review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Next Step
+
+PR-Merge (sandman-pr-merge)
+
 ## Plan
 
 ### Behaviors to test
 
-1. **Google provider API returns busy intervals that get persisted**
-   - When `syncCalendarConnection()` is called with Google provider, it calls the Google FreeBusy API (`POST /calendar/v3/freeBusy`) and the returned busy/out-of-office/tentative intervals are upserted via `busyIntervalRepository.upsertBatch()`
-   - Microsoft provider uses Microsoft Graph `POST /me/calendar/getSchedule` similarly
+1. **Recording every send** — `send()` records recipient, type, payload, status ("sent" | "failed"), providerMessageId, attempt number, and error if any
+2. **Simulating delivery failures** — when configured, `send()` throws instead of succeeding
+3. **Configurable retry behavior** — `setFailsAfterAttempts(n)` causes first n-1 sends to throw, nth succeeds; `setPersistentFailure()` causes all sends to throw
+4. **State inspection helpers** — getter properties for sends, by-recipient, by-type; `reset()` clears state
+5. **Email Event records visible via API** — `processEmailDeliveryJob` writes to `eventRepository` so tests can query `EmailEvent` state
 
-2. **lastSyncAt is updated after successful sync**
-   - After `upsertBatch` succeeds, `lastSyncAt` is set to the current clock on the Calendar Connection record
+### Scope clarification
 
-3. **Transient failures trigger exponential backoff retry with Retry-After**
-   - On 429 (rate limit) or 5xx errors, `sync.ts` throws a typed `RateLimitedError` or `ServerError` carrying the `Retry-After` value if present
-   - The worker catches these and re-queues the job with `runAt = now + delay`
-
-4. **Quota exhaustion (429) is handled with randomized backoff**
-   - On 429 without `Retry-After`, use exponential backoff with jitter (base delay × random factor)
-
-5. **Auth failures (401/403) mark connection as needs_reconnect**
-   - On 401/403 responses, `sync.ts` calls `recordFailure` with `AUTH_ERROR` code; `sync-failure-recorder` maps this to `needs_reconnect` status
-
-6. **Poll job randomizes sync timing to avoid traffic spikes**
-   - Each connection's sync job is scheduled with a random initial delay (0–5 minutes) to spread load using `quickAddJob` with `runAt`
+- `MockEmailAdapter` is for **E2E tests** that exercise `handleEmailDeliveryJob` end-to-end through the graphile-worker task runner
+- The existing `src/email/worker.test.ts` unit-tests `processEmailDeliveryJob` in isolation with inline mocks — this is a different testing mode; MockEmailAdapter does not replace it
+- "Email Event records visible via the API" means `eventRepository` state is queryable in tests (not a separate HTTP API route)
 
 ### Testable interfaces
 
-- `src/calendar/freebusy/google.ts` — `fetchGoogleFreeBusy(token, calendarIds, timeMin, timeMax, fetchImpl)`. Returns normalized `FreeBusyInterval[]`. Throws `GoogleFreeBusyError` (rate-limited, server-error, auth-failure).
-- `src/calendar/freebusy/microsoft.ts` — `fetchMicrosoftFreeBusy(token, calendarIds, timeMin, timeMax, fetchImpl)`. Returns normalized `FreeBusyInterval[]`. Throws `MicrosoftFreeBusyError` (rate-limited, server-error, auth-failure).
-- `src/calendar/sync.ts` — `syncCalendarConnection()` updated to call freebusy clients, catch typed errors, and propagate `Retry-After` values.
-- `src/worker/sync.ts` — After successful sync, update `lastSyncAt` on the connection record. Catch `RateLimitedError`/`ServerError` and re-queue with `runAt`.
-- `src/worker/poll.ts` — Add random jitter (`0–5 min`) to each enqueue using `runAt`.
+- **EmailTransport seam** (`src/email/service.ts`): `send(job) → Promise<{providerMessageId}>` — the primary mock target
+- **EmailEventRepository seam** (`src/email/service.ts`): `createQueuedEvent`, `recordAttempt`, `markDelivered`, `markFailed` — visible via DB in tests
+- **Module-level singleton seam** in `src/worker/email.ts`: `setEmailTransportForTests()` — allows E2E tests to inject mock transport into `handleEmailDeliveryJob`
 
-### Execution order
+### Adapter state design
 
-1. Create `src/calendar/freebusy/google.ts` and `src/calendar/freebusy/microsoft.ts` with typed responses and error classes
-2. Update `SyncCalendarConnectionParams` to include `timeMin`/`timeMax` and update `sync.ts` to call freebusy clients instead of `generateMockBusyIntervals`
-3. Add auth failure detection (401/403 → `AUTH_ERROR`) in `sync.ts`
-4. Add Retry-After-aware retry: `sync.ts` throws typed errors, worker re-queues with `runAt`
-5. Add `lastSyncAt` update in `src/worker/sync.ts` after successful sync
-6. Add jitter to poll job in `src/worker/poll.ts`
-7. Rewrite `sync.test.ts` and add new tests for Retry-After, auth failure, and jitter
+- Adapter tracks `attemptsByEmailEventId: Map<string, number>` internally — incremented on each `send()` call
+- This allows `setFailsAfterAttempts(n)` to work correctly across graphile-worker retries (fresh task invocation with same `emailEventId`)
+- State is per-adapter-instance; `reset()` clears all recorded sends and the attempts map
+
+### Key design decisions
+
+1. **Factory in `tests/mock-email-adapter.ts`** — follows `tests/google-calendar-adapter.ts` pattern
+2. **Test injection via `setEmailTransportForTests()`** in `src/worker/email.ts` — module-level override, mirrors `setEmailDeliveryServiceForTests`
+3. **Failure modes**: `setFailsAfterAttempts(n)`, `setPersistentFailure(error?)`, `setNextSendFailure(error?)`
+4. **State exposed via getter properties** — matches `google-calendar-adapter.ts` conventions (not methods)
+5. **Retry logic lives in graphile-worker** — MockEmailAdapter throws when configured; the retry loop is in `processEmailDeliveryJob`
+6. **Clock seam** — `processEmailDeliveryJob` accepts a `clock` option; tests pass a controlled clock to verify timing-sensitive retry behavior
+
+### Files to create
+
+- `tests/mock-email-adapter.ts` — MockEmailAdapter factory (type + implementation)
+- `tests/email-delivery-wiring.test.ts` — wiring tests for the adapter
+
+### Files to modify
+
+- `src/worker/email.ts` — add `setEmailTransportForTests()` and `getEmailTransport()` module-level seam
+
+### Tracer bullet (first TDD iteration)
+
+1. Create `MockEmailAdapter` that records a single `send()` call and returns success
+2. Test: verify `getSends()` returns the recorded send with correct fields
+3. Implement the minimal recording logic to pass the test
 
 ### Assumptions / risks
 
-- Token refresh during sync is NOT in scope (blocked by a separate issue).
-- The 90-day rolling window time range is computed by the worker as `timeMin = clock() - 90 days`, `timeMax = clock()`.
-- Graphile Worker's built-in `attempts`/`backoff` retry is NOT used for Retry-After handling; instead, typed errors are caught in the worker and re-queued manually with `runAt`.
-
-## Next Step
-
-Load sandman-tdd and execute the first vertical slice: create freebusy API clients (google + microsoft).
+- graphile-worker's retry behavior (exponential backoff) is already tested elsewhere; MockEmailAdapter only needs to provide deterministic failure/success for retry scenarios
+- No new API routes needed — Email Event visibility is through `eventRepository` DB state in tests
 
 ## Already Resolved
 
@@ -165,7 +172,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 

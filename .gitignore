@@ -51,4 +51,7 @@ vite.config.ts.timestamp-*
 token-optimizer/
 .opencode/
 .worktrees/
+# Sandman runtime: ignored but historically `.sandman/task.md` was tracked.
+# `scripts/hooks/pre-commit` rejects any new tracked additions under `.sandman/`
+# (it covers `git add -f` bypass, which `.gitignore` alone does not).
 .sandman/

@@ -62,8 +62,12 @@ export function alignToMonday(date: Date, timezone: string): Date {
   const year = Number(get("year"));
   const month = Number(get("month"));
   const day = Number(get("day"));
+  const hour = Number(get("hour"));
+  const minute = Number(get("minute"));
+  const second = Number(get("second"));
 
-  const offsetMs = Date.UTC(year, month - 1, day, 0, 0, 0) - date.getTime();
+  const offsetMs =
+    Date.UTC(year, month - 1, day, hour, minute, second) - date.getTime();
   const localMidnightAsUtc = Date.UTC(year, month - 1, day, 0, 0, 0) - offsetMs;
 
   const weekdayIndex =

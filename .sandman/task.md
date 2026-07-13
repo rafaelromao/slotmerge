@@ -1,37 +1,349 @@
 # Task
 
-Implement GitHub issue #50: Show Calendar Connection health, last sync time, and stale markers
+Implement GitHub issue #62: E2E test plan: SlotMerge MVP
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerge/issues/17). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Parent PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-Calendar Connection status (connected, sync delayed, needs reconnect, disconnected, unsupported) is visible on `My availability` with last sync time and stale markers. Stale markers also surface in matching Search Result Slot details.
+The full E2E test plan for SlotMerge MVP. Mocks only external services (Google Calendar, Microsoft Graph, email delivery, time/clock). Covers every PRD user story #1–#61 plus cross-cutting privacy and non-goal guards. Includes the testing infrastructure that makes the plan runnable and the coverage map that ties each test back to the PRD.
 
-## Acceptance criteria
+## External services mocked
 
-- [ ] `My availability` shows current status, last sync time, and stale state.
-- [ ] Stale markers appear in matching Search Result Slot details.
-- [ ] Reconnect prompt appears when token is revoked or refresh fails.
+- Google Calendar API — free/busy queries, OAuth, webhook delivery.
+- Microsoft Graph — `getSchedule`, OAuth, webhook delivery.
+- Email delivery transport — all transactional emails.
+- Time — clock injection for magic-link expiration, stale markers, backoff windows, retention.
+
+## Testing infrastructure
+
+- One full-stack web app instance per test run with mocked adapters wired in.
+- Ephemeral PostgreSQL database with schema migrated each run.
+- `clock` injected at the app boundary (auth, scheduling, staleness, retention), advanced without sleeping.
+- Per-test reset of DB, fixtures, and clock.
+- Tests assert observable behavior only: HTTP responses, rendered HTML, persisted records via API, mock email/webhook events.
+
+Shared helpers:
+
+- `MockEmailAdapter` recording every send; helpers for delivery state and retries.
+- `MockGoogleCalendar` and `MockMicrosoftGraph` recording calls and returning scripted free/busy responses, OAuth callbacks, and webhook deliveries.
+- `searchResultPage` helper that runs an Organizer Search end-to-end and inspects the rendered calendar and clicked Slot details drawer payload.
+
+## Coverage map (PRD story → tests)
+
+- Stories 1–5 → tests 1–7
+- Stories 6–9 → tests 8–11
+- Stories 10–14 → tests 12–14
+- Stories 15–17 → tests 51–53
+- Stories 18–23 → tests 15–20
+- Stories 24–34 → tests 21–32
+- Stories 35–46 → tests 33–43
+- Stories 47–50 → tests 44–46
+- Stories 51–56 → tests 49–50, 54–55
+- Stories 57–61 → tests 56–59
+- Privacy and non-goal guards → tests 60–62
+
+## Open questions
+
+1. Test framework — Vitest, Jest, Playwright, or a custom harness?
+2. Calendar provider mock fidelity — thin in-process adapter or real-shaped OAuth/webhook mocks?
+3. Clock injection — single global clock or per-feature clocks?
+4. Snapshot/JSON schema assertions — strict schema or behavioral only?
+5. Per-test performance budget in CI?
 
 ## Blocked by
 
-- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/47)
+None — can start immediately.
 
+## Open Questions Resolved
 
-## Runtime Context
+1. **Test framework**: Vitest (already configured; per PRD E2E test plan spec)
+2. **Calendar provider mock fidelity**: Real-shaped OAuth/webhook mocks with scriptable free/busy responses (per issue description)
+3. **Clock injection**: Single global `TestClock` at app boundary, advanced without sleeping (per issue description)
+4. **Snapshot/JSON schema assertions**: Strict schema on `SearchResultSnapshot` JSON; Zod schema defined in test helpers
+5. **Per-test performance budget**: Not applicable — E2E tests are not executed in CI per PRD spec
+
+## Plan
+
+### Behaviors to test
+
+**Tracer bullet (auth slice — tests 1–7)**
+- B: Invited email receives magic link and can authenticate via the link
+- B: Non-invited email cannot request or use a magic link
+- B: Magic link cannot be used after expiration (clock advances past expiry)
+- B: Magic link cannot be used twice (already-used token rejected)
+- B: Self-delete removes profile, availability, calendar connections, and discoverability; audit references preserved
+
+**Setup slice (tests 8–14, 51–53)**
+- B: User with complete setup (profile + consent + topic + availability) becomes discoverable
+- B: Incomplete setup prevents discoverability; checklist reflects accurate state
+- B: Topic proposal submitted by user appears in pending proposals
+- B: Topic proposal does not satisfy "at least one Topic" for matching until approved
+- B: Weekly availability windows are persisted and returned correctly
+- B: One-off availability overrides (add/block) are persisted and returned correctly
+- B: User-topic associations (active Topics) are persisted and returned correctly
+
+**Availability slice (tests 15–20)**
+- B: Weekly availability windows subtract imported busy intervals; buffer respected
+- B: One-off overrides take precedence over weekly windows for their time range
+- B: Buffer duration shifts availability start/end times
+- B: Availability edits apply immediately to subsequent searches
+
+**Calendar connection slice (tests 21–32)**
+- B: Google OAuth flow: connect → authorization URL returned → callback → tokens stored → connected status
+- B: Microsoft OAuth flow: connect → authorization URL returned → callback → tokens stored → connected status
+- B: Microsoft personal account returns unsupported provider message
+- B: Selected calendars determine which calendar conflicts are imported
+- B: Disconnect removes tokens and prevents further sync
+- B: Calendar sync imports free/busy intervals and persists them
+- B: Stale flag raised when sync does not succeed within expected window
+- B: Stale imported data does not exclude user from Search; stale markers appear in slot details
+
+**Organizer search slice (tests 33–43)**
+- B: Only Organizers and Admins can run searches; normal Users receive 403
+- B: Search with one selected Topic matches only users with that active Topic
+- B: Search with multiple selected Topics matches only users with ALL selected active Topics
+- B: Searcher never appears in results and never counts toward minimum matching users
+- B: User counted in slot only if available for the full meeting duration from slot start
+- B: Default minimum matching users is 2; configurable per search
+- B: Slots align to the hourly grid; start times are on the hour
+- B: Search result calendar shows per-slot match counts and stale markers
+- B: Clicking a slot opens a drawer listing matching users with visible profile/topic/availability details
+- B: Every search creates an immutable snapshot in DB; later data changes do not affect it
+- B: All Organizers/Admins can view search history
+
+**Admin user management slice (tests 44–46, 49–50)**
+- B: Admin can invite a user by email with chosen role; invitation email sent with magic link
+- B: Admin can change a user's role (User → Organizer → Admin and reverse)
+- B: Admin can suspend a user; suspended user cannot authenticate
+- B: Admin can reinstate a suspended user
+
+**Admin topic curation slice (tests 54–55)**
+- B: Admin can approve a pending topic proposal; approved topic becomes active and selectable
+- B: Admin can reject a pending topic proposal
+- B: Admin can retire an active topic; retired topic not selectable for new associations or searches
+- B: Retired topic preserves historical user associations
+
+**Calendar action-required email slice (tests 56–59)**
+- B: Persistent calendar sync failure triggers action-required email to affected user
+- B: Successful reconnect clears the failure state and stops action-required email cycle
+- B: Critical operational issues trigger email to Admins
+
+**Privacy slice (tests 60–62)**
+- B: Discoverability consent required before user appears in any search result
+- B: Discoverability can be disabled; disabled user excluded from subsequent searches
+- B: Search result slot details do not expose raw calendar event titles, attendees, locations, descriptions, or email addresses
+- B: Deleted user's data fully removed; only audit references remain
+
+**Non-goal guards slice (tests 61–62)**
+- B: Search results page has no booking, RSVP, invitation, or event-creation UI controls
+- B: User profile page has no notification inbox or notification preference controls
+- B: Calendar connection UI has no event write, create, or send controls (free/busy only)
+- B: Search results do not include any copy/share/export/handoff controls
+
+### Testable interfaces
+
+**Clock injection (`tests/e2e/helpers/clock.ts`)**
+```typescript
+class TestClock {
+  private static Date date = new Date('2024-06-01T00:00:00Z');
+  static now(): Date           // returns current clock value
+  static advance(hours: number): void  // moves clock forward synchronously
+  static reset(): void         // resets to base date
+  static set(date: Date): void // sets to arbitrary date
+}
+```
+All services that accept `clock?: () => Date` receive `TestClock.now`.
+
+**MockEmailAdapter (`tests/e2e/helpers/email.ts`)**
+```typescript
+class MockEmailAdapter {
+  private sent: EmailEvent[] = [];
+  reset(): void
+  findByRecipient(email: string): EmailEvent[]
+  findByType(type: EmailType): EmailEvent[]
+  assertDelivered(recipient: string, type: EmailType): void
+  assertNotDelivered(recipient: string, type: EmailType): void
+  lastDelivery(recipient: string, type: EmailType): EmailEvent | undefined
+}
+```
+Leverages existing `createEmailTransport({ adapter: "mock" })`.
+
+**MockGoogleCalendar (`tests/e2e/helpers/google-calendar.ts`)**
+```typescript
+class MockGoogleCalendar {
+  record: GoogleCalendarCall[] = [];
+  private freebusyScripts: Map<string, FreeBusyResponse[]> = new Map();
+  private oauthScripts: OAuthScript[] = [];
+  private webhookScripts: WebhookScript[] = [];
+
+  scriptFreeBusy(email: string, responses: FreeBusyResponse[]): void
+  scriptOAuthCallback(code: string, state: string, result: OAuthCallbackResult): void
+  scriptWebhookDelivery(channelId: string, result: WebhookDeliveryResult): void
+  reset(): void
+
+  // Must implement Google Calendar API shape:
+  // POST https://www.googleapis.com/calendar/v3/freeBusy
+  getFreeBusyCalls(): FreeBusyQuery[]
+  getOAuthCallbacks(): OAuthCallback[]
+  getWebhookDeliveries(): WebhookDelivery[]
+}
+```
+`freebusyScripts` keyed by user email; each call pops the next scripted response.
+
+**MockMicrosoftGraph (`tests/e2e/helpers/microsoft-graph.ts`)**
+```typescript
+class MockMicrosoftGraph {
+  record: MicrosoftGraphCall[] = [];
+  private scheduleScripts: Map<string, ScheduleResponse[]> = new Map();
+  private oauthScripts: OAuthScript[] = [];
+  private webhookScripts: WebhookScript[] = [];
+
+  scriptGetSchedule(email: string, responses: ScheduleResponse[]): void
+  scriptOAuthCallback(code: string, state: string, result: OAuthCallbackResult): void
+  scriptWebhookDelivery(channelId: string, result: WebhookDeliveryResult): void
+  reset(): void
+
+  // Must implement Microsoft Graph shape:
+  // POST /me/calendar/getSchedule
+  getScheduleCalls(): GetScheduleCall[]
+  getOAuthCallbacks(): OAuthCallback[]
+  getWebhookDeliveries(): WebhookDelivery[]
+}
+```
+
+**SearchResultSnapshot schema (`tests/e2e/helpers/search-result-snapshot.ts`)**
+```typescript
+import { z } from "zod";
+
+export const SearchResultSnapshotSchema = z.object({
+  version: z.literal(1),
+  searchId: z.string(),
+  generatedAt: z.string().datetime(),
+  parameters: z.object({
+    selectedTopicIds: z.array(z.string()),
+    minimumMatchingUsers: z.number().int().min(1),
+    durationMinutes: z.number().int().min(15).max(480),
+    dateRangeStart: z.string().datetime(),
+    dateRangeEnd: z.string().datetime(),
+    organizerTimezone: z.string(),
+  }),
+  weeklyGrid: z.record( // key: ISO "2024-W23"
+    z.array(z.object({
+      startTime: z.string().datetime(),
+      endTime: z.string().datetime(),
+      matchCount: z.number().int().min(0),
+      stale: z.boolean(),
+      matches: z.array(z.object({
+        userId: z.string(),
+        displayName: z.string(),
+        avatarUrl: z.string().nullable(),
+        bio: z.string().nullable(),
+        topics: z.array(z.object({ id: z.string(), name: z.string() })),
+        availabilityIndicators: z.record(z.string(), z.boolean()),
+        calendarFresh: z.boolean(),
+      })),
+    }))
+  ),
+});
+
+export type SearchResultSnapshot = z.infer<typeof SearchResultSnapshotSchema>;
+```
+All search result assertions use `SearchResultSnapshotSchema.parse()` for strict validation.
+
+**searchResultPage helper (`tests/e2e/helpers/search-result-page.ts`)**
+```typescript
+async function searchResultPage(organizerSession: SessionCookie, params: {
+  selectedTopicIds: string[];
+  minimumMatchingUsers?: number;
+  durationMinutes?: number;
+  dateRangeStart?: string;
+  dateRangeEnd?: string;
+  timezone?: string;
+}): Promise<{
+  snapshot: SearchResultSnapshot;
+  calendarGrid: WeeklyGrid;
+  slotDetails: SlotDetails[];
+  response: Response;
+}>
+```
+1. POST `/searches` with search params → receive snapshot JSON + redirect
+2. GET the redirect target (rendered search results page)
+3. Parse weekly calendar grid from HTML
+4. Click the first slot with `matchCount > 0` via GET `/searches/{id}/slots/{slotId}` or HTML interaction
+5. Return `{ snapshot, calendarGrid, slotDetails }`
+
+**Database reset (`tests/e2e/helpers/db.ts`)**
+```typescript
+async function resetDatabase(): Promise<void>
+// TRUNCATE all tables CASCADE; re-apply migrations via drizzle-kit or direct SQL
+// Uses APP_ENV=test DATABASE_URL
+```
+
+**Webhook delivery** — direct route handler invocation in Vitest (no supertest needed):
+```typescript
+import { POST as GoogleWebhookPost } from "app/webhooks/google/calendar/route";
+const webhookResponse = await GoogleWebhookPost(
+  new Request("http://localhost/webhooks/google/calendar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(webhookEvent),
+  })
+);
+```
+
+**OAuth callback flow** — tested as multi-step scenario:
+1. POST `/me/calendar-connections/google/connect` → extract `authorizationUrl` from response
+2. `MockGoogleCalendar.scriptOAuthCallback(code, state, { accessToken, refreshToken, expiresAt })`
+3. POST `/me/calendar-connections/{connectionId}/callback` with `code` and `state`
+4. Assert connection status is `"connected"` via GET `/me/calendar-connections`
+
+### Per-test setup/teardown
+
+```typescript
+beforeEach(async () => {
+  await resetDatabase();
+  TestClock.reset();
+  MockEmailAdapter.reset();
+  MockGoogleCalendar.reset();
+  MockMicrosoftGraph.reset();
+});
+```
+
+### Execution order (vertical slices)
+
+1. **Auth + Invite** — tests 1–7: TestClock, MockEmailAdapter, DB reset, invite/magic-link/self-delete flows
+2. **Setup + Consent** — tests 8–14: profile, discoverability, checklist accuracy
+3. **Topic associations** — tests 51–53: topic catalogue, proposals, user-topic associations
+4. **Availability windows** — tests 15–20: weekly windows, overrides, buffer
+5. **Google Calendar connection** — tests 21–27: OAuth flow, free/busy import, staleness, disconnect
+6. **Microsoft Calendar connection** — tests 28–32: OAuth flow, getSchedule, staleness, disconnect
+7. **Organizer search** — tests 33–43: form, execution, grid, slot details, snapshot immutability
+8. **Search history** — tests 44–46: all Organizers/Admins can view history
+9. **Admin user management** — tests 49–50: invite, role change, suspend/reinstate
+10. **Admin topic curation** — tests 54–55: approve/reject/retire
+11. **Calendar action-required email** — tests 56–59: action-required email, critical admin email
+12. **Privacy guards** — tests 60–62: consent, data exposure limits, self-delete, non-goal UI absence
+
+### Assumptions / risks
+
+- **Assumption**: Repository override pattern (`setXxxRepositoryForTests`) composes cleanly with external service mocks; no conflict between in-process repository mocks and the `fetchImpl`-based calendar mocks.
+- **Assumption**: Drizzle migrations can be re-applied to an ephemeral test DB via `drizzle-kit migrate --force` in `beforeEach` without race conditions.
+- **Risk**: Clock injection sites — must audit every `clock?: () => Date` parameter in `src/` to ensure `TestClock.now` is passed at all call sites; any untested path that hard-codes `() => new Date()` will cause time-dependent test failures.
+- **Risk**: OAuth multi-step flow — the redirect URL in `startGoogleCalendarConnection` is constructed from `APP_BASE_URL`; tests must set `APP_BASE_URL=http://localhost` to produce correct callback URLs.
+- **Risk**: Snapshot immutability test requires a second search to be run after data changes; must ensure both searches are against the same date range or use distinct date ranges to avoid false positives.
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/50-show-calendar-connection-health-last-sync-time-and-stale-markers`
-- Source branch: `sandman/50-show-calendar-connection-health-last-sync-time-and-stale-markers`
+- Current branch: `sandman/62-e2e-test-plan-slotmerge-mvp`
+- Source branch: `sandman/62-e2e-test-plan-slotmerge-mvp`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/50-show-calendar-connection-health-last-sync-time-and-stale-markers` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/62-e2e-test-plan-slotmerge-mvp` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -47,47 +359,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
-
-## Plan
-
-### Behaviors to test
-
-1. **`CalendarConnectionStatus` type is extended in schema** — `CalendarConnectionStatus` in `src/db/schema.ts` includes `pending | connected | disconnected | sync_delayed | needs_reconnect | unsupported`. Provider-specific types (`GoogleCalendarConnectionStatus`, `MicrosoftCalendarConnectionStatus`) remain unchanged.
-
-2. **`lastSyncAt` column exists on `calendar_connections`** — Migration adds the column; repository layer includes it in selects and updates; `updateLastSyncAt(connectionId)` repository method exists.
-
-3. **Calendar Connection health status is computed correctly** — `computeCalendarConnectionHealthStatus(connection, now)` returns the appropriate status:
-   - `unsupported`: provider is microsoft personal account (detected at OAuth callback)
-   - `disconnected`: connection status is `disconnected`
-   - `needs_reconnect`: `lastErrorCode` is `invalid_grant` or `token_revoked`
-   - `sync_delayed`: `lastSyncAt` is more than 1 hour ago and no recent error
-   - `connected`: fresh sync, no errors
-
-4. **Stale flag is computed correctly** — `isCalendarConnectionStale(connection, now, staleThresholdHours = 24)` returns `true` when: `lastSyncAt` is null and connection is `connected`, OR more than 24 hours since `lastSyncAt`.
-
-5. **Calendar Connection view exposes health data** — `buildCalendarConnectionView(connection, now)` returns `lastSyncAt`, `stale: boolean`, and `healthStatus: CalendarConnectionHealthStatus` alongside existing fields.
-
-6. **`GET /me/calendar-connections` returns health fields** — Each connection in the list response includes `lastSyncAt`, `stale`, and `healthStatus`.
-
-7. **`invalid_grant` OAuth refresh failure transitions status to `needs_reconnect`** — When Google or Microsoft token refresh fails with `invalid_grant` error, the connection status is updated to `needs_reconnect`. This requires finding where OAuth refresh is called and adding status transition logic.
-
-8. **Successful busy-interval import updates `lastSyncAt`** — After calendar sync job successfully imports busy intervals, `updateLastSyncAt(connectionId)` is called with the current timestamp.
-
-### Testable interfaces
-
-- `computeCalendarConnectionHealthStatus(connection, now)` — pure function returning `CalendarConnectionHealthStatus`.
-- `isCalendarConnectionStale(connection, now, staleThresholdHours?)` — pure function returning boolean.
-- `buildCalendarConnectionView(connection, now)` — extends existing view with `lastSyncAt`, `stale`, `healthStatus`.
-- `updateLastSyncAt(connectionId)` — repository method to set `lastSyncAt`.
-
-### Assumptions / risks
-
-- `lastSyncAt` column needs a migration.
-- Stale threshold of 24 hours is assumed (issue does not specify; 24h is reasonable for calendar sync). Named constant `STALE_THRESHOLD_HOURS` should be used.
-- `sync_delayed` threshold of 1 hour is assumed (named constant `SYNC_DELAYED_THRESHOLD_HOURS`).
-- Search snapshot generation does not exist yet; stale markers in search results depend on that infrastructure being built.
-- `invalid_grant` handling: where OAuth refresh is called in `google-calendar-connections.ts` and `microsoft-calendar-connections.ts` needs to be identified and updated.
+Execute `sandman-tdd` tracer bullet: auth-and-invite test infrastructure slice (TestClock + MockEmailAdapter + DB reset + test 1)
 
 ## Already Resolved
 

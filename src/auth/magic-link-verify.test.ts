@@ -29,20 +29,6 @@ function createMockInviteRepository() {
       } | null>
     >(),
     accept: vi.fn<(id: string) => Promise<void>>(),
-    resendInvite: vi.fn<
-      (
-        email: string,
-        role: string,
-        newExpiresAt: Date,
-      ) => Promise<{
-        id: string;
-        email: string;
-        role: string;
-        status: "pending";
-        invitedByAdminId: string | null;
-        expiresAt: Date;
-      }>
-    >(),
   };
 }
 

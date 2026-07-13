@@ -54,6 +54,8 @@ function createMockInviteRepository() {
     findById: vi.fn<(id: string) => Promise<MockInvite | null>>(),
     setMagicLinkGeneration:
       vi.fn<(id: string, generation: number) => Promise<MockInvite | null>>(),
+    incrementGeneration:
+      vi.fn<(id: string) => Promise<MockInvite | null>>(),
   };
 }
 
@@ -92,7 +94,7 @@ describe("magic link resend handler", () => {
 
     const mockInviteRepo = createMockInviteRepository();
     mockInviteRepo.findById.mockResolvedValue(invite);
-    mockInviteRepo.setMagicLinkGeneration.mockResolvedValue({
+    mockInviteRepo.incrementGeneration.mockResolvedValue({
       ...invite,
       magicLinkGeneration: 1,
     });
@@ -126,9 +128,8 @@ describe("magic link resend handler", () => {
     expect(html).toContain("fresh magic link");
 
     expect(mockInviteRepo.findById).toHaveBeenCalledWith("invite-1");
-    expect(mockInviteRepo.setMagicLinkGeneration).toHaveBeenCalledWith(
+    expect(mockInviteRepo.incrementGeneration).toHaveBeenCalledWith(
       "invite-1",
-      1,
     );
     expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({ recipient: "alice@example.com" }),
@@ -175,15 +176,13 @@ describe("magic link resend handler", () => {
         magicLinkGeneration: currentGeneration,
       }),
     );
-    mockInviteRepo.setMagicLinkGeneration.mockImplementation(
-      (_id, nextGeneration) => {
-        currentGeneration = nextGeneration;
-        return Promise.resolve({
-          ...invite,
-          magicLinkGeneration: nextGeneration,
-        });
-      },
-    );
+    mockInviteRepo.incrementGeneration.mockImplementation(() => {
+      currentGeneration += 1;
+      return Promise.resolve({
+        ...invite,
+        magicLinkGeneration: currentGeneration,
+      });
+    });
 
     const mockEmailService = createMockEmailDeliveryService();
     mockEmailService.sendEmail.mockResolvedValue({
@@ -294,12 +293,19 @@ describe("magic link resend handler", () => {
         magicLinkGeneration: currentGeneration,
       }),
     );
+    mockInviteRepo.incrementGeneration.mockImplementation(() => {
+      currentGeneration += 1;
+      return Promise.resolve({
+        ...invite,
+        magicLinkGeneration: currentGeneration,
+      });
+    });
     mockInviteRepo.setMagicLinkGeneration.mockImplementation(
-      (_id, nextGeneration) => {
-        currentGeneration = nextGeneration;
+      (_id, gen) => {
+        currentGeneration = gen;
         return Promise.resolve({
           ...invite,
-          magicLinkGeneration: nextGeneration,
+          magicLinkGeneration: gen,
         });
       },
     );
@@ -323,13 +329,8 @@ describe("magic link resend handler", () => {
     );
 
     expect(response.status).toBe(502);
-    expect(mockInviteRepo.setMagicLinkGeneration).toHaveBeenNthCalledWith(
-      1,
-      "invite-1",
-      1,
-    );
-    expect(mockInviteRepo.setMagicLinkGeneration).toHaveBeenNthCalledWith(
-      2,
+    expect(mockInviteRepo.incrementGeneration).toHaveBeenCalledWith("invite-1");
+    expect(mockInviteRepo.setMagicLinkGeneration).toHaveBeenCalledWith(
       "invite-1",
       0,
     );

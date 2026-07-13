@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import {
   createMagicLinkTokenIssuer,
@@ -26,6 +26,9 @@ export type MagicLinkResendInviteRepository = {
   setMagicLinkGeneration(
     id: string,
     generation: number,
+  ): Promise<MagicLinkResendInviteRecord | null>;
+  incrementGeneration(
+    id: string,
   ): Promise<MagicLinkResendInviteRecord | null>;
 };
 
@@ -105,10 +108,9 @@ export function createMagicLinkResendHandlers(
         return errorResponse("email_mismatch", 400);
       }
 
-      const nextGeneration = (invite.magicLinkGeneration ?? 0) + 1;
-      const refreshedInvite = await inviteRepository.setMagicLinkGeneration(
+      const originalGeneration = invite.magicLinkGeneration ?? 0;
+      const refreshedInvite = await inviteRepository.incrementGeneration(
         invite.id,
-        nextGeneration,
       );
 
       if (!refreshedInvite) {
@@ -139,7 +141,7 @@ export function createMagicLinkResendHandlers(
       } catch (error) {
         await inviteRepository.setMagicLinkGeneration(
           invite.id,
-          invite.magicLinkGeneration ?? 0,
+          originalGeneration,
         );
         return errorResponse(
           `magic_link_delivery_failed: ${error instanceof Error ? error.message : "unknown"}`,
@@ -289,6 +291,25 @@ const defaultInviteRepository: MagicLinkResendInviteRepository = {
     const [row] = await db
       .update(invites)
       .set({ magicLinkGeneration: generation })
+      .where(eq(invites.id, id))
+      .returning();
+
+    return row
+      ? {
+          id: row.id,
+          email: row.email,
+          role: row.role,
+          status: row.status,
+          expiresAt: row.expiresAt,
+          magicLinkGeneration: row.magicLinkGeneration,
+        }
+      : null;
+  },
+  incrementGeneration: async (id) => {
+    const db = getDb();
+    const [row] = await db
+      .update(invites)
+      .set({ magicLinkGeneration: sql`${invites.magicLinkGeneration} + 1` })
       .where(eq(invites.id, id))
       .returning();
 

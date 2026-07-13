@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { quickAddJob } from "graphile-worker";
 
 import { createPostgresImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals.repository";
@@ -12,6 +13,8 @@ import {
   type CalendarConnectionUserLookup,
 } from "../calendar/sync-failure-recorder";
 import { loadRuntimeConfig } from "../config/runtime";
+import { getDb } from "../db/client";
+import { users } from "../db/schema";
 
 export const syncCalendarConnectionTaskName = "sync_calendar_connection";
 
@@ -55,11 +58,21 @@ export async function handleSyncCalendarConnectionJob(
   const connectionLookup: CalendarConnectionUserLookup = async (connId) => {
     const conn = await findCalendarConnectionById(connId);
     if (!conn) return null;
+
+    const [user] = await getDb()
+      .select({ email: users.email, displayName: users.displayName })
+      .from(users)
+      .where(eq(users.id, conn.record.userId))
+      .limit(1);
+
     return {
       id: conn.record.id,
       userId: conn.record.userId,
       provider: conn.provider,
-      user: { email: "", displayName: null },
+      user: {
+        email: user?.email ?? "",
+        displayName: user?.displayName ?? null,
+      },
     };
   };
 

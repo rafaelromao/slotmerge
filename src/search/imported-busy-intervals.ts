@@ -28,6 +28,9 @@ export function expandBusyIntervalsWithBuffer(
   const results: BusyIntervalWithBuffer[] = [];
 
   for (const interval of intervals) {
+    if (interval.startAt >= interval.endAt) {
+      continue;
+    }
     const rawStart = new Date(interval.startAt.getTime() - bufferMs);
     const rawEnd = new Date(interval.endAt.getTime() + bufferMs);
 

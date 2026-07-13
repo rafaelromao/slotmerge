@@ -170,6 +170,36 @@ describe("expandBusyIntervalsWithBuffer", () => {
     expect(result[0].endAt).toEqual(new Date("2026-07-15T10:15:00.000Z"));
   });
 
+  it("clips pre-buffer when interval ends exactly at window start (buffer leaks before window)", () => {
+    const atWindowStart: ImportedBusyIntervalRecord = {
+      ...busyInterval,
+      id: "interval-7",
+      startAt: new Date("2026-07-15T08:30:00.000Z"),
+      endAt: new Date("2026-07-15T09:00:00.000Z"),
+    };
+    const result = expandBusyIntervalsWithBuffer([atWindowStart], 15, [
+      window9to17,
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0].startAt).toEqual(window9to17.startUtc);
+    expect(result[0].endAt).toEqual(new Date("2026-07-15T09:15:00.000Z"));
+  });
+
+  it("clips post-buffer when interval starts exactly at window end (buffer leaks past window)", () => {
+    const atWindowEnd: ImportedBusyIntervalRecord = {
+      ...busyInterval,
+      id: "interval-8",
+      startAt: new Date("2026-07-15T17:00:00.000Z"),
+      endAt: new Date("2026-07-15T17:30:00.000Z"),
+    };
+    const result = expandBusyIntervalsWithBuffer([atWindowEnd], 15, [
+      window9to17,
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0].startAt).toEqual(new Date("2026-07-15T16:45:00.000Z"));
+    expect(result[0].endAt).toEqual(window9to17.endUtc);
+  });
+
   it("expands multiple intervals independently without merging", () => {
     const secondInterval: ImportedBusyIntervalRecord = {
       ...busyInterval,

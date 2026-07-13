@@ -6,13 +6,16 @@ export const pollCalendarConnectionsTaskName = "poll_calendar_connections";
 
 const MAX_JITTER_MS = 5 * 60 * 1000;
 
-export async function handlePollCalendarConnectionsJob(): Promise<void> {
+export async function handlePollCalendarConnectionsJob(
+  options: { clock?: () => Date } = {},
+): Promise<void> {
+  const clock = options.clock ?? (() => new Date(Date.now()));
   const config = loadRuntimeConfig();
   const activeConnections = await listActiveConnections();
 
   for (const { record: connection } of activeConnections) {
     const jitterMs = Math.floor(Math.random() * MAX_JITTER_MS);
-    const runAt = new Date(Date.now() + jitterMs);
+    const runAt = new Date(clock().getTime() + jitterMs);
     await enqueueSyncCalendarConnectionJob(
       connection.id,
       config.databaseUrl,

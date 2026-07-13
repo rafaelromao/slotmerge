@@ -1,44 +1,43 @@
 # Task
 
-Implement GitHub issue #34: Add one-off add/block Availability overrides
+Implement GitHub issue #67: E2E test: clock injection helper advances time without sleeping
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+E2E test plan: [E2E test plan: SlotMerge MVP](https://github.com/rafaelromao/slotmerge/issues/62). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-A User can add one-off Availability overrides that either add extra availability or block existing availability for specific date/times. Overrides are timezone-aware.
+Single global clock injected at the app boundary covering auth, scheduling, staleness, retention, and backoff windows. Tests advance the clock to simulate expiration, staleness, and retry intervals without sleeping.
 
 ## Acceptance criteria
 
-- [ ] User can add add overrides for specific date/times.
-- [ ] User can add block overrides for specific date/times.
-- [ ] User can remove overrides.
-- [ ] Overrides take effect immediately for future Searches.
+- [ ] All time-sensitive behavior reads from the injected clock.
+- [ ] Tests can advance the clock without `sleep`.
+- [ ] Per-test reset returns the clock to a known starting state.
 
 ## Blocked by
 
-- [Define weekly Availability Windows in profile timezone](https://github.com/rafaelromao/slotmerge/issues/31)
+None — can start immediately.
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/34-add-one-off-addblock-availability-overrides`
-- Source branch: `sandman/34-add-one-off-addblock-availability-overrides`
+- Current branch: `sandman/67-e2e-test-clock-injection-helper-advances-time-without-sleeping`
+- Source branch: `sandman/67-e2e-test-clock-injection-helper-advances-time-without-sleeping`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/34-add-one-off-addblock-availability-overrides` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/67-e2e-test-clock-injection-helper-advances-time-without-sleeping` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -48,69 +47,46 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Implement (sandman-implement)
+PR-Review (sandman-pr-review)
 
 ## Plan
 
 ### Behaviors to test
 
-1. **Add override creates "add" type override** - User POSTs to /me/availability-overrides with date, startTime, endTime, type="add". Override is stored and returned with 201.
+1. **TestClock helper** — `buildTestClock(initialTime?)` returns a mutable clock with `now()`, `advance(ms)`, `reset(date?)`. `now()` returns the current virtual time without wall-clock reads.
+2. **Per-test reset** — after `clock.reset(date)`, subsequent `now()` calls return the reset time.
+3. **Per-test isolation** — `advance()` on one clock instance does not affect another.
+4. **Worker clock injection (email)** — `handleEmailDeliveryJob` uses injected clock via `setClockForTests`; after `clock.advance()`, the job uses the advanced `now`.
+5. **Worker clock injection (sync)** — `handleSyncCalendarConnectionJob` uses injected clock via `setClockForTests`; after `clock.advance()`, the job uses the advanced `now` for `syncCalendarConnection`. Note: `timeMin`/`timeMax` rolling window uses wall-clock `new Date()` and is out of scope (defines the search time range, not time-sensitive behavior per the AC).
+6. **Worker clock injection (poll)** — `handlePollCalendarConnectionsJob` accepts a clock option `{ clock?: () => Date }`; after `clock.advance()`, jitter calculation uses the advanced `now`.
 
-2. **Add override creates "block" type override** - User POSTs with type="block". Override is stored and returned with 201.
+### Testable interfaces
 
-3. **List overrides returns user's overrides** - GET /me/availability-overrides returns only the authenticated user's overrides.
+- `tests/test-clock.ts` — `buildTestClock(startTime?: Date)` factory returning `{ now, advance, reset }`
+- `src/worker/email.ts` — add `setClockForTests(clock: (() => Date) | null)` seam (null restores `() => new Date()`, matching existing `setXxxForTests(null)` pattern)
+- `src/worker/sync.ts` — add `setClockForTests(clock: (() => Date) | null)` seam
+- `src/worker/poll.ts` — add `{ clock?: () => Date }` option to `handlePollCalendarConnectionsJob`
 
-4. **Remove override deletes the override** - DELETE /me/availability-overrides/:id removes the override and returns 204.
+### Execution order for sandman-tdd
 
-5. **Remove override returns 404 for non-existent or other user's override** - DELETE for non-owned override returns 404.
+1. `buildTestClock` + tests for now/advance/reset/isolation (vertical slice 1)
+2. `setClockForTests` seam in `email.ts` + test that clock flows into `handleEmailDeliveryJob` (vertical slice 2)
+3. `setClockForTests` seam in `sync.ts` + test that clock flows into `handleSyncCalendarConnectionJob` (vertical slice 3)
+4. `clock` option in `poll.ts` + test that clock flows into jitter calculation (vertical slice 4)
 
-6. **Override with invalid data returns 400** - Missing required fields, invalid date format, endTime <= startTime all return 400.
+### Assumptions / risks
 
-7. **Unauthenticated requests return 401** - All endpoints return 401 without valid session.
-
-8. **CSRF protection on mutations** (sibling auth constraint, same as weekly windows).
-
-9. **Profile hasAvailability considers overrides** - Update `hasAvailability` boolean to consider overrides.
-
-10. **Override UTC expansion handles DST transitions correctly** - `expandOverrideToUtcRange` correctly converts local time to UTC.
-
-### Testable Interfaces
-
-1. **`src/profile/availability-overrides.ts`**: Repository interface `AvailabilityOverrideRepository` with add, listByUserId, findById, removeById. Test override mechanism.
-
-2. **`expandOverrideToUtcRange(override, timezone): { startUtc: Date; endUtc: Date }`**: Pure function to convert override to UTC (mirrors `expandWeeklyWindowToUtcRange`).
-
-3. **`app/me/availability-overrides/route.ts`**: REST endpoint with GET (list) and POST (create).
-
-4. **`app/me/availability-overrides/[id]/route.ts`**: REST endpoint with PATCH (update type/start/end) and DELETE (remove).
-
-### Implementation Slices (TDD order)
-
-1. **DB Migration**: Add `availability_overrides` table with id, userId, date, startTime, endTime, type ("add"|"block"), profileTimezone, createdAt, updatedAt. Unique constraint on (userId, date, startTime).
-
-2. **Service Layer**: `src/profile/availability-overrides.ts` with repository pattern and `expandOverrideToUtcRange`.
-
-3. **Main Route**: `app/me/availability-overrides/route.ts` with GET/POST handlers.
-
-4. **ID Route**: `app/me/availability-overrides/[id]/route.ts` with PATCH/DELETE handlers.
-
-5. **Tests**: `tests/availability-overrides-route.test.ts` with in-memory repository including DST edge cases.
-
-6. **Profile Integration**: Update `app/me/route.ts` to include availabilityOverrides in response and hasAvailability check.
-
-### Search Integration Contract
-Future Search slices query `listAvailabilityOverridesByUserId(userId)` for the date range. No cache needed — live DB queries satisfy "take effect immediately."
-
-### Assumptions / Risks
-- PATCH included for consistency with weekly windows API.
-- Single-day overrides only (no spanning midnight).
-- Search matching is out of scope; DB table is the integration point.
+- Graphile Worker `run()` in `src/worker/run.ts` is the production entry point; E2E tests call worker handler functions directly with injected clock.
+- `src/auth/session.ts` uses `new Date()` in SQL WHERE clauses — out of scope (session expiration checked by application layer).
+- Auth clock injection (`magic-link-verify.ts`) already exists — no change needed.
+- `src/search/search-input.ts` already uses `Clock = { now(): Date }` interface — no change needed.
+- `sync.ts:137` (`updateLastSyncAt`) and `sync.ts:107-111` (`timeMin`/`timeMax` rolling window) use wall-clock `new Date()` — out of scope (define search time range and last-sync marker, not time-sensitive behavior per the AC).
 
 ## Already Resolved
 
 If the issue is already implemented on `main`, after fetching and checking the current `origin/main` HEAD against the issue acceptance criteria, update `.sandman/task.md` so it contains the exact line `## Status: already resolved`.
 
-Do not use issue closure, a matching local branch, or unmerged worktree changes as proof that the issue is already resolved. If any acceptance criterion is missing or you are not certain, continue with Plan.
+Do not use issue closure, a matching local branch, or unmerged worktree changes as proof that the issue is already resolved. If any acceptance criterion is missing or you are not certain, continue to Plan.
 
 Do not paraphrase this line. Do not use `already implemented`, `no action required`, or any other wording for this marker.
 
@@ -141,7 +117,7 @@ This task must be executed through the Sandman skill workflow, not by ad-hoc imp
 
 ## AFK Rule — Absolute
 
-This is a fully automated Away From Keyboard workflow. **The user will never be available to answer questions, give approval, or make decisions during execution.**
+This is a fully automated Away From Keyboard workflow. **The user will never be available to answer questions, give approval, or decisions during execution.**
 
 ### Hard Ban
 

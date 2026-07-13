@@ -32,6 +32,12 @@ export class InMemorySearchRepository implements SearchRepository {
       .filter((r) => r.organizerId === organizerId)
       .sort((a, b) => b.generatedAt.getTime() - a.generatedAt.getTime());
   }
+  async listAll(): Promise<SearchRecord[]> {
+    await Promise.resolve();
+    return Array.from(this.byId.values()).sort(
+      (a, b) => b.generatedAt.getTime() - a.generatedAt.getTime(),
+    );
+  }
 
   async listSearchHistory(): Promise<SearchHistoryItem[]> {
     await Promise.resolve();

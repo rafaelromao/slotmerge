@@ -1,4 +1,7 @@
-import { getSessionFromRequest } from "../../src/auth/session";
+import {
+  getSessionFromRequest,
+  isOrganizerOrAdminSession,
+} from "../../src/auth/session";
 import { getSearchRepository } from "../../src/search/repository";
 
 export async function GET(request: Request): Promise<Response> {
@@ -8,15 +11,14 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: "unauthenticated" }, { status: 401 });
   }
 
-  if (session.user.role !== "organizer" && session.user.role !== "admin") {
+  if (!isOrganizerOrAdminSession(session)) {
     return Response.json({ error: "forbidden" }, { status: 403 });
   }
 
-  const searchRepo = getSearchRepository();
-  const searches = await searchRepo.listByOrganizer(session.user.id);
+  const searches = await getSearchRepository().listAll();
 
-  return Response.json({
-    searches: searches.map((s) => ({
+  return Response.json(
+    searches.map((s) => ({
       id: s.id,
       organizerId: s.organizerId,
       selectedTopicIds: s.selectedTopicIds,
@@ -27,5 +29,5 @@ export async function GET(request: Request): Promise<Response> {
       organizerTimezone: s.organizerTimezone,
       generatedAt: s.generatedAt.toISOString(),
     })),
-  });
+  );
 }

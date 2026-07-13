@@ -11,10 +11,24 @@ export type SearchRecord = {
   snapshotReference?: string;
 };
 
+export type SearchHistoryItem = {
+  id: string;
+  organizerId: string;
+  selectedTopicIds: string[];
+  minimumMatchingUsers: number;
+  durationMinutes: number | null;
+  dateRangeStart: Date;
+  dateRangeEnd: Date;
+  organizerTimezone: string;
+  generatedAt: Date;
+  snapshotId: string;
+};
+
 export type SearchRepository = {
   save(record: SearchRecord): Promise<SearchRecord>;
   findById(id: string): Promise<SearchRecord | null>;
   listByOrganizer(organizerId: string): Promise<SearchRecord[]>;
+  listSearchHistory(): Promise<SearchHistoryItem[]>;
 };
 
 import { createPostgresSearchRepository } from "./drizzle-repository";

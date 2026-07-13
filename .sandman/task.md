@@ -46,6 +46,51 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Plan
+
+### Behaviors to test
+
+1. **Drawer open trigger** — Clicking a Slot in the weekly calendar grid emits an open-slot event carrying the slot index and search ID.
+
+2. **Drawer displays slot header** — When open, the drawer shows the slot start/end time (in organizer timezone), the total match count, and a deduplicated list of all matched topic names from all matches in the slot.
+
+3. **Drawer lists each Match with display name, avatar, and bio** — Each participant entry shows `displayName ?? "Anonymous"`, an `<img>` for `avatarUrl ?? generated-initials-url`, and `shortBio ?? ""`.
+
+4. **Each Match shows their matched Topics** — Each `SlotMatchDetail.topics` array (the topics that both the user has and the search matched on) is displayed as a comma-separated topic name list.
+
+5. **Each Match shows topic-filtered Availability indicator** — Display `availabilityIndicator` as human-readable text: "available in this Search window" (available), "partially available in this Search window" (partial), "manual only" (unavailable).
+
+6. **Each Match shows Calendar Connection freshness** — Display `calendarFreshness` as a text label: "fresh" (badge: green), "stale" (badge: amber), "no calendar connected" (none).
+
+7. **Drawer closes on backdrop or Escape key** — Clicking the drawer backdrop or pressing Escape dismisses the drawer with no action taken.
+
+8. **No booking/invitation/RSVP/export/share actions exist** — The drawer renders zero `<button>`, `<form>`, or anchor elements with action semantics. It is purely read-only display.
+
+### Testable interfaces
+
+- `SlotDetailsDrawer` React component — props: `{ slot: Slot, snapshot: SearchSnapshot, onClose: () => void }`
+- `MatchCard` React component — props: `{ match: SlotMatchDetail }`
+- `GET /searches/{id}` route — returns the search record including `snapshotJson` as `SearchSnapshot`
+- `GET /searches` route — returns the list of search records for history/navigation
+- No backend changes to snapshot shape; all needed data already encoded in `SearchSnapshot` from issue #56
+
+### Assumptions / risks
+
+- `GET /searches/{id}` and `GET /searches` API routes did not ship with issue #56; building them is part of this implementation
+- Topics shown per match are `SlotMatchDetail.topics` (topics user has ∧ search matched on), not the user's entire topic profile
+- Calendar freshness text is label-only ("fresh"/"stale"/"no calendar connected"); raw sync timestamps are not in `SearchSnapshot`
+- Availability text "manual only" is used when `availabilityIndicator` is "unavailable" or "partial" and `calendarFreshness` is "none" (no calendar data = manual-only availability)
+- Avatar fallback: generated via `https://ui-avatars.com/api/?name={displayName}&background=random` when `avatarUrl` is null
+- Drawer assumes weekly Search Result Calendar grid exists (Screen 8); drawer is independently testable with hardcoded slot data
+
+### Implementation order (vertical slices)
+
+1. **API routes** — `GET /searches` and `GET /searches/{id}` routes returning search records with snapshot JSON
+2. **SlotDetailsDrawer component** — shell with open/close state, renders slot header
+3. **MatchCard component** — renders a single match's name, avatar, bio, topics, availability, calendar
+4. **Slot click wiring** — calendar grid emits event → drawer opens with correct slot data
+5. **Drawer close** — backdrop click and Escape key dismiss
+
 ## Next Step
 
 Load `sandman-tdd` and execute the plan from `## Plan` above.
@@ -80,8 +125,7 @@ This task must be executed through the Sandman skill workflow, not by ad-hoc imp
 3. When `sandman` routes to a subskill, load that subskill and follow its full workflow, checklist, guardrails, hard rules, preconditions, and stop conditions before moving on.
 4. Treat every `Workflow`, `Checklist`, `Guardrails`, `Hard rule`, `Preconditions`, and `Stop conditions` section in each loaded Sandman subskill as mandatory.
 5. Do not skip, summarize, or replace skill steps with your own shortcut.
-6. If a skill says to load another skill, load it and follow it end to end.
-7. If a step cannot be completed, stop only when the relevant skill says to stop, report the blocker, then still run the continuation step below.
+6. If a step cannot be completed, stop only when the relevant skill says to stop, report the blocker, then still run the continuation step below.
 
 ## AFK Rule — Absolute
 
@@ -116,7 +160,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 

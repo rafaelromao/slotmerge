@@ -172,7 +172,7 @@ These are all forbidden (non-exhaustive):
 > "Should I create the PR now?"
 > "Does this look good to you?"
 > "Can I merge?"
-> "What should I do about this test failure?"
+> "What should I do about the test failure?"
 > "The review returned feedback. Should I apply it?"
 
 All of these MUST be handled autonomously. Use the Subagent Escape Hatch for genuine decision ambiguity or as delegated in the table above.
@@ -183,7 +183,7 @@ If `codeindex.json` exists in the repository root, use `codeindex` before `grep`
 
 Never run grep, rg, find, or any recursive content/file search against directories outside the current working directory (e.g. /tmp, /var, /usr, /etc, /opt, /home, node_modules, .git, target, dist, build, vendor). Such searches return massive output that floods the context window. Restrict searches to the cwd or explicit sub-paths within it; use the Glob/Grep tools which already scope to the project by default.
 
-This restriction applies to the current agent and to every subagent invoked in the current session, including subagents launched directly and subagents launched by any Sandman or other skill loaded during the run. When spawning, delegating to, or handing work off to a subagent, pass this Search Scope Restriction into the subagent's instructions verbatim, or reference this section by name, so the subagent obeys the same rule.
+This restriction applies to the current agent and to every subagent invoked in the current session, including subagents launched directly and subagents launched by any Sandman or other skill loaded during the run. When spawning, delegating to, or handing off to a subagent, pass this Search Scope Restriction into the subagent's instructions verbatim, or reference this section by name, so the subagent obeys the same rule.
 
 ## Required Skill Chain
 

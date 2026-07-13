@@ -1,7 +1,57 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 
 import { buildMockEmailAdapter } from "./mock-email-adapter";
 import { processEmailDeliveryJob } from "../src/email/worker";
+import {
+  handleEmailDeliveryJob,
+  setEmailTransportForTests,
+} from "../src/worker/email";
+
+vi.mock("../src/email/repository", () => ({
+  createPostgresEmailEventRepository: vi.fn(() => ({
+    createQueuedEvent: vi.fn(),
+    recordAttempt: vi.fn().mockResolvedValue({
+      id: "evt-seam-test",
+      recipient: "user@example.com",
+      type: "invite",
+      payloadReference: "ref-1",
+      status: "sending",
+      attempts: 1,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      sentAt: null,
+      failedAt: null,
+      lastAttemptAt: new Date("2026-01-01T00:00:00.000Z"),
+      lastErrorCode: null,
+      lastErrorMessage: null,
+    }),
+    markDelivered: vi.fn().mockResolvedValue({
+      id: "evt-seam-test",
+      recipient: "user@example.com",
+      type: "invite",
+      payloadReference: "ref-1",
+      status: "sent",
+      attempts: 1,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      sentAt: new Date("2026-01-01T00:00:00.000Z"),
+      failedAt: null,
+      lastAttemptAt: new Date("2026-01-01T00:00:00.000Z"),
+      lastErrorCode: null,
+      lastErrorMessage: null,
+    }),
+    markFailed: vi.fn(),
+  })),
+}));
+
+vi.mock("../src/admin/critical-email.repository", () => ({
+  createPostgresAdminCriticalDispatchLookup: vi.fn(() => ({
+    findLastDispatchAt: vi.fn().mockResolvedValue(null),
+  })),
+  createPostgresAdminDirectory: vi.fn(() => ({
+    listAdmins: vi.fn().mockResolvedValue([]),
+  })),
+}));
 
 describe("MockEmailAdapter", () => {
   it("records a send call with recipient, type, and payload", async () => {
@@ -351,6 +401,57 @@ describe("MockEmailAdapter wiring with processEmailDeliveryJob", () => {
     expect(adapter.sends).toHaveLength(1);
     const send = adapter.sends[0];
     expect(send.emailEventId).toBe("evt-wiring-2");
+    expect(send.status).toBe("failed");
+    expect(send.error).toBe("provider unavailable");
+  });
+});
+
+describe("setEmailTransportForTests seam", () => {
+  let adapter: ReturnType<typeof buildMockEmailAdapter>;
+
+  beforeEach(() => {
+    adapter = buildMockEmailAdapter();
+    setEmailTransportForTests(adapter);
+  });
+
+  afterEach(() => {
+    setEmailTransportForTests(null);
+    vi.restoreAllMocks();
+  });
+
+  it("records a send through handleEmailDeliveryJob via the module-level seam", async () => {
+    await handleEmailDeliveryJob({
+      emailEventId: "evt-seam-1",
+      recipient: "user@example.com",
+      type: "invite",
+      payload: { inviteId: "invite-seam-1" },
+    });
+
+    expect(adapter.sends).toHaveLength(1);
+    const send = adapter.sends[0];
+    expect(send.emailEventId).toBe("evt-seam-1");
+    expect(send.recipient).toBe("user@example.com");
+    expect(send.type).toBe("invite");
+    expect(send.payload).toEqual({ inviteId: "invite-seam-1" });
+    expect(send.status).toBe("sent");
+    expect(send.providerMessageId).toBe("mock-evt-seam-1");
+  });
+
+  it("records a failed send through handleEmailDeliveryJob", async () => {
+    adapter.setPersistentFailure("provider unavailable");
+
+    await expect(
+      handleEmailDeliveryJob({
+        emailEventId: "evt-seam-2",
+        recipient: "user@example.com",
+        type: "magic-link",
+        payload: { token: "token-seam-2" },
+      }),
+    ).rejects.toThrow("provider unavailable");
+
+    expect(adapter.sends).toHaveLength(1);
+    const send = adapter.sends[0];
+    expect(send.emailEventId).toBe("evt-seam-2");
     expect(send.status).toBe("failed");
     expect(send.error).toBe("provider unavailable");
   });

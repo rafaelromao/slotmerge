@@ -46,13 +46,7 @@ export function buildMockEmailAdapter(): MockEmailAdapter {
 
     if (shouldFail(attempts)) {
       const errorMessage =
-        failureMode.kind === "after-attempts"
-          ? failureMode.error
-          : failureMode.kind === "persistent"
-            ? failureMode.error
-            : failureMode.kind === "next"
-              ? failureMode.error
-              : defaultError;
+        failureMode.kind === "none" ? defaultError : failureMode.error;
       error = errorMessage;
       status = "failed";
       msgId = null;

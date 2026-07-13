@@ -38,9 +38,9 @@ The worktree MUST be checked out on `sandman/59-list-and-open-search-history-wit
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
-- [ ] PR-Review (sandman-pr-review)
-- [ ] PR-Merge (sandman-pr-merge)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] PR-Review (sandman-pr-review)
+- [x] PR-Merge (sandman-pr-merge)
 
 Before moving on, check which checklist items are already complete in `.sandman/task.md`. If an item is already checked, treat it as complete and skip it instead of repeating the work.
 
@@ -83,7 +83,32 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-The registered next step is the first unchecked item in the Execution Checklist: **Implement** (sandman-implement).
+All tasks completed. PR #186 merged.
+
+## Completion Summary
+
+**Issue**: #59 - List and open Search history with immutable snapshots
+
+**Acceptance Criteria Met**:
+- [x] All Organizers and Admins can view Search history. (role guard via `isOrganizerOrAdminSession`)
+- [x] Saved snapshots include parameters and a generation timestamp. (`GET /search/history` returns `SearchHistoryItem` with `generatedAt`)
+- [x] Opening a saved Search opens the original immutable snapshot. (`GET /search/[id]/snapshot` via `findBySearchId`)
+- [x] Saved snapshots do not change when underlying data changes. (immutable by design - no update method on `SearchResultRepository`)
+
+**Commits**:
+- `16160ec` feat: implement Search history API with immutable snapshots
+- `818e023` style: apply formatting fixes
+- `54f2c7d` fix: resolve TypeScript error in mock repository
+
+**PR**: https://github.com/rafaelromao/slotmerge/pull/186 - **MERGED**
+
+**Skills Completed**:
+- `sandman-plan` - Plan created with subagent review consensus
+- `sandman-tdd` - TDD implementation with 93 tests passing
+- `sandman-self-review` - Standards and Spec reviews passed
+- `sandman-back-merge` - Branch up-to-date with main
+- `sandman-pr-review` - PR approved (informal)
+- `sandman-pr-merge` - PR merged successfully
 
 ## Already Resolved
 

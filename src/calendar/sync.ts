@@ -2,12 +2,8 @@ import type {
   ImportedBusyIntervalRecord,
   ImportedBusyIntervalRepository,
 } from "./imported-busy-intervals";
-import {
-  fetchGoogleFreeBusy,
-} from "./freebusy/google";
-import {
-  fetchMicrosoftFreeBusy,
-} from "./freebusy/microsoft";
+import { fetchGoogleFreeBusy } from "./freebusy/google";
+import { fetchMicrosoftFreeBusy } from "./freebusy/microsoft";
 import {
   GoogleFreeBusyAuthError,
   GoogleFreeBusyRateLimitError,
@@ -92,9 +88,7 @@ export async function syncCalendarConnection(
     ) {
       const retryAfterSeconds = error.retryAfterSeconds;
       throw new RateLimitError(
-        retryAfterSeconds !== undefined
-          ? retryAfterSeconds * 1000
-          : undefined,
+        retryAfterSeconds !== undefined ? retryAfterSeconds * 1000 : undefined,
       );
     }
 
@@ -102,9 +96,11 @@ export async function syncCalendarConnection(
       error instanceof GoogleFreeBusyServerError ||
       error instanceof MicrosoftFreeBusyServerError
     ) {
-      throw new ServerError(error.retryAfterSeconds !== undefined
-        ? error.retryAfterSeconds * 1000
-        : undefined);
+      throw new ServerError(
+        error.retryAfterSeconds !== undefined
+          ? error.retryAfterSeconds * 1000
+          : undefined,
+      );
     }
 
     const message = error instanceof Error ? error.message : String(error);

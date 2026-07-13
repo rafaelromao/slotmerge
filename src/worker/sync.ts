@@ -116,7 +116,9 @@ export async function handleSyncCalendarConnectionJob(
     await updateLastSyncAt(connection.id, new Date());
   } catch (error) {
     if (error instanceof RateLimitError || error instanceof ServerError) {
-      const baseDelayMs = error.retryAfterMs ?? getExponentialBackoffBase(error instanceof RateLimitError);
+      const baseDelayMs =
+        error.retryAfterMs ??
+        getExponentialBackoffBase(error instanceof RateLimitError);
       const jitterMs = Math.floor(Math.random() * baseDelayMs);
       const delayMs = baseDelayMs + jitterMs;
       await enqueueSyncCalendarConnectionJob(

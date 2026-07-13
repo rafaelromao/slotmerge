@@ -13,6 +13,10 @@ export async function handlePollCalendarConnectionsJob(): Promise<void> {
   for (const { record: connection } of activeConnections) {
     const jitterMs = Math.floor(Math.random() * MAX_JITTER_MS);
     const runAt = new Date(Date.now() + jitterMs);
-    await enqueueSyncCalendarConnectionJob(connection.id, config.databaseUrl, runAt);
+    await enqueueSyncCalendarConnectionJob(
+      connection.id,
+      config.databaseUrl,
+      runAt,
+    );
   }
 }

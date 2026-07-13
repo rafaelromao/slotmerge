@@ -38,12 +38,16 @@ export async function fetchMicrosoftFreeBusy(params: {
   }
 
   if (response.status === 429) {
-    const retryAfter = parseRetryAfterHeader(response.headers.get("retry-after"));
+    const retryAfter = parseRetryAfterHeader(
+      response.headers.get("retry-after"),
+    );
     throw new MicrosoftFreeBusyRateLimitError(retryAfter);
   }
 
   if (response.status >= 500) {
-    const retryAfter = parseRetryAfterHeader(response.headers.get("retry-after"));
+    const retryAfter = parseRetryAfterHeader(
+      response.headers.get("retry-after"),
+    );
     throw new MicrosoftFreeBusyServerError(response.status, retryAfter);
   }
 
@@ -57,7 +61,11 @@ export async function fetchMicrosoftFreeBusy(params: {
 
   for (const schedule of data.value ?? []) {
     for (const event of schedule.calendarEvents ?? []) {
-      if (!event.isBusy && event.showAs !== "oof" && event.showAs !== "tentative") {
+      if (
+        !event.isBusy &&
+        event.showAs !== "oof" &&
+        event.showAs !== "tentative"
+      ) {
         continue;
       }
 

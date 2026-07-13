@@ -58,9 +58,18 @@ describe("fetchMicrosoftFreeBusy", () => {
       endAt: new Date("2026-07-01T13:00:00Z"),
     });
 
-    const [url, reqInit] = mockFetch.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://graph.microsoft.com/v1.0/me/calendar/getSchedule");
-    const body = JSON.parse(reqInit.body as string) as { schedules: string[]; startTime: { dateTime: string; timeZone: string }; endTime: { dateTime: string; timeZone: string } };
+    const [url, reqInit] = mockFetch.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(url).toBe(
+      "https://graph.microsoft.com/v1.0/me/calendar/getSchedule",
+    );
+    const body = JSON.parse(reqInit.body as string) as {
+      schedules: string[];
+      startTime: { dateTime: string; timeZone: string };
+      endTime: { dateTime: string; timeZone: string };
+    };
     expect(body.schedules).toEqual(["user@domain.com"]);
     expect(body.startTime.dateTime).toBe(FIXED_TIME_MIN);
     expect(body.endTime.dateTime).toBe(FIXED_TIME_MAX);
@@ -74,9 +83,9 @@ describe("fetchMicrosoftFreeBusy", () => {
   });
 
   it("throws MicrosoftFreeBusyAuthError on 401", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response(null, { status: 401 }),
-    );
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 401 }));
 
     await expect(
       fetchMicrosoftFreeBusy({
@@ -109,9 +118,9 @@ describe("fetchMicrosoftFreeBusy", () => {
   });
 
   it("throws MicrosoftFreeBusyRateLimitError on 429 without Retry-After", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response(null, { status: 429 }),
-    );
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 429 }));
 
     await expect(
       fetchMicrosoftFreeBusy({
@@ -125,9 +134,9 @@ describe("fetchMicrosoftFreeBusy", () => {
   });
 
   it("throws MicrosoftFreeBusyServerError on 5xx", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response(null, { status: 503 }),
-    );
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 503 }));
 
     await expect(
       fetchMicrosoftFreeBusy({
@@ -141,12 +150,14 @@ describe("fetchMicrosoftFreeBusy", () => {
   });
 
   it("skips schedules absent from the response", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({ value: [] }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      ),
-    );
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ value: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
 
     const intervals = await fetchMicrosoftFreeBusy({
       accessToken: "ey.aFakeToken",

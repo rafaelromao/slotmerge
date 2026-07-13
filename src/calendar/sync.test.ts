@@ -139,9 +139,9 @@ describe("syncCalendarConnection", () => {
     const upsertBatch = vi.fn();
     const recordFailure = vi.fn();
 
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response(null, { status: 401 }),
-    );
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 401 }));
 
     await syncCalendarConnection({
       connectionId: "conn-auth",
@@ -209,9 +209,9 @@ describe("syncCalendarConnection", () => {
     const upsertBatch = vi.fn();
     const recordFailure = vi.fn();
 
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response(null, { status: 429 }),
-    );
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 429 }));
 
     await expect(
       syncCalendarConnection({
@@ -241,9 +241,9 @@ describe("syncCalendarConnection", () => {
     const upsertBatch = vi.fn();
     const recordFailure = vi.fn();
 
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response(null, { status: 503 }),
-    );
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 503 }));
 
     await expect(
       syncCalendarConnection({

@@ -5,7 +5,8 @@ import {
   GoogleFreeBusyServerError,
 } from "./types";
 
-const GOOGLE_FREE_BUSY_URL = "https://calendar.googleapis.com/calendar/v3/freeBusy";
+const GOOGLE_FREE_BUSY_URL =
+  "https://calendar.googleapis.com/calendar/v3/freeBusy";
 
 export async function fetchGoogleFreeBusy(params: {
   accessToken: string;
@@ -34,12 +35,16 @@ export async function fetchGoogleFreeBusy(params: {
   }
 
   if (response.status === 429) {
-    const retryAfter = parseRetryAfterHeader(response.headers.get("retry-after"));
+    const retryAfter = parseRetryAfterHeader(
+      response.headers.get("retry-after"),
+    );
     throw new GoogleFreeBusyRateLimitError(retryAfter);
   }
 
   if (response.status >= 500) {
-    const retryAfter = parseRetryAfterHeader(response.headers.get("retry-after"));
+    const retryAfter = parseRetryAfterHeader(
+      response.headers.get("retry-after"),
+    );
     throw new GoogleFreeBusyServerError(response.status, retryAfter);
   }
 
@@ -92,7 +97,12 @@ type GoogleFreeBusyResponse = {
     string,
     {
       busy?: Array<{ start: string; end: string }>;
-      outOfOffice?: Array<{ startTime?: string; endTime?: string; start?: string; end?: string }>;
+      outOfOffice?: Array<{
+        startTime?: string;
+        endTime?: string;
+        start?: string;
+        end?: string;
+      }>;
     }
   >;
 };

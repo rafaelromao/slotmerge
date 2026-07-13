@@ -50,9 +50,11 @@ function createMockSearchResultRepository() {
     findById: async () => Promise.resolve(null),
     findBySearchId: async (searchId: string) =>
       Promise.resolve(bySearchId.get(searchId) ?? null),
+    _storage: bySearchId,
   };
-  (repo as { _storage: Map<string, SearchResultRecord> })._storage = bySearchId;
-  return repo;
+  return repo as unknown as SearchResultRepository & {
+    _storage: Map<string, SearchResultRecord>;
+  };
 }
 
 describe("createSearchHistoryHandlers", () => {

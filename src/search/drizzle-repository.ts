@@ -1,9 +1,10 @@
 import { desc, eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
-import { searches } from "../db/schema";
+import { searches, searchResults } from "../db/schema";
 
 import type { SearchRecord, SearchRepository } from "./repository";
+import { deriveSearchSnapshotStaleness } from "./match-detail";
 
 export function createPostgresSearchRepository(): SearchRepository {
   return {
@@ -45,6 +46,45 @@ export function createPostgresSearchRepository(): SearchRepository {
         .from(searches)
         .orderBy(desc(searches.generatedAt));
       return rows.map(toRecord);
+    },
+    async listSearchHistory() {
+      const rows = await getDb()
+        .select({
+          id: searches.id,
+          organizerId: searches.organizerId,
+          selectedTopicIds: searches.selectedTopicIds,
+          minimumMatchingUsers: searches.minimumMatchingUsers,
+          durationMinutes: searches.durationMinutes,
+          dateRangeStart: searches.rangeStart,
+          dateRangeEnd: searches.rangeEnd,
+          organizerTimezone: searches.organizerTimezone,
+          generatedAt: searches.generatedAt,
+          snapshotId: searchResults.id,
+        })
+        .from(searches)
+        .leftJoin(searchResults, eq(searches.id, searchResults.searchId))
+        .orderBy(desc(searches.generatedAt));
+
+      const now = new Date();
+
+      return rows
+        .filter(
+          (row): row is typeof row & { snapshotId: string } =>
+            row.snapshotId != null,
+        )
+        .map((row) => ({
+          id: row.id,
+          organizerId: row.organizerId,
+          selectedTopicIds: row.selectedTopicIds,
+          minimumMatchingUsers: row.minimumMatchingUsers,
+          durationMinutes: row.durationMinutes,
+          dateRangeStart: row.dateRangeStart,
+          dateRangeEnd: row.dateRangeEnd,
+          organizerTimezone: row.organizerTimezone,
+          generatedAt: row.generatedAt,
+          snapshotId: row.snapshotId,
+          stale: deriveSearchSnapshotStaleness(row.generatedAt, now),
+        }));
     },
   };
 }

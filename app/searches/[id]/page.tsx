@@ -52,7 +52,7 @@ export default function SearchResultPage({
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/searches/${searchId}`);
+        const res = await fetch(`/api/searches/${searchId}`);
         if (!res.ok) {
           if (res.status === 403) {
             setError("You do not have permission to view this search result.");

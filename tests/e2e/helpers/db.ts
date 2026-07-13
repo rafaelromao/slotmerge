@@ -115,7 +115,7 @@ export async function createInvite(data: {
 export async function createUser(data: {
   id?: string;
   email: string;
-  displayName?: string;
+  displayName?: string | null;
   role?: string;
   status?: string;
   profileTimezone?: string;

@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #31: Propose a new Topic
+Implement GitHub issue #34: Add one-off add/block Availability overrides
 
 ## Issue Context
 
@@ -10,35 +10,35 @@ Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/iss
 
 ## What to build
 
-A User submits a Topic Proposal from `My Topics`. Submissions are similarity-blocked against existing active and pending Topic names so the catalogue does not fragment. Blocked submissions surface a clear "too similar to" message.
+A User can add one-off Availability overrides that either add extra availability or block existing availability for specific date/times. Overrides are timezone-aware.
 
 ## Acceptance criteria
 
-- [ ] User submits a proposal name from `My Topics`.
-- [ ] Submissions near an existing name (case-insensitive, whitespace-normalized, similarity threshold) are blocked.
-- [ ] Blocked submissions show the closest existing Topic name(s).
-- [ ] Accepted submissions create a pending Topic Proposal attached to the user.
+- [ ] User can add add overrides for specific date/times.
+- [ ] User can add block overrides for specific date/times.
+- [ ] User can remove overrides.
+- [ ] Overrides take effect immediately for future Searches.
 
 ## Blocked by
 
-- [View controlled Topic catalogue](https://github.com/rafaelromao/slotmerge/issues/30)
+- [Define weekly Availability Windows in profile timezone](https://github.com/rafaelromao/slotmerge/issues/31)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/31-propose-a-new-topic`
-- Source branch: `sandman/31-propose-a-new-topic`
+- Current branch: `sandman/34-add-one-off-addblock-availability-overrides`
+- Source branch: `sandman/34-add-one-off-addblock-availability-overrides`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/31-propose-a-new-topic` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/34-add-one-off-addblock-availability-overrides` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
 - [x] Create branch
 - [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -46,77 +46,65 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Next Step
+
+Implement (sandman-implement)
+
 ## Plan
 
 ### Behaviors to test
 
-1. **Submit a valid topic proposal**  
-   Authenticated user POSTs to `/topic-proposals` with a candidate name. Name is whitespace-collapsed + lowercased. No existing active or pending topic name is similar at ≥0.8 ratio. A `pending` TopicProposal record is created in DB, linked to the user. Returns 201 with the created proposal.
+1. **Add override creates "add" type override** - User POSTs to /me/availability-overrides with date, startTime, endTime, type="add". Override is stored and returned with 201.
 
-2. **Submit a proposal blocked by an active topic (similarity)**  
-   Candidate name is similar (≥0.8 ratio) to an existing active topic name. Returns 409 `{"error": "too_similar", "matches": [{"name": "...", "type": "active"}]}` and no record is created.
+2. **Add override creates "block" type override** - User POSTs with type="block". Override is stored and returned with 201.
 
-3. **Submit a proposal blocked by a pending proposal (similarity)**  
-   Candidate name is similar (≥0.8 ratio) to another user's pending topic proposal. Returns 409 with `type: "pending"` in matches. No record created.
+3. **List overrides returns user's overrides** - GET /me/availability-overrides returns only the authenticated user's overrides.
 
-4. **Submit a proposal blocked by exact match**  
-   Candidate name is identical (case-insensitive, whitespace-collapsed) to an existing active or pending name. Blocked same as similarity — ratio 1.0 is covered by ≥0.8 threshold.
+4. **Remove override deletes the override** - DELETE /me/availability-overrides/:id removes the override and returns 204.
 
-5. **Submit a duplicate of own pending proposal**  
-   User already has a pending proposal "Sailing". Submitting "Sailing" again returns 409 `{"error": "already_pending", "proposalId": "..."}`. No duplicate created.
+5. **Remove override returns 404 for non-existent or other user's override** - DELETE for non-owned override returns 404.
 
-6. **Submit a proposal with empty/invalid name**  
-   Name is empty or whitespace-only after trimming. Returns 400 `{"error": "invalid_name"}`.
+6. **Override with invalid data returns 400** - Missing required fields, invalid date format, endTime <= startTime all return 400.
 
-7. **Submit a proposal similar to multiple entries**  
-   Candidate name is similar to both an active topic AND a pending proposal. All above-threshold matches are returned in the `matches` array.
+7. **Unauthenticated requests return 401** - All endpoints return 401 without valid session.
 
-8. **View own topic proposals**  
-   Authenticated user GETs `/me/topic-proposals`. Returns list of their own proposals with id, candidateName, status, createdAt.
+8. **CSRF protection on mutations** (sibling auth constraint, same as weekly windows).
 
-9. **"My Topics" page shows proposal form and pending proposals**  
-   GET `/me/topics` renders a "Propose a new Topic" text input + submit button. Below it, lists the user's own pending proposals (name + status). Proposal form submits via POST to `/topic-proposals` with CSRF token.
+9. **Profile hasAvailability considers overrides** - Update `hasAvailability` boolean to consider overrides.
 
-10. **Proposal submission integrates into "My Topics" page**  
-    After a successful POST, the new pending proposal appears in the pending proposals list on `/me/topics`.
+10. **Override UTC expansion handles DST transitions correctly** - `expandOverrideToUtcRange` correctly converts local time to UTC.
 
-### Testable interfaces
+### Testable Interfaces
 
-- `src/topics/proposals.ts` — new module:
-  - `computeSimilarity(a: string, b: string): number` — pure Levenshtein ratio (0–1)
-  - `normalizeTopicName(name: string): string` — trim + collapse internal whitespace to single space + lowercase
-  - `isSimilar(a: string, b: string): boolean` — true if normalized similarity ≥ 0.8
-  - `findSimilarTopics(candidateName: string, repository: TopicCatalogueWithProposals): Promise<SimilarMatch[]>`
-  - `createTopicProposal(userId: string, candidateName: string, repository: TopicProposalDbRepository): Promise<TopicProposal>`
-  - `listUserTopicProposals(userId: string, repository: TopicProposalDbRepository): Promise<UserTopicProposal[]>`
+1. **`src/profile/availability-overrides.ts`**: Repository interface `AvailabilityOverrideRepository` with add, listByUserId, findById, removeById. Test override mechanism.
 
-- `app/topic-proposals/route.ts` — POST `/topic-proposals`
-- `app/me/topic-proposals/route.ts` — GET `/me/topic-proposals`
+2. **`expandOverrideToUtcRange(override, timezone): { startUtc: Date; endUtc: Date }`**: Pure function to convert override to UTC (mirrors `expandWeeklyWindowToUtcRange`).
 
-- `app/me/topics/route.ts` — updated to render proposal form and user pending proposals list
+3. **`app/me/availability-overrides/route.ts`**: REST endpoint with GET (list) and POST (create).
 
-### Assumptions / risks
+4. **`app/me/availability-overrides/[id]/route.ts`**: REST endpoint with PATCH (update type/start/end) and DELETE (remove).
 
-- `fast-levenshtein` is a transitive dep (via graphile-worker). Risk: future graphile-worker drops it. Mitigation: add as direct dep in same PR.
-- Threshold 0.8: calibrate with examples during TDD ("Sailing" vs "Sailng", "React" vs "React.js", "TypeScript" vs "Typescript")
-- Normalization: trim leading/trailing whitespace, collapse internal runs of whitespace to single space, then lowercase
-- Similarity check targets: all `status = 'active'` topics + all `status = 'pending'` topic proposals
-- Proposal form uses existing HTML-form + CSRF pattern from `app/me/topics/route.ts`
+### Implementation Slices (TDD order)
 
-### Test execution order (sandman-tdd)
+1. **DB Migration**: Add `availability_overrides` table with id, userId, date, startTime, endTime, type ("add"|"block"), profileTimezone, createdAt, updatedAt. Unique constraint on (userId, date, startTime).
 
-1. `computeSimilarity` pure unit tests (red-green first)
-2. `isSimilar` threshold boundary tests (exact 0.8, just above/below)
-3. `normalizeTopicName` edge case tests (empty, whitespace, case)
-4. `findSimilarTopics` with in-memory repository mock
-5. `createTopicProposal` with in-memory repository mock (valid case)
-6. `createTopicProposal` error paths (too similar, duplicate, invalid)
-7. Route handler tests with mocked dependencies
-8. HTML rendering in `me/topics/route.ts`
+2. **Service Layer**: `src/profile/availability-overrides.ts` with repository pattern and `expandOverrideToUtcRange`.
 
-## Next Step
+3. **Main Route**: `app/me/availability-overrides/route.ts` with GET/POST handlers.
 
-PR-Review (sandman-pr-review)
+4. **ID Route**: `app/me/availability-overrides/[id]/route.ts` with PATCH/DELETE handlers.
+
+5. **Tests**: `tests/availability-overrides-route.test.ts` with in-memory repository including DST edge cases.
+
+6. **Profile Integration**: Update `app/me/route.ts` to include availabilityOverrides in response and hasAvailability check.
+
+### Search Integration Contract
+Future Search slices query `listAvailabilityOverridesByUserId(userId)` for the date range. No cache needed — live DB queries satisfy "take effect immediately."
+
+### Assumptions / Risks
+- PATCH included for consistency with weekly windows API.
+- Single-day overrides only (no spanning midnight).
+- Search matching is out of scope; DB table is the integration point.
 
 ## Already Resolved
 

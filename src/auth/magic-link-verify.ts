@@ -23,12 +23,10 @@ export type TransactionContext = {
 
 export type InviteRepository = {
   findById(id: string): Promise<InviteRecord | null>;
-  findPendingByEmail(email: string): Promise<InviteRecord | null>;
   accept(id: string): Promise<void>;
 };
 
 export type UserRepository = {
-  findById(id: string): Promise<UserRecord | null>;
   findByEmail(email: string): Promise<UserRecord | null>;
   create(data: { email: string; role: string }): Promise<UserRecord>;
 };
@@ -48,6 +46,7 @@ export type InviteRecord = {
   role: string;
   status: "pending" | "accepted" | "revoked";
   expiresAt: Date;
+  magicLinkGeneration?: number;
 };
 
 export type UserRecord = {
@@ -110,54 +109,12 @@ export function createMagicLinkVerifyHandlers(
         payload = verifyMagicLinkToken(token, magicLinkSecret, clock);
       } catch (err) {
         if (err instanceof Error && err.message === "invalid_token") {
-          return errorResponse("invalid_token", 400);
+          return errorResponse("invalid_token", 400, token);
         }
         if (err instanceof Error && err.message === "token_expired") {
-          return errorResponse("token_expired", 400);
+          return errorResponse("token_expired", 400, token);
         }
-        return errorResponse("invalid_token", 400);
-      }
-
-      const userRepo = deps.userRepository ?? defaultUserRepository;
-
-      if (payload.userId !== undefined) {
-        const user = await userRepo.findById(payload.userId);
-        if (!user || user.status === "suspended") {
-          return errorResponse("invalid_token", 400);
-        }
-        if (user.email !== payload.email) {
-          return errorResponse("email_mismatch", 400);
-        }
-
-        const csrfToken = generateCsrfToken();
-        const expiresAt = new Date(
-          clock().getTime() + sessionLifetimeDays * 24 * 60 * 60 * 1000,
-        );
-
-        const transaction = deps.transaction ?? defaultTransaction;
-
-        let sessionCookie = "";
-        try {
-          await transaction(async (ctx) => {
-            const session = await ctx.sessionRepository.create({
-              userId: user.id,
-              csrfToken,
-              expiresAt,
-            });
-            sessionCookie = await sealSessionCookie({ sessionId: session.id });
-          });
-        } catch {
-          return errorResponse("server_error", 500);
-        }
-
-        const origin = new URL(request.url).origin;
-        return new Response(null, {
-          status: 302,
-          headers: {
-            Location: `${origin}/`,
-            "Set-Cookie": sessionCookie,
-          },
-        });
+        return errorResponse("invalid_token", 400, token);
       }
 
       const invite = await (
@@ -165,7 +122,7 @@ export function createMagicLinkVerifyHandlers(
       ).findById(payload.inviteId!);
 
       if (!invite) {
-        return errorResponse("not_invited", 400);
+        return errorResponse("not_invited", 400, token);
       }
 
       if (invite.status === "accepted") {
@@ -177,13 +134,18 @@ export function createMagicLinkVerifyHandlers(
       }
 
       if (invite.expiresAt <= clock()) {
-        return errorResponse("invite_expired", 400);
+        return errorResponse("invite_expired", 400, token);
       }
 
       if (invite.email !== payload.email) {
-        return errorResponse("email_mismatch", 400);
+        return errorResponse("email_mismatch", 400, token);
       }
 
+      if ((payload.generation ?? 0) !== (invite.magicLinkGeneration ?? 0)) {
+        return errorResponse("invalid_token", 400);
+      }
+
+      const userRepo = deps.userRepository ?? defaultUserRepository;
       let user = await userRepo.findByEmail(invite.email);
       if (!user) {
         user = await userRepo.create({
@@ -248,7 +210,11 @@ function renderConfirmPage(token: string): string {
 </html>`;
 }
 
-function errorResponse(reason: string, status: number): Response {
+function errorResponse(
+  reason: string,
+  status: number,
+  resendToken?: string,
+): Response {
   const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -259,6 +225,14 @@ function errorResponse(reason: string, status: number): Response {
     <h1>Sign in failed</h1>
     <p>Reason: ${escapeHtml(reason)}</p>
     <p>Please contact an administrator if you believe this is an error.</p>
+    ${
+      resendToken
+        ? `<form method="POST" action="/auth/magic-link/resend">
+      <input type="hidden" name="token" value="${escapeHtml(resendToken)}" />
+      <button type="submit">Send a new link</button>
+    </form>`
+        : ""
+    }
   </body>
 </html>`;
 
@@ -288,7 +262,7 @@ async function defaultTransaction(
 ): Promise<void> {
   const { getDb } = await import("../db/client");
   const { sessions, invites } = await import("../db/schema");
-  const { eq, and } = await import("drizzle-orm");
+  const { eq } = await import("drizzle-orm");
   const db = getDb();
 
   await db.transaction(async (tx) => {
@@ -318,19 +292,6 @@ async function defaultTransaction(
             .limit(1);
           return row ?? null;
         },
-        findPendingByEmail: async (email) => {
-          const [row] = await tx
-            .select()
-            .from(invites)
-            .where(
-              and(
-                eq(invites.email, email.toLowerCase()),
-                eq(invites.status, "pending"),
-              ),
-            )
-            .limit(1);
-          return row ?? null;
-        },
         accept: async (id) => {
           await tx
             .update(invites)
@@ -355,23 +316,6 @@ const defaultInviteRepository: InviteRepository = {
       .limit(1);
     return row ?? null;
   },
-  findPendingByEmail: async (email) => {
-    const { getDb } = await import("../db/client");
-    const { eq, and } = await import("drizzle-orm");
-    const { invites } = await import("../db/schema");
-    const db = getDb();
-    const [row] = await db
-      .select()
-      .from(invites)
-      .where(
-        and(
-          eq(invites.email, email.toLowerCase()),
-          eq(invites.status, "pending"),
-        ),
-      )
-      .limit(1);
-    return row ?? null;
-  },
   accept: async (id) => {
     const { getDb } = await import("../db/client");
     const { eq } = await import("drizzle-orm");
@@ -385,18 +329,6 @@ const defaultInviteRepository: InviteRepository = {
 };
 
 const defaultUserRepository: UserRepository = {
-  findById: async (id) => {
-    const { getDb } = await import("../db/client");
-    const { eq } = await import("drizzle-orm");
-    const { users } = await import("../db/schema");
-    const db = getDb();
-    const [row] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, id))
-      .limit(1);
-    return row ?? null;
-  },
   findByEmail: async (email) => {
     const { getDb } = await import("../db/client");
     const { eq } = await import("drizzle-orm");

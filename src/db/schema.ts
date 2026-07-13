@@ -165,6 +165,7 @@ export const invites = pgTable(
     email: text("email").notNull().unique(),
     role: text("role").$type<InviteRole>().notNull().default("user"),
     status: text("status").$type<InviteStatus>().notNull().default("pending"),
+    magicLinkGeneration: integer("magic_link_generation").notNull().default(0),
     invitedByAdminId: uuid("invited_by_admin_id").references(() => users.id, {
       onDelete: "set null",
     }),

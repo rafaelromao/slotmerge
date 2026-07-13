@@ -15,6 +15,7 @@ function createMockInviteRepository() {
         status: "pending" | "accepted" | "revoked";
         invitedByAdminId: string | null;
         expiresAt: Date;
+        magicLinkGeneration?: number;
       } | null>
     >(),
     findPendingByEmail: vi.fn<
@@ -177,6 +178,8 @@ describe("magic link verify handler", () => {
       expect(response.status).toBe(400);
       const html = await response.text();
       expect(html).toContain("token_expired");
+      expect(html).toContain("Send a new link");
+      expect(html).toContain("/auth/magic-link/resend");
     });
 
     it("returns error for non-existent invite", async () => {
@@ -410,6 +413,49 @@ describe("magic link verify handler", () => {
       expect(mockInviteRepo.accept).toHaveBeenCalledWith("invite-1");
     });
 
+    it("rejects a token from an older magic-link generation", async () => {
+      const issuer = createMagicLinkTokenIssuer({
+        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        baseUrl: "https://slotmerge.example.com",
+        secret: "test-secret",
+      });
+      const token = issuer.issueMagicLinkToken({
+        inviteId: "invite-1",
+        email: "alice@example.com",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+        generation: 0,
+      });
+
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findById.mockResolvedValue({
+        id: "invite-1",
+        email: "alice@example.com",
+        role: "user",
+        status: "pending",
+        invitedByAdminId: "admin-1",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+        magicLinkGeneration: 1,
+      });
+
+      const { POST } = createMagicLinkVerifyHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/verify", {
+          method: "POST",
+          body: new URLSearchParams({ token: token.token }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const html = await response.text();
+      expect(html).toContain("invalid_token");
+      expect(mockInviteRepo.accept).not.toHaveBeenCalled();
+    });
+
     it("rolls back session if invite.accept fails", async () => {
       const issuer = createMagicLinkTokenIssuer({
         clock: () => new Date("2026-07-12T00:00:00.000Z"),
@@ -524,6 +570,119 @@ describe("magic link verify handler", () => {
       expect(mockUserRepo.findByEmail).toHaveBeenCalledWith(
         "alice@example.com",
       );
+    });
+
+    it("error page for token_expired includes resend form", async () => {
+      const issuer = createMagicLinkTokenIssuer({
+        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        baseUrl: "https://slotmerge.example.com",
+        secret: "test-secret",
+      });
+      const token = issuer.issueMagicLinkToken({
+        inviteId: "invite-1",
+        email: "alice@example.com",
+        expiresAt: new Date("2026-07-14T00:00:00.000Z"),
+      });
+
+      const { POST } = createMagicLinkVerifyHandlers({
+        clock: () => new Date("2026-07-20T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/verify", {
+          method: "POST",
+          body: new URLSearchParams({ token: token.token }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const html = await response.text();
+      expect(html).toContain("token_expired");
+      expect(html).toContain('action="/auth/magic-link/resend"');
+      expect(html).toContain("Send a new link");
+    });
+
+    it("error page for invite_already_accepted does NOT include resend form", async () => {
+      const issuer = createMagicLinkTokenIssuer({
+        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        baseUrl: "https://slotmerge.example.com",
+        secret: "test-secret",
+      });
+      const token = issuer.issueMagicLinkToken({
+        inviteId: "invite-1",
+        email: "alice@example.com",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      });
+
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findById.mockResolvedValue({
+        id: "invite-1",
+        email: "alice@example.com",
+        role: "user",
+        status: "accepted",
+        invitedByAdminId: null,
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      });
+
+      const { POST } = createMagicLinkVerifyHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/verify", {
+          method: "POST",
+          body: new URLSearchParams({ token: token.token }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const html = await response.text();
+      expect(html).toContain("invite_already_accepted");
+      expect(html).not.toContain('action="/auth/magic-link/resend"');
+    });
+
+    it("error page for invite_revoked does NOT include resend form", async () => {
+      const issuer = createMagicLinkTokenIssuer({
+        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        baseUrl: "https://slotmerge.example.com",
+        secret: "test-secret",
+      });
+      const token = issuer.issueMagicLinkToken({
+        inviteId: "invite-1",
+        email: "alice@example.com",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      });
+
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findById.mockResolvedValue({
+        id: "invite-1",
+        email: "alice@example.com",
+        role: "user",
+        status: "revoked",
+        invitedByAdminId: null,
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      });
+
+      const { POST } = createMagicLinkVerifyHandlers({
+        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/verify", {
+          method: "POST",
+          body: new URLSearchParams({ token: token.token }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const html = await response.text();
+      expect(html).toContain("invite_revoked");
+      expect(html).not.toContain('action="/auth/magic-link/resend"');
     });
   });
 

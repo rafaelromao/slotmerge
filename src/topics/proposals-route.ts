@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { topicProposals, topics } from "../db/schema";
@@ -119,9 +119,11 @@ const databaseTopicProposalRouteRepository: TopicProposalRouteRepository = {
       .select({ id: topicProposals.id })
       .from(topicProposals)
       .where(
-        eq(topicProposals.proposedByUserId, userId) &&
-          eq(topicProposals.candidateName, candidateName) &&
+        and(
+          eq(topicProposals.proposedByUserId, userId),
+          eq(topicProposals.candidateName, candidateName),
           eq(topicProposals.status, "pending"),
+        ),
       )
       .limit(1);
     return row ?? null;

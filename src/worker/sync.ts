@@ -25,6 +25,12 @@ import { loadRuntimeConfig } from "../config/runtime";
 import { getDb } from "../db/client";
 import { users } from "../db/schema";
 
+let clockOverride: (() => Date) | null = null;
+
+export function setClockForTests(clock: (() => Date) | null): void {
+  clockOverride = clock;
+}
+
 export const syncCalendarConnectionTaskName = "sync_calendar_connection";
 
 export async function enqueueSyncCalendarConnectionJob(
@@ -131,7 +137,7 @@ export async function handleSyncCalendarConnectionJob(
           },
           { connectionLookup },
         ),
-      clock: () => new Date(),
+      clock: clockOverride ?? (() => new Date()),
     });
 
     await updateLastSyncAt(connection.id, connection.provider, new Date());

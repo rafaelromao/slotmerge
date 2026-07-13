@@ -1,44 +1,43 @@
 # Task
 
-Implement GitHub issue #35: Apply global Calendar Connection buffer around imported busy intervals
+Implement GitHub issue #67: E2E test: clock injection helper advances time without sleeping
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+E2E test plan: [E2E test plan: SlotMerge MVP](https://github.com/rafaelromao/slotmerge/issues/62). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-The user's global Calendar Connection buffer is applied before and after each imported busy interval. The buffer is editable from `My availability` and applied at Search-evaluation time so changes take effect immediately.
+Single global clock injected at the app boundary covering auth, scheduling, staleness, retention, and backoff windows. Tests advance the clock to simulate expiration, staleness, and retry intervals without sleeping.
 
 ## Acceptance criteria
 
-- [ ] Buffer is applied before and after each imported busy interval.
-- [ ] Buffer changes take effect immediately for future Searches.
-- [ ] The buffer does not expand outside the Availability Window.
+- [ ] All time-sensitive behavior reads from the injected clock.
+- [ ] Tests can advance the clock without `sleep`.
+- [ ] Per-test reset returns the clock to a known starting state.
 
 ## Blocked by
 
-- [Define weekly Availability Windows in profile timezone](https://github.com/rafaelromao/slotmerge/issues/31)
-- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/36)
+None — can start immediately.
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/35-apply-global-calendar-connection-buffer-around-imported-busy-intervals`
-- Source branch: `sandman/35-apply-global-calendar-connection-buffer-around-imported-busy-intervals`
+- Current branch: `sandman/67-e2e-test-clock-injection-helper-advances-time-without-sleeping`
+- Source branch: `sandman/67-e2e-test-clock-injection-helper-advances-time-without-sleeping`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/35-apply-global-calendar-connection-buffer-around-imported-busy-intervals` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/67-e2e-test-clock-injection-helper-advances-time-without-sleeping` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
-- [ ] Create branch
-- [ ] Plan (sandman-plan)
-- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [x] Create branch
+- [x] Plan (sandman-plan)
+- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -46,39 +45,48 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Next Step
+
+PR-Review (sandman-pr-review)
+
 ## Plan
 
 ### Behaviors to test
 
-1. **Zero buffer is no-op**: When `bufferMinutes === 0`, `expandBusyIntervalsWithBuffer` returns intervals unchanged.
-2. **Buffer expands interval in both directions**: Given an interval within availability windows and bufferMinutes=15, the returned interval has `startAt - 15 min` and `endAt + 15 min`.
-3. **Buffer is clipped to window start**: If the pre-buffer start would be before the intersecting window's start, clip to the window's start.
-4. **Buffer is clipped to window end**: If the post-buffer end would be after the intersecting window's end, clip to the window's end.
-5. **Interval outside all windows is filtered out**: An interval that falls entirely outside all availability windows returns no expanded intervals for that day.
-6. **Partial window overlap clips only the overflowing side**: An interval partially within a window clips only the side that overflows, keeping the other expanded side.
-7. **Multiple intervals on same day each get expanded independently**: No merging of adjacent expanded intervals.
+1. **TestClock helper** — `buildTestClock(initialTime?)` returns a mutable clock with `now()`, `advance(ms)`, `reset(date?)`. `now()` returns the current virtual time without wall-clock reads.
+2. **Per-test reset** — after `clock.reset(date)`, subsequent `now()` calls return the reset time.
+3. **Per-test isolation** — `advance()` on one clock instance does not affect another.
+4. **Worker clock injection (email)** — `handleEmailDeliveryJob` uses injected clock via `setClockForTests`; after `clock.advance()`, the job uses the advanced `now`.
+5. **Worker clock injection (sync)** — `handleSyncCalendarConnectionJob` uses injected clock via `setClockForTests`; after `clock.advance()`, the job uses the advanced `now` for `syncCalendarConnection`. Note: `timeMin`/`timeMax` rolling window uses wall-clock `new Date()` and is out of scope (defines the search time range, not time-sensitive behavior per the AC).
+6. **Worker clock injection (poll)** — `handlePollCalendarConnectionsJob` accepts a clock option `{ clock?: () => Date }`; after `clock.advance()`, jitter calculation uses the advanced `now`.
 
 ### Testable interfaces
 
-- `src/search/imported-busy-intervals.ts`: add `expandBusyIntervalsWithBuffer(intervals, bufferMinutes, availabilityWindows): BusyIntervalWithBuffer[]` as a pure exported function.
-- New type `BusyIntervalWithBuffer = { originalId: string; startAt: Date; endAt: Date; status: BusyIntervalStatus }`.
-- `ImportedBusyIntervalLookup` interface remains unchanged — the lookup is a data retrieval seam; buffer application is the call site's responsibility.
+- `tests/test-clock.ts` — `buildTestClock(startTime?: Date)` factory returning `{ now, advance, reset }`
+- `src/worker/email.ts` — add `setClockForTests(clock: (() => Date) | null)` seam (null restores `() => new Date()`, matching existing `setXxxForTests(null)` pattern)
+- `src/worker/sync.ts` — add `setClockForTests(clock: (() => Date) | null)` seam
+- `src/worker/poll.ts` — add `{ clock?: () => Date }` option to `handlePollCalendarConnectionsJob`
+
+### Execution order for sandman-tdd
+
+1. `buildTestClock` + tests for now/advance/reset/isolation (vertical slice 1)
+2. `setClockForTests` seam in `email.ts` + test that clock flows into `handleEmailDeliveryJob` (vertical slice 2)
+3. `setClockForTests` seam in `sync.ts` + test that clock flows into `handleSyncCalendarConnectionJob` (vertical slice 3)
+4. `clock` option in `poll.ts` + test that clock flows into jitter calculation (vertical slice 4)
 
 ### Assumptions / risks
 
-- The buffer applies only to busy intervals that have at least partial overlap with an availability window. Intervals entirely outside all windows are excluded.
-- Adjacent busy intervals with overlapping expanded buffers are kept separate (no merging) — the subtraction logic downstream handles overlaps.
-- `availabilityWindows` passed in are already expanded to UTC ranges for the search window (from `expandWeeklyWindowToUtcRange`).
-
-## Next Step
-
-The registered next step is the first unchecked item in the Execution Checklist.
+- Graphile Worker `run()` in `src/worker/run.ts` is the production entry point; E2E tests call worker handler functions directly with injected clock.
+- `src/auth/session.ts` uses `new Date()` in SQL WHERE clauses — out of scope (session expiration checked by application layer).
+- Auth clock injection (`magic-link-verify.ts`) already exists — no change needed.
+- `src/search/search-input.ts` already uses `Clock = { now(): Date }` interface — no change needed.
+- `sync.ts:137` (`updateLastSyncAt`) and `sync.ts:107-111` (`timeMin`/`timeMax` rolling window) use wall-clock `new Date()` — out of scope (define search time range and last-sync marker, not time-sensitive behavior per the AC).
 
 ## Already Resolved
 
 If the issue is already implemented on `main`, after fetching and checking the current `origin/main` HEAD against the issue acceptance criteria, update `.sandman/task.md` so it contains the exact line `## Status: already resolved`.
 
-Do not use issue closure, a matching local branch, or unmerged worktree changes as proof that the issue is already resolved. If any acceptance criterion is missing or you are not certain, continue with Plan.
+Do not use issue closure, a matching local branch, or unmerged worktree changes as proof that the issue is already resolved. If any acceptance criterion is missing or you are not certain, continue to Plan.
 
 Do not paraphrase this line. Do not use `already implemented`, `no action required`, or any other wording for this marker.
 
@@ -109,7 +117,7 @@ This task must be executed through the Sandman skill workflow, not by ad-hoc imp
 
 ## AFK Rule — Absolute
 
-This is a fully automated Away From Keyboard workflow. **The user will never be available to answer questions, give approval, or make decisions during execution.**
+This is a fully automated Away From Keyboard workflow. **The user will never be available to answer questions, give approval, or decisions during execution.**
 
 ### Hard Ban
 

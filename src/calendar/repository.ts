@@ -63,7 +63,9 @@ export type ActiveCalendarConnection =
   | { provider: "google"; record: GoogleCalendarConnectionRecord }
   | { provider: "microsoft"; record: MicrosoftCalendarConnectionRecord };
 
-export async function listActiveConnections(): Promise<ActiveCalendarConnection[]> {
+export async function listActiveConnections(): Promise<
+  ActiveCalendarConnection[]
+> {
   const rows = await getDb()
     .select(calendarConnectionSelectColumns)
     .from(calendarConnections)
@@ -71,9 +73,15 @@ export async function listActiveConnections(): Promise<ActiveCalendarConnection[
 
   return rows.map((row) => {
     if (row.provider === "google") {
-      return { provider: "google" as const, record: row as GoogleCalendarConnectionRecord };
+      return {
+        provider: "google" as const,
+        record: row as GoogleCalendarConnectionRecord,
+      };
     }
-    return { provider: "microsoft" as const, record: row as MicrosoftCalendarConnectionRecord };
+    return {
+      provider: "microsoft" as const,
+      record: row as MicrosoftCalendarConnectionRecord,
+    };
   });
 }
 

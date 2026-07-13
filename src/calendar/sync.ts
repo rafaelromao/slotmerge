@@ -14,10 +14,7 @@ export type SyncCalendarConnectionParams = {
   userId: string;
   fetchImpl: typeof fetch;
   busyIntervalRepository: ImportedBusyIntervalRepository;
-  recordFailure: (input: {
-    code: string;
-    message: string;
-  }) => Promise<unknown>;
+  recordFailure: (input: { code: string; message: string }) => Promise<unknown>;
   clock: () => Date;
 };
 

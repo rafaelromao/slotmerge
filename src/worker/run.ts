@@ -8,7 +8,10 @@ import {
   handleSyncCalendarConnectionJob,
   syncCalendarConnectionTaskName,
 } from "./sync";
-import { handlePollCalendarConnectionsJob, pollCalendarConnectionsTaskName } from "./poll";
+import {
+  handlePollCalendarConnectionsJob,
+  pollCalendarConnectionsTaskName,
+} from "./poll";
 
 const config = loadRuntimeConfig();
 

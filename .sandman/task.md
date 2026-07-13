@@ -104,7 +104,7 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ## Next Step
 
-Execute `sandman-tdd` from the plan above.
+PR-Review (sandman-pr-review) — PR #170 at https://github.com/rafaelromao/slotmerge/pull/170
 
 ## Already Resolved
 

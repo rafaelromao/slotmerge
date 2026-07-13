@@ -21,7 +21,8 @@ export async function handlePollCalendarConnectionsJob(): Promise<void> {
       key: tokenEncryptionKey,
     });
 
-    const busyIntervalRepository = createPostgresImportedBusyIntervalRepository();
+    const busyIntervalRepository =
+      createPostgresImportedBusyIntervalRepository();
 
     const connectionLookup: CalendarConnectionUserLookup = async (connId) => {
       const conn = await listActiveConnections().then((cs) =>

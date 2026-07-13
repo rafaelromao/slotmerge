@@ -1,0 +1,124 @@
+import { quickAddJob } from "graphile-worker";
+
+import { createPostgresImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals.repository";
+import { decryptCalendarToken } from "../calendar/token-encryption";
+import {
+  getGoogleCalendarConnectionRepository,
+  getMicrosoftCalendarConnectionRepository,
+} from "../calendar/repository";
+import { syncCalendarConnection } from "../calendar/sync";
+import {
+  recordCalendarConnectionSyncFailure,
+  type CalendarConnectionUserLookup,
+} from "../calendar/sync-failure-recorder";
+import { loadRuntimeConfig } from "../config/runtime";
+
+export const syncCalendarConnectionTaskName = "sync_calendar_connection";
+
+export async function enqueueSyncCalendarConnectionJob(
+  connectionId: string,
+  databaseUrl: string,
+): Promise<void> {
+  await quickAddJob(
+    { connectionString: databaseUrl },
+    syncCalendarConnectionTaskName,
+    { connectionId },
+  );
+}
+
+export async function handleSyncCalendarConnectionJob(
+  payload: unknown,
+): Promise<void> {
+  const job = parseSyncCalendarConnectionPayload(payload);
+
+  const found = await findCalendarConnectionById(job.connectionId);
+  if (!found) {
+    return;
+  }
+
+  const { record: connection } = found;
+
+  if (connection.status !== "connected") {
+    return;
+  }
+
+  const config = loadRuntimeConfig();
+  const tokenEncryptionKey = config.calendarTokenEncryptionKey;
+
+  const accessToken = decryptCalendarToken({
+    ciphertext: connection.accessTokenEncrypted ?? "",
+    key: tokenEncryptionKey,
+  });
+
+  const busyIntervalRepository = createPostgresImportedBusyIntervalRepository();
+
+  const connectionLookup: CalendarConnectionUserLookup = async (connId) => {
+    const conn = await findCalendarConnectionById(connId);
+    if (!conn) return null;
+    return {
+      id: conn.record.id,
+      userId: conn.record.userId,
+      provider: conn.provider,
+      user: { email: "", displayName: null },
+    };
+  };
+
+  await syncCalendarConnection({
+    connectionId: connection.id,
+    provider: connection.provider,
+    accessToken,
+    contributingCalendarIds: connection.contributingCalendarIds,
+    userId: connection.userId,
+    fetchImpl: fetch,
+    busyIntervalRepository,
+    recordFailure: (input) =>
+      recordCalendarConnectionSyncFailure(
+        {
+          connectionId: connection.id,
+          provider: connection.provider,
+          code: input.code,
+          message: input.message,
+        },
+        { connectionLookup },
+      ),
+    clock: () => new Date(),
+  });
+}
+
+type SyncCalendarConnectionPayload = {
+  connectionId: string;
+};
+
+function parseSyncCalendarConnectionPayload(
+  payload: unknown,
+): SyncCalendarConnectionPayload {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "connectionId" in payload &&
+    typeof (payload as Record<string, unknown>).connectionId === "string"
+  ) {
+    return {
+      connectionId: (payload as SyncCalendarConnectionPayload).connectionId,
+    };
+  }
+  throw new Error(
+    "sync_calendar_connection job requires a connectionId payload",
+  );
+}
+
+async function findCalendarConnectionById(id: string) {
+  const googleRepo = getGoogleCalendarConnectionRepository();
+  const googleRecord = await googleRepo.findById(id);
+  if (googleRecord) {
+    return { provider: "google" as const, record: googleRecord };
+  }
+
+  const microsoftRepo = getMicrosoftCalendarConnectionRepository();
+  const microsoftRecord = await microsoftRepo.findById(id);
+  if (microsoftRecord) {
+    return { provider: "microsoft" as const, record: microsoftRecord };
+  }
+
+  return null;
+}

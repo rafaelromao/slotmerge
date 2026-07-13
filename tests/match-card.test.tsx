@@ -87,6 +87,28 @@ describe("MatchCard", () => {
     expect(json).toContain("Type Theory");
   });
 
+  it("renders full topicProfile (not just matched topics)", () => {
+    const matchWithDifferentProfile: SlotMatchDetail = {
+      userId: "user-4",
+      displayName: "Donald Knuth",
+      avatarUrl: null,
+      shortBio: "Algorithms pioneer",
+      topics: [{ id: "topic-a", name: "Algorithms" }],
+      topicProfile: [
+        { id: "topic-a", name: "Algorithms" },
+        { id: "topic-b", name: "Literate Programming" },
+        { id: "topic-c", name: "Typesetting" },
+      ],
+      availabilityIndicator: "available",
+      calendarFreshness: "fresh",
+    };
+    const card = MatchCard({ match: matchWithDifferentProfile });
+    const json = JSON.stringify(card);
+    expect(json).toContain("Algorithms");
+    expect(json).toContain("Literate Programming");
+    expect(json).toContain("Typesetting");
+  });
+
   it("renders availability text for available indicator", () => {
     const card = MatchCard({ match: availableMatch });
     const json = JSON.stringify(card);

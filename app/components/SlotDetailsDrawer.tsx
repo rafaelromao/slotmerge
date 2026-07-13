@@ -48,13 +48,11 @@ function formatSlotTime(
   return `${startFormatted} - ${endTimeFormatter.format(end)} ${startFormatted.split(" ").pop()}`;
 }
 
-function getMatchedTopics(slots: Slot[]): string {
+function getSlotMatchedTopics(matches: Slot["matches"]): string {
   const topicNames = new Set<string>();
-  for (const slot of slots) {
-    for (const match of slot.matches) {
-      for (const topic of match.topics) {
-        topicNames.add(topic.name);
-      }
+  for (const match of matches) {
+    for (const topic of match.topics) {
+      topicNames.add(topic.name);
     }
   }
   return Array.from(topicNames).join(", ");
@@ -75,7 +73,7 @@ export function SlotDetailsDrawer({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  const matchedTopics = getMatchedTopics(snapshot.slots);
+  const matchedTopics = getSlotMatchedTopics(slot.matches);
   const slotTime = formatSlotTime(
     slot.startUtc,
     snapshot.durationMinutes,

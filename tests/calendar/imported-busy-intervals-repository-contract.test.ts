@@ -11,7 +11,14 @@ import type {
   ImportedBusyIntervalRecord,
 } from "../../src/calendar/imported-busy-intervals";
 
-const fixedNow = new Date("2026-07-12T12:00:00.000Z");
+// Anchor `fixedNow` close to the wall clock at file load time so the
+// `isWithinRollingWindow(startAt)` filter in the in-memory repo
+// (src/calendar/imported-busy-intervals.ts), which compares `startAt`
+// against real `Date.now()`, accepts intervals dated `+1/+2/+3` days from
+// `fixedNow`. Pinning to a literal ISO timestamp drifts out of the rolling
+// 90-day window as wall-clock time advances, turning otherwise-correct
+// behavior assertions into flaky failures.
+const fixedNow = new Date();
 
 function makeInterval(params: {
   id: string;

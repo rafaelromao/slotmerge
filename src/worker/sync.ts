@@ -137,6 +137,7 @@ export async function handleSyncCalendarConnectionJob(
     await updateLastSyncAt(connection.id, connection.provider, new Date());
   } catch (error) {
     if (error instanceof RateLimitError || error instanceof ServerError) {
+      // NOTE: Uses constant + jitter backoff (not exponential) per MVP spec trade-off.
       const baseDelayMs =
         error.retryAfterMs ??
         getExponentialBackoffBase(error instanceof RateLimitError);

@@ -24,6 +24,7 @@ describe("syncCalendarConnection", () => {
       busyIntervalRepository: {
         upsertBatch,
         deleteByConnectionId: vi.fn(),
+        deleteByConnectionIdAndCalendarId: vi.fn(),
         findByUserIdAndDateRange: vi.fn(),
         deleteExpiredBefore: vi.fn(),
       },
@@ -64,6 +65,7 @@ describe("syncCalendarConnection", () => {
       busyIntervalRepository: {
         upsertBatch,
         deleteByConnectionId: vi.fn(),
+        deleteByConnectionIdAndCalendarId: vi.fn(),
         findByUserIdAndDateRange: vi.fn(),
         deleteExpiredBefore: vi.fn(),
       },
@@ -120,6 +122,7 @@ describe("syncCalendarConnection", () => {
       busyIntervalRepository: {
         upsertBatch,
         deleteByConnectionId: vi.fn(),
+        deleteByConnectionIdAndCalendarId: vi.fn(),
         findByUserIdAndDateRange: vi.fn(),
         deleteExpiredBefore: vi.fn(),
       },
@@ -155,6 +158,7 @@ describe("syncCalendarConnection", () => {
       busyIntervalRepository: {
         upsertBatch,
         deleteByConnectionId: vi.fn(),
+        deleteByConnectionIdAndCalendarId: vi.fn(),
         findByUserIdAndDateRange: vi.fn(),
         deleteExpiredBefore: vi.fn(),
       },
@@ -193,6 +197,7 @@ describe("syncCalendarConnection", () => {
         busyIntervalRepository: {
           upsertBatch,
           deleteByConnectionId: vi.fn(),
+          deleteByConnectionIdAndCalendarId: vi.fn(),
           findByUserIdAndDateRange: vi.fn(),
           deleteExpiredBefore: vi.fn(),
         },
@@ -226,6 +231,7 @@ describe("syncCalendarConnection", () => {
         busyIntervalRepository: {
           upsertBatch,
           deleteByConnectionId: vi.fn(),
+          deleteByConnectionIdAndCalendarId: vi.fn(),
           findByUserIdAndDateRange: vi.fn(),
           deleteExpiredBefore: vi.fn(),
         },
@@ -258,6 +264,7 @@ describe("syncCalendarConnection", () => {
         busyIntervalRepository: {
           upsertBatch,
           deleteByConnectionId: vi.fn(),
+          deleteByConnectionIdAndCalendarId: vi.fn(),
           findByUserIdAndDateRange: vi.fn(),
           deleteExpiredBefore: vi.fn(),
         },
@@ -287,6 +294,7 @@ describe("syncCalendarConnection", () => {
       busyIntervalRepository: {
         upsertBatch,
         deleteByConnectionId: vi.fn(),
+        deleteByConnectionIdAndCalendarId: vi.fn(),
         findByUserIdAndDateRange: vi.fn(),
         deleteExpiredBefore: vi.fn(),
       },

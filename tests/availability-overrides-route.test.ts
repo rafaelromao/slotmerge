@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { GET, POST } from "../app/me/availability-overrides/route";
+import { DELETE } from "../app/me/availability-overrides/[id]/route";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,
@@ -470,5 +471,113 @@ describe("POST /me/availability-overrides", () => {
     );
 
     expect(response.status).toBe(400);
+  });
+});
+
+describe("DELETE /me/availability-overrides/:id", () => {
+  afterEach(() => {
+    clearAvailabilityOverrideRepository();
+  });
+
+  it("returns 401 when no session", async () => {
+    const response = await DELETE(
+      new Request("http://localhost/me/availability-overrides/override-1", {
+        method: "DELETE",
+      }),
+      { params: Promise.resolve({ id: "override-1" }) },
+    );
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 403 when CSRF token is wrong", async () => {
+    setSessionRecord();
+    setAvailabilityOverrideRepositoryForTests(
+      new InMemoryAvailabilityOverrideRepository(),
+    );
+
+    const cookie = await authedSession();
+    const response = await DELETE(
+      new Request("http://localhost/me/availability-overrides/override-1", {
+        method: "DELETE",
+        headers: {
+          ...authedHeaders(cookie, "wrong-token"),
+        },
+      }),
+      { params: Promise.resolve({ id: "override-1" }) },
+    );
+
+    expect(response.status).toBe(403);
+  });
+
+  it("returns 404 when override not found", async () => {
+    setSessionRecord();
+    setAvailabilityOverrideRepositoryForTests(
+      new InMemoryAvailabilityOverrideRepository(),
+    );
+
+    const cookie = await authedSession();
+    const response = await DELETE(
+      new Request("http://localhost/me/availability-overrides/nonexistent", {
+        method: "DELETE",
+        headers: authedHeaders(cookie),
+      }),
+      { params: Promise.resolve({ id: "nonexistent" }) },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "availability_override_not_found",
+    });
+  });
+
+  it("returns 404 when override belongs to another user", async () => {
+    setSessionRecord({ userId: "user-1" });
+    const repo = new InMemoryAvailabilityOverrideRepository();
+    setAvailabilityOverrideRepositoryForTests(repo);
+
+    await repo.add(
+      "user-2",
+      { date: "2026-07-20", startTime: "09:00", endTime: "10:00", type: "add" },
+      "America/New_York",
+    );
+
+    setSessionRecord({ userId: "user-1" });
+    const cookie = await authedSession({ userId: "user-1" });
+    const response = await DELETE(
+      new Request("http://localhost/me/availability-overrides/override-1", {
+        method: "DELETE",
+        headers: authedHeaders(cookie, "csrf-token-1"),
+      }),
+      { params: Promise.resolve({ id: "override-1" }) },
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it("returns 204 and removes the override", async () => {
+    setSessionRecord();
+    const repo = new InMemoryAvailabilityOverrideRepository();
+    setAvailabilityOverrideRepositoryForTests(repo);
+
+    const created = await repo.add(
+      "user-1",
+      { date: "2026-07-20", startTime: "09:00", endTime: "10:00", type: "add" },
+      "America/New_York",
+    );
+
+    const cookie = await authedSession();
+    const response = await DELETE(
+      new Request(`http://localhost/me/availability-overrides/${created.id}`, {
+        method: "DELETE",
+        headers: authedHeaders(cookie),
+      }),
+      { params: Promise.resolve({ id: created.id }) },
+    );
+
+    expect(response.status).toBe(204);
+
+    const overrides = await repo.listByUserId("user-1");
+    expect(overrides).toHaveLength(0);
   });
 });

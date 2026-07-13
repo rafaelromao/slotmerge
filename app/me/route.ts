@@ -24,6 +24,7 @@ type MeProfile = NonNullable<Awaited<ReturnType<typeof getProfileByUserId>>>;
 type Topic = { id: string; name: string };
 type TopicProposal = { id: string; name: string; status: TopicProposalStatus };
 type AvailabilityWindow = { id: string; dayOfWeek: number };
+type AvailabilityOverride = { id: string; date: string };
 type CalendarConnection = { id: string; provider: string };
 
 type SetupItem = {
@@ -43,6 +44,7 @@ function computeSetupCompleteness(
   topics: Topic[],
   topicProposals: TopicProposal[],
   availabilityWindows: AvailabilityWindow[],
+  availabilityOverrides: AvailabilityOverride[],
   calendarConnections: CalendarConnection[],
   discoverabilityConsentGranted: boolean,
 ): SetupState {
@@ -70,7 +72,9 @@ function computeSetupCompleteness(
       label: "At least one Availability source or manual Availability Window",
       required: true,
       complete:
-        availabilityWindows.length > 0 || calendarConnections.length > 0,
+        availabilityWindows.length > 0 ||
+        availabilityOverrides.length > 0 ||
+        calendarConnections.length > 0,
     },
     {
       key: "hasCalendarConnection",
@@ -94,6 +98,7 @@ type PerUserLookupSeam = {
   topicsByUserId: Map<string, Topic[]>;
   topicProposalsByUserId: Map<string, TopicProposal[]>;
   availabilityWindowsByUserId: Map<string, AvailabilityWindow[]>;
+  availabilityOverridesByUserId: Map<string, AvailabilityOverride[]>;
   calendarConnectionsByUserId: Map<string, CalendarConnection[]>;
 };
 
@@ -101,6 +106,7 @@ const perUserLookupState: PerUserLookupSeam = {
   topicsByUserId: new Map(),
   topicProposalsByUserId: new Map(),
   availabilityWindowsByUserId: new Map(),
+  availabilityOverridesByUserId: new Map(),
   calendarConnectionsByUserId: new Map(),
 };
 
@@ -117,6 +123,10 @@ export function setPerUserLookupStateForTests(
     perUserLookupState.availabilityWindowsByUserId =
       state.availabilityWindowsByUserId;
   }
+  if (state.availabilityOverridesByUserId) {
+    perUserLookupState.availabilityOverridesByUserId =
+      state.availabilityOverridesByUserId;
+  }
   if (state.calendarConnectionsByUserId) {
     perUserLookupState.calendarConnectionsByUserId =
       state.calendarConnectionsByUserId;
@@ -127,6 +137,7 @@ export function clearPerUserLookupStateForTests() {
   perUserLookupState.topicsByUserId.clear();
   perUserLookupState.topicProposalsByUserId.clear();
   perUserLookupState.availabilityWindowsByUserId.clear();
+  perUserLookupState.availabilityOverridesByUserId.clear();
   perUserLookupState.calendarConnectionsByUserId.clear();
 }
 
@@ -134,6 +145,7 @@ function deletePerUserData(userId: string) {
   perUserLookupState.topicsByUserId.delete(userId);
   perUserLookupState.topicProposalsByUserId.delete(userId);
   perUserLookupState.availabilityWindowsByUserId.delete(userId);
+  perUserLookupState.availabilityOverridesByUserId.delete(userId);
   perUserLookupState.calendarConnectionsByUserId.delete(userId);
 }
 
@@ -155,6 +167,14 @@ function getAvailabilityWindowsByUserId(
   );
 }
 
+function getAvailabilityOverridesByUserId(
+  userId: string,
+): Promise<AvailabilityOverride[]> {
+  return Promise.resolve(
+    perUserLookupState.availabilityOverridesByUserId.get(userId) ?? [],
+  );
+}
+
 function getCalendarConnectionsByUserId(
   userId: string,
 ): Promise<CalendarConnection[]> {
@@ -171,6 +191,12 @@ export function listAvailabilityWindowsForUserInTests(
   userId: string,
 ): Promise<AvailabilityWindow[]> {
   return getAvailabilityWindowsByUserId(userId);
+}
+
+export function listAvailabilityOverridesForUserInTests(
+  userId: string,
+): Promise<AvailabilityOverride[]> {
+  return getAvailabilityOverridesByUserId(userId);
 }
 
 export function listCalendarConnectionsForUserInTests(
@@ -204,11 +230,12 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
-  const [topics, topicProposals, availabilityWindows, calendarConnections] =
+  const [topics, topicProposals, availabilityWindows, availabilityOverrides, calendarConnections] =
     await Promise.all([
       getTopicsByUserId(session.user.id),
       getTopicProposalsByUserId(session.user.id),
       getAvailabilityWindowsByUserId(session.user.id),
+      getAvailabilityOverridesByUserId(session.user.id),
       getCalendarConnectionsByUserId(session.user.id),
     ]);
 
@@ -218,6 +245,7 @@ export async function GET(request: Request): Promise<Response> {
     topics,
     topicProposals,
     availabilityWindows,
+    availabilityOverrides,
     calendarConnections,
   );
 }
@@ -256,11 +284,12 @@ export async function PATCH(request: Request): Promise<Response> {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
   }
 
-  const [topics, topicProposals, availabilityWindows, calendarConnections] =
+  const [topics, topicProposals, availabilityWindows, availabilityOverrides, calendarConnections] =
     await Promise.all([
       getTopicsByUserId(session.user.id),
       getTopicProposalsByUserId(session.user.id),
       getAvailabilityWindowsByUserId(session.user.id),
+      getAvailabilityOverridesByUserId(session.user.id),
       getCalendarConnectionsByUserId(session.user.id),
     ]);
 
@@ -270,6 +299,7 @@ export async function PATCH(request: Request): Promise<Response> {
     topics,
     topicProposals,
     availabilityWindows,
+    availabilityOverrides,
     calendarConnections,
   );
 }
@@ -280,6 +310,7 @@ async function buildMeResponse(
   topics: Topic[],
   topicProposals: TopicProposal[],
   availabilityWindows: AvailabilityWindow[],
+  availabilityOverrides: AvailabilityOverride[],
   calendarConnections: CalendarConnection[],
 ): Promise<Response> {
   const consent = await getDiscoverabilityConsent(profile.id);
@@ -291,6 +322,7 @@ async function buildMeResponse(
     topics,
     topicProposals,
     availabilityWindows,
+    availabilityOverrides,
     calendarConnections,
     consented,
   );
@@ -299,7 +331,9 @@ async function buildMeResponse(
     hasDisplayName: Boolean(profile.displayName?.trim()),
     hasTopicOrProposal: topics.length > 0 || topicProposals.length > 0,
     hasAvailabilitySource:
-      availabilityWindows.length > 0 || calendarConnections.length > 0,
+      availabilityWindows.length > 0 ||
+      availabilityOverrides.length > 0 ||
+      calendarConnections.length > 0,
     isActive: profile.status === "active",
   };
 
@@ -316,6 +350,7 @@ async function buildMeResponse(
     topics,
     topicProposals,
     availabilityWindows,
+    availabilityOverrides,
     calendarConnections,
     searchEligibility: { eligible },
   });

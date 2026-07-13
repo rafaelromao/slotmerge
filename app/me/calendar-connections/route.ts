@@ -1,6 +1,9 @@
 import { getSessionFromRequest } from "../../../src/auth/session";
 import { presentGoogleCalendarConnection } from "../../../src/calendar/google-calendar-connections";
 import { presentMicrosoftCalendarConnection } from "../../../src/calendar/microsoft-calendar-connections";
+import { buildCalendarConnectionHealthFields } from "../../../src/calendar/calendar-connection-health";
+import type { GoogleCalendarConnectionView } from "../../../src/calendar/google-calendar-connections";
+import type { MicrosoftCalendarConnectionView } from "../../../src/calendar/microsoft-calendar-connections";
 import {
   getGoogleCalendarConnectionRepository,
   getMicrosoftCalendarConnectionRepository,
@@ -20,10 +23,22 @@ export async function GET(request: Request): Promise<Response> {
       session.user.id,
     );
 
-  return Response.json({
-    connections: [
-      ...googleConnections.map(presentGoogleCalendarConnection),
-      ...microsoftConnections.map(presentMicrosoftCalendarConnection),
-    ],
-  });
+  const now = new Date();
+
+  const connections: Array<
+    GoogleCalendarConnectionView | MicrosoftCalendarConnectionView
+  > = [
+    ...googleConnections.map((conn) => {
+      const view = presentGoogleCalendarConnection(conn);
+      const health = buildCalendarConnectionHealthFields(conn, now);
+      return { ...view, ...health };
+    }),
+    ...microsoftConnections.map((conn) => {
+      const view = presentMicrosoftCalendarConnection(conn);
+      const health = buildCalendarConnectionHealthFields(conn, now);
+      return { ...view, ...health };
+    }),
+  ];
+
+  return Response.json({ connections });
 }

@@ -257,6 +257,7 @@ describe("calendar connection management routes (Google + Microsoft)", () => {
         accessTokenExpiresAt: null,
         lastErrorCode: null,
         lastErrorMessage: null,
+        lastSyncAt: null,
         contributingCalendarIds: [],
       },
     });

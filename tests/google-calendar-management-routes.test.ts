@@ -100,6 +100,9 @@ describe("calendar connection management routes", () => {
           accessTokenExpiresAt: "2026-01-01T00:00:00.000Z",
           lastErrorCode: null,
           lastErrorMessage: null,
+          lastSyncAt: null,
+          healthStatus: "connected",
+          stale: true,
           contributingCalendarIds: [],
         },
       ],
@@ -210,6 +213,7 @@ describe("calendar connection management routes", () => {
         accessTokenExpiresAt: null,
         lastErrorCode: null,
         lastErrorMessage: null,
+        lastSyncAt: null,
         contributingCalendarIds: [],
       },
     });

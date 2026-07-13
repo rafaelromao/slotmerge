@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #51: Support local development without public HTTPS webhooks
+Implement GitHub issue #50: Show Calendar Connection health, last sync time, and stale markers
 
 ## Issue Context
 
@@ -10,14 +10,13 @@ Sub-PRD: [Sub-PRD: Calendar Connections](https://github.com/rafaelromao/slotmerg
 
 ## What to build
 
-In local development, calendar sync runs without provider webhooks: the user can manually refresh a Calendar Connection, and a polling fallback updates imported busy intervals. Production uses webhooks plus reconciliation.
+Calendar Connection status (connected, sync delayed, needs reconnect, disconnected, unsupported) is visible on `My availability` with last sync time and stale markers. Stale markers also surface in matching Search Result Slot details.
 
 ## Acceptance criteria
 
-- [ ] Local development does not require public HTTPS webhook URLs.
-- [ ] Manual refresh updates imported busy intervals.
-- [ ] Polling fallback operates at a development-friendly interval.
-- [ ] The same persistence and matching behaviour applies in local development.
+- [ ] `My availability` shows current status, last sync time, and stale state.
+- [ ] Stale markers appear in matching Search Result Slot details.
+- [ ] Reconnect prompt appears when token is revoked or refresh fails.
 
 ## Blocked by
 
@@ -27,12 +26,12 @@ In local development, calendar sync runs without provider webhooks: the user can
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/51-support-local-development-without-public-https-webhooks`
-- Source branch: `sandman/51-support-local-development-without-public-https-webhooks`
+- Current branch: `sandman/50-show-calendar-connection-health-last-sync-time-and-stale-markers`
+- Source branch: `sandman/50-show-calendar-connection-health-last-sync-time-and-stale-markers`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/51-support-local-development-without-public-https-webhooks` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/50-show-calendar-connection-health-last-sync-time-and-stale-markers` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -46,65 +45,49 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
+## Next Step
+
+Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+
 ## Plan
 
 ### Behaviors to test
 
-1. `POST /me/calendar-connections/{id}/refresh` (manual refresh) authenticates the user, validates the connection is theirs, enqueues a `sync_calendar_connection` Graphile Worker job, and returns `202 Accepted`.
-2. `sync_calendar_connection` Graphile Worker task syncs one calendar connection's busy intervals to `importedBusyIntervals` via the injected repository — mock provider in local mode (`calendarProviderMode === "mock"`), OAuth provider in production (`calendarProviderMode === "oauth"`).
-3. `syncCalendarConnection` early-returns (no-op) when `contributingCalendarIds.length === 0` to avoid silently deleting all intervals.
-4. `poll_calendar_connections` Graphile Worker scheduled task runs at a dev-friendly cron interval (`*/5 * * * *` in local, `*/15 * * * *` in staging/production) and enqueues `sync_calendar_connection` for every `status === "connected"` calendar connection.
-5. `POST /webhooks/google/calendar` and `POST /webhooks/microsoft/calendar` handlers verify incoming notifications in production (`requirePublicWebhookHttps === true`) and are no-ops in local (`requirePublicWebhookHttps === false`).
-6. Both the in-memory and Postgres `importedBusyIntervalRepository` implementations exhibit identical replace-all semantics for `upsertBatch` per connectionId (AC4).
+1. **`CalendarConnectionStatus` type is extended in schema** — `CalendarConnectionStatus` in `src/db/schema.ts` includes `pending | connected | disconnected | sync_delayed | needs_reconnect | unsupported`. Provider-specific types (`GoogleCalendarConnectionStatus`, `MicrosoftCalendarConnectionStatus`) remain unchanged.
 
-### Testable interfaces / seams
+2. **`lastSyncAt` column exists on `calendar_connections`** — Migration adds the column; repository layer includes it in selects and updates; `updateLastSyncAt(connectionId)` repository method exists.
 
-- `syncCalendarConnection(params)` — `params: { connectionId, provider, accessToken, contributingCalendarIds, userId, fetchImpl, busyIntervalRepository, recordFailure }`. Returns `ImportedBusyIntervalRecord[]`. Early-returns when `contributingCalendarIds.length === 0`.
-- Mock busy interval generator (seeded by `connectionId` for deterministic test output) for `calendarProviderMode === "mock"`.
-- `enqueueSyncCalendarConnectionJob(connectionId)` — uses `quickAddJob({ connectionString }, "sync_calendar_connection", { connectionId })`, matching existing `email.ts` pattern.
-- `createPollCalendarConnectionsTask(cronExpression)` — returns a Graphile Worker task that lists all `status === "connected"` connections and enqueues a sync job per connection.
-- `listActiveConnections()` — combined function in `src/calendar/repository.ts` that calls both `listByUserId` on Google and Microsoft repos for all known users, filtering to `status === "connected"`.
-- `POST /me/calendar-connections/{id}/refresh/route.ts` — auth + CSRF gated.
-- `app/webhooks/google/calendar/route.ts` — Google channel ID verification + sync trigger in production.
-- `app/webhooks/microsoft/calendar/route.ts` — Microsoft validation token handshake + sync trigger in production.
-- `recordCalendarConnectionSyncFailure` from `sync-failure-recorder.ts` is called on sync errors.
+3. **Calendar Connection health status is computed correctly** — `computeCalendarConnectionHealthStatus(connection, now)` returns the appropriate status:
+   - `unsupported`: provider is microsoft personal account (detected at OAuth callback)
+   - `disconnected`: connection status is `disconnected`
+   - `needs_reconnect`: `lastErrorCode` is `invalid_grant` or `token_revoked`
+   - `sync_delayed`: `lastSyncAt` is more than 1 hour ago and no recent error
+   - `connected`: fresh sync, no errors
 
-### Slice ordering (TDD vertical slices)
+4. **Stale flag is computed correctly** — `isCalendarConnectionStale(connection, now, staleThresholdHours = 24)` returns `true` when: `lastSyncAt` is null and connection is `connected`, OR more than 24 hours since `lastSyncAt`.
 
-**Slice 0 — Repository contract test (AC4)**
-- `tests/calendar/imported-busy-intervals-repository-contract.test.ts`: a test suite that runs against both the in-memory repo (from `imported-busy-intervals.ts`) and the Postgres repo (`createPostgresImportedBusyIntervalRepository`), asserting both have identical `upsertBatch` replace-per-connectionId semantics.
+5. **Calendar Connection view exposes health data** — `buildCalendarConnectionView(connection, now)` returns `lastSyncAt`, `stale: boolean`, and `healthStatus: CalendarConnectionHealthStatus` alongside existing fields.
 
-**Slice 1 — Mock sync + manual refresh endpoint (AC2)**
-- `src/calendar/sync.ts`: `syncCalendarConnection()` function with seeded mock provider branch and injected `busyIntervalRepository`. Early-returns on empty `contributingCalendarIds`.
-- `src/calendar/sync.test.ts`: tests that mock sync produces deterministic busy intervals and calls `upsertBatch` with correct data.
-- `src/calendar/sync-failure-recorder.ts` integration: on error, calls `recordCalendarConnectionSyncFailure`.
-- `app/me/calendar-connections/[id]/refresh/route.ts`: POST handler — auth, connection ownership check, CSRF, enqueues sync job via `quickAddJob`, returns `202 Accepted`.
-- `src/worker/sync.ts`: Graphile Worker task `sync_calendar_connection` — calls `syncCalendarConnection()` with the DB-backed `importedBusyIntervalRepository`.
-- Register `sync_calendar_connection` in `src/worker/run.ts` taskList.
+6. **`GET /me/calendar-connections` returns health fields** — Each connection in the list response includes `lastSyncAt`, `stale`, and `healthStatus`.
 
-**Slice 2 — Poll scheduler (AC3)**
-- `src/calendar/poll.ts`: `createPollCalendarConnectionsTask(cronExpression)` — returns a crontask that calls `listActiveConnections()` and enqueues a sync job per active connection.
-- `src/calendar/poll.test.ts`: tests poll task schedules correct interval and enqueues one job per active connection.
-- Add `listActiveConnections()` to `src/calendar/repository.ts` (combined Google + Microsoft listing filtered to `status === "connected"`).
-- Register cron task in `src/worker/run.ts` with `withPgCron` and cron `"*/5 * * * *"` in local / `"*/15 * * * *"` in production.
+7. **`invalid_grant` OAuth refresh failure transitions status to `needs_reconnect`** — When Google or Microsoft token refresh fails with `invalid_grant` error, the connection status is updated to `needs_reconnect`. This requires finding where OAuth refresh is called and adding status transition logic.
 
-**Slice 3 — Webhook handlers (AC1)**
-- `app/webhooks/google/calendar/route.ts`: POST handler — when `requirePublicWebhookHttps` is false, returns `200 OK` without processing. When true, verifies Google channel ID header and enqueues `sync_calendar_connection`.
-- `app/webhooks/microsoft/calendar/route.ts`: POST handler — when `requirePublicWebhookHttps` is false, returns `200 OK` without processing. When true, handles Microsoft validation token handshake and enqueues `sync_calendar_connection`.
-- `src/worker/sync.ts` tests: cover both `requirePublicWebhookHttps` true and false branches.
+8. **Successful busy-interval import updates `lastSyncAt`** — After calendar sync job successfully imports busy intervals, `updateLastSyncAt(connectionId)` is called with the current timestamp.
+
+### Testable interfaces
+
+- `computeCalendarConnectionHealthStatus(connection, now)` — pure function returning `CalendarConnectionHealthStatus`.
+- `isCalendarConnectionStale(connection, now, staleThresholdHours?)` — pure function returning boolean.
+- `buildCalendarConnectionView(connection, now)` — extends existing view with `lastSyncAt`, `stale`, `healthStatus`.
+- `updateLastSyncAt(connectionId)` — repository method to set `lastSyncAt`.
 
 ### Assumptions / risks
 
-- Real OAuth free/busy API calls are out of scope; `calendarProviderMode === "mock"` is the only path exercised locally.
-- Token refresh (when `accessTokenExpiresAt` is past) is deferred; in OAuth mode, expired tokens surface as sync errors recorded via `sync-failure-recorder`.
-- `listActiveConnections()` enumerates connections by listing all users then their connections — acceptable for MVP scale.
-- Google webhooks use channel ID verification; Microsoft uses a validation token handshake — these are two distinct code paths.
-- Cron scheduling uses `graphile-worker` + `withPgCron` pattern.
-- Existing `sync-failure-recorder.ts` is reused rather than inlined.
-
-## Next Step
-
-PR-Review (sandman-pr-review) — PR #170 at https://github.com/rafaelromao/slotmerge/pull/170
+- `lastSyncAt` column needs a migration.
+- Stale threshold of 24 hours is assumed (issue does not specify; 24h is reasonable for calendar sync). Named constant `STALE_THRESHOLD_HOURS` should be used.
+- `sync_delayed` threshold of 1 hour is assumed (named constant `SYNC_DELAYED_THRESHOLD_HOURS`).
+- Search snapshot generation does not exist yet; stale markers in search results depend on that infrastructure being built.
+- `invalid_grant` handling: where OAuth refresh is called in `google-calendar-connections.ts` and `microsoft-calendar-connections.ts` needs to be identified and updated.
 
 ## Already Resolved
 

@@ -90,12 +90,16 @@ const defaultRecordCalendarConnectionSyncFailure: Recorder = async (
 async function updateConnectionErrorMetadata(
   input: RecordCalendarConnectionSyncFailureInput,
 ): Promise<void> {
+  const needsReconnect =
+    input.code === "invalid_grant" || input.code === "token_revoked";
+
   if (input.provider === "google") {
     await getGoogleCalendarConnectionRepository().updateById(
       input.connectionId,
       {
         lastErrorCode: input.code,
         lastErrorMessage: input.message,
+        ...(needsReconnect ? { status: "needs_reconnect" } : {}),
       },
     );
     return;
@@ -105,6 +109,7 @@ async function updateConnectionErrorMetadata(
     {
       lastErrorCode: input.code,
       lastErrorMessage: input.message,
+      ...(needsReconnect ? { status: "needs_reconnect" } : {}),
     },
   );
 }

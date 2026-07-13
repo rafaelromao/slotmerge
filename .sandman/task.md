@@ -1,38 +1,42 @@
 # Task
 
-Implement GitHub issue #34: Add one-off add/block Availability overrides
+Implement GitHub issue #53: Compute effective Availability from windows, overrides, and imported busy intervals
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Search & Matching](https://github.com/rafaelromao/slotmerge/issues/15). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-A User can add one-off Availability overrides that either add extra availability or block existing availability for specific date/times. Overrides are timezone-aware.
+An internal matching helper computes effective Availability for a User over a date range: weekly Availability Windows plus one-off add/block overrides, minus buffered imported busy intervals (busy/out-of-office/tentative). The helper is timezone-aware and respects DST.
 
 ## Acceptance criteria
 
-- [ ] User can add add overrides for specific date/times.
-- [ ] User can add block overrides for specific date/times.
-- [ ] User can remove overrides.
-- [ ] Overrides take effect immediately for future Searches.
+- [ ] Weekly Availability Windows are applied with the user's profile timezone.
+- [ ] One-off add and block overrides apply correctly.
+- [ ] Buffered imported busy intervals subtract from effective Availability.
+- [ ] Imported free/working-elsewhere statuses do not block Availability.
+- [ ] DST transitions are handled correctly.
 
 ## Blocked by
 
 - [Define weekly Availability Windows in profile timezone](https://github.com/rafaelromao/slotmerge/issues/31)
+- [Add one-off add/block Availability overrides](https://github.com/rafaelromao/slotmerge/issues/33)
+- [Apply global Calendar Connection buffer around imported busy intervals](https://github.com/rafaelromao/slotmerge/issues/34)
+- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/47)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/34-add-one-off-addblock-availability-overrides`
-- Source branch: `sandman/34-add-one-off-addblock-availability-overrides`
+- Current branch: `sandman/53-compute-effective-availability-from-windows-overrides-and-imported-busy-intervals`
+- Source branch: `sandman/53-compute-effective-availability-from-windows-overrides-and-imported-busy-intervals`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/34-add-one-off-addblock-availability-overrides` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/53-compute-effective-availability-from-windows-overrides-and-imported-busy-intervals` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -46,65 +50,66 @@ Before moving on, check which checklist items are already complete in `.sandman/
 
 After checking off an item, update `.sandman/task.md` in place and rewrite the registered `## Next Step` so it points at the next unchecked checklist item.
 
-## Next Step
-
-Implement (sandman-implement)
-
 ## Plan
 
 ### Behaviors to test
 
-1. **Add override creates "add" type override** - User POSTs to /me/availability-overrides with date, startTime, endTime, type="add". Override is stored and returned with 201.
+1. **Returns empty when no inputs** — effective availability is empty list when user has no weekly windows, no overrides, and no busy intervals.
+2. **Weekly windows expand to UTC** — given weekly windows in profile timezone, returns correct UTC intervals for a date range.
+3. **Add overrides union with weekly windows** — an "add" override produces additional available intervals on top of windows.
+4. **Block overrides subtract from weekly windows** — a "block" override removes time from existing windows.
+5. **Busy intervals (busy/out-of-office/tentative) subtract from effective availability** — all three statuses remove from availability.
+6. **Buffer expands busy intervals symmetrically** — user's bufferMinutes expands each busy interval start (minus) and end (plus), then result is intersected with the search range.
+7. **Overrides and busy intervals outside search range are ignored** — only overlapping intervals affect the result.
+8. **Composition order is: windows → add overrides → block overrides → busy intervals** — each layer applies in sequence.
+9. **DST: weekly window on DST transition day preserves wall-clock duration** — 09:00–17:00 local on a DST change day still produces the correct actual hours (not naive hour-count).
+10. **Multiple overlapping intervals merge** — overlapping available intervals are coalesced into a single interval.
+11. **Block inside window, busy outside: only window portion removed** — block overrides apply to expanded windows before busy intervals are subtracted.
+12. **Free and working-elsewhere statuses do not block** — when schema adds these statuses, they are excluded from blocking (documented behavior, validated by integration test against import pipeline).
 
-2. **Add override creates "block" type override** - User POSTs with type="block". Override is stored and returned with 201.
+### Testable interfaces
 
-3. **List overrides returns user's overrides** - GET /me/availability-overrides returns only the authenticated user's overrides.
+```typescript
+// New module: src/matching/effective-availability.ts
 
-4. **Remove override deletes the override** - DELETE /me/availability-overrides/:id removes the override and returns 204.
+export type EffectiveAvailabilityInputs = {
+  userId: string;
+  profileTimezone: string;
+  bufferMinutes: number;
+  windows: WeeklyAvailabilityWindow[];
+  overrides: AvailabilityOverride[];
+  busyIntervals: ImportedBusyIntervalRecord[];
+  rangeStart: Date;
+  rangeEnd: Date;
+};
 
-5. **Remove override returns 404 for non-existent or other user's override** - DELETE for non-owned override returns 404.
+export function computeEffectiveAvailability(
+  inputs: EffectiveAvailabilityInputs,
+): Array<{ startUtc: Date; endUtc: Date }>;
+```
 
-6. **Override with invalid data returns 400** - Missing required fields, invalid date format, endTime <= startTime all return 400.
+### Assumptions / risks
 
-7. **Unauthenticated requests return 401** - All endpoints return 401 without valid session.
+- Helper is pure (no DB access) — all inputs passed in by caller.
+- Repository calls (windows, overrides, busy intervals) happen outside the helper.
+- Buffer is applied symmetrically (start − buffer, end + buffer) then intersected with search range.
+- Block overrides apply after expanding weekly windows but before subtracting busy intervals.
+- Only busy/out-of-office/tentative statuses block; free/working-elsewhere are no-ops.
+- When free/working-elsewhere are added to schema, this behavior must be preserved by the import pipeline integration test.
 
-8. **CSRF protection on mutations** (sibling auth constraint, same as weekly windows).
+### TDD slice order
 
-9. **Profile hasAvailability considers overrides** - Update `hasAvailability` boolean to consider overrides.
+1. Empty input → empty output
+2. Weekly windows only (UTC expansion)
+3. Add overrides (union)
+4. Block overrides (subtraction from windows)
+5. Busy intervals with buffer (subtraction, clipped to range)
+6. DST transitions
+7. Full composition (all layers)
 
-10. **Override UTC expansion handles DST transitions correctly** - `expandOverrideToUtcRange` correctly converts local time to UTC.
+## Next Step
 
-### Testable Interfaces
-
-1. **`src/profile/availability-overrides.ts`**: Repository interface `AvailabilityOverrideRepository` with add, listByUserId, findById, removeById. Test override mechanism.
-
-2. **`expandOverrideToUtcRange(override, timezone): { startUtc: Date; endUtc: Date }`**: Pure function to convert override to UTC (mirrors `expandWeeklyWindowToUtcRange`).
-
-3. **`app/me/availability-overrides/route.ts`**: REST endpoint with GET (list) and POST (create).
-
-4. **`app/me/availability-overrides/[id]/route.ts`**: REST endpoint with PATCH (update type/start/end) and DELETE (remove).
-
-### Implementation Slices (TDD order)
-
-1. **DB Migration**: Add `availability_overrides` table with id, userId, date, startTime, endTime, type ("add"|"block"), profileTimezone, createdAt, updatedAt. Unique constraint on (userId, date, startTime).
-
-2. **Service Layer**: `src/profile/availability-overrides.ts` with repository pattern and `expandOverrideToUtcRange`.
-
-3. **Main Route**: `app/me/availability-overrides/route.ts` with GET/POST handlers.
-
-4. **ID Route**: `app/me/availability-overrides/[id]/route.ts` with PATCH/DELETE handlers.
-
-5. **Tests**: `tests/availability-overrides-route.test.ts` with in-memory repository including DST edge cases.
-
-6. **Profile Integration**: Update `app/me/route.ts` to include availabilityOverrides in response and hasAvailability check.
-
-### Search Integration Contract
-Future Search slices query `listAvailabilityOverridesByUserId(userId)` for the date range. No cache needed — live DB queries satisfy "take effect immediately."
-
-### Assumptions / Risks
-- PATCH included for consistency with weekly windows API.
-- Single-day overrides only (no spanning midnight).
-- Search matching is out of scope; DB table is the integration point.
+The registered next step is the first unchecked item in the Execution Checklist: Implement (sandman-implement).
 
 ## Already Resolved
 

@@ -27,9 +27,7 @@ export type MagicLinkResendInviteRepository = {
     id: string,
     generation: number,
   ): Promise<MagicLinkResendInviteRecord | null>;
-  incrementGeneration(
-    id: string,
-  ): Promise<MagicLinkResendInviteRecord | null>;
+  incrementGeneration(id: string): Promise<MagicLinkResendInviteRecord | null>;
 };
 
 export type MagicLinkResendRateLimiter = {

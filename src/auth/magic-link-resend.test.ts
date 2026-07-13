@@ -54,8 +54,7 @@ function createMockInviteRepository() {
     findById: vi.fn<(id: string) => Promise<MockInvite | null>>(),
     setMagicLinkGeneration:
       vi.fn<(id: string, generation: number) => Promise<MockInvite | null>>(),
-    incrementGeneration:
-      vi.fn<(id: string) => Promise<MockInvite | null>>(),
+    incrementGeneration: vi.fn<(id: string) => Promise<MockInvite | null>>(),
   };
 }
 
@@ -128,9 +127,7 @@ describe("magic link resend handler", () => {
     expect(html).toContain("fresh magic link");
 
     expect(mockInviteRepo.findById).toHaveBeenCalledWith("invite-1");
-    expect(mockInviteRepo.incrementGeneration).toHaveBeenCalledWith(
-      "invite-1",
-    );
+    expect(mockInviteRepo.incrementGeneration).toHaveBeenCalledWith("invite-1");
     expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({ recipient: "alice@example.com" }),
     );
@@ -300,15 +297,13 @@ describe("magic link resend handler", () => {
         magicLinkGeneration: currentGeneration,
       });
     });
-    mockInviteRepo.setMagicLinkGeneration.mockImplementation(
-      (_id, gen) => {
-        currentGeneration = gen;
-        return Promise.resolve({
-          ...invite,
-          magicLinkGeneration: gen,
-        });
-      },
-    );
+    mockInviteRepo.setMagicLinkGeneration.mockImplementation((_id, gen) => {
+      currentGeneration = gen;
+      return Promise.resolve({
+        ...invite,
+        magicLinkGeneration: gen,
+      });
+    });
 
     const mockEmailService = createMockEmailDeliveryService();
     mockEmailService.sendEmail.mockRejectedValue(new Error("queue failed"));

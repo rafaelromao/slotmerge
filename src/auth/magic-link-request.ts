@@ -28,14 +28,19 @@ export type MagicLinkRequestUserRecord = {
 
 export type MagicLinkRequestInviteRepository = {
   findById(id: string): Promise<MagicLinkRequestInviteRecord | null>;
-  findPendingByEmail(email: string): Promise<MagicLinkRequestInviteRecord | null>;
+  findPendingByEmail(
+    email: string,
+  ): Promise<MagicLinkRequestInviteRecord | null>;
   accept(id: string): Promise<void>;
 };
 
 export type MagicLinkRequestUserRepository = {
   findById(id: string): Promise<MagicLinkRequestUserRecord | null>;
   findByEmail(email: string): Promise<MagicLinkRequestUserRecord | null>;
-  create(data: { email: string; role: string }): Promise<MagicLinkRequestUserRecord>;
+  create(data: {
+    email: string;
+    role: string;
+  }): Promise<MagicLinkRequestUserRecord>;
 };
 
 export type MagicLinkRequestDependencies = {
@@ -252,7 +257,9 @@ function createDefaultEmailDeliveryService({
   });
 }
 
-function createDatabaseInviteRepository(clock: () => Date): MagicLinkRequestInviteRepository {
+function createDatabaseInviteRepository(
+  clock: () => Date,
+): MagicLinkRequestInviteRepository {
   return {
     findById: async (id) => {
       const [row] = await getDb()

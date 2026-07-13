@@ -1,7 +1,7 @@
-import { getSessionFromRequest } from "../../../src/auth/session";
-import { isOrganizerOrAdmin } from "../../../src/auth/session";
-import { getSearchRepository } from "../../../src/search/repository";
-import { getSearchResultRepository } from "../../../src/search/search-result-repository";
+import { getSessionFromRequest } from "../../../../src/auth/session";
+import { isOrganizerOrAdmin } from "../../../../src/auth/session";
+import { getSearchRepository } from "../../../../src/search/repository";
+import { getSearchResultRepository } from "../../../../src/search/search-result-repository";
 
 export async function GET(
   request: Request,

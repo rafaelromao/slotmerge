@@ -37,7 +37,9 @@ describe("handlePollCalendarConnectionsJob", () => {
   ];
 
   beforeEach(() => {
-    vi.mocked(listActiveConnections).mockResolvedValue(mockConnections as never);
+    vi.mocked(listActiveConnections).mockResolvedValue(
+      mockConnections as never,
+    );
     vi.spyOn(Date, "now").mockReturnValue(FIXED_NOW);
     vi.mocked(enqueueSyncCalendarConnectionJob).mockClear();
   });
@@ -59,10 +61,20 @@ describe("handlePollCalendarConnectionsJob", () => {
 
     await handlePollCalendarConnectionsJob();
 
-    expect(vi.mocked(enqueueSyncCalendarConnectionJob)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(enqueueSyncCalendarConnectionJob)).toHaveBeenCalledTimes(
+      2,
+    );
 
-    const call1 = vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls[0] as [string, string, Date];
-    const call2 = vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls[1] as [string, string, Date];
+    const call1 = vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls[0] as [
+      string,
+      string,
+      Date,
+    ];
+    const call2 = vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls[1] as [
+      string,
+      string,
+      Date,
+    ];
 
     expect(call1[0]).toBe("conn-1");
     expect(call2[0]).toBe("conn-2");
@@ -71,15 +83,23 @@ describe("handlePollCalendarConnectionsJob", () => {
   });
 
   it("runAt is within 0-5 minute jitter range", async () => {
-    vi.mocked(listActiveConnections).mockResolvedValue([mockConnections[0]] as never);
+    vi.mocked(listActiveConnections).mockResolvedValue([
+      mockConnections[0],
+    ] as never);
 
     vi.spyOn(Math, "random").mockReturnValue(0.5);
 
     await handlePollCalendarConnectionsJob();
 
-    expect(vi.mocked(enqueueSyncCalendarConnectionJob)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(enqueueSyncCalendarConnectionJob)).toHaveBeenCalledTimes(
+      1,
+    );
 
-    const call = vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls[0] as [string, string, Date];
+    const call = vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls[0] as [
+      string,
+      string,
+      Date,
+    ];
     const maxJitter = 5 * 60 * 1000;
     const expectedDelay = Math.floor(maxJitter * 0.5);
 

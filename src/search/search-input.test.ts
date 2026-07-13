@@ -651,7 +651,10 @@ describe("rerunSearch", () => {
     const savedSnapshots: SearchResultRecord[] = [];
     const trackingRepo: SearchResultRepository = {
       save(record) {
-        const saved = { ...record, id: record.id ?? `sr-${savedSnapshots.length}` };
+        const saved = {
+          ...record,
+          id: record.id ?? `sr-${savedSnapshots.length}`,
+        };
         savedSnapshots.push(saved);
         return Promise.resolve(saved);
       },
@@ -659,7 +662,8 @@ describe("rerunSearch", () => {
         return Promise.resolve(null);
       },
       findBySearchId(searchId: string) {
-        const found = savedSnapshots.find((s) => s.searchId === searchId) ?? null;
+        const found =
+          savedSnapshots.find((s) => s.searchId === searchId) ?? null;
         return Promise.resolve(found);
       },
     };
@@ -688,7 +692,9 @@ describe("rerunSearch", () => {
     expect(originalSearchStillExists).not.toBeNull();
     expect(originalSearchStillExists!.id).toBe(originalSearch.id);
 
-    const originalSnapshot = await trackingRepo.findBySearchId(originalSearch.id!);
+    const originalSnapshot = await trackingRepo.findBySearchId(
+      originalSearch.id!,
+    );
     expect(originalSnapshot).not.toBeNull();
     expect(originalSnapshot!.searchId).toBe(originalSearch.id);
     expect(originalSnapshot!.snapshotJson).toEqual(originalSnapshotJson);

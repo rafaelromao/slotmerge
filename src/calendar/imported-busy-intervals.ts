@@ -66,7 +66,10 @@ const inMemoryImportedBusyIntervalRepository: ImportedBusyIntervalRepository = {
       const { connectionId, providerCalendarId } = groupIntervals[0];
       inMemoryStore = inMemoryStore.filter(
         (i) =>
-          !(i.connectionId === connectionId && i.providerCalendarId === providerCalendarId),
+          !(
+            i.connectionId === connectionId &&
+            i.providerCalendarId === providerCalendarId
+          ),
       );
       inMemoryStore.push(...groupIntervals);
     }
@@ -82,7 +85,10 @@ const inMemoryImportedBusyIntervalRepository: ImportedBusyIntervalRepository = {
   async deleteByConnectionIdAndCalendarId(connectionId, providerCalendarId) {
     inMemoryStore = inMemoryStore.filter(
       (i) =>
-        !(i.connectionId === connectionId && i.providerCalendarId === providerCalendarId),
+        !(
+          i.connectionId === connectionId &&
+          i.providerCalendarId === providerCalendarId
+        ),
     );
     await Promise.resolve();
   },

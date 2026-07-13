@@ -37,7 +37,10 @@ export function createPostgresImportedBusyIntervalRepository(): ImportedBusyInte
             .where(
               and(
                 eq(importedBusyIntervals.connectionId, connectionId),
-                eq(importedBusyIntervals.providerCalendarId, providerCalendarId),
+                eq(
+                  importedBusyIntervals.providerCalendarId,
+                  providerCalendarId,
+                ),
               ),
             );
 

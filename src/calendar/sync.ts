@@ -60,17 +60,20 @@ export async function syncCalendarConnection(
 
     const now = clock();
 
-    const records: ImportedBusyIntervalRecord[] = intervals.map((interval) => ({
-      id: `${connectionId}-${interval.providerCalendarId}-${interval.startAt.getTime()}`,
-      userId,
-      connectionId,
-      providerCalendarId: interval.providerCalendarId,
-      providerEventReference: interval.eventId ?? null,
-      status: interval.status,
-      startAt: interval.startAt,
-      endAt: interval.endAt,
-      importedAt: now,
-    }));
+    const records: ImportedBusyIntervalRecord[] = intervals.map((interval) => {
+      const eventKey = interval.eventId ?? interval.startAt.getTime();
+      return {
+        id: `${connectionId}-${interval.providerCalendarId}-${eventKey}`,
+        userId,
+        connectionId,
+        providerCalendarId: interval.providerCalendarId,
+        providerEventReference: interval.eventId ?? null,
+        status: interval.status,
+        startAt: interval.startAt,
+        endAt: interval.endAt,
+        importedAt: now,
+      };
+    });
 
     await busyIntervalRepository.upsertBatch(records);
   } catch (error) {

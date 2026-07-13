@@ -1,48 +1,22 @@
 # Task
 
-Implement GitHub issue #26: Provision transactional email delivery and email event log
+Implement GitHub issue #30: View controlled Topic catalogue
 
 ## Issue Context
 
 ## Parent
 
-Sub-PRD: [Sub-PRD: Admin & Notifications](https://github.com/rafaelromao/slotmerge/issues/18). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
+Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/issues/19). Top-level PRD: [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14).
 
 ## What to build
 
-A small email delivery service backed by a durable email event log. All product emails (invites, magic links, Calendar Connection action-required, critical Admin operational) flow through this single delivery surface so delivery state and retries are observable.
+A User can browse the active Topic catalogue to choose which Topics to associate with their profile. The list reflects the current state of the controlled catalogue, including similarity-blocking pre-checks for new proposals.
 
 ## Acceptance criteria
 
-- [ ] A single email delivery API accepts a recipient, type, and payload.
-- [ ] Each send creates an Email Event record with status and timestamps.
-- [ ] Delivery failures and retries are recorded.
-- [ ] Other sub-PRDs send through this service rather than their own delivery code.
-
-## Plan
-
-### Behaviors to test
-
-- A single `sendEmail(recipient, type, payload)` call creates a durable Email Event with recipient, type, payload reference, initial status, and timestamps before any transport result is known.
-- A successful transport attempt updates that same Email Event to a delivered/sent state and records delivery timestamps and provider metadata.
-- A failed transport attempt records error details on the Email Event and leaves an observable retryable history.
-- Retrying the same logical email preserves the original event history while recording the retry path explicitly.
-- Invite, magic-link, Calendar Connection action-required, and Admin operational email paths all flow through the shared delivery API rather than direct transport calls.
-
-### Testable interfaces
-
-- `EmailDeliveryService.sendEmail(...)` as the only public delivery surface.
-- An injected `EmailTransport` so tests can drive success and failure without real SMTP or Postmark.
-- An injected `EmailEventRepository` so tests can assert durable event and history writes.
-- An injected clock or time source so timestamps are deterministic in tests.
-- A worker task entrypoint for retry execution, not as the primary behavior seam.
-
-### Assumptions / risks
-
-- This work remains blocked by app shell/auth/Postgres bootstrap from issue #20.
-- Email event storage will need schema and migration work before the delivery surface can be wired end to end.
-- Retry policy must be explicit enough for tests to assert recorded history even if the exact provider or queue mechanism stays abstract.
-- No notification inbox or UI surface is implied here; observability means durable data and admin/status integration.
+- [ ] User sees the current active Topic catalogue.
+- [ ] Retired Topics are not shown.
+- [ ] The catalogue view is readable on web.
 
 ## Blocked by
 
@@ -52,12 +26,12 @@ A small email delivery service backed by a durable email event log. All product 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/26-provision-transactional-email-delivery-and-email-event-log`
-- Source branch: `sandman/26-provision-transactional-email-delivery-and-email-event-log`
+- Current branch: `sandman/30-view-controlled-topic-catalogue`
+- Source branch: `sandman/30-view-controlled-topic-catalogue`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/26-provision-transactional-email-delivery-and-email-event-log` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/30-view-controlled-topic-catalogue` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
@@ -141,7 +115,7 @@ The Required Skill Chain defines specific tools for each review type:
 |------|-------------------|-------|
 | Plan approval (TDD) | Subagent review + consensus | Only step that explicitly requires subagent review |
 | Self-review | `sandman-self-review` skill |
-| PR review | `sandman-pr-review` skill | **Must NOT use subagent**
+| PR review | `sandman-pr-review` skill | **Must NOT use subagent** |
 
 **PR review is the only step where subagent review is banned.** Use the `sandman-pr-review` skill instead. Subagent review is recommended for plan approval.
 

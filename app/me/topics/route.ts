@@ -5,8 +5,6 @@ import {
   getTopicPageState,
   saveUserTopicSelection,
 } from "../../../src/topics/repository";
-import { TopicsPageView } from "../../../src/topics/topics-page-view";
-import { renderToStaticMarkup } from "react-dom/server";
 
 export async function GET(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);
@@ -19,19 +17,7 @@ export async function GET(request: Request): Promise<Response> {
     session.user.id,
   );
 
-  return new Response(
-    `<!doctype html><html lang="en"><body>${renderToStaticMarkup(
-      TopicsPageView({
-        catalogue,
-        selectedTopicIds,
-        csrfToken: session.csrfToken,
-      }),
-    )}</body></html>`,
-    {
-      status: 200,
-      headers: { "content-type": "text/html; charset=utf-8" },
-    },
-  );
+  return htmlResponse(renderTopicsPage({ catalogue, selectedTopicIds, csrfToken: session.csrfToken }));
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -113,4 +99,62 @@ function hasValidCsrfToken(
   }
 
   return timingSafeEqual(Buffer.from(actualToken), Buffer.from(expectedToken));
+}
+
+function htmlResponse(body: string, status = 200): Response {
+  return new Response(body, {
+    status,
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
+type CatalogueEntry = { id: string; name: string };
+
+function renderTopicsPage({
+  catalogue,
+  selectedTopicIds,
+  csrfToken,
+}: {
+  catalogue: CatalogueEntry[];
+  selectedTopicIds: string[];
+  csrfToken: string;
+}): string {
+  const rows = catalogue
+    .map(
+      (topic) => `
+      <li>
+        <label>
+          <input type="checkbox" name="topicIds" value="${escapeHtml(topic.id)}" ${selectedTopicIds.includes(topic.id) ? "checked" : ""} />
+          <span>${escapeHtml(topic.name)}</span>
+        </label>
+      </li>`,
+    )
+    .join("");
+
+  return `<!doctype html>
+<html lang="en">
+  <body>
+    <main style="margin:0 auto;max-width:42rem;padding:2rem 1.25rem;font-family:system-ui,sans-serif;">
+      <header style="margin-bottom:1.5rem;">
+        <h1 style="margin:0;font-size:2rem;">My Topics</h1>
+        <p style="margin:0.5rem 0 0;color:#4b5563;">Browse the active Topic catalogue and choose which Topics belong on your profile.</p>
+      </header>
+      <form action="/me/topics" method="post" style="border-top:1px solid #e5e7eb;padding-top:1rem;">
+        <input type="hidden" name="csrfToken" value="${escapeHtml(csrfToken)}" />
+        <h2 id="active-topics" style="margin:0 0 0.75rem;font-size:1.125rem;">Active Topics</h2>
+        <ul style="margin:0;padding-left:1.25rem;">${rows}</ul>
+        <button type="submit" style="margin-top:1rem;padding:0.625rem 1rem;">Save topics</button>
+      </form>
+    </main>
+  </body>
+</html>`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }

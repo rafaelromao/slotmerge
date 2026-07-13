@@ -1,6 +1,6 @@
 # Task
 
-Implement GitHub issue #31: Propose a new Topic
+Implement GitHub issue #35: Apply global Calendar Connection buffer around imported busy intervals
 
 ## Issue Context
 
@@ -10,35 +10,35 @@ Sub-PRD: [Sub-PRD: Profile & Setup](https://github.com/rafaelromao/slotmerge/iss
 
 ## What to build
 
-A User submits a Topic Proposal from `My Topics`. Submissions are similarity-blocked against existing active and pending Topic names so the catalogue does not fragment. Blocked submissions surface a clear "too similar to" message.
+The user's global Calendar Connection buffer is applied before and after each imported busy interval. The buffer is editable from `My availability` and applied at Search-evaluation time so changes take effect immediately.
 
 ## Acceptance criteria
 
-- [ ] User submits a proposal name from `My Topics`.
-- [ ] Submissions near an existing name (case-insensitive, whitespace-normalized, similarity threshold) are blocked.
-- [ ] Blocked submissions show the closest existing Topic name(s).
-- [ ] Accepted submissions create a pending Topic Proposal attached to the user.
+- [ ] Buffer is applied before and after each imported busy interval.
+- [ ] Buffer changes take effect immediately for future Searches.
+- [ ] The buffer does not expand outside the Availability Window.
 
 ## Blocked by
 
-- [View controlled Topic catalogue](https://github.com/rafaelromao/slotmerge/issues/30)
+- [Define weekly Availability Windows in profile timezone](https://github.com/rafaelromao/slotmerge/issues/31)
+- [Persist normalized imported busy intervals for the rolling 90-day window](https://github.com/rafaelromao/slotmerge/issues/36)
 
 
 ## Runtime Context
 
 - You are running inside a Sandman-created worktree.
-- Current branch: `sandman/31-propose-a-new-topic`
-- Source branch: `sandman/31-propose-a-new-topic`
+- Current branch: `sandman/35-apply-global-calendar-connection-buffer-around-imported-busy-intervals`
+- Source branch: `sandman/35-apply-global-calendar-connection-buffer-around-imported-busy-intervals`
 - Base branch: `main`
 - Review command: `/sandman review`
 
-The worktree MUST be checked out on `sandman/31-propose-a-new-topic` when the run finishes. Do not switch to `main` or any other branch before exiting.
+The worktree MUST be checked out on `sandman/35-apply-global-calendar-connection-buffer-around-imported-busy-intervals` when the run finishes. Do not switch to `main` or any other branch before exiting.
 
 ## Execution Checklist
 
-- [x] Create branch
-- [x] Plan (sandman-plan)
-- [x] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
+- [ ] Create branch
+- [ ] Plan (sandman-plan)
+- [ ] Implement (sandman-implement: execute TDD + commit + self-review + back-merge + create PR + delegate review)
 - [ ] PR-Review (sandman-pr-review)
 - [ ] PR-Merge (sandman-pr-merge)
 
@@ -50,73 +50,29 @@ After checking off an item, update `.sandman/task.md` in place and rewrite the r
 
 ### Behaviors to test
 
-1. **Submit a valid topic proposal**  
-   Authenticated user POSTs to `/topic-proposals` with a candidate name. Name is whitespace-collapsed + lowercased. No existing active or pending topic name is similar at ≥0.8 ratio. A `pending` TopicProposal record is created in DB, linked to the user. Returns 201 with the created proposal.
-
-2. **Submit a proposal blocked by an active topic (similarity)**  
-   Candidate name is similar (≥0.8 ratio) to an existing active topic name. Returns 409 `{"error": "too_similar", "matches": [{"name": "...", "type": "active"}]}` and no record is created.
-
-3. **Submit a proposal blocked by a pending proposal (similarity)**  
-   Candidate name is similar (≥0.8 ratio) to another user's pending topic proposal. Returns 409 with `type: "pending"` in matches. No record created.
-
-4. **Submit a proposal blocked by exact match**  
-   Candidate name is identical (case-insensitive, whitespace-collapsed) to an existing active or pending name. Blocked same as similarity — ratio 1.0 is covered by ≥0.8 threshold.
-
-5. **Submit a duplicate of own pending proposal**  
-   User already has a pending proposal "Sailing". Submitting "Sailing" again returns 409 `{"error": "already_pending", "proposalId": "..."}`. No duplicate created.
-
-6. **Submit a proposal with empty/invalid name**  
-   Name is empty or whitespace-only after trimming. Returns 400 `{"error": "invalid_name"}`.
-
-7. **Submit a proposal similar to multiple entries**  
-   Candidate name is similar to both an active topic AND a pending proposal. All above-threshold matches are returned in the `matches` array.
-
-8. **View own topic proposals**  
-   Authenticated user GETs `/me/topic-proposals`. Returns list of their own proposals with id, candidateName, status, createdAt.
-
-9. **"My Topics" page shows proposal form and pending proposals**  
-   GET `/me/topics` renders a "Propose a new Topic" text input + submit button. Below it, lists the user's own pending proposals (name + status). Proposal form submits via POST to `/topic-proposals` with CSRF token.
-
-10. **Proposal submission integrates into "My Topics" page**  
-    After a successful POST, the new pending proposal appears in the pending proposals list on `/me/topics`.
+1. **Zero buffer is no-op**: When `bufferMinutes === 0`, `expandBusyIntervalsWithBuffer` returns intervals unchanged.
+2. **Buffer expands interval in both directions**: Given an interval within availability windows and bufferMinutes=15, the returned interval has `startAt - 15 min` and `endAt + 15 min`.
+3. **Buffer is clipped to window start**: If the pre-buffer start would be before the intersecting window's start, clip to the window's start.
+4. **Buffer is clipped to window end**: If the post-buffer end would be after the intersecting window's end, clip to the window's end.
+5. **Interval outside all windows is filtered out**: An interval that falls entirely outside all availability windows returns no expanded intervals for that day.
+6. **Partial window overlap clips only the overflowing side**: An interval partially within a window clips only the side that overflows, keeping the other expanded side.
+7. **Multiple intervals on same day each get expanded independently**: No merging of adjacent expanded intervals.
 
 ### Testable interfaces
 
-- `src/topics/proposals.ts` — new module:
-  - `computeSimilarity(a: string, b: string): number` — pure Levenshtein ratio (0–1)
-  - `normalizeTopicName(name: string): string` — trim + collapse internal whitespace to single space + lowercase
-  - `isSimilar(a: string, b: string): boolean` — true if normalized similarity ≥ 0.8
-  - `findSimilarTopics(candidateName: string, repository: TopicCatalogueWithProposals): Promise<SimilarMatch[]>`
-  - `createTopicProposal(userId: string, candidateName: string, repository: TopicProposalDbRepository): Promise<TopicProposal>`
-  - `listUserTopicProposals(userId: string, repository: TopicProposalDbRepository): Promise<UserTopicProposal[]>`
-
-- `app/topic-proposals/route.ts` — POST `/topic-proposals`
-- `app/me/topic-proposals/route.ts` — GET `/me/topic-proposals`
-
-- `app/me/topics/route.ts` — updated to render proposal form and user pending proposals list
+- `src/search/imported-busy-intervals.ts`: add `expandBusyIntervalsWithBuffer(intervals, bufferMinutes, availabilityWindows): BusyIntervalWithBuffer[]` as a pure exported function.
+- New type `BusyIntervalWithBuffer = { originalId: string; startAt: Date; endAt: Date; status: BusyIntervalStatus }`.
+- `ImportedBusyIntervalLookup` interface remains unchanged — the lookup is a data retrieval seam; buffer application is the call site's responsibility.
 
 ### Assumptions / risks
 
-- `fast-levenshtein` is a transitive dep (via graphile-worker). Risk: future graphile-worker drops it. Mitigation: add as direct dep in same PR.
-- Threshold 0.8: calibrate with examples during TDD ("Sailing" vs "Sailng", "React" vs "React.js", "TypeScript" vs "Typescript")
-- Normalization: trim leading/trailing whitespace, collapse internal runs of whitespace to single space, then lowercase
-- Similarity check targets: all `status = 'active'` topics + all `status = 'pending'` topic proposals
-- Proposal form uses existing HTML-form + CSRF pattern from `app/me/topics/route.ts`
-
-### Test execution order (sandman-tdd)
-
-1. `computeSimilarity` pure unit tests (red-green first)
-2. `isSimilar` threshold boundary tests (exact 0.8, just above/below)
-3. `normalizeTopicName` edge case tests (empty, whitespace, case)
-4. `findSimilarTopics` with in-memory repository mock
-5. `createTopicProposal` with in-memory repository mock (valid case)
-6. `createTopicProposal` error paths (too similar, duplicate, invalid)
-7. Route handler tests with mocked dependencies
-8. HTML rendering in `me/topics/route.ts`
+- The buffer applies only to busy intervals that have at least partial overlap with an availability window. Intervals entirely outside all windows are excluded.
+- Adjacent busy intervals with overlapping expanded buffers are kept separate (no merging) — the subtraction logic downstream handles overlaps.
+- `availabilityWindows` passed in are already expanded to UTC ranges for the search window (from `expandWeeklyWindowToUtcRange`).
 
 ## Next Step
 
-PR-Review (sandman-pr-review)
+The registered next step is the first unchecked item in the Execution Checklist.
 
 ## Already Resolved
 

@@ -39,6 +39,13 @@ export function createPostgresSearchRepository(): SearchRepository {
         .orderBy(desc(searches.generatedAt));
       return rows.map(toRecord);
     },
+    async listAll() {
+      const rows = await getDb()
+        .select()
+        .from(searches)
+        .orderBy(desc(searches.generatedAt));
+      return rows.map(toRecord);
+    },
   };
 }
 

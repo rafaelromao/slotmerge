@@ -3,14 +3,8 @@ import { run } from "graphile-worker";
 import { loadRuntimeConfig } from "../config/runtime";
 import { handleLocalSmokeJob, localSmokeTaskName } from "./smoke";
 import { emailDeliveryTaskName, handleEmailDeliveryJob } from "./email";
-import {
-  handleSyncCalendarConnectionJob,
-  syncCalendarConnectionTaskName,
-} from "../calendar/sync-handler";
-import {
-  syncCalendarConnectionTaskName as syncTaskName,
-  reconcileCalendarConnectionsTaskName,
-} from "../calendar/sync-jobs";
+import { handleSyncCalendarConnectionJob } from "../calendar/sync-handler";
+import { syncCalendarConnectionTaskName as syncTaskName } from "../calendar/sync-jobs";
 
 const config = loadRuntimeConfig();
 

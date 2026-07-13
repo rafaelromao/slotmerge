@@ -123,7 +123,7 @@ describe("handleSyncCalendarConnectionJob", () => {
     });
 
     let fetchCalls = 0;
-    const fetchMock = vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url =
         typeof input === "string"
           ? input
@@ -210,7 +210,7 @@ describe("handleSyncCalendarConnectionJob", () => {
     });
 
     let fetchCalls = 0;
-    const fetchMock = vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url =
         typeof input === "string"
           ? input
@@ -304,7 +304,12 @@ describe("handleSyncCalendarConnectionJob", () => {
     });
 
     expect(failureRecorded).toHaveBeenCalledTimes(1);
-    const callArgs = failureRecorded.mock.calls[0][0];
+    const callArgs = failureRecorded.mock.calls[0][0] as {
+      connectionId: string;
+      provider: string;
+      code: string;
+      message: string;
+    };
     expect(callArgs).toMatchObject({
       connectionId: "connection-not-found",
       provider: "google",

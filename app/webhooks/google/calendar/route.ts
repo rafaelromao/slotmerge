@@ -96,8 +96,11 @@ export async function POST(request: Request): Promise<Response> {
 function extractConnectionIdFromChannelToken(channelToken: string): string | null {
   try {
     const decoded = Buffer.from(channelToken, "base64").toString("utf-8");
-    const parsed = JSON.parse(decoded);
-    return parsed.connectionId ?? null;
+    const parsed = JSON.parse(decoded) as { connectionId?: unknown };
+    if (parsed && typeof parsed.connectionId === "string") {
+      return parsed.connectionId;
+    }
+    return null;
   } catch {
     return null;
   }

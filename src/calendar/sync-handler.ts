@@ -1,9 +1,5 @@
 import type { SyncCalendarConnectionPayload } from "./sync-jobs";
-import {
-  findCalendarConnectionById,
-  getGoogleCalendarConnectionRepository,
-  getMicrosoftCalendarConnectionRepository,
-} from "./repository";
+import { findCalendarConnectionById } from "./repository";
 import { getImportedBusyIntervalRepository } from "./imported-busy-intervals";
 import { recordCalendarConnectionSyncFailure } from "./sync-failure-recorder";
 import {
@@ -31,7 +27,7 @@ export async function handleSyncCalendarConnectionJob(
     return;
   }
 
-  const { connectionId, attemptNumber = 1 } = syncPayload;
+  const { connectionId } = syncPayload;
   const fetchImpl = deps?.fetchImpl ?? fetch;
   const decryptToken = deps?.decryptToken ?? decryptCalendarToken;
 
@@ -45,7 +41,7 @@ export async function handleSyncCalendarConnectionJob(
         message: "Calendar connection not found",
       },
       {
-        connectionLookup: async () => null,
+        connectionLookup: () => Promise.resolve(null),
       },
     );
     return;
@@ -56,23 +52,11 @@ export async function handleSyncCalendarConnectionJob(
       await syncGoogleCalendarConnection(connection.record, {
         fetchImpl,
         decryptToken,
-        connectionLookup: async () => ({
-          id: connection.record.id,
-          userId: connection.record.userId,
-          provider: "google",
-          user: { email: "user@example.com", displayName: null },
-        }),
       });
     } else {
       await syncMicrosoftCalendarConnection(connection.record, {
         fetchImpl,
         decryptToken,
-        connectionLookup: async () => ({
-          id: connection.record.id,
-          userId: connection.record.userId,
-          provider: "microsoft",
-          user: { email: "user@example.com", displayName: null },
-        }),
       });
     }
   } catch (error) {
@@ -87,12 +71,13 @@ export async function handleSyncCalendarConnectionJob(
         message,
       },
       {
-        connectionLookup: async () => ({
-          id: connection.record.id,
-          userId: connection.record.userId,
-          provider: connection.provider,
-          user: { email: "user@example.com", displayName: null },
-        }),
+        connectionLookup: () =>
+          Promise.resolve({
+            id: connection.record.id,
+            userId: connection.record.userId,
+            provider: connection.provider,
+            user: { email: "user@example.com", displayName: null },
+          }),
       },
     );
   }
@@ -110,15 +95,9 @@ async function syncGoogleCalendarConnection(
   deps: {
     fetchImpl: typeof fetch;
     decryptToken: (ciphertext: string) => string;
-    connectionLookup: () => Promise<{
-      id: string;
-      userId: string;
-      provider: "google";
-      user: { email: string; displayName: string | null };
-    } | null>;
   },
 ): Promise<void> {
-  const { fetchImpl, decryptToken, connectionLookup } = deps;
+  const { fetchImpl, decryptToken } = deps;
 
   const refreshToken = connection.refreshTokenEncrypted
     ? decryptToken(connection.refreshTokenEncrypted)
@@ -128,10 +107,7 @@ async function syncGoogleCalendarConnection(
     throw new Error("google_no_refresh_token");
   }
 
-  const accessToken = await refreshGoogleAccessToken(
-    refreshToken,
-    fetchImpl,
-  );
+  const accessToken = await refreshGoogleAccessToken(refreshToken, fetchImpl);
 
   if (!accessToken) {
     throw new Error("google_token_refresh_failed");
@@ -166,7 +142,7 @@ async function syncGoogleCalendarConnection(
   await repo.upsertBatch(busyIntervals);
 }
 
-async function fetchGoogleAccessToken(
+async function refreshGoogleAccessToken(
   refreshToken: string,
   fetchImpl: typeof fetch,
 ): Promise<string | null> {
@@ -239,9 +215,7 @@ async function fetchGoogleFreeBusy(
     status: "busy";
   }> = [];
 
-  for (const [calendarId, calendarData] of Object.entries(
-    data.calendars ?? {},
-  )) {
+  for (const [calendarId, calendarData] of Object.entries(data.calendars ?? {})) {
     for (const busy of calendarData.busy ?? []) {
       intervals.push({
         calendarId,
@@ -259,6 +233,7 @@ async function syncMicrosoftCalendarConnection(
   connection: {
     id: string;
     userId: string;
+    accountIdentifier: string | null;
     refreshTokenEncrypted: string | null;
     accessTokenEncrypted: string | null;
     accessTokenExpiresAt: Date | null;
@@ -267,15 +242,9 @@ async function syncMicrosoftCalendarConnection(
   deps: {
     fetchImpl: typeof fetch;
     decryptToken: (ciphertext: string) => string;
-    connectionLookup: () => Promise<{
-      id: string;
-      userId: string;
-      provider: "microsoft";
-      user: { email: string; displayName: string | null };
-    } | null>;
   },
 ): Promise<void> {
-  const { fetchImpl, decryptToken, connectionLookup } = deps;
+  const { fetchImpl, decryptToken } = deps;
 
   const refreshToken = connection.refreshTokenEncrypted
     ? decryptToken(connection.refreshTokenEncrypted)
@@ -285,10 +254,7 @@ async function syncMicrosoftCalendarConnection(
     throw new Error("microsoft_no_refresh_token");
   }
 
-  const accessToken = await refreshMicrosoftAccessToken(
-    refreshToken,
-    fetchImpl,
-  );
+  const accessToken = await refreshMicrosoftAccessToken(refreshToken, fetchImpl);
 
   if (!accessToken) {
     throw new Error("microsoft_token_refresh_failed");
@@ -382,7 +348,9 @@ async function fetchMicrosoftGetSchedule(
   if (!response.ok) {
     if (response.status === 429) {
       const retryAfter = response.headers.get("Retry-After");
-      throw new Error(`microsoft_rate_limited_retry_after_${retryAfter ?? "default"}`);
+      throw new Error(
+        `microsoft_rate_limited_retry_after_${retryAfter ?? "default"}`,
+      );
     }
     throw new Error(`microsoft_getschedule_failed_${response.status}`);
   }
@@ -397,7 +365,11 @@ async function fetchMicrosoftGetSchedule(
     }>;
   };
 
-  const intervals: Array<{ startAt: string; endAt: string; status: "busy" | "tentative" }> = [];
+  const intervals: Array<{
+    startAt: string;
+    endAt: string;
+    status: "busy" | "tentative";
+  }> = [];
 
   for (const schedule of data.value ?? []) {
     for (const item of schedule.scheduleItems ?? []) {
@@ -405,7 +377,7 @@ async function fetchMicrosoftGetSchedule(
         intervals.push({
           startAt: item.start,
           endAt: item.end,
-          status: item.status as "busy" | "tentative",
+          status: item.status,
         });
       }
     }
@@ -427,7 +399,7 @@ function parseSyncPayload(
       connectionId: payload.connectionId,
       attemptNumber:
         typeof payload.attemptNumber === "number"
-          ? payload.attemptNumber
+          ? (payload.attemptNumber as number)
           : 1,
     };
   }

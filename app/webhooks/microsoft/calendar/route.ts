@@ -43,7 +43,6 @@ export async function POST(request: Request): Promise<Response> {
     return new Response("Internal server error", { status: 500 });
   }
 
-  const contentType = request.headers.get("Content-Type") ?? "";
   const validationToken = request.headers.get("X-MS-ValidationToken");
   const subscriptionId = request.headers.get("X-MS-SubscriptionId");
   const subscriptionExpirationTime = request.headers.get(
@@ -64,10 +63,7 @@ export async function POST(request: Request): Promise<Response> {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    if (validationToken) {
-      return new Response(validationToken, { status: 200 });
-    }
-    return new Response("OK", { status: 200 });
+    return new Response(validationToken, { status: 200 });
   }
 
   if (!subscriptionId || !clientState || !resourceId) {
@@ -75,8 +71,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (subscriptionExpirationTime) {
-    const connectionId =
-      extractConnectionIdFromClientState(clientState);
+    const connectionId = extractConnectionIdFromClientState(clientState);
     if (connectionId) {
       await enqueueSyncCalendarConnectionJob(connectionId);
     }
@@ -90,8 +85,11 @@ function extractConnectionIdFromClientState(
 ): string | null {
   try {
     const decoded = Buffer.from(clientState, "base64").toString("utf-8");
-    const parsed = JSON.parse(decoded);
-    return parsed.connectionId ?? null;
+    const parsed = JSON.parse(decoded) as { connectionId?: unknown };
+    if (parsed && typeof parsed.connectionId === "string") {
+      return parsed.connectionId;
+    }
+    return null;
   } catch {
     return null;
   }

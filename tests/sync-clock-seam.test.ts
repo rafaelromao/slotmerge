@@ -89,8 +89,7 @@ describe("setClockForTests seam in sync worker", () => {
       }),
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const call = syncCalendarConnection.mock.calls[0][0] as {
+    const call = vi.mocked(syncCalendarConnection).mock.calls[0][0] as {
       clock: () => Date;
     };
     const capturedClockTime = call.clock();
@@ -102,8 +101,7 @@ describe("setClockForTests seam in sync worker", () => {
 
     await handleSyncCalendarConnectionJob({ connectionId: "conn-test" });
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const call = syncCalendarConnection.mock.calls[0][0] as {
+    const call = vi.mocked(syncCalendarConnection).mock.calls[0][0] as {
       clock: () => Date;
     };
     const capturedClockTime = call.clock();

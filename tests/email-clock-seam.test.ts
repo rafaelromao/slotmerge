@@ -4,6 +4,7 @@ import {
   handleEmailDeliveryJob,
   setClockForTests,
 } from "../src/worker/email";
+import type { EmailEventRepository } from "../src/email/service";
 import { buildTestClock } from "./test-clock";
 
 vi.mock("../src/email/repository", () => ({
@@ -21,12 +22,7 @@ vi.mock("../src/admin/critical-email.repository", () => ({
 
 describe("setClockForTests seam in email worker", () => {
   let clock: ReturnType<typeof buildTestClock>;
-  let mockEventRepository: {
-    createQueuedEvent: ReturnType<typeof vi.fn>;
-    recordAttempt: ReturnType<typeof vi.fn>;
-    markDelivered: ReturnType<typeof vi.fn>;
-    markFailed: ReturnType<typeof vi.fn>;
-  };
+  let mockEventRepository: EmailEventRepository;
 
   beforeEach(async () => {
     clock = buildTestClock(new Date("2026-01-01T00:00:00.000Z"));
@@ -88,12 +84,13 @@ describe("setClockForTests seam in email worker", () => {
       payload: { inviteId: "invite-1" },
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockEventRepository.recordAttempt).toHaveBeenCalledWith(
       "evt-clock-1",
       expect.any(Date),
     );
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const [, attemptedAt] = mockEventRepository.recordAttempt.mock.calls[0];
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const [, attemptedAt] = vi.mocked(mockEventRepository.recordAttempt).mock.calls[0];
     expect(attemptedAt).toEqual(new Date("2026-01-01T00:00:00.000Z"));
   });
 
@@ -105,13 +102,17 @@ describe("setClockForTests seam in email worker", () => {
       payload: { inviteId: "invite-2" },
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockEventRepository.markDelivered).toHaveBeenCalledWith(
       "evt-clock-2",
       expect.any(Date),
       expect.anything(),
     );
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const [, deliveredAt] = mockEventRepository.markDelivered.mock.calls[0];
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const [, deliveredAt] = vi.mocked(mockEventRepository.markDelivered).mock.calls[0] as [
+      string,
+      Date,
+    ];
     expect(deliveredAt).toEqual(new Date("2026-01-01T00:00:00.000Z"));
   });
 
@@ -125,8 +126,8 @@ describe("setClockForTests seam in email worker", () => {
       payload: { token: "token-3" },
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const [, attemptedAt] = mockEventRepository.recordAttempt.mock.calls[0];
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const [, attemptedAt] = vi.mocked(mockEventRepository.recordAttempt).mock.calls[0];
     expect(attemptedAt).toEqual(new Date("2026-01-01T01:00:00.000Z"));
   });
 });

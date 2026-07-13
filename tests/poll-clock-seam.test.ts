@@ -51,9 +51,8 @@ describe("clock option in poll worker", () => {
 
     expect(enqueueSyncCalendarConnectionJob).toHaveBeenCalledTimes(2);
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    for (const call of enqueueSyncCalendarConnectionJob.mock.calls) {
-      const [, , runAt] = call as unknown as [string, string, Date];
+    for (const call of vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls) {
+      const [, , runAt] = call as [string, string, Date];
       expect(runAt instanceof Date).toBe(true);
       expect(runAt.getTime()).toBeGreaterThanOrEqual(
         new Date("2026-01-01T00:00:00.000Z").getTime(),
@@ -75,9 +74,8 @@ describe("clock option in poll worker", () => {
 
     await handlePollCalendarConnectionsJob({ clock: () => clock.now() });
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    for (const call of enqueueSyncCalendarConnectionJob.mock.calls) {
-      const [, , runAt] = call as unknown as [string, string, Date];
+    for (const call of vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls) {
+      const [, , runAt] = call as [string, string, Date];
       expect(runAt instanceof Date).toBe(true);
       expect(runAt.getTime()).toBeGreaterThanOrEqual(
         new Date("2026-01-01T01:00:00.000Z").getTime(),

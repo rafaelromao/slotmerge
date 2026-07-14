@@ -149,6 +149,12 @@ const databaseSessionRepository: SessionRepository = {
   },
 };
 
+export function isOrganizerOrAdminSession(
+  session: Session | null,
+): session is Session {
+  return session?.user.role === "organizer" || session?.user.role === "admin";
+}
+
 export function getSessionSecret(): string {
   if (process.env.SESSION_SECRET) {
     return process.env.SESSION_SECRET;

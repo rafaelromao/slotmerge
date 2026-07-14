@@ -328,6 +328,7 @@ describe("GET /me", () => {
       topics: [],
       topicProposals: [],
       availabilityWindows: [],
+      availabilityOverrides: [],
       calendarConnections: [],
       searchEligibility: { eligible: false },
     });
@@ -654,6 +655,7 @@ describe("PATCH /me", () => {
       topics: [],
       topicProposals: [],
       availabilityWindows: [],
+      availabilityOverrides: [],
       calendarConnections: [],
       searchEligibility: { eligible: false },
     });
@@ -684,6 +686,7 @@ describe("PATCH /me", () => {
       topics: [],
       topicProposals: [],
       availabilityWindows: [],
+      availabilityOverrides: [],
       calendarConnections: [],
       searchEligibility: { eligible: false },
     });

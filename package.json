@@ -25,6 +25,7 @@
     "@hapi/iron": "^7.0.1",
     "@paralleldrive/cuid2": "^2.2.2",
     "drizzle-orm": "^0.44.5",
+    "fast-levenshtein": "^3.0.0",
     "graphile-worker": "^0.16.6",
     "next": "^16.0.7",
     "nodemailer": "^6.10.1",
@@ -38,6 +39,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@next/eslint-plugin-next": "^16.0.7",
+    "@types/fast-levenshtein": "^0.0.4",
     "@types/node": "^24.10.1",
     "@types/nodemailer": "^6.4.17",
     "@types/pg": "^8.15.6",

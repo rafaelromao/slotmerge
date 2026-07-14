@@ -7,6 +7,7 @@ import * as schema from "../../src/db/schema";
 
 let globalTestPool: Pool | null = null;
 let globalTestDb: ReturnType<typeof drizzle> | null = null;
+let globalTestDbName: string | null = null;
 
 async function createDatabase(dbName: string): Promise<void> {
   const baseUrl =
@@ -47,12 +48,23 @@ async function runMigrations(url: string): Promise<void> {
   const pool = new Pool({ connectionString: url });
   try {
     const drizzleDir = join(process.cwd(), "drizzle");
-    const files = (await readdir(drizzleDir))
+    const allFiles = (await readdir(drizzleDir))
       .filter((f) => f.endsWith(".sql"))
       .sort();
+    const stale = new Set([
+      "0003_controlled_topics.sql",
+      "0003_controlled_topics_unique.sql",
+    ]);
+    const files = allFiles.filter((f) => !stale.has(f));
     for (const file of files) {
       const sql = await readFile(join(drizzleDir, file), "utf-8");
-      await pool.query(sql);
+      const statements = sql
+        .split(/-->\s*statement-breakpoint/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      for (const statement of statements) {
+        await pool.query(statement);
+      }
     }
   } finally {
     await pool.end();
@@ -70,6 +82,7 @@ export async function createEphemeralDatabase(): Promise<{
   }
 
   const dbName = `slotmerge_test_${process.pid}_${Date.now()}`;
+  globalTestDbName = dbName;
   await createDatabase(dbName);
 
   const baseUrl =
@@ -100,12 +113,14 @@ export async function resetDatabase(
   db: ReturnType<typeof drizzle>,
 ): Promise<void> {
   const tables = [
+    "search_results",
     "email_event_attempts",
     "email_events",
     "discoverability_consents",
     "imported_busy_intervals",
     "calendar_connections",
     "user_topics",
+    "availability_overrides",
     "availability_windows",
     "topic_proposals",
     "searches",
@@ -128,6 +143,11 @@ export async function closeEphemeralDatabase(): Promise<void> {
     await globalTestPool.end();
     globalTestPool = null;
     globalTestDb = null;
+  }
+  if (globalTestDbName) {
+    const dbName = globalTestDbName;
+    globalTestDbName = null;
+    await dropDatabase(dbName);
   }
 }
 

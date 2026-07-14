@@ -2,6 +2,7 @@ import {
   users,
   topics,
   availabilityWindows,
+  availabilityOverrides,
   calendarConnections,
   importedBusyIntervals,
   userTopics,
@@ -87,6 +88,27 @@ export const AVAILABILITY_WINDOW_FIXTURES = [
     dayOfWeek: 1,
     startTime: "08:00",
     endTime: "16:00",
+    profileTimezone: "America/Los_Angeles",
+  },
+];
+
+export const OVERRIDE_FIXTURES = [
+  {
+    id: "00000000-0000-0000-0000-000000000030",
+    userId: USER_FIXTURES[0].id,
+    date: "2026-07-15",
+    startTime: "12:00",
+    endTime: "13:00",
+    type: "add" as const,
+    profileTimezone: "America/New_York",
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000031",
+    userId: USER_FIXTURES[1].id,
+    date: "2026-07-16",
+    startTime: "09:00",
+    endTime: "12:00",
+    type: "block" as const,
     profileTimezone: "America/Los_Angeles",
   },
 ];
@@ -209,6 +231,20 @@ export async function seedAll(db: AppDb): Promise<void> {
       startTime: window.startTime,
       endTime: window.endTime,
       profileTimezone: window.profileTimezone,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  for (const override of OVERRIDE_FIXTURES) {
+    await db.insert(availabilityOverrides).values({
+      id: override.id,
+      userId: override.userId,
+      date: override.date,
+      startTime: override.startTime,
+      endTime: override.endTime,
+      type: override.type,
+      profileTimezone: override.profileTimezone,
       createdAt: now,
       updatedAt: now,
     });

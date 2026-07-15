@@ -34,8 +34,8 @@ const SLOT_END = new Date(SLOT_START.getTime() + DURATION_MINUTES * 60_000);
 const MINIMUM_MATCHING_USERS = 2;
 const PROFILE_TIMEZONE = "UTC";
 const WINDOW_DAY_OF_WEEK = SLOT_START.getUTCDay();
-const WINDOW_START = "13:00";
-const WINDOW_END = "14:00";
+const WINDOW_START = `${String(SLOT_START.getUTCHours()).padStart(2, "0")}:${String(SLOT_START.getUTCMinutes()).padStart(2, "0")}`;
+const WINDOW_END = `${String(SLOT_END.getUTCHours()).padStart(2, "0")}:${String(SLOT_END.getUTCMinutes()).padStart(2, "0")}`;
 
 type SearchParams = Parameters<typeof submitSearch>[1];
 

@@ -17,7 +17,10 @@ import {
 import { encryptCalendarToken } from "../../src/calendar/token-encryption";
 import { setEmailDeliveryServiceForTests } from "../../src/calendar/action-required-email-singleton";
 import { setConnectionActionRequiredDispatchLookupForTests } from "../../src/calendar/action-required-email.repository";
-import { buildMockEmailAdapter, type MockEmailAdapter } from "../mock-email-adapter";
+import {
+  buildMockEmailAdapter,
+  type MockEmailAdapter,
+} from "../mock-email-adapter";
 import { calendarConnections } from "../../src/db/schema";
 import type { EmailDeliveryService } from "../../src/email/service";
 import {
@@ -54,10 +57,8 @@ function aliceSession() {
   };
 }
 
-function buildDisconnectFetch(): typeof fetch {
-  return () => {
-    return Promise.resolve(new Response(null, { status: 200 }));
-  };
+function disconnectFetch(): Response {
+  return new Response(null, { status: 200 });
 }
 
 async function patchDisconnect(): Promise<Response> {
@@ -132,7 +133,7 @@ describe("E2E: calendar connection action-required email triggers on token revoc
       findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(null),
     });
 
-    vi.stubGlobal("fetch", buildDisconnectFetch());
+    vi.stubGlobal("fetch", disconnectFetch);
   });
 
   afterEach(() => {

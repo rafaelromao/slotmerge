@@ -70,7 +70,7 @@ describe("E2E: no notification inbox or notification preferences exist", () => {
     for (const filePath of sourceFiles) {
       const source = await readFile(filePath, "utf8");
       expect(source).not.toMatch(
-        /\bnotification(?:[-]?(?:preferences?|inbox|centre|center))?\b/i,
+        /\bnotifications?(?:[-]?(?:preferences?|inbox|centre|center))?\b/i,
       );
     }
   });

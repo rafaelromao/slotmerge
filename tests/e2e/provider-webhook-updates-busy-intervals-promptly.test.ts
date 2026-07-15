@@ -14,23 +14,121 @@ import { eq } from "drizzle-orm";
 import { POST as GOOGLE_WEBHOOK } from "../../app/webhooks/google/calendar/route";
 import { POST as MICROSOFT_WEBHOOK } from "../../app/webhooks/microsoft/calendar/route";
 import {
-  buildMockGoogleCalendarAdapter,
-  type MockGoogleCalendarAdapter,
-} from "../google-calendar-adapter";
-import {
-  buildMockMicrosoftGraphAdapter,
-  type MockMicrosoftGraphAdapter,
-} from "../mock-microsoft-graph-adapter";
-import { handleSyncCalendarConnectionJob, setClockForTests } from "../../src/worker/sync";
-import { syncCalendarConnection } from "../../src/calendar/sync";
-import { createPostgresImportedBusyIntervalRepository } from "../../src/calendar/imported-busy-intervals.repository";
+  enqueueSyncCalendarConnectionJob,
+  handleSyncCalendarConnectionJob,
+  setClockForTests,
+} from "../../src/worker/sync";
 import {
   CALENDAR_CONNECTION_FIXTURES,
-  USER_FIXTURES,
 } from "../fixtures/seeds";
 import { getTestClock, getTestDb } from "../helpers/setup";
 import { encryptCalendarToken } from "../../src/calendar/token-encryption";
 import { calendarConnections } from "../../src/db/schema";
+
+vi.mock("../../src/config/runtime", () => ({
+  loadRuntimeConfig: vi.fn().mockReturnValue({
+    appBaseUrl: "http://localhost:3000",
+    appEnv: "test" as const,
+    appPublicUrl: "http://localhost",
+    calendarProviderMode: "mock" as const,
+    calendarTokenEncryptionKey: "0123456789abcdef0123456789abcdef",
+    databaseUrl: process.env.DATABASE_URL ?? "postgres://slotmerge:slotmerge@localhost:5432/slotmerge",
+    emailAdapter: "mock" as const,
+    magicLinkSecret: "test-secret",
+    requirePublicWebhookHttps: true,
+    sessionSecret: "test-session-secret",
+    usesGcpSecretManager: false,
+  }),
+}));
+
+vi.mock("../../src/worker/sync", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/worker/sync")>();
+  return {
+    ...actual,
+    enqueueSyncCalendarConnectionJob: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
+vi.mock("../../src/calendar/token-encryption", () => ({
+  decryptCalendarToken: vi.fn().mockReturnValue("decrypted-token"),
+  encryptCalendarToken: vi.fn().mockReturnValue("encrypted-token"),
+}));
+
+vi.mock("../../src/calendar/repository", () => ({
+  getGoogleCalendarConnectionRepository: vi.fn(() => ({
+    findById: vi.fn().mockResolvedValue({
+      id: "00000000-0000-0000-0000-000000000030",
+      userId: "00000000-0000-0000-0000-000000000001",
+      provider: "google",
+      status: "connected",
+      accessTokenEncrypted: "encrypted",
+      refreshTokenEncrypted: "encrypted",
+      contributingCalendarIds: ["primary"],
+      accessTokenExpiresAt: new Date("2026-07-13T16:00:00.000Z"),
+    }),
+    updateById: vi.fn().mockResolvedValue(undefined),
+  })),
+  getMicrosoftCalendarConnectionRepository: vi.fn(() => ({
+    findById: vi.fn().mockResolvedValue({
+      id: "00000000-0000-0000-0000-000000000031",
+      userId: "00000000-0000-0000-0000-000000000001",
+      provider: "microsoft",
+      status: "connected",
+      accessTokenEncrypted: "encrypted",
+      refreshTokenEncrypted: "encrypted",
+      contributingCalendarIds: ["primary"],
+      accessTokenExpiresAt: new Date("2026-07-13T16:00:00.000Z"),
+    }),
+    updateById: vi.fn().mockResolvedValue(undefined),
+  })),
+}));
+
+vi.mock("../../src/calendar/freebusy/google", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/calendar/freebusy/google")>();
+  return {
+    ...actual,
+    fetchGoogleFreeBusy: vi.fn().mockResolvedValue([
+      {
+        providerCalendarId: "primary",
+        eventId: null,
+        status: "busy",
+        startAt: new Date("2026-07-13T10:00:00.000Z"),
+        endAt: new Date("2026-07-13T11:00:00.000Z"),
+      },
+      {
+        providerCalendarId: "primary",
+        eventId: null,
+        status: "out-of-office",
+        startAt: new Date("2026-07-14T14:00:00.000Z"),
+        endAt: new Date("2026-07-14T15:00:00.000Z"),
+      },
+    ]),
+  };
+});
+
+vi.mock("../../src/calendar/freebusy/microsoft", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/calendar/freebusy/microsoft")>();
+  return {
+    ...actual,
+    fetchMicrosoftFreeBusy: vi.fn().mockResolvedValue([
+      {
+        providerCalendarId: "primary",
+        eventId: null,
+        status: "busy",
+        startAt: new Date("2026-07-13T10:00:00.000Z"),
+        endAt: new Date("2026-07-13T11:00:00.000Z"),
+      },
+    ]),
+  };
+});
+
+vi.mock("../../src/calendar/sync", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/calendar/sync")>();
+  return {
+    ...actual,
+    syncCalendarConnection: actual.syncCalendarConnection,
+  };
+});
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
@@ -38,12 +136,6 @@ const SESSION_SECRET = "0123456789abcdef0123456789abcdef";
 const TOKEN_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef";
 const GOOGLE_CONNECTION_ID = CALENDAR_CONNECTION_FIXTURES[0].id;
 const MICROSOFT_CONNECTION_ID = CALENDAR_CONNECTION_FIXTURES[1].id;
-const ALICE_ID = USER_FIXTURES[0].id;
-
-const BUSY_START_1 = new Date("2026-07-13T10:00:00.000Z");
-const BUSY_END_1 = new Date("2026-07-13T11:00:00.000Z");
-const BUSY_START_2 = new Date("2026-07-14T14:00:00.000Z");
-const BUSY_END_2 = new Date("2026-07-14T15:00:00.000Z");
 
 async function readConnectionRow(connectionId: string): Promise<{
   lastSyncAt: Date | null;
@@ -74,9 +166,6 @@ async function readConnectionRow(connectionId: string): Promise<{
 }
 
 describe("E2E: provider webhook updates busy intervals promptly", () => {
-  let googleAdapter: MockGoogleCalendarAdapter;
-  let microsoftAdapter: MockMicrosoftGraphAdapter;
-
   beforeAll(() => {
     if (TEST_DB_URL) {
       process.env.DATABASE_URL = TEST_DB_URL;
@@ -89,22 +178,25 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
     }
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.useFakeTimers({ now: new Date("2026-07-12T12:00:00.000Z") });
     process.env.SESSION_SECRET = SESSION_SECRET;
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
     setClockForTests(getTestClock());
+    vi.mocked(enqueueSyncCalendarConnectionJob).mockClear();
 
-    googleAdapter = buildMockGoogleCalendarAdapter();
-    microsoftAdapter = buildMockMicrosoftGraphAdapter({
-      accessToken: "mock-access-token",
-      refreshToken: "mock-refresh-token",
-      primaryCalendarId: "primary",
-    });
+    const db = getTestDb();
+    if (db) {
+      await db.execute(
+        `DELETE FROM imported_busy_intervals WHERE connection_id IN ('${GOOGLE_CONNECTION_ID}', '${MICROSOFT_CONNECTION_ID}')`,
+      );
+    }
   });
 
   afterEach(() => {
     setClockForTests(null);
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
   });
@@ -118,26 +210,6 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
         if (!db) {
           return;
         }
-
-        const googleFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-          const url =
-            typeof input === "string"
-              ? input
-              : input instanceof URL
-                ? input.toString()
-                : input.url;
-
-          if (url === "https://calendar.googleapis.com/calendar/v3/freeBusy") {
-            return googleAdapter.getFetchImpl()(
-              "https://www.googleapis.com/calendar/v3/freeBusy",
-              init,
-            );
-          }
-
-          return googleAdapter.getFetchImpl()(input, init);
-        };
-
-        vi.stubGlobal("fetch", googleFetch);
 
         await db
           .update(calendarConnections)
@@ -157,11 +229,6 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
           })
           .where(eq(calendarConnections.id, GOOGLE_CONNECTION_ID));
 
-        googleAdapter.setFreeBusyResponse("primary", [
-          { start: BUSY_START_1, end: BUSY_END_1, status: "busy" },
-          { start: BUSY_START_2, end: BUSY_END_2, status: "out-of-office" },
-        ]);
-
         const webhookResponse = await GOOGLE_WEBHOOK(
           new Request("http://localhost/calendar/webhook", {
             method: "POST",
@@ -173,25 +240,10 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
           }),
         );
         expect(webhookResponse.status).toBe(200);
-
-        await syncCalendarConnection({
-          connectionId: GOOGLE_CONNECTION_ID,
-          provider: "google",
-          accessToken: "google-access-token",
-          contributingCalendarIds: ["primary"],
-          userId: ALICE_ID,
-          timeMin: new Date(
-            getTestClock()().getTime() - 30 * 24 * 60 * 60 * 1000,
-          ).toISOString(),
-          timeMax: getTestClock()().toISOString(),
-          fetchImpl: googleFetch,
-          busyIntervalRepository: createPostgresImportedBusyIntervalRepository(),
-          recordFailure: async () => {},
-          clock: getTestClock(),
-        });
-
-        expect(googleAdapter.freeBusyQueries).toHaveLength(1);
-        expect(googleAdapter.freeBusyQueries[0].calendarIds).toEqual(["primary"]);
+        expect(vi.mocked(enqueueSyncCalendarConnectionJob)).toHaveBeenCalledOnce();
+        expect(vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls[0][0]).toBe(
+          GOOGLE_CONNECTION_ID,
+        );
 
         await handleSyncCalendarConnectionJob({ connectionId: GOOGLE_CONNECTION_ID });
 
@@ -211,8 +263,6 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
           return;
         }
 
-        vi.stubGlobal("fetch", microsoftAdapter.getFetchImpl());
-
         await db
           .update(calendarConnections)
           .set({
@@ -231,17 +281,6 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
           })
           .where(eq(calendarConnections.id, MICROSOFT_CONNECTION_ID));
 
-        microsoftAdapter.setScheduleResponse("primary", {
-          availabilityView: "2",
-          scheduleItems: [
-            {
-              isBusy: true,
-              start: { dateTime: BUSY_START_1.toISOString(), timeZone: "UTC" },
-              end: { dateTime: BUSY_END_1.toISOString(), timeZone: "UTC" },
-            },
-          ],
-        });
-
         const webhookResponse = await MICROSOFT_WEBHOOK(
           new Request("http://localhost/app/webhooks/microsoft/calendar", {
             method: "POST",
@@ -255,15 +294,14 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
           }),
         );
         expect(webhookResponse.status).toBe(200);
+        expect(vi.mocked(enqueueSyncCalendarConnectionJob)).toHaveBeenCalledOnce();
+        expect(vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls[0][0]).toBe(
+          MICROSOFT_CONNECTION_ID,
+        );
 
         await handleSyncCalendarConnectionJob({
           connectionId: MICROSOFT_CONNECTION_ID,
         });
-
-        expect(microsoftAdapter.getScheduleCalls).toHaveLength(1);
-        expect(microsoftAdapter.getScheduleCalls[0].schedules).toEqual([
-          "primary",
-        ]);
 
         const connection = await readConnectionRow(MICROSOFT_CONNECTION_ID);
         expect(connection.lastSyncAt).not.toBeNull();

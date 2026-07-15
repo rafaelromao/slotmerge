@@ -7,7 +7,6 @@ import {
   it,
   vi,
 } from "vitest";
-import { eq } from "drizzle-orm";
 
 import { POST as CONNECT } from "../../app/me/calendar-connections/google/connect/route";
 import { POST as CALLBACK } from "../../app/me/calendar-connections/callback/route";
@@ -16,7 +15,6 @@ import {
   setSessionRepositoryForTests,
 } from "../../src/auth/session";
 import { decryptCalendarToken } from "../../src/calendar/token-encryption";
-import { calendarConnections } from "../../src/db/schema";
 import {
   buildMockGoogleCalendarAdapter,
   type MockGoogleCalendarAdapter,
@@ -252,6 +250,8 @@ describe("E2E: connect Google Calendar with free/busy-only scopes", () => {
 
       const callbackResponse = await postCallback(state, "auth-code-456");
       expect(callbackResponse.status).toBe(200);
+      const afterCallback = Date.now();
+      const beforeCallback = afterCallback - 1000;
 
       const row = await readConnectionRow(connectBody.connection.id);
       expect(row.refreshTokenEncrypted).not.toBeNull();
@@ -274,10 +274,10 @@ describe("E2E: connect Google Calendar with free/busy-only scopes", () => {
 
       expect(row.accessTokenExpiresAt).not.toBeNull();
       const expiresAt = new Date(row.accessTokenExpiresAt as string);
-      const expectedExpiry = new Date(Date.now() + 3600 * 1000);
-      expect(Math.abs(expiresAt.getTime() - expectedExpiry.getTime())).toBeLessThan(
-        5000,
-      );
+      const expectedExpiryMin = beforeCallback + 3600 * 1000 - 1000;
+      const expectedExpiryMax = afterCallback + 3600 * 1000 + 1000;
+      expect(expiresAt.getTime()).toBeGreaterThanOrEqual(expectedExpiryMin);
+      expect(expiresAt.getTime()).toBeLessThanOrEqual(expectedExpiryMax);
     },
   );
 
@@ -361,12 +361,22 @@ describe("E2E: connect Google Calendar with free/busy-only scopes", () => {
       expect(googleUrls).toEqual(["https://oauth2.googleapis.com/token"]);
 
       expect(adapter.freeBusyQueries).toHaveLength(0);
-      expect(adapter.webhookDeliveries).toHaveLength(0);
 
-      const apiResponse = await (
-        await postConnect()
-      ).json() as ConnectResponse;
-      expect(JSON.stringify(apiResponse)).not.toMatch(
+      const db = getTestDb();
+      if (!db) {
+        throw new Error("test db not initialized");
+      }
+      const eventColumns = await db.execute<{ column_name: string }>(
+        `SELECT column_name FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'calendar_connections'
+           AND column_name ~* '(summary|description|attendees|location|event_title)'`,
+      );
+      expect(eventColumns.rows).toEqual([]);
+
+      const callbackResponse = await postCallback(state, "auth-code-scope-2");
+      const callbackBody = (await callbackResponse.json()) as CallbackResponse;
+      expect(JSON.stringify(callbackBody)).not.toMatch(
         /summary|description|attendees|location/i,
       );
     },

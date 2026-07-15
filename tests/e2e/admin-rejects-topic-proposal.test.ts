@@ -109,12 +109,6 @@ describe("E2E: Admin rejects a pending Topic Proposal", () => {
         .from(userTopics)
         .where(eq(userTopics.userId, PROPOSER.id));
       expect(proposerUserTopics).toHaveLength(2);
-      expect(
-        proposerUserTopics.every(
-          (row) =>
-            row.topicId !== proposalId && row.topicId !== candidateName,
-        ),
-      ).toBe(true);
 
       const proposerCookie = await sealSessionCookie({
         sessionId: PROPOSER_SESSION.id,

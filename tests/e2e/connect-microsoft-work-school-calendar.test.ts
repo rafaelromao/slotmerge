@@ -20,11 +20,10 @@ import {
   sealSessionCookie,
   setSessionRepositoryForTests,
 } from "../../src/auth/session";
-import { setMicrosoftCalendarConnectionRepositoryForTests } from "../../src/calendar/repository";
 import { decryptCalendarToken } from "../../src/calendar/token-encryption";
 import { calendarConnections } from "../../src/db/schema";
 import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
-import { getTestDb } from "../helpers/setup";
+import { getTestClock, getTestDb } from "../helpers/setup";
 import {
   buildMockMicrosoftGraphAdapter,
   type MockMicrosoftGraphAdapter,
@@ -81,6 +80,8 @@ describe("E2E: connect Microsoft work/school calendar with Calendars.ReadBasic",
   });
 
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(getTestClock()());
     process.env.SESSION_SECRET = SESSION_SECRET;
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
     process.env.MICROSOFT_OAUTH_CLIENT_ID = MICROSOFT_CLIENT_ID;
@@ -100,8 +101,8 @@ describe("E2E: connect Microsoft work/school calendar with Calendars.ReadBasic",
 
   afterEach(() => {
     setSessionRepositoryForTests(null);
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
     delete process.env.MICROSOFT_OAUTH_CLIENT_ID;

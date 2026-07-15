@@ -341,4 +341,34 @@ describe("E2E: connect Google Calendar with free/busy-only scopes", () => {
       );
     },
   );
+
+  it.runIf(HAS_TEST_DB)(
+    "does not call any event-detail, calendarList, or identity endpoints during the connect flow",
+    async () => {
+      const connectResponse = await postConnect();
+      const connectBody = (await connectResponse.json()) as ConnectResponse;
+      const state =
+        new URL(connectBody.authorizationUrl).searchParams.get("state") ?? "";
+
+      await postCallback(state, "auth-code-scope");
+
+      const googleUrls = capturedUrls.filter(
+        (u) =>
+          u.includes("googleapis.com") ||
+          u.includes("accounts.google.com") ||
+          u.includes("googleusercontent.com"),
+      );
+      expect(googleUrls).toEqual(["https://oauth2.googleapis.com/token"]);
+
+      expect(adapter.freeBusyQueries).toHaveLength(0);
+      expect(adapter.webhookDeliveries).toHaveLength(0);
+
+      const apiResponse = await (
+        await postConnect()
+      ).json() as ConnectResponse;
+      expect(JSON.stringify(apiResponse)).not.toMatch(
+        /summary|description|attendees|location/i,
+      );
+    },
+  );
 });

@@ -8,6 +8,7 @@ import { submitSearch } from "../../src/search/search-input";
 import { createMatchingDependencies } from "../../src/matching";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
 import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
+import { grantDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
 
@@ -21,8 +22,8 @@ const SLOT_START_UTC = "2026-07-13T16:00:00.000Z";
 const SLOT_END_UTC = "2026-07-13T17:00:00.000Z";
 const DURATION_MINUTES = 60;
 
-const SUSPENDED_USER_ID = "00000000-0000-0000-0000-0000000000d1";
-const REVOKED_USER_ID = "00000000-0000-0000-0000-0000000000e1";
+const SUSPENDED_USER_ID = "00000000-0000-0000-0000-0000000000f1";
+const REVOKED_USER_ID = "00000000-0000-0000-0000-000000000101";
 
 const COMPLETE_PROFILE: ProfileInputs = {
   hasDisplayName: true,
@@ -63,17 +64,6 @@ async function insertFixtureUser(input: FixtureUserInput): Promise<void> {
   await db.execute(
     `INSERT INTO user_topics (id, user_id, topic_id, status, created_at, updated_at)
      VALUES (gen_random_uuid(), '${input.id}', '${input.topicId}', 'active', '${now}', '${now}')`,
-  );
-}
-
-async function grantConsent(userId: string): Promise<void> {
-  const db = getTestDb();
-  if (!db) {
-    throw new Error("test db not initialized");
-  }
-  const now = new Date(FIXTURE_DATE).toISOString();
-  await db.execute(
-    `INSERT INTO discoverability_consents (user_id, granted_at) VALUES ('${userId}', '${now}')`,
   );
 }
 
@@ -162,7 +152,7 @@ describe("E2E: Match only considers active discoverable Users", () => {
       }
 
       await setupTest();
-      await grantConsent(POSITIVE_CONTROL.id);
+      await grantDiscoverabilityConsent(POSITIVE_CONTROL.id);
       setSearchEligibilityProfileInputsForTests(ELIGIBILITY_INPUTS);
       await insertFixtureUser({
         id: SUSPENDED_USER_ID,
@@ -171,7 +161,7 @@ describe("E2E: Match only considers active discoverable Users", () => {
         userStatus: "suspended",
         topicId: SELECTED_TOPIC.id,
       });
-      await grantConsent(SUSPENDED_USER_ID);
+      await grantDiscoverabilityConsent(SUSPENDED_USER_ID);
 
       const searchId = await runSearch();
       const snapshot = await loadSnapshot(searchId);
@@ -192,7 +182,7 @@ describe("E2E: Match only considers active discoverable Users", () => {
       }
 
       await setupTest();
-      await grantConsent(POSITIVE_CONTROL.id);
+      await grantDiscoverabilityConsent(POSITIVE_CONTROL.id);
       setSearchEligibilityProfileInputsForTests(ELIGIBILITY_INPUTS);
       await insertFixtureUser({
         id: REVOKED_USER_ID,

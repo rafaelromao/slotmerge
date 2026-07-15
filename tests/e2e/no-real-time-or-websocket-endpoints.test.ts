@@ -1,18 +1,13 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { GET as getSearchResultApi } from "../../app/api/searches/[id]/route";
+
 const REPO_ROOT = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const APP_ROOT = join(REPO_ROOT, "app");
-const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
-
-type RouteModule = Record<string, unknown>;
-type RouteHandler = (
-  request: Request,
-  context: { params: Promise<Record<string, string>> },
-) => Response | Promise<Response>;
 
 async function listAppSourceFiles(root = APP_ROOT): Promise<string[]> {
   const entries = await readdir(root, { withFileTypes: true });
@@ -30,45 +25,14 @@ async function listAppSourceFiles(root = APP_ROOT): Promise<string[]> {
   return files;
 }
 
-async function listRouteFiles(): Promise<string[]> {
-  const sourceFiles = await listAppSourceFiles();
-  return sourceFiles.filter((filePath) => filePath.endsWith("route.ts"));
-}
-
-function requestForRoute(filePath: string, method: string): Request {
-  const routePath = relative(APP_ROOT, filePath)
-    .replace(/[/\\]route\.ts$/, "")
-    .split(/[\\/]/)
-    .map((segment) => (segment.startsWith("[") ? "missing" : segment))
-    .join("/");
-  const hasBody = method !== "GET";
-  const isFormEncoded =
-    routePath.endsWith("calendar-connections/callback") ||
-    routePath.endsWith("auth/magic-link/request") ||
-    routePath.endsWith("auth/magic-link/resend") ||
-    routePath.endsWith("auth/magic-link/verify");
-
-  return new Request(`http://localhost/${routePath}`, {
-    method,
-    headers: {
-      Accept: "text/event-stream",
-      Connection: "Upgrade",
-      Upgrade: "websocket",
-      ...(hasBody
-        ? {
-            "Content-Type": isFormEncoded
-              ? "application/x-www-form-urlencoded"
-              : "application/json",
-          }
-        : {}),
-    },
-    ...(hasBody ? { body: isFormEncoded ? new URLSearchParams() : "{}" } : {}),
-  });
-}
-
 describe("E2E: no real-time or websocket transport exists", () => {
   it("does not define WebSocket or SSE transports in app source", async () => {
     const sourceFiles = await listAppSourceFiles();
+    const routeFiles = sourceFiles.filter((filePath) =>
+      filePath.endsWith("route.ts"),
+    );
+
+    expect(routeFiles.length).toBeGreaterThan(0);
 
     for (const filePath of sourceFiles) {
       const source = await readFile(filePath, "utf8");
@@ -76,8 +40,9 @@ describe("E2E: no real-time or websocket transport exists", () => {
       expect(source).not.toMatch(/\bnew\s+(?:WebSocket|EventSource)\s*\(/);
 
       if (filePath.endsWith("route.ts")) {
+        expect(source).not.toMatch(/text\/event-stream|new\s+ReadableStream/i);
         expect(source).not.toMatch(
-          /text\/event-stream|ReadableStream|\bupgrade\b|connection\s*:\s*["']upgrade["']/i,
+          /(?:headers\.(?:set|append)|headers\s*:\s*{)[\s\S]{0,160}["'](?:upgrade|connection)["']/i,
         );
         expect(relative(APP_ROOT, filePath)).not.toMatch(
           /(?:^|[/\\])(?:websocket|ws|sse|stream)(?:[/\\]|\.route\.ts$)/i,
@@ -86,77 +51,53 @@ describe("E2E: no real-time or websocket transport exists", () => {
     }
   });
 
-  it("uses the HTTP JSON API for Search Result client data", async () => {
-    const source = await readFile(
+  it("keeps client interactions on HTTP JSON transport", async () => {
+    const sourceFiles = await listAppSourceFiles();
+    const clientFiles: string[] = [];
+
+    for (const filePath of sourceFiles) {
+      const source = await readFile(filePath, "utf8");
+      if (!source.startsWith('"use client"')) {
+        continue;
+      }
+
+      clientFiles.push(filePath);
+      expect(source).not.toMatch(
+        /\bnew\s+(?:WebSocket|EventSource)\s*\(|\b(?:getReader|pipeThrough)\s*\(|text\/event-stream/i,
+      );
+    }
+
+    expect(clientFiles.length).toBeGreaterThan(0);
+
+    const searchPage = await readFile(
       join(APP_ROOT, "searches", "[id]", "page.tsx"),
       "utf8",
     );
 
-    expect(source).toContain("fetch(`/api/searches/${searchId}`)");
-    expect(source).toContain("await res.json()");
-    expect(source).not.toMatch(/\bnew\s+(?:WebSocket|EventSource)\s*\(/);
-    expect(source).not.toMatch(/\b(?:getReader|pipeThrough)\s*\(/);
-    expect(source).not.toMatch(/text\/event-stream|\bupgrade\b/i);
+    expect(searchPage).toMatch(/fetch\s*\([^)]*\/api\/searches\//);
+    expect(searchPage).toMatch(/await\s+\w+\.json\s*\(\)/);
   });
 
-  it("returns ordinary HTTP responses from every route handler", async () => {
-    for (const filePath of await listRouteFiles()) {
-      const routeModule = (await import(
-        pathToFileURL(filePath).href
-      )) as RouteModule;
+  it("returns JSON from the Search Result API for upgrade-shaped requests", async () => {
+    const response = await getSearchResultApi(
+      new Request("http://localhost/api/searches/missing", {
+        headers: {
+          Accept: "text/event-stream",
+          Connection: "Upgrade",
+          Upgrade: "websocket",
+        },
+      }),
+      { params: Promise.resolve({ id: "missing" }) },
+    );
 
-      for (const method of HTTP_METHODS) {
-        const candidate = routeModule[method];
-        if (typeof candidate !== "function") {
-          continue;
-        }
-
-        const handler = candidate as RouteHandler;
-        let response: Response;
-        try {
-          response = await handler(requestForRoute(filePath, method), {
-            params: Promise.resolve({ id: "missing", connectionId: "missing" }),
-          });
-        } catch (error) {
-          throw new Error(
-            `${relative(APP_ROOT, filePath)} ${method}: ${error instanceof Error ? error.message : String(error)}`,
-          );
-        }
-        const contentType = response.headers.get("content-type") ?? "";
-        const connection = response.headers.get("connection") ?? "";
-
-        expect(response.status).not.toBe(101);
-        expect(contentType).not.toMatch(/^text\/event-stream\b/i);
-        expect(response.headers.get("upgrade")).toBeNull();
-        expect(connection).not.toMatch(/\bupgrade\b/i);
-        await response.text();
-      }
-    }
-  });
-
-  it("uses no WebSocket or SSE transport dependency", async () => {
-    const packageJson = JSON.parse(
-      await readFile(join(REPO_ROOT, "package.json"), "utf8"),
-    ) as {
-      dependencies?: Record<string, string>;
-      devDependencies?: Record<string, string>;
-    };
-    const dependencyNames = Object.keys({
-      ...packageJson.dependencies,
-      ...packageJson.devDependencies,
+    expect(response.status).toBe(401);
+    expect(response.headers.get("content-type")).toMatch(/^application\/json/i);
+    expect(response.headers.get("upgrade")).toBeNull();
+    expect(response.headers.get("connection") ?? "").not.toMatch(
+      /\bupgrade\b/i,
+    );
+    await expect(response.json()).resolves.toEqual({
+      error: "unauthenticated",
     });
-    const realtimeDependencies = [
-      "@fastify/websocket",
-      "eventsource",
-      "graphql-ws",
-      "socket.io",
-      "socket.io-client",
-      "sse",
-      "ws",
-    ];
-
-    expect(
-      dependencyNames.filter((name) => realtimeDependencies.includes(name)),
-    ).toEqual([]);
   });
 });

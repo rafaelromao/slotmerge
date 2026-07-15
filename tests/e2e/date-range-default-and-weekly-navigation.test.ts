@@ -1,9 +1,8 @@
-import { afterEach, describe, expect, inject, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { createMatchingDependencies } from "../../src/matching";
 import { getDiscoverableUserRepository } from "../../src/search/discoverable-user-repository";
 import {
-  alignToMonday,
   getNextWeekStart,
   getPreviousWeekStart,
 } from "../../src/search/calendar-utils";
@@ -11,38 +10,33 @@ import { getSearchRepository } from "../../src/search/repository";
 import { getSearchResultRepository } from "../../src/search/search-result-repository";
 import {
   submitSearch,
+  startOfWeekInTimezone,
   type Clock,
   type ProfileRepository,
 } from "../../src/search/search-input";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
-import { setupTest } from "../helpers/setup";
+import { getTestClock, setupTest } from "../helpers/setup";
 
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
 const HAS_TEST_DB = !!TEST_DB_URL;
 const ORGANIZER = USER_FIXTURES[1];
-const ORGANIZER_TIMEZONE = "America/Los_Angeles";
+const ORGANIZER_TIMEZONE = ORGANIZER.profileTimezone;
 const FIXTURE_TODAY = new Date(FIXTURE_DATE);
 const FIVE_WEEKS_MS = 5 * 7 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
-
-const pinnedClock = (iso: string): Clock => ({
-  now: () => new Date(iso),
-});
 
 class DbBackedProfileRepository implements ProfileRepository {
   findByUserId(userId: string): ReturnType<typeof getProfileByUserId> {
     return getProfileByUserId(userId);
   }
-  updateByUserId() {
-    throw new Error("updateByUserId is not used by submitSearch");
-  }
-  deleteByUserId() {
-    throw new Error("deleteByUserId is not used by submitSearch");
-  }
 }
 
-async function submitDefaultSearch() {
+function fixedClockAtFixtureDate(): Clock {
+  return { now: () => new Date(getTestClock()()) };
+}
+
+async function submitDefaultSearch(clock: Clock) {
   return submitSearch(
     {
       organizerId: ORGANIZER.id,
@@ -57,7 +51,7 @@ async function submitDefaultSearch() {
           ]),
       },
       profileRepository: new DbBackedProfileRepository(),
-      clock: pinnedClock(FIXTURE_DATE),
+      clock,
       matchingPoolSize: 5,
       matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: getDiscoverableUserRepository(),
@@ -77,25 +71,28 @@ describe("E2E: date range default and weekly navigation inside 90-day window", (
     }
   });
 
-  afterEach(() => {
+  afterAll(() => {
     if (TEST_DB_URL) {
       delete process.env.DATABASE_URL;
     }
   });
 
   it.runIf(HAS_TEST_DB)(
-    "submitting a search with no date overrides persists a Search whose default range is the current week plus next four weeks",
+    "submitting a search with no date overrides persists a Search whose default range is the current week plus next four weeks inside the rolling 90-day window",
     async () => {
       await setupTest();
 
-      const result = await submitDefaultSearch();
+      const result = await submitDefaultSearch(fixedClockAtFixtureDate());
 
       expect(result.ok).toBe(true);
       if (!result.ok) {
         throw new Error("expected submitSearch to succeed");
       }
 
-      const expectedStart = alignToMonday(FIXTURE_TODAY, ORGANIZER_TIMEZONE);
+      const expectedStart = startOfWeekInTimezone(
+        FIXTURE_TODAY,
+        ORGANIZER_TIMEZONE,
+      );
       const expectedEnd = new Date(expectedStart.getTime() + FIVE_WEEKS_MS);
 
       expect(result.search.dateRangeStart.toISOString()).toBe(
@@ -108,6 +105,14 @@ describe("E2E: date range default and weekly navigation inside 90-day window", (
         result.search.dateRangeEnd.getTime() -
           result.search.dateRangeStart.getTime(),
       ).toBe(FIVE_WEEKS_MS);
+
+      const windowEnd = new Date(FIXTURE_TODAY.getTime() + NINETY_DAYS_MS);
+      expect(result.search.dateRangeEnd.getTime()).toBeLessThanOrEqual(
+        windowEnd.getTime(),
+      );
+      expect(result.search.dateRangeStart.getTime()).toBeGreaterThanOrEqual(
+        FIXTURE_TODAY.getTime() - NINETY_DAYS_MS,
+      );
 
       const persisted = await getSearchRepository().findById(result.search.id!);
       expect(persisted).not.toBeNull();
@@ -122,12 +127,13 @@ describe("E2E: date range default and weekly navigation inside 90-day window", (
         result.search.id!,
       );
       expect(snapshot).not.toBeNull();
-      expect(snapshot!.snapshotJson.dateRangeStart).toBe(
-        expectedStart.toISOString(),
-      );
-      expect(snapshot!.snapshotJson.dateRangeEnd).toBe(
-        expectedEnd.toISOString(),
-      );
+      expect(snapshot!.snapshotJson).toMatchObject({
+        dateRangeStart: expectedStart.toISOString(),
+        dateRangeEnd: expectedEnd.toISOString(),
+        organizerTimezone: ORGANIZER_TIMEZONE,
+        durationMinutes: 60,
+      });
+      expect(Array.isArray(snapshot!.snapshotJson.slots)).toBe(true);
     },
   );
 
@@ -136,7 +142,7 @@ describe("E2E: date range default and weekly navigation inside 90-day window", (
     async () => {
       await setupTest();
 
-      const result = await submitDefaultSearch();
+      const result = await submitDefaultSearch(fixedClockAtFixtureDate());
       expect(result.ok).toBe(true);
       if (!result.ok) {
         throw new Error("expected submitSearch to succeed");
@@ -197,7 +203,7 @@ describe("E2E: date range default and weekly navigation inside 90-day window", (
     async () => {
       await setupTest();
 
-      const result = await submitDefaultSearch();
+      const result = await submitDefaultSearch(fixedClockAtFixtureDate());
       expect(result.ok).toBe(true);
       if (!result.ok) {
         throw new Error("expected submitSearch to succeed");

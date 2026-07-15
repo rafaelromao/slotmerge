@@ -1,11 +1,38 @@
-import { beforeEach } from "vitest";
-import { getTestDb, resetDatabase } from "./test-db";
-import { seedAll } from "../fixtures/seeds";
+import { afterAll, beforeAll, beforeEach, inject } from "vitest";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+
+import * as schema from "../../src/db/schema";
+import { resetDatabase } from "./test-db";
+import { seedAll, FIXTURE_DATE } from "../fixtures/seeds";
 import { fixedClock } from "../fixtures/clock";
 
-const FIXTURE_DATE = "2026-07-12T12:00:00.000Z";
+type TestDb = ReturnType<typeof drizzle>;
 
+let pool: Pool | null = null;
+let db: TestDb | null = null;
 let currentClock: (() => Date) | null = null;
+
+beforeAll(() => {
+  const url = inject("testDbUrl") as string | undefined;
+  if (!url) {
+    return;
+  }
+  pool = new Pool({ connectionString: url });
+  db = drizzle(pool, { schema });
+});
+
+afterAll(async () => {
+  if (pool) {
+    await pool.end();
+    pool = null;
+    db = null;
+  }
+});
+
+export function getTestDb(): TestDb | null {
+  return db;
+}
 
 export function getTestClock(): () => Date {
   if (!currentClock) {
@@ -15,7 +42,6 @@ export function getTestClock(): () => Date {
 }
 
 export async function setupTest(): Promise<void> {
-  const db = getTestDb();
   if (!db) {
     return;
   }

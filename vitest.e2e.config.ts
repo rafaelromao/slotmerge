@@ -9,7 +9,9 @@ export default defineConfig({
         "postgres://slotmerge:slotmerge@localhost:5432/slotmerge",
     },
     globals: true,
-    include: ["tests/helpers/**/*.test.ts"],
+    include: ["tests/e2e/**/*.test.ts"],
     exclude: [],
+    globalSetup: ["./tests/helpers/global-setup.ts"],
+    setupFiles: ["./tests/helpers/setup.ts"],
   },
 });

@@ -9,6 +9,17 @@ let globalTestPool: Pool | null = null;
 let globalTestDb: ReturnType<typeof drizzle> | null = null;
 let globalTestDbName: string | null = null;
 
+// SQL files in drizzle/ that predate the canonical migration listed in
+// drizzle/meta/_journal.json. Running them would conflict with the journal
+// migration that supersedes them (the journal file is incomplete relative
+// to the on-disk SQL files in this repository, so we cannot rely on it as
+// the sole source of truth). Each entry is filtered out before applying
+// migrations to a fresh test database.
+const OBSOLETE_MIGRATION_FILES: ReadonlySet<string> = new Set([
+  "0003_controlled_topics.sql",
+  "0003_controlled_topics_unique.sql",
+]);
+
 async function createDatabase(dbName: string): Promise<void> {
   const baseUrl =
     process.env.DATABASE_URL ?? "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
@@ -44,18 +55,19 @@ async function dropDatabase(dbName: string): Promise<void> {
   }
 }
 
+async function readMigrationFiles(): Promise<string[]> {
+  const drizzleDir = join(process.cwd(), "drizzle");
+  const allFiles = (await readdir(drizzleDir))
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+  return allFiles.filter((f) => !OBSOLETE_MIGRATION_FILES.has(f));
+}
+
 async function runMigrations(url: string): Promise<void> {
   const pool = new Pool({ connectionString: url });
   try {
     const drizzleDir = join(process.cwd(), "drizzle");
-    const allFiles = (await readdir(drizzleDir))
-      .filter((f) => f.endsWith(".sql"))
-      .sort();
-    const stale = new Set([
-      "0003_controlled_topics.sql",
-      "0003_controlled_topics_unique.sql",
-    ]);
-    const files = allFiles.filter((f) => !stale.has(f));
+    const files = await readMigrationFiles();
     for (const file of files) {
       const sql = await readFile(join(drizzleDir, file), "utf-8");
       const statements = sql

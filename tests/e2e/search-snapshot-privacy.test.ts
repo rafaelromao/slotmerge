@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, inject, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { GET } from "../../app/api/searches/[id]/route";
 import { sealSessionCookie } from "../../src/auth/session";
@@ -49,6 +49,13 @@ type SnapshotResponseBody = {
 
 describe("E2E: Search snapshot does not expose raw calendar events or email addresses", () => {
   const TEST_DB_URL = inject("testDbUrl");
+
+  beforeAll(() => {
+    if (TEST_DB_URL) {
+      process.env.DATABASE_URL = TEST_DB_URL;
+    }
+    process.env.SESSION_SECRET = "test-session-secret-70-characters-long";
+  });
 
   afterAll(() => {
     if (TEST_DB_URL) {

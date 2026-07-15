@@ -26,7 +26,6 @@ import { syncCalendarConnection } from "../../src/calendar/sync";
 import { createPostgresImportedBusyIntervalRepository } from "../../src/calendar/imported-busy-intervals.repository";
 import {
   CALENDAR_CONNECTION_FIXTURES,
-  SESSION_FIXTURES,
   USER_FIXTURES,
 } from "../fixtures/seeds";
 import { getTestClock, getTestDb } from "../helpers/setup";
@@ -40,8 +39,6 @@ const TOKEN_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef";
 const GOOGLE_CONNECTION_ID = CALENDAR_CONNECTION_FIXTURES[0].id;
 const MICROSOFT_CONNECTION_ID = CALENDAR_CONNECTION_FIXTURES[1].id;
 const ALICE_ID = USER_FIXTURES[0].id;
-const SESSION_ID = SESSION_FIXTURES[0].id;
-const CSRF_TOKEN = SESSION_FIXTURES[0].csrfToken;
 
 const BUSY_START_1 = new Date("2026-07-13T10:00:00.000Z");
 const BUSY_END_1 = new Date("2026-07-13T11:00:00.000Z");

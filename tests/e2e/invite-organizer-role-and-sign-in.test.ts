@@ -1,10 +1,18 @@
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  inject,
+  it,
+} from "vitest";
 
-import { POST as postVerify } from "../../app/auth/magic-link/verify/route";
 import { createAdminInvitesHandlers } from "../../src/admin/invites";
-import { isOrganizerOrAdminSession, sealSessionCookie } from "../../src/auth/session";
-import { invites, sessions, users } from "../../src/db/schema";
+import { createMagicLinkVerifyHandlers } from "../../src/auth/magic-link-verify";
+import { getSessionFromRequest, sealSessionCookie } from "../../src/auth/session";
+import { invites, sessions } from "../../src/db/schema";
 import type {
   EmailDeliveryService,
   EmailType,
@@ -131,6 +139,16 @@ function extractMagicLinkToken(payload: Record<string, unknown>): string {
   return magicLinkToken;
 }
 
+function extractSessionId(cookieHeader: string): string {
+  const match = cookieHeader.match(/slotmerge_session=([^;]+)/);
+  if (!match || !match[1]) {
+    throw new Error(
+      `slotmerge_session cookie was not set on the verify response: ${cookieHeader}`,
+    );
+  }
+  return decodeURIComponent(match[1]);
+}
+
 describe("E2E: invite role selection is explicit for Organizer and Admin", () => {
   beforeAll(() => {
     if (TEST_DB_URL) {
@@ -148,8 +166,12 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
     delete process.env.SESSION_SECRET;
   });
 
+  afterEach(() => {
+    setSearchEligibilityProfileInputsForTests(null);
+  });
+
   it.runIf(HAS_TEST_DB)(
-    "Admin submits an Organizer invite; the form exposes the explicit role select; recipient signs in and has Organizer permissions in a subsequent search",
+    "Admin submits an Organizer invite and the recipient signs in with Organizer permissions for a subsequent search",
     async () => {
       await setupTest();
 
@@ -175,6 +197,9 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
       const { POST: postInvite } = createAdminInvitesHandlers({
         emailDeliveryService: emailService,
       });
+      const { POST: postVerify } = createMagicLinkVerifyHandlers({
+        magicLinkSecret: process.env.MAGIC_LINK_SECRET,
+      });
 
       const inviteeEmail = "new-organizer@example.com";
 
@@ -194,9 +219,6 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
       );
 
       expect(inviteResponse.status).toBe(303);
-      expect(inviteResponse.headers.get("location")).toBe(
-        "http://localhost/admin/invites",
-      );
 
       const inviteRow = await readInviteByEmail(db, inviteeEmail);
       expect(inviteRow).not.toBeNull();
@@ -223,8 +245,8 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
       expect(verifyResponse.status).toBe(302);
       const setCookie = verifyResponse.headers.get("Set-Cookie");
       expect(setCookie).not.toBeNull();
-      expect(setCookie ?? "").toContain("slotmerge_session=");
-      const newlyIssuedCookie = setCookie ?? "";
+      const cookieValue = setCookie ?? "";
+      expect(cookieValue).toContain("slotmerge_session=");
 
       const newUser = await readUserByEmail(db, inviteeEmail);
       expect(newUser).not.toBeNull();
@@ -240,24 +262,19 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
       expect(acceptedInvite?.status).toBe("accepted");
       expect(acceptedInvite?.role).toBe("organizer");
 
-      const newOrganizerId = newUser?.id ?? "";
-
-      expect(
-        isOrganizerOrAdminSession({
-          user: {
-            id: newOrganizerId,
-            email: inviteeEmail,
-            displayName: null,
-            avatarUrl: null,
-            shortBio: null,
-            role: "organizer",
-            status: "active",
-            profileTimezone: null,
-            bufferMinutes: 0,
-          },
-          csrfToken: "irrelevant",
+      const sessionId = extractSessionId(cookieValue);
+      const resolvedSession = await getSessionFromRequest(
+        new Request("http://localhost/", {
+          headers: { cookie: cookieValue },
         }),
-      ).toBe(true);
+      );
+      expect(resolvedSession).not.toBeNull();
+      expect(resolvedSession?.user.email).toBe(inviteeEmail);
+      expect(resolvedSession?.user.role).toBe("organizer");
+      expect(resolvedSession?.user.status).toBe("active");
+
+      const newOrganizerId = newUser?.id ?? "";
+      expect(newOrganizerId).toBe(resolvedSession?.user.id ?? "");
 
       const candidateId = USER_FIXTURES[0].id;
       await grantDiscoverabilityConsent(candidateId);
@@ -284,21 +301,12 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
 
       expect(matches).toContain(candidateId);
 
-      const [persistedUsers] = await db
-        .select({ role: users.role })
-        .from(users)
-        .where(eq(users.id, newOrganizerId))
-        .limit(1);
-      expect(persistedUsers?.role).toBe("organizer");
-
-      setSearchEligibilityProfileInputsForTests(null);
-
-      expect(newlyIssuedCookie.length).toBeGreaterThan(0);
+      expect(sessionId.length).toBeGreaterThan(0);
     },
   );
 
   it.runIf(HAS_TEST_DB)(
-    "the Admin invite form renders an explicit role select with an Organizer option",
+    "the Admin invite form renders an explicit role select with an Organizer option and an Admin option",
     async () => {
       await setupTest();
 

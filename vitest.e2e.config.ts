@@ -13,5 +13,6 @@ export default defineConfig({
     exclude: [],
     globalSetup: ["./tests/helpers/global-setup.ts"],
     setupFiles: ["./tests/helpers/setup.ts"],
+    fileParallelism: false,
   },
 });

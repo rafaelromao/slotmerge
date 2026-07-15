@@ -11,7 +11,7 @@ const ROUTE_PATH_BOOKING = /\bbooking\b/i;
 const ROUTE_PATH_RSVP = /\brsvp\b/i;
 const ROUTE_PATH_INVITATION = /\binvitation\b/i;
 const ROUTE_PATH_CALENDAR_EVENT_WRITE =
-  /\bcalendar\b.*\b(?:create|new|add|write|event)\b|\b(?:create|new|add|write|event)\b.*\bcalendar\b|\bcalendar[\/\\]events[\/\\]/i;
+  /\bcalendar\b.*\b(?:create|new|add|write|event)\b|\b(?:create|new|add|write|event)\b.*\bcalendar\b|\bcalendar[/\\]events[/\\]/i;
 
 const UI_BOOKING_AFFORDANCE =
   /\b(?:book|booking|reserve|reservation)\b.*\b(?:button|form|link|action|submit)\b|\b(?:button|form|link|action|submit)\b.*\b(?:book|booking|reserve|reservation)\b/i;

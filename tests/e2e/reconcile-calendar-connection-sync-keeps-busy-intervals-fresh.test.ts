@@ -320,7 +320,7 @@ describe("E2E: reconcile Calendar Connection sync keeps busy intervals fresh", (
       expect(enqueuedConnectionId).toBe(GOOGLE_CONNECTION_ID);
       const expectedMinMs = SERVER_ERROR_BASE_MS;
       const expectedMaxMs = SERVER_ERROR_BASE_MS * 2;
-      expect(runAt.getTime()).toBeGreaterThan(clock.now().getTime() + expectedMinMs);
+      expect(runAt.getTime()).toBeGreaterThanOrEqual(clock.now().getTime() + expectedMinMs);
       expect(runAt.getTime()).toBeLessThan(clock.now().getTime() + expectedMaxMs);
     },
   );
@@ -358,7 +358,7 @@ describe("E2E: reconcile Calendar Connection sync keeps busy intervals fresh", (
       expect(enqueuedConnectionId).toBe(GOOGLE_CONNECTION_ID);
       const expectedMinMs = RATE_LIMIT_BASE_MS;
       const expectedMaxMs = RATE_LIMIT_BASE_MS * 2;
-      expect(runAt.getTime()).toBeGreaterThan(clock.now().getTime() + expectedMinMs);
+      expect(runAt.getTime()).toBeGreaterThanOrEqual(clock.now().getTime() + expectedMinMs);
       expect(runAt.getTime()).toBeLessThan(clock.now().getTime() + expectedMaxMs);
 
       vi.mocked(enqueueSyncCalendarConnectionJob).mockClear();

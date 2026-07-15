@@ -24,7 +24,8 @@ import type { SearchSnapshot } from "../../src/search/search-result-repository";
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
 const ORGANIZER = USER_FIXTURES[1];
-const MATCH_USER = USER_FIXTURES[0];
+const MATCH_USER_ID = "00000000-0000-0000-0000-0000000000d1";
+const MATCH_USER_EMAIL = "match-user-privacy@example.com";
 const TOPIC = TOPIC_FIXTURES[0];
 
 const DATE_RANGE_START = new Date("2026-07-13T12:00:00.000Z");
@@ -76,9 +77,9 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
     }
     const now = new Date(FIXTURE_DATE);
     await db.insert(users).values({
-      id: MATCH_USER.id,
-      email: MATCH_USER.email,
-      displayName: MATCH_USER.displayName,
+      id: MATCH_USER_ID,
+      email: MATCH_USER_EMAIL,
+      displayName: "Match User Privacy",
       role: "user",
       status: "active",
       profileTimezone: "UTC",
@@ -88,7 +89,7 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
     });
     await db.insert(availabilityWindows).values({
       id: "00000000-0000-0000-0000-000000000100",
-      userId: MATCH_USER.id,
+      userId: MATCH_USER_ID,
       dayOfWeek: 1,
       startTime: "00:00",
       endTime: "23:59",
@@ -98,18 +99,18 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
     });
     await db.insert(userTopics).values({
       id: "00000000-0000-0000-0000-000000000101",
-      userId: MATCH_USER.id,
+      userId: MATCH_USER_ID,
       topicId: TOPIC.id,
       status: "active",
       createdAt: now,
       updatedAt: now,
     });
     await db.insert(discoverabilityConsents).values({
-      userId: MATCH_USER.id,
+      userId: MATCH_USER_ID,
       grantedAt: now,
     });
     setSearchEligibilityProfileInputsForTests({
-      [MATCH_USER.id]: {
+      [MATCH_USER_ID]: {
         hasDisplayName: true,
         hasTopicOrProposal: true,
         hasAvailabilitySource: true,

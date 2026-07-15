@@ -4,6 +4,7 @@ import { GET } from "../../app/api/searches/[id]/route";
 import { sealSessionCookie } from "../../src/auth/session";
 import {
   availabilityWindows,
+  discoverabilityConsents,
   sessions,
   userTopics,
   users,
@@ -102,6 +103,10 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
       status: "active",
       createdAt: now,
       updatedAt: now,
+    });
+    await db.insert(discoverabilityConsents).values({
+      userId: MATCH_USER.id,
+      grantedAt: now,
     });
     setSearchEligibilityProfileInputsForTests({
       [MATCH_USER.id]: {

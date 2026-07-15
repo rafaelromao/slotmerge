@@ -54,6 +54,7 @@ export type MockGoogleCalendarAdapter = {
   getWebhookNotifier(): (req: Request) => Promise<void>;
   setFreeBusyResponse(calendarId: string, intervals: FreeBusyInterval[]): void;
   setFreeBusyErrorResponse(status: number, retryAfterSeconds?: number): void;
+  clearFreeBusyErrorResponse(): void;
   reset(): void;
 };
 
@@ -263,6 +264,10 @@ export function buildMockGoogleCalendarAdapter(
     freeBusyErrorResponse = { status, retryAfterSeconds };
   }
 
+  function clearFreeBusyErrorResponse(): void {
+    freeBusyErrorResponse = null;
+  }
+
   function reset(): void {
     oauthCallbacks.length = 0;
     denialCallbacks.length = 0;
@@ -294,6 +299,7 @@ export function buildMockGoogleCalendarAdapter(
     getWebhookNotifier,
     setFreeBusyResponse,
     setFreeBusyErrorResponse,
+    clearFreeBusyErrorResponse,
     reset,
   };
 }

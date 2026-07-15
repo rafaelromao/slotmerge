@@ -365,6 +365,7 @@ describe("E2E: reconcile Calendar Connection sync keeps busy intervals fresh", (
 
       const newBusyStart = new Date(testClock.getTime() + 3 * 60 * 60 * 1000);
       const newBusyEnd = new Date(newBusyStart.getTime() + 2 * 60 * 60 * 1000);
+      adapter.clearFreeBusyErrorResponse();
       adapter.setFreeBusyResponse("primary", [
         {
           start: newBusyStart,
@@ -372,7 +373,6 @@ describe("E2E: reconcile Calendar Connection sync keeps busy intervals fresh", (
           status: "busy",
         },
       ]);
-      adapter.setFreeBusyErrorResponse(429, 30);
 
       clock.advance(RATE_LIMIT_BASE_MS + 1000);
       setClockForTests(() => clock.now());

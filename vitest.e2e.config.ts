@@ -11,6 +11,7 @@ export default defineConfig({
     globals: true,
     include: ["tests/e2e/**/*.test.ts"],
     exclude: [],
+    fileParallelism: false,
     globalSetup: ["./tests/helpers/global-setup.ts"],
     setupFiles: ["./tests/helpers/setup.ts"],
   },

@@ -7,7 +7,7 @@ import {
 } from "../../src/auth/session";
 import { sessions, users } from "../../src/db/schema";
 import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
-import { getTestDb, setupTest } from "../helpers/setup";
+import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 const ALICE = USER_FIXTURES[0];
@@ -47,7 +47,7 @@ async function insertUserWithoutDisplayName(): Promise<void> {
   if (!db) {
     throw new Error("test db not initialized");
   }
-  const now = new Date("2026-07-12T12:00:00.000Z");
+  const now = getTestClock()();
   await db.insert(users).values({
     id: NO_DISPLAY_NAME_USER_ID,
     email: NO_DISPLAY_NAME_USER_EMAIL,

@@ -24,8 +24,8 @@ import type { SearchSnapshot } from "../../src/search/search-result-repository";
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
 const ORGANIZER = USER_FIXTURES[1];
-const MATCH_USER_ID = "00000000-0000-0000-0000-0000000000d1";
-const MATCH_USER_EMAIL = "match-user-privacy@example.com";
+const MATCH_USER_1 = USER_FIXTURES[0];
+const MATCH_USER_2_ID = "00000000-0000-0000-0000-0000000000d1";
 const TOPIC = TOPIC_FIXTURES[0];
 
 const DATE_RANGE_START = new Date("2026-07-13T12:00:00.000Z");
@@ -33,10 +33,11 @@ const DATE_RANGE_END = new Date("2026-07-13T18:00:00.000Z");
 const DURATION_MINUTES = 60;
 
 const FORBIDDEN_PATTERNS = [
-  { pattern: /title/i, name: "event title" },
-  { pattern: /attendee/i, name: "attendee" },
-  { pattern: /location/i, name: "location" },
-  { pattern: /description/i, name: "description" },
+  /title/i,
+  /attendee/i,
+  /location/i,
+  /description/i,
+  /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
 ];
 
 type SnapshotRow = {
@@ -70,16 +71,16 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
     setSearchEligibilityProfileInputsForTests(null);
   });
 
-  async function seedMatchableUser(): Promise<void> {
+  async function seedSecondMatchUser(): Promise<void> {
     const db = getTestDb();
     if (!db) {
       throw new Error("test db not initialized");
     }
     const now = new Date(FIXTURE_DATE);
     await db.insert(users).values({
-      id: MATCH_USER_ID,
-      email: MATCH_USER_EMAIL,
-      displayName: "Match User Privacy",
+      id: MATCH_USER_2_ID,
+      email: "match-user-2-privacy@example.com",
+      displayName: "Match User Two",
       role: "user",
       status: "active",
       profileTimezone: "UTC",
@@ -89,7 +90,7 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
     });
     await db.insert(availabilityWindows).values({
       id: "00000000-0000-0000-0000-000000000100",
-      userId: MATCH_USER_ID,
+      userId: MATCH_USER_2_ID,
       dayOfWeek: 1,
       startTime: "00:00",
       endTime: "23:59",
@@ -99,23 +100,27 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
     });
     await db.insert(userTopics).values({
       id: "00000000-0000-0000-0000-000000000101",
-      userId: MATCH_USER_ID,
+      userId: MATCH_USER_2_ID,
       topicId: TOPIC.id,
       status: "active",
       createdAt: now,
       updatedAt: now,
     });
     await db.insert(discoverabilityConsents).values({
-      userId: MATCH_USER_ID,
+      userId: MATCH_USER_2_ID,
       grantedAt: now,
     });
-    setSearchEligibilityProfileInputsForTests({
-      [MATCH_USER_ID]: {
-        hasDisplayName: true,
-        hasTopicOrProposal: true,
-        hasAvailabilitySource: true,
-        isActive: true,
-      },
+  }
+
+  async function grantDiscoverabilityConsent(userId: string): Promise<void> {
+    const db = getTestDb();
+    if (!db) {
+      throw new Error("test db not initialized");
+    }
+    const now = new Date(FIXTURE_DATE);
+    await db.insert(discoverabilityConsents).values({
+      userId,
+      grantedAt: now,
     });
   }
 
@@ -163,7 +168,7 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
       },
       {
         selectedTopicIds: [TOPIC.id],
-        minimumMatchingUsers: 1,
+        minimumMatchingUsers: 2,
         durationMinutes: DURATION_MINUTES,
         dateRangeStart: DATE_RANGE_START,
         dateRangeEnd: DATE_RANGE_END,
@@ -211,13 +216,12 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
 
   function assertNoForbiddenFields(snapshot: unknown): void {
     const json = JSON.stringify(snapshot);
-    for (const { pattern } of FORBIDDEN_PATTERNS) {
+    for (const pattern of FORBIDDEN_PATTERNS) {
       expect(json).not.toMatch(pattern);
     }
-    expect(json).not.toMatch(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
   }
 
-  function assertExpectedFields(snapshot: SearchSnapshot): void {
+  function assertExpectedStructure(snapshot: SearchSnapshot): void {
     expect(snapshot.generatedAt).toBeDefined();
     expect(typeof snapshot.generatedAt).toBe("string");
     expect(snapshot.organizerTimezone).toBe("UTC");
@@ -225,22 +229,26 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
     expect(snapshot.dateRangeStart).toBe(DATE_RANGE_START.toISOString());
     expect(snapshot.dateRangeEnd).toBe(DATE_RANGE_END.toISOString());
     expect(Array.isArray(snapshot.slots)).toBe(true);
+    expect(snapshot.slots.length).toBeGreaterThan(0);
     for (const slot of snapshot.slots) {
       expect(slot.startUtc).toBeDefined();
       expect(typeof slot.startUtc).toBe("string");
-      expect(slot.matchCount).toBeGreaterThanOrEqual(0);
+      expect(slot.matchCount).toBeGreaterThan(0);
+      expect(Array.isArray(slot.matches)).toBe(true);
+      expect(slot.matches.length).toBeGreaterThan(0);
       for (const match of slot.matches) {
         expect(match.userId).toBeDefined();
         expect(typeof match.userId).toBe("string");
-        expect(match.availabilityIndicator).toMatch(
-          /^(available|partial|unavailable)$/,
-        );
-        expect(match.calendarFreshness).toMatch(/^(fresh|stale|none)$/);
+        expect(match.displayName).toBeDefined();
         expect(match).not.toHaveProperty("email");
         expect(match).not.toHaveProperty("attendees");
         expect(match).not.toHaveProperty("title");
         expect(match).not.toHaveProperty("location");
         expect(match).not.toHaveProperty("description");
+        expect(match.availabilityIndicator).toMatch(
+          /^(available|partial|unavailable)$/,
+        );
+        expect(match.calendarFreshness).toMatch(/^(fresh|stale|none)$/);
       }
     }
   }
@@ -262,7 +270,22 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
         "csrf-privacy",
         now,
       );
-      await seedMatchableUser();
+      await grantDiscoverabilityConsent(MATCH_USER_1.id);
+      await seedSecondMatchUser();
+      setSearchEligibilityProfileInputsForTests({
+        [MATCH_USER_1.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+        [MATCH_USER_2_ID]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+      });
 
       const searchId = await runSearch();
 
@@ -273,7 +296,7 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
       const body = await fetchSnapshotApi(searchId, cookie);
 
       assertNoForbiddenFields(body.snapshot);
-      assertExpectedFields(body.snapshot as SearchSnapshot);
+      assertExpectedStructure(body.snapshot as SearchSnapshot);
     },
   );
 
@@ -294,14 +317,29 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
         "csrf-privacy-db",
         now,
       );
-      await seedMatchableUser();
+      await grantDiscoverabilityConsent(MATCH_USER_1.id);
+      await seedSecondMatchUser();
+      setSearchEligibilityProfileInputsForTests({
+        [MATCH_USER_1.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+        [MATCH_USER_2_ID]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+      });
 
       const searchId = await runSearch();
 
       const persistedJson = await loadPersistedSnapshotJson(searchId);
 
       assertNoForbiddenFields(persistedJson);
-      assertExpectedFields(persistedJson as SearchSnapshot);
+      assertExpectedStructure(persistedJson as SearchSnapshot);
     },
   );
 });

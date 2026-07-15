@@ -6,7 +6,6 @@ import {
 } from "../../src/auth/magic-link-request";
 import { sealSessionCookie } from "../../src/auth/session";
 import {
-  invites,
   sessions,
 } from "../../src/db/schema";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
@@ -72,34 +71,6 @@ async function insertAdminSession({
     userId,
     csrfToken,
     expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-    createdAt: now,
-  });
-}
-
-async function insertPendingInvite({
-  db,
-  inviteId,
-  email,
-  role,
-  invitedByAdminId,
-  expiresAt,
-  now,
-}: {
-  db: NonNullable<ReturnType<typeof getTestDb>>;
-  inviteId: string;
-  email: string;
-  role: string;
-  invitedByAdminId: string;
-  expiresAt: Date;
-  now: Date;
-}): Promise<void> {
-  await db.insert(invites).values({
-    id: inviteId,
-    email,
-    role: role as "user" | "organizer" | "admin",
-    status: "pending",
-    invitedByAdminId,
-    expiresAt,
     createdAt: now,
   });
 }
@@ -492,10 +463,10 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       await setupTest();
 
       const now = getTestClock()();
-      const adminSessionId = "00000000-0000-0000-0000-00000000c005";
-      const adminCsrfToken = "admin-csrf-c005";
+      const adminSessionId = "00000000-0000-0000-0000-00000000a005";
+      const adminCsrfToken = "admin-csrf-a005";
 
-      const targetUserId = "00000000-0000-0000-0000-00000000c005";
+      const targetUserId = "00000000-0000-0000-0000-00000000u005";
       const targetEmail = "reinstate-c5@example.com";
 
       await db.execute(
@@ -578,31 +549,67 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       await setupTest();
 
       const now = getTestClock()();
-      const reinstatedUserId = "00000000-0000-0000-0000-00000000c006";
+      const reinstatedUserId = "00000000-0000-0000-0000-00000000u006";
       const reinstatedEmail = "reinstate-auth-c6@example.com";
-      const inviteId = "00000000-0000-0000-0000-00000000c007";
-      const expiresAt = new Date("2099-01-01T00:00:00.000Z");
+      const adminSessionId = "00000000-0000-0000-0000-00000000a006";
+      const adminCsrfToken = "admin-csrf-a006";
 
-      await insertActiveUserWithProfileViaRawSql({
+      await db.execute(
+        `INSERT INTO users (id, email, display_name, role, status, profile_timezone, buffer_minutes, created_at, updated_at)
+         VALUES ('${reinstatedUserId}', '${reinstatedEmail}', 'Reinstate Auth User', 'user', 'suspended', 'UTC', 0, '${now.toISOString()}', '${now.toISOString()}')`,
+      );
+
+      await insertAdminSession({
         db,
-        userId: reinstatedUserId,
-        email: reinstatedEmail,
-        displayName: "Reinstate Auth User",
-        topicId: TOPIC.id,
+        sessionId: adminSessionId,
+        userId: ADMIN.id,
+        csrfToken: adminCsrfToken,
         now,
       });
 
       await grantDiscoverabilityConsent(ORGANIZER.id);
 
-      await insertPendingInvite({
-        db,
-        inviteId,
-        email: reinstatedEmail,
-        role: "user",
-        invitedByAdminId: ADMIN.id,
-        expiresAt,
-        now,
-      });
+      await db.execute(
+        `INSERT INTO availability_windows (id, user_id, day_of_week, start_time, end_time, profile_timezone, created_at, updated_at)
+         VALUES (gen_random_uuid(), '${reinstatedUserId}', 1, '00:00', '23:59', 'UTC', '${now.toISOString()}', '${now.toISOString()}')`,
+      );
+      await db.execute(
+        `INSERT INTO user_topics (id, user_id, topic_id, status, created_at, updated_at)
+         VALUES (gen_random_uuid(), '${reinstatedUserId}', '${TOPIC.id}', 'active', '${now.toISOString()}', '${now.toISOString()}')`,
+      );
+      await grantDiscoverabilityConsent(reinstatedUserId);
+
+      const adminCookie = await sealSessionCookie({ sessionId: adminSessionId });
+      const { GET, POST } = createAdminUsersHandlers();
+
+      const getResponse = await GET(
+        new Request("http://localhost/admin/users", {
+          headers: { cookie: adminCookie },
+        }),
+      );
+      expect(getResponse.status).toBe(200);
+      const htmlBefore = await getResponse.text();
+
+      const targetUserIdFromForm = extractUserIdFromActionForm(htmlBefore, reinstatedEmail);
+      expect(targetUserIdFromForm).not.toBeNull();
+
+      const csrfToken = extractCsrfToken(htmlBefore);
+
+      const reinstateResponse = await POST(
+        new Request("http://localhost/admin/users", {
+          method: "POST",
+          headers: {
+            "content-type": "application/x-www-form-urlencoded",
+            cookie: adminCookie,
+          },
+          body: new URLSearchParams({
+            _csrf: csrfToken,
+            action: "reinstate",
+            userId: targetUserIdFromForm!,
+          }).toString(),
+        }),
+      );
+      expect(reinstateResponse.status).toBe(303);
 
       setSearchEligibilityProfileInputsForTests({
         [ORGANIZER.id]: COMPLETE_PROFILE,

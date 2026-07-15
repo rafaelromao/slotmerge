@@ -139,16 +139,6 @@ function extractMagicLinkToken(payload: Record<string, unknown>): string {
   return magicLinkToken;
 }
 
-function extractSessionId(cookieHeader: string): string {
-  const match = cookieHeader.match(/slotmerge_session=([^;]+)/);
-  if (!match || !match[1]) {
-    throw new Error(
-      `slotmerge_session cookie was not set on the verify response: ${cookieHeader}`,
-    );
-  }
-  return decodeURIComponent(match[1]);
-}
-
 describe("E2E: invite role selection is explicit for Organizer and Admin", () => {
   beforeAll(() => {
     if (TEST_DB_URL) {
@@ -262,7 +252,6 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
       expect(acceptedInvite?.status).toBe("accepted");
       expect(acceptedInvite?.role).toBe("organizer");
 
-      const sessionId = extractSessionId(cookieValue);
       const resolvedSession = await getSessionFromRequest(
         new Request("http://localhost/", {
           headers: { cookie: cookieValue },
@@ -300,8 +289,6 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
       );
 
       expect(matches).toContain(candidateId);
-
-      expect(sessionId.length).toBeGreaterThan(0);
     },
   );
 

@@ -118,7 +118,7 @@ function extractResendTokenFromHtml(html: string): string {
   return match[1];
 }
 
-describe("E2E: request a new magic link after invalid or expired link", () => {
+describe("E2E: request a new magic link after an expired link", () => {
   beforeAll(() => {
     if (TEST_DB_URL) {
       process.env.DATABASE_URL = TEST_DB_URL;

@@ -170,9 +170,7 @@ export function buildMockGoogleCalendarAdapter(
             return {
               id: item.id,
               busy: intervals
-                .filter(
-                  (i) => i.status === "busy" || i.status === "out-of-office",
-                )
+                .filter((i) => i.status === "busy")
                 .map((i) => ({
                   start: i.start.toISOString(),
                   end: i.end.toISOString(),

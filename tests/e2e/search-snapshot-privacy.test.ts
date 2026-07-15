@@ -221,6 +221,17 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
     }
   }
 
+  const SLOT_MATCH_DETAIL_FIELDS = [
+    "userId",
+    "displayName",
+    "avatarUrl",
+    "shortBio",
+    "topics",
+    "topicProfile",
+    "availabilityIndicator",
+    "calendarFreshness",
+  ] as const;
+
   function assertExpectedStructure(snapshot: SearchSnapshot): void {
     expect(snapshot.generatedAt).toBeDefined();
     expect(typeof snapshot.generatedAt).toBe("string");
@@ -237,14 +248,22 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
       expect(Array.isArray(slot.matches)).toBe(true);
       expect(slot.matches.length).toBeGreaterThan(0);
       for (const match of slot.matches) {
-        expect(match.userId).toBeDefined();
+        const actualFields = Object.keys(match);
+        expect(actualFields).toEqual(SLOT_MATCH_DETAIL_FIELDS);
         expect(typeof match.userId).toBe("string");
-        expect(match.displayName).toBeDefined();
-        expect(match).not.toHaveProperty("email");
-        expect(match).not.toHaveProperty("attendees");
-        expect(match).not.toHaveProperty("title");
-        expect(match).not.toHaveProperty("location");
-        expect(match).not.toHaveProperty("description");
+        expect(typeof match.displayName).toBe("string");
+        expect(match.avatarUrl).toBeNull();
+        expect(match.shortBio).toBeNull();
+        expect(Array.isArray(match.topics)).toBe(true);
+        expect(Array.isArray(match.topicProfile)).toBe(true);
+        for (const topic of match.topics) {
+          expect(typeof topic.id).toBe("string");
+          expect(typeof topic.name).toBe("string");
+        }
+        for (const topic of match.topicProfile) {
+          expect(typeof topic.id).toBe("string");
+          expect(typeof topic.name).toBe("string");
+        }
         expect(match.availabilityIndicator).toMatch(
           /^(available|partial|unavailable)$/,
         );

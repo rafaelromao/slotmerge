@@ -17,6 +17,10 @@ vi.mock("../../src/worker/sync", async (importOriginal) => {
 });
 
 import {
+  RATE_LIMIT_BASE_MS,
+  SERVER_ERROR_BASE_MS,
+} from "../../src/calendar/freebusy/types";
+import {
   clearInMemoryImportedBusyIntervalStore,
   setImportedBusyIntervalRepositoryForTests,
 } from "../../src/calendar/imported-busy-intervals";
@@ -281,6 +285,109 @@ describe("E2E: reconcile Calendar Connection sync keeps busy intervals fresh", (
       const lastSyncAfter = await getLastSyncAt(GOOGLE_CONNECTION_ID);
       expect(lastSyncAfter).not.toBeNull();
       expect(lastSyncAfter!.getTime()).toBe(clock.now().getTime());
+    },
+  );
+
+  it.runIf(HAS_TEST_DB)(
+    "transient 5xx failure uses SERVER_ERROR_BASE_MS backoff and schedules retry",
+    async () => {
+      await setupTest();
+
+      const adapter = buildMockGoogleCalendarAdapter({
+        accessToken: "google-access-token-5xx",
+        refreshToken: "google-refresh-token-5xx",
+      });
+
+      adapter.setFreeBusyErrorResponse(503);
+      wireGoogleFetch(adapter);
+
+      await seedConnectedGoogleConnection(
+        GOOGLE_CONNECTION_ID,
+        "google-access-token-5xx",
+      );
+
+      const clock = buildTestClock(new Date());
+      setClockForTests(() => clock.now());
+
+      await handleSyncCalendarConnectionJob({ connectionId: GOOGLE_CONNECTION_ID });
+
+      expect(enqueueSyncCalendarConnectionJob).toHaveBeenCalledTimes(1);
+      const [enqueuedConnectionId, , runAt] = vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls[0] as [
+        string,
+        string,
+        Date,
+      ];
+      expect(enqueuedConnectionId).toBe(GOOGLE_CONNECTION_ID);
+      const expectedMinMs = SERVER_ERROR_BASE_MS;
+      const expectedMaxMs = SERVER_ERROR_BASE_MS * 2;
+      expect(runAt.getTime()).toBeGreaterThan(clock.now().getTime() + expectedMinMs);
+      expect(runAt.getTime()).toBeLessThan(clock.now().getTime() + expectedMaxMs);
+    },
+  );
+
+  it.runIf(HAS_TEST_DB)(
+    "transient 429 failure uses Retry-After and clock drives successful retry",
+    async () => {
+      await setupTest();
+
+      const adapter = buildMockGoogleCalendarAdapter({
+        accessToken: "google-access-token-429",
+        refreshToken: "google-refresh-token-429",
+      });
+
+      adapter.setFreeBusyErrorResponse(429, 30);
+      wireGoogleFetch(adapter);
+
+      await seedConnectedGoogleConnection(
+        GOOGLE_CONNECTION_ID,
+        "google-access-token-429",
+      );
+
+      const testClock = getTestClock()();
+      const clock = buildTestClock(testClock);
+      setClockForTests(() => clock.now());
+
+      await handleSyncCalendarConnectionJob({ connectionId: GOOGLE_CONNECTION_ID });
+
+      expect(enqueueSyncCalendarConnectionJob).toHaveBeenCalledTimes(1);
+      const [enqueuedConnectionId, , runAt] = vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls[0] as [
+        string,
+        string,
+        Date,
+      ];
+      expect(enqueuedConnectionId).toBe(GOOGLE_CONNECTION_ID);
+      const expectedMinMs = RATE_LIMIT_BASE_MS;
+      const expectedMaxMs = RATE_LIMIT_BASE_MS * 2;
+      expect(runAt.getTime()).toBeGreaterThan(clock.now().getTime() + expectedMinMs);
+      expect(runAt.getTime()).toBeLessThan(clock.now().getTime() + expectedMaxMs);
+
+      vi.mocked(enqueueSyncCalendarConnectionJob).mockClear();
+
+      const newBusyStart = new Date(testClock.getTime() + 3 * 60 * 60 * 1000);
+      const newBusyEnd = new Date(newBusyStart.getTime() + 2 * 60 * 60 * 1000);
+      adapter.setFreeBusyResponse("primary", [
+        {
+          start: newBusyStart,
+          end: newBusyEnd,
+          status: "busy",
+        },
+      ]);
+      adapter.setFreeBusyErrorResponse(429, 30);
+
+      clock.advance(RATE_LIMIT_BASE_MS + 1000);
+      setClockForTests(() => clock.now());
+
+      await handleSyncCalendarConnectionJob({ connectionId: GOOGLE_CONNECTION_ID });
+
+      expect(enqueueSyncCalendarConnectionJob).not.toHaveBeenCalled();
+
+      const intervals = await fetchBusyIntervalsForConnection(GOOGLE_CONNECTION_ID);
+      expect(intervals).toHaveLength(1);
+      expect(new Date(intervals[0].start_at).getTime()).toBe(newBusyStart.getTime());
+      expect(new Date(intervals[0].end_at).getTime()).toBe(newBusyEnd.getTime());
+
+      const lastSyncAfter = await getLastSyncAt(GOOGLE_CONNECTION_ID);
+      expect(lastSyncAfter).not.toBeNull();
     },
   );
 });

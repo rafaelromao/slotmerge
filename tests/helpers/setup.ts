@@ -18,6 +18,7 @@ beforeAll(() => {
   if (!url) {
     return;
   }
+  process.env.DATABASE_URL = url;
   pool = new Pool({ connectionString: url });
   db = drizzle(pool, { schema });
 });

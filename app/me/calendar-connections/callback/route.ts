@@ -54,21 +54,34 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    const connection = await completeMicrosoftCalendarConnection({
-      baseUrl: new URL(request.url).origin,
-      clientId,
-      clientSecret,
-      code,
-      fetchImpl: fetch,
-      repository: getMicrosoftCalendarConnectionRepository(),
-      sessionSecret: getSessionSecret(),
-      state,
-      tokenEncryptionKey,
-    });
+    try {
+      const connection = await completeMicrosoftCalendarConnection({
+        baseUrl: new URL(request.url).origin,
+        clientId,
+        clientSecret,
+        code,
+        fetchImpl: fetch,
+        repository: getMicrosoftCalendarConnectionRepository(),
+        sessionSecret: getSessionSecret(),
+        state,
+        tokenEncryptionKey,
+      });
 
-    return Response.json({
-      connection: presentMicrosoftCalendarConnection(connection),
-    });
+      return Response.json({
+        connection: presentMicrosoftCalendarConnection(connection),
+      });
+    } catch (err) {
+      if (
+        err instanceof Error &&
+        err.message === "unsupported_microsoft_account"
+      ) {
+        return Response.json(
+          { error: "unsupported_microsoft_account" },
+          { status: 400 },
+        );
+      }
+      throw err;
+    }
   }
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;

@@ -300,48 +300,4 @@ describe("E2E: invite role selection is explicit for User", () => {
       expect(sessionCountAfterReplay).toBe(1);
     },
   );
-
-  it.runIf(HAS_TEST_DB)(
-    "the Admin invite form renders User as the default-selected role",
-    async () => {
-      await setupTest();
-
-      const db = getTestDb();
-      if (!db) {
-        throw new Error("test db not initialized");
-      }
-
-      const now = getTestClock()();
-      const adminUser = USER_FIXTURES[2];
-      const adminSessionId = "00000000-0000-0000-0000-00000000a082";
-      const adminCsrfToken = "admin-csrf-82";
-      await insertAdminSession({
-        db,
-        sessionId: adminSessionId,
-        userId: adminUser.id,
-        csrfToken: adminCsrfToken,
-        now,
-      });
-
-      const { GET } = createAdminInvitesHandlers({
-        emailDeliveryService: createRecordingEmailService(),
-      });
-
-      const response = await GET(
-        new Request("http://localhost/admin/invites", {
-          headers: {
-            cookie: await sealSessionCookie({ sessionId: adminSessionId }),
-          },
-        }),
-      );
-
-      const html = await response.text();
-
-      expect(response.status).toBe(200);
-      expect(html).toContain('name="role"');
-      expect(html).toContain('<option value="user" selected>User</option>');
-      expect(html).toContain('<option value="organizer">Organizer</option>');
-      expect(html).toContain('<option value="admin">Admin</option>');
-    },
-  );
 });

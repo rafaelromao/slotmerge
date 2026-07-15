@@ -14,6 +14,5 @@ export default defineConfig({
     fileParallelism: false,
     globalSetup: ["./tests/helpers/global-setup.ts"],
     setupFiles: ["./tests/helpers/setup.ts"],
-    fileParallelism: false,
   },
 });

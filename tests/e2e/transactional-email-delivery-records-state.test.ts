@@ -148,6 +148,7 @@ describe("E2E: transactional email delivery records state", () => {
         eventRepository: createPostgresEmailEventRepository(db),
         queueJob: (job) => {
           queuedJobs.push(job);
+          return Promise.resolve();
         },
       });
 

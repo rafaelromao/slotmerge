@@ -165,16 +165,20 @@ describe("E2E: availability edits apply immediately to next Search", () => {
       const firstPersisted =
         await searchResultRepository.findBySearchId(firstSearchId);
       expect(firstPersisted).not.toBeNull();
-
-      const firstSlot = firstPersisted?.snapshotJson.slots.find(
-        (slot) => slot.startUtc === SLOT_START.toISOString(),
-      );
-      expect(firstSlot).toBeDefined();
-      expect(firstSlot?.matchCount).toBe(0);
-      expect(firstSlot?.matches).toEqual([]);
-      expect(
-        firstSlot?.matches.some((match) => match.userId === CANDIDATE_USER_ID),
-      ).toBe(false);
+      expect(firstPersisted?.snapshotJson).toEqual({
+        generatedAt: "2026-07-12T12:00:00.001Z",
+        organizerTimezone: PROFILE_TIMEZONE,
+        dateRangeStart: SLOT_START.toISOString(),
+        dateRangeEnd: SLOT_END.toISOString(),
+        durationMinutes: DURATION_MINUTES,
+        slots: [
+          {
+            startUtc: SLOT_START.toISOString(),
+            matchCount: 0,
+            matches: [],
+          },
+        ],
+      });
 
       const windowsBeforeEdit = await db.execute<{ count: string }>(
         `SELECT COUNT(*) as count FROM availability_windows WHERE user_id = '${CANDIDATE_USER_ID}'`,
@@ -223,26 +227,33 @@ describe("E2E: availability edits apply immediately to next Search", () => {
       const secondPersisted =
         await searchResultRepository.findBySearchId(secondSearchId);
       expect(secondPersisted).not.toBeNull();
-
-      const secondSlot = secondPersisted?.snapshotJson.slots.find(
-        (slot) => slot.startUtc === SLOT_START.toISOString(),
-      );
-      expect(secondSlot).toBeDefined();
-      expect(secondSlot?.matchCount).toBe(1);
-
-      const secondMatch = secondSlot?.matches.find(
-        (match) => match.userId === CANDIDATE_USER_ID,
-      );
-      expect(secondMatch).toBeDefined();
-      expect(secondMatch?.displayName).toBe("Availability Edit Candidate");
-      expect(secondMatch?.availabilityIndicator).toBe("available");
-      expect(secondMatch?.topics).toEqual([
-        { id: SELECTED_TOPIC.id, name: SELECTED_TOPIC.name },
-      ]);
-      expect(secondMatch?.topicProfile).toEqual([
-        { id: SELECTED_TOPIC.id, name: SELECTED_TOPIC.name },
-      ]);
-      expect(secondMatch?.calendarFreshness).toBe("none");
+      expect(secondPersisted?.snapshotJson).toEqual({
+        generatedAt: "2026-07-12T12:00:00.004Z",
+        organizerTimezone: PROFILE_TIMEZONE,
+        dateRangeStart: SLOT_START.toISOString(),
+        dateRangeEnd: SLOT_END.toISOString(),
+        durationMinutes: DURATION_MINUTES,
+        slots: [
+          {
+            startUtc: SLOT_START.toISOString(),
+            matchCount: 1,
+            matches: [
+              {
+                userId: CANDIDATE_USER_ID,
+                displayName: "Availability Edit Candidate",
+                avatarUrl: null,
+                shortBio: null,
+                topics: [{ id: SELECTED_TOPIC.id, name: SELECTED_TOPIC.name }],
+                topicProfile: [
+                  { id: SELECTED_TOPIC.id, name: SELECTED_TOPIC.name },
+                ],
+                availabilityIndicator: "available",
+                calendarFreshness: "none",
+              },
+            ],
+          },
+        ],
+      });
     },
   );
 });

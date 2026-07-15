@@ -814,36 +814,6 @@ describe("E2E: choose contributing calendars per connection", () => {
         },
         createMatchingDependencies(),
       );
-      console.log("DEBUG slotStartAfter:", slotStartAfter.toISOString());
-      console.log(
-        "DEBUG busy intervals in DB:",
-        JSON.stringify(
-          await getRequiredTestDb().execute<{
-            start_at: Date;
-            end_at: Date;
-          }>(`SELECT start_at, end_at FROM imported_busy_intervals WHERE connection_id = '${GOOGLE_CONNECTION_ID}' ORDER BY start_at`),
-        ),
-      );
-      console.log(
-        "DEBUG availability windows:",
-        JSON.stringify(
-          await getRequiredTestDb().execute<{
-            day_of_week: number;
-            start_time: string;
-            end_time: string;
-            profile_timezone: string;
-          }>(`SELECT day_of_week, start_time, end_time, profile_timezone FROM availability_windows WHERE user_id = '${ALICE.id}'`),
-        ),
-      );
-      console.log(
-        "DEBUG alice topics:",
-        JSON.stringify(
-          await getRequiredTestDb().execute<{
-            topic_id: string;
-            status: string;
-          }>(`SELECT topic_id, status FROM user_topics WHERE user_id = '${ALICE.id}'`),
-        ),
-      );
       expect(matchedWhenFree).toContain(ALICE.id);
 
       const dropResponse = await patchContributingCalendars(

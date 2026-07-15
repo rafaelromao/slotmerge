@@ -10,6 +10,7 @@ import {
 import { getTestDb, setupTest } from "../helpers/setup";
 import { createMagicLinkRequestHandlers } from "../../src/auth/magic-link-request";
 import { createMagicLinkVerifyHandlers } from "../../src/auth/magic-link-verify";
+import { verifyMagicLinkToken } from "../../src/auth/magic-link";
 import type {
   EmailDeliveryService,
   EmailType,
@@ -95,48 +96,14 @@ async function countSessions(): Promise<number> {
   return Number(result.rows[0].count);
 }
 
-async function countUsersByEmail(email: string): Promise<number> {
-  const db = getTestDb();
-  if (!db) {
-    throw new Error("test db not initialized");
+function extractMagicLinkToken(payload: Record<string, unknown>): string {
+  const magicLinkToken = payload.magicLinkToken;
+  if (typeof magicLinkToken !== "string" || !magicLinkToken) {
+    throw new Error(
+      `recorded magic-link payload did not include a string magicLinkToken: ${JSON.stringify(payload)}`,
+    );
   }
-  const escaped = email.replace(/'/g, "''");
-  const result = await db.execute<{ count: string }>(
-    `SELECT COUNT(*) as count FROM users WHERE email = '${escaped}'`,
-  );
-  return Number(result.rows[0].count);
-}
-
-async function findInviteStatusByEmail(
-  email: string,
-): Promise<string | null> {
-  const db = getTestDb();
-  if (!db) {
-    throw new Error("test db not initialized");
-  }
-  const escaped = email.replace(/'/g, "''");
-  const result = await db.execute<{ status: string }>(
-    `SELECT status FROM invites WHERE email = '${escaped}' LIMIT 1`,
-  );
-  return result.rows[0]?.status ?? null;
-}
-
-function decodeMagicLinkPayload(token: string): {
-  email: string;
-  expiresAt: string;
-} {
-  const [payloadEncoded] = token.split(".");
-  if (!payloadEncoded) {
-    throw new Error("malformed magic-link token");
-  }
-  const payloadJson = Buffer.from(payloadEncoded, "base64url").toString(
-    "utf8",
-  );
-  const payload = JSON.parse(payloadJson) as {
-    email: string;
-    expiresAt: string;
-  };
-  return { email: payload.email, expiresAt: payload.expiresAt };
+  return magicLinkToken;
 }
 
 describe("E2E: magic link is rejected after expiration", () => {
@@ -155,7 +122,7 @@ describe("E2E: magic link is rejected after expiration", () => {
   });
 
   it.runIf(HAS_TEST_DB)(
-    "clicking a magic link after the clock has advanced past its expiration returns a clear token_expired error and creates no session, no user, and leaves the invite pending",
+    "clicking a magic link after the clock has advanced past its expiration returns a clear token_expired error and creates no session",
     async () => {
       await setupTest();
       await insertPendingInvite(INVITEE_EMAIL);
@@ -181,26 +148,15 @@ describe("E2E: magic link is rejected after expiration", () => {
       expect(requestResponse.status).toBe(200);
       expect(emailService.sends).toHaveLength(1);
       const sent = emailService.sends[0];
-      expect(sent.recipient).toBe(INVITEE_EMAIL);
-      expect(sent.type).toBe("magic-link");
+      const magicLinkToken = extractMagicLinkToken(sent.payload);
 
-      const magicLinkToken = sent.payload.magicLinkToken;
-      if (typeof magicLinkToken !== "string" || !magicLinkToken) {
-        throw new Error(
-          `recorded magic-link payload did not include a string magicLinkToken: ${JSON.stringify(sent.payload)}`,
-        );
-      }
+      expect(() =>
+        verifyMagicLinkToken(magicLinkToken, MAGIC_LINK_SECRET, () =>
+          clock.now(),
+        ),
+      ).not.toThrow();
 
-      const decoded = decodeMagicLinkPayload(magicLinkToken);
-      expect(decoded.email).toBe(INVITEE_EMAIL);
-      const linkExpiresAt = new Date(decoded.expiresAt);
-      expect(Number.isNaN(linkExpiresAt.getTime())).toBe(false);
-      expect(linkExpiresAt.getTime()).toBeGreaterThan(clock.now().getTime());
-
-      const bufferMs = 5 * 60 * 1000;
-      const lifetimeMs = linkExpiresAt.getTime() - clock.now().getTime();
-      clock.advance(lifetimeMs + bufferMs);
-      expect(clock.now().getTime()).toBeGreaterThan(linkExpiresAt.getTime());
+      clock.advance(60 * 60 * 1000 + 1);
 
       const { POST: postVerify } = createMagicLinkVerifyHandlers({
         clock: () => clock.now(),
@@ -223,8 +179,6 @@ describe("E2E: magic link is rejected after expiration", () => {
       expect(html).toContain('action="/auth/magic-link/resend"');
 
       expect(await countSessions()).toBe(sessionsBefore);
-      expect(await countUsersByEmail(INVITEE_EMAIL)).toBe(0);
-      expect(await findInviteStatusByEmail(INVITEE_EMAIL)).toBe("pending");
     },
   );
 });

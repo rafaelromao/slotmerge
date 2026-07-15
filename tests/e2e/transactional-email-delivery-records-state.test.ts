@@ -146,7 +146,7 @@ describe("E2E: transactional email delivery records state", () => {
       const emailService = createEmailDeliveryService({
         clock: () => clock.now(),
         eventRepository: createPostgresEmailEventRepository(db),
-        queueJob: async (job) => {
+        queueJob: (job) => {
           queuedJobs.push(job);
         },
       });
@@ -185,7 +185,7 @@ describe("E2E: transactional email delivery records state", () => {
       mockAdapter.setSucceedsOnAttempt(3, MOCK_FAILURE_ERROR);
 
       const criticalEmail = {
-        trigger: async () => ({ deliveries: [] as ReadonlyArray<unknown> }),
+        trigger: () => Promise.resolve({ deliveries: [] as ReadonlyArray<unknown> }),
       };
 
       const attemptClock = () => clock.now();

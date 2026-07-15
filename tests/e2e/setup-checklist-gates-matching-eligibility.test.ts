@@ -64,7 +64,7 @@ describe("E2E: setup checklist gates matching eligibility", () => {
 
       const matches = await runMatchingForAlice();
 
-      expect(matches).toContain(ALICE_ID);
+      expect(matches).toEqual([ALICE_ID]);
     },
   );
 

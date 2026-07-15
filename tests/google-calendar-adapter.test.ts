@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildMockGoogleCalendarAdapter,
-} from "./google-calendar-adapter";
+import { buildMockGoogleCalendarAdapter } from "./google-calendar-adapter";
 
 describe("MockGoogleCalendarAdapter", () => {
   describe("Slice 1: OAuth consent callback recording", () => {
@@ -19,7 +17,8 @@ describe("MockGoogleCalendarAdapter", () => {
           code: "auth-code-123",
           code_verifier: "code-verifier-1",
           grant_type: "authorization_code",
-          redirect_uri: "https://slotmerge.example/me/calendar-connections/callback",
+          redirect_uri:
+            "https://slotmerge.example/me/calendar-connections/callback",
         }),
       });
 
@@ -41,7 +40,7 @@ describe("MockGoogleCalendarAdapter", () => {
       });
 
       expect(response.status).toBe(200);
-      const body = await response.json() as {
+      const body = (await response.json()) as {
         access_token: string;
         refresh_token: string;
         expires_in: number;
@@ -50,7 +49,45 @@ describe("MockGoogleCalendarAdapter", () => {
       expect(body.access_token).toBe("mock-access-token");
       expect(body.refresh_token).toBe("mock-refresh-token");
       expect(body.expires_in).toBe(3600);
-      expect(body.scope).toBe("https://www.googleapis.com/auth/calendar.freebusy");
+      expect(body.scope).toBe(
+        "https://www.googleapis.com/auth/calendar.freebusy",
+      );
+    });
+  });
+
+  describe("Slice 6: Denied OAuth consent recording", () => {
+    it("builds and records a denied consent callback", async () => {
+      const adapter = buildMockGoogleCalendarAdapter();
+      const state = "sealed-google-state";
+
+      const request = adapter.buildDeniedConsentCallbackRequest({
+        baseUrl: "https://slotmerge.example",
+        errorDescription: "The user denied access.",
+        state,
+      });
+
+      expect(request.method).toBe("POST");
+      expect(request.url).toBe(
+        "https://slotmerge.example/me/calendar-connections/callback",
+      );
+      const body = await request.formData();
+      expect(body.get("error")).toBe("access_denied");
+      expect(body.get("error_description")).toBe("The user denied access.");
+      expect(body.get("state")).toBe(state);
+      expect(adapter.denialCallbacks).toEqual([
+        {
+          error: "access_denied",
+          errorDescription: "The user denied access.",
+          state,
+        },
+      ]);
+      expect(adapter.oauthCallbacks).toHaveLength(0);
+      expect(adapter.freeBusyQueries).toHaveLength(0);
+      expect(adapter.webhookDeliveries).toHaveLength(0);
+
+      adapter.reset();
+
+      expect(adapter.denialCallbacks).toHaveLength(0);
     });
   });
 
@@ -94,8 +131,12 @@ describe("MockGoogleCalendarAdapter", () => {
       });
 
       expect(adapter.freeBusyQueries).toHaveLength(1);
-      expect(adapter.freeBusyQueries[0].timeMin.getTime()).toBe(new Date(timeMin).getTime());
-      expect(adapter.freeBusyQueries[0].timeMax.getTime()).toBe(new Date(timeMax).getTime());
+      expect(adapter.freeBusyQueries[0].timeMin.getTime()).toBe(
+        new Date(timeMin).getTime(),
+      );
+      expect(adapter.freeBusyQueries[0].timeMax.getTime()).toBe(
+        new Date(timeMax).getTime(),
+      );
       expect(adapter.freeBusyQueries[0].calendarIds).toEqual([
         "primary",
         "work@example.com",
@@ -128,8 +169,11 @@ describe("MockGoogleCalendarAdapter", () => {
       );
 
       expect(response.status).toBe(200);
-      const body = await response.json() as {
-        calendars: Record<string, { busy: Array<{ start: string; end: string }> }>;
+      const body = (await response.json()) as {
+        calendars: Record<
+          string,
+          { busy: Array<{ start: string; end: string }> }
+        >;
       };
       expect(body.calendars["primary"].busy).toHaveLength(1);
       expect(body.calendars["primary"].busy[0].start).toBe(
@@ -164,7 +208,7 @@ describe("MockGoogleCalendarAdapter", () => {
       );
 
       expect(response.status).toBe(200);
-      const body = await response.json() as {
+      const body = (await response.json()) as {
         calendars: Record<
           string,
           {
@@ -192,7 +236,11 @@ describe("MockGoogleCalendarAdapter", () => {
 
       adapter.setFreeBusyResponse("primary", [
         { start: freeStart, end: freeEnd, status: "free" },
-        { start: elsewhereStart, end: elsewhereEnd, status: "working-elsewhere" },
+        {
+          start: elsewhereStart,
+          end: elsewhereEnd,
+          status: "working-elsewhere",
+        },
       ]);
 
       const fetchImpl = adapter.getFetchImpl();
@@ -209,7 +257,7 @@ describe("MockGoogleCalendarAdapter", () => {
       );
 
       expect(response.status).toBe(200);
-      const body = await response.json() as {
+      const body = (await response.json()) as {
         calendars: Record<string, { busy: unknown[]; tentative: unknown[] }>;
       };
       expect(body.calendars["primary"].busy).toHaveLength(0);
@@ -247,7 +295,11 @@ describe("MockGoogleCalendarAdapter", () => {
       const fetchImpl = adapter.getFetchImpl();
       await fetchImpl("https://oauth2.googleapis.com/token", {
         method: "POST",
-        body: new URLSearchParams({ code: "c", code_verifier: "v", scope: "s" }),
+        body: new URLSearchParams({
+          code: "c",
+          code_verifier: "v",
+          scope: "s",
+        }),
       });
       await fetchImpl("https://www.googleapis.com/calendar/v3/freeBusy", {
         method: "POST",

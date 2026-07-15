@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ImportedBusyIntervalRecord } from "./imported-busy-intervals";
 import {
@@ -8,6 +8,20 @@ import {
 } from "./imported-busy-intervals";
 
 const fixedNow = new Date("2026-07-12T12:00:00.000Z");
+
+// isWithinRollingWindow calls `new Date()` directly inside the in-memory
+// repository. The test data uses fixed dates around 2026-07-12; without
+// freezing the wall clock the rolling-window check drifts once real time
+// crosses those dates and the assertions see an empty store.
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(fixedNow);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  clearInMemoryImportedBusyIntervalStore();
+});
 
 const busyInterval: ImportedBusyIntervalRecord = {
   id: "interval-1",
@@ -58,10 +72,6 @@ const futureIntervalBeyond90Days: ImportedBusyIntervalRecord = {
 };
 
 describe("ImportedBusyIntervalRepository contract", () => {
-  afterEach(() => {
-    clearInMemoryImportedBusyIntervalStore();
-  });
-
   it("upsertBatch stores intervals and findByUserIdAndDateRange retrieves them", async () => {
     const repo = getImportedBusyIntervalRepository();
 

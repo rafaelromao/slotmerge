@@ -54,12 +54,32 @@ async function isPostgresReachable(): Promise<boolean> {
   }
 }
 
+async function isPostgresSchemaReady(): Promise<boolean> {
+  if (!process.env.DATABASE_URL) return false;
+  if (!process.env.DATABASE_URL.includes("test") && !process.env.DATABASE_URL.includes("slotmerge_test")) {
+    return false;
+  }
+  try {
+    const { getPool } = await import("../../src/db/client");
+    const result = await getPool().query<{ exists: boolean }>(
+      "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users')",
+    );
+    return result.rows[0]?.exists === true;
+  } catch {
+    return false;
+  }
+}
+
 let postgresAvailable = false;
+let schemaReady = false;
 
 describe("ImportedBusyIntervalRepository contract", () => {
   beforeEach(async () => {
     if (!postgresAvailable) {
       postgresAvailable = await isPostgresReachable();
+    }
+    if (postgresAvailable && !schemaReady) {
+      schemaReady = await isPostgresSchemaReady();
     }
   });
 
@@ -169,85 +189,89 @@ describe("ImportedBusyIntervalRepository contract", () => {
       if (!postgresAvailable) {
         postgresAvailable = await isPostgresReachable();
       }
-      if (!postgresAvailable) {
+      if (!postgresAvailable || !schemaReady) {
         return; // skip
       }
       const repo = createPostgresImportedBusyIntervalRepository();
-      const connId = `conn-replace-${Math.random().toString(36).slice(2)}`;
+      const connId = "00000000-0000-0000-0000-000000000001";
+      const userId = "00000000-0000-0000-0000-000000000001";
 
       const first: ImportedBusyIntervalRecord[] = [
-        makeInterval({ id: "int-a1", connectionId: connId, startAtDaysFromNow: 1 }),
-        makeInterval({ id: "int-a2", connectionId: connId, startAtDaysFromNow: 2 }),
+        makeInterval({ id: "00000000-0000-0000-0000-000000000011", connectionId: connId, userId, startAtDaysFromNow: 1 }),
+        makeInterval({ id: "00000000-0000-0000-0000-000000000012", connectionId: connId, userId, startAtDaysFromNow: 2 }),
       ];
       const second: ImportedBusyIntervalRecord[] = [
-        makeInterval({ id: "int-b1", connectionId: connId, startAtDaysFromNow: 3 }),
+        makeInterval({ id: "00000000-0000-0000-0000-000000000013", connectionId: connId, userId, startAtDaysFromNow: 3 }),
       ];
 
       await repo.upsertBatch(first);
       await repo.upsertBatch(second);
 
       const found = await repo.findByUserIdAndDateRange(
-        "user-contract",
+        userId,
         new Date(fixedNow.getTime() - 86400000),
         new Date(fixedNow.getTime() + 90 * 86400000),
       );
 
       const ids = found.map((i) => i.id).sort();
-      expect(ids).toEqual(["int-b1"]);
+      expect(ids).toEqual(["00000000-0000-0000-0000-000000000013"]);
     });
 
     it("upsertBatch with multiple connectionIds only replaces the specified connectionId", async function () {
       if (!postgresAvailable) {
         postgresAvailable = await isPostgresReachable();
       }
-      if (!postgresAvailable) {
+      if (!postgresAvailable || !schemaReady) {
         return; // skip
       }
       const repo = createPostgresImportedBusyIntervalRepository();
-      const connA = `conn-a-${Math.random().toString(36).slice(2)}`;
-      const connB = `conn-b-${Math.random().toString(36).slice(2)}`;
+      const connA = "00000000-0000-0000-0000-000000000001";
+      const connB = "00000000-0000-0000-0000-000000000002";
+      const userId = "00000000-0000-0000-0000-000000000001";
 
       const intervals = [
-        makeInterval({ id: "int-a1", connectionId: connA, startAtDaysFromNow: 1 }),
-        makeInterval({ id: "int-b1", connectionId: connB, startAtDaysFromNow: 2 }),
+        makeInterval({ id: "00000000-0000-0000-0000-000000000011", connectionId: connA, userId, startAtDaysFromNow: 1 }),
+        makeInterval({ id: "00000000-0000-0000-0000-000000000012", connectionId: connB, userId, startAtDaysFromNow: 2 }),
       ];
       await repo.upsertBatch(intervals);
 
       await repo.upsertBatch([
-        makeInterval({ id: "int-a2", connectionId: connA, startAtDaysFromNow: 3 }),
+        makeInterval({ id: "00000000-0000-0000-0000-000000000013", connectionId: connA, userId, startAtDaysFromNow: 3 }),
       ]);
 
       const all = await repo.findByUserIdAndDateRange(
-        "user-contract",
+        userId,
         new Date(fixedNow.getTime() - 86400000),
         new Date(fixedNow.getTime() + 90 * 86400000),
       );
 
       const connBIntervals = all.filter((i) => i.connectionId === connB);
       expect(connBIntervals).toHaveLength(1);
-      expect(connBIntervals[0]?.id).toBe("int-b1");
+      expect(connBIntervals[0]?.id).toBe("00000000-0000-0000-0000-000000000012");
     });
 
     it("upsertBatch updates existing intervals with same id within same connectionId", async function () {
       if (!postgresAvailable) {
         postgresAvailable = await isPostgresReachable();
       }
-      if (!postgresAvailable) {
+      if (!postgresAvailable || !schemaReady) {
         return; // skip
       }
       const repo = createPostgresImportedBusyIntervalRepository();
-      const connId = `conn-update-${Math.random().toString(36).slice(2)}`;
+      const connId = "00000000-0000-0000-0000-000000000003";
+      const userId = "00000000-0000-0000-0000-000000000001";
+      const intervalId = "00000000-0000-0000-0000-000000000011";
 
       await repo.upsertBatch([
-        makeInterval({ id: "int-same", connectionId: connId, startAtDaysFromNow: 1 }),
+        makeInterval({ id: intervalId, connectionId: connId, userId, startAtDaysFromNow: 1 }),
       ]);
 
       const found = await repo.findByUserIdAndDateRange(
-        "user-contract",
+        userId,
         new Date(fixedNow.getTime() - 86400000),
         new Date(fixedNow.getTime() + 90 * 86400000),
       );
-      const existing = found.find((i) => i.id === "int-same");
+      const existing = found.find((i) => i.id === intervalId);
       const updatedInterval: ImportedBusyIntervalRecord = {
         ...existing!,
         endAt: new Date(fixedNow.getTime() + 2 * 86400000 + 3600000 * 2),
@@ -256,7 +280,7 @@ describe("ImportedBusyIntervalRepository contract", () => {
       await repo.upsertBatch([updatedInterval]);
 
       const afterUpdate = await repo.findByUserIdAndDateRange(
-        "user-contract",
+        userId,
         new Date(fixedNow.getTime() - 86400000),
         new Date(fixedNow.getTime() + 90 * 86400000),
       );

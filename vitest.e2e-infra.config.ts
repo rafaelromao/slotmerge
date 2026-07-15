@@ -1,0 +1,15 @@
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    env: {
+      APP_ENV: "test",
+      DATABASE_URL:
+        process.env.DATABASE_URL ??
+        "postgres://slotmerge:slotmerge@localhost:5432/slotmerge",
+    },
+    globals: true,
+    include: ["tests/helpers/**/*.test.ts"],
+    exclude: [],
+  },
+});

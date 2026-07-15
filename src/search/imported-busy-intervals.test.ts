@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ImportedBusyIntervalRecord } from "../calendar/imported-busy-intervals";
 import {
@@ -25,8 +25,17 @@ const busyInterval: ImportedBusyIntervalRecord = {
   importedAt: fixedNow,
 };
 
+// See src/calendar/imported-busy-intervals.test.ts for context: the
+// in-memory repository's rolling-window check uses real wall-clock time
+// and drifts once the system clock passes the fixed test dates.
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(fixedNow);
+});
+
 describe("ImportedBusyIntervalLookup", () => {
   afterEach(() => {
+    vi.useRealTimers();
     setImportedBusyIntervalLookupForTests(null);
     clearInMemoryImportedBusyIntervalStore();
   });

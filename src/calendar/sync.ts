@@ -12,6 +12,7 @@ import {
   MicrosoftFreeBusyRateLimitError,
   MicrosoftFreeBusyServerError,
 } from "./freebusy/types";
+import { randomUUID } from "node:crypto";
 
 export type SyncCalendarConnectionParams = {
   connectionId: string;
@@ -61,9 +62,8 @@ export async function syncCalendarConnection(
     const now = clock();
 
     const records: ImportedBusyIntervalRecord[] = intervals.map((interval) => {
-      const eventKey = interval.eventId ?? interval.startAt.getTime();
       return {
-        id: `${connectionId}-${interval.providerCalendarId}-${eventKey}`,
+        id: randomUUID(),
         userId,
         connectionId,
         providerCalendarId: interval.providerCalendarId,

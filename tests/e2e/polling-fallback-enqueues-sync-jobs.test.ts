@@ -27,7 +27,10 @@ import {
 import { USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
 import { enqueueSyncCalendarConnectionJob } from "../../src/worker/sync";
-import { handlePollCalendarConnectionsJob } from "../../src/worker/poll";
+import {
+  handlePollCalendarConnectionsJob,
+  MAX_JITTER_MS,
+} from "../../src/worker/poll";
 import { buildTestClock } from "../test-clock";
 import { calendarConnections } from "../../src/db/schema";
 import { eq, sql } from "drizzle-orm";
@@ -212,7 +215,7 @@ describe("E2E: polling fallback enqueues sync jobs", () => {
         const baseTime = clock.now().getTime();
         const jitterMs = runAt.getTime() - baseTime;
         expect(jitterMs).toBeGreaterThanOrEqual(0);
-        expect(jitterMs).toBeLessThanOrEqual(5 * 60 * 1000);
+        expect(jitterMs).toBeLessThanOrEqual(MAX_JITTER_MS);
       }
     },
   );

@@ -4,7 +4,7 @@ import { loadRuntimeConfig } from "../config/runtime";
 
 export const pollCalendarConnectionsTaskName = "poll_calendar_connections";
 
-const MAX_JITTER_MS = 5 * 60 * 1000;
+export const MAX_JITTER_MS = 5 * 60 * 1000;
 
 export async function handlePollCalendarConnectionsJob(
   options: { clock?: () => Date } = {},

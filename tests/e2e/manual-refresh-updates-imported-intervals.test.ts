@@ -36,6 +36,7 @@ import {
   handleSyncCalendarConnectionJob,
   enqueueSyncCalendarConnectionJob,
 } from "../../src/worker/sync";
+import { encryptCalendarToken } from "../../src/calendar/token-encryption";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -119,12 +120,17 @@ function wireGoogleFetch(adapter: MockGoogleCalendarAdapter): void {
 
 async function seedConnectedGoogleConnection(
   connectionId: string,
+  accessToken: string,
 ): Promise<void> {
+  const accessTokenEncrypted = encryptCalendarToken({
+    plaintext: accessToken,
+    key: TOKEN_ENCRYPTION_KEY,
+  });
   await getRequiredTestDb().execute(
     `INSERT INTO calendar_connections
-      (id, user_id, provider, provider_account_key, account_identifier, scopes, status, contributing_calendar_ids, created_at, updated_at)
+      (id, user_id, provider, provider_account_key, account_identifier, scopes, status, contributing_calendar_ids, access_token_encrypted, created_at, updated_at)
       VALUES
-        ('${connectionId}', '${ALICE.id}', 'google', 'google:${connectionId}', 'google:${connectionId}', 'https://www.googleapis.com/auth/calendar.freebusy', 'connected', '["primary"]'::jsonb, NOW(), NOW())`,
+        ('${connectionId}', '${ALICE.id}', 'google', 'google:${connectionId}', 'google:${connectionId}', 'https://www.googleapis.com/auth/calendar.freebusy', 'connected', '["primary"]'::jsonb, '${accessTokenEncrypted}', NOW(), NOW())`,
   );
 }
 
@@ -201,7 +207,10 @@ describe("E2E: manual refresh updates imported intervals", () => {
     "POST /me/calendar-connections/[id]/refresh enqueues a sync job for the connection",
     async () => {
       await setupTest();
-      await seedConnectedGoogleConnection(GOOGLE_CONNECTION_ID);
+      await seedConnectedGoogleConnection(
+        GOOGLE_CONNECTION_ID,
+        "google-access-token-1",
+      );
 
       const response = await postRefresh(GOOGLE_CONNECTION_ID);
 
@@ -236,7 +245,10 @@ describe("E2E: manual refresh updates imported intervals", () => {
       ]);
       wireGoogleFetch(adapter);
 
-      await seedConnectedGoogleConnection(GOOGLE_CONNECTION_ID);
+      await seedConnectedGoogleConnection(
+        GOOGLE_CONNECTION_ID,
+        "google-access-token-refresh",
+      );
       await upsertBusyIntervals(GOOGLE_CONNECTION_ID, [
         {
           providerCalendarId: "primary",

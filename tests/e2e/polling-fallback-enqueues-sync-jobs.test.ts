@@ -187,6 +187,11 @@ describe("E2E: polling fallback enqueues sync jobs", () => {
     "handlePollCalendarConnectionsJob enqueues sync jobs for all active connections with jitter in 0-5 minute range",
     async () => {
       await setupTest();
+
+      await getRequiredTestDb().execute(
+        `DELETE FROM calendar_connections WHERE id IN ('00000000-0000-0000-0000-000000000030', '00000000-0000-0000-0000-000000000031')`,
+      );
+
       wireTestRepositories();
 
       await seedConnectedGoogleConnection(GOOGLE_CONNECTION_ID);

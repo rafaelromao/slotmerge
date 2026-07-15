@@ -16,6 +16,9 @@ const WINDOW_START = "09:00";
 const WINDOW_END = "12:00";
 const RANGE_START = new Date("2026-02-23T00:00:00.000Z");
 const RANGE_END = new Date("2026-11-09T23:59:59.999Z");
+const US_SPRING_FORWARD_INSTANT = new Date("2026-03-08T05:00:00.000Z");
+const US_FALL_BACK_INSTANT = new Date("2026-11-01T05:00:00.000Z");
+const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
 
 async function setUserToSaoPaulo(): Promise<void> {
   const db = getTestDb();
@@ -123,11 +126,10 @@ describe("E2E: define weekly Availability Windows in profile timezone", () => {
 
       expect(effective.length).toBeGreaterThan(0);
 
-      const threeHoursMs = 3 * 60 * 60 * 1000;
       for (const interval of effective) {
         const durationMs =
           interval.endUtc.getTime() - interval.startUtc.getTime();
-        expect(durationMs).toBe(threeHoursMs);
+        expect(durationMs).toBe(THREE_HOURS_MS);
         expect(interval.startUtc.getUTCHours()).toBe(12);
         expect(interval.startUtc.getUTCMinutes()).toBe(0);
         expect(interval.endUtc.getUTCHours()).toBe(15);
@@ -136,24 +138,22 @@ describe("E2E: define weekly Availability Windows in profile timezone", () => {
 
       const mondaysBeforeDst = effective.filter(
         (interval) =>
-          interval.startUtc.getTime() <
-          new Date("2026-03-08T05:00:00.000Z").getTime(),
+          interval.startUtc.getTime() < US_SPRING_FORWARD_INSTANT.getTime(),
       );
       const mondaysAfterDst = effective.filter(
         (interval) =>
-          interval.startUtc.getTime() >=
-          new Date("2026-11-01T05:00:00.000Z").getTime(),
+          interval.startUtc.getTime() >= US_FALL_BACK_INSTANT.getTime(),
       );
 
       expect(mondaysBeforeDst.length).toBeGreaterThan(0);
       expect(mondaysAfterDst.length).toBeGreaterThan(0);
 
       for (const interval of [...mondaysBeforeDst, ...mondaysAfterDst]) {
-        expect(interval.startUtc.getUTCHours()).toBe(12);
-        expect(interval.endUtc.getUTCHours()).toBe(15);
         const durationMs =
           interval.endUtc.getTime() - interval.startUtc.getTime();
-        expect(durationMs).toBe(threeHoursMs);
+        expect(durationMs).toBe(THREE_HOURS_MS);
+        expect(interval.startUtc.getUTCHours()).toBe(12);
+        expect(interval.endUtc.getUTCHours()).toBe(15);
       }
     },
   );

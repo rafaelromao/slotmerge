@@ -1,6 +1,5 @@
 import {
   afterEach,
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -75,24 +74,18 @@ function requestWithCookie(cookie: string): Request {
 }
 
 describe("E2E admin operational status page", () => {
-  beforeAll(() => {
-    // The route handler reads from process.env.DATABASE_URL via the cached
-    // pool in src/db/client.ts. Point that env var at the ephemeral test
-    // database created by tests/helpers/global-setup.ts so the route
-    // observes the same rows this test seeds through getTestDb().
+  beforeEach(() => {
     const url = inject("testDbUrl") as string | undefined;
     if (url) {
       process.env.DATABASE_URL = url;
     }
-  });
-
-  beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(FIXED_NOW);
   });
 
   afterEach(() => {
     setSessionRepositoryForTests(null);
+    delete process.env.DATABASE_URL;
     vi.useRealTimers();
   });
 
@@ -156,8 +149,6 @@ describe("E2E admin operational status page", () => {
       expect(html).toContain("Pending: 0");
       expect(html).toContain("Connected: 2");
       expect(html).toContain("Disconnected: 0");
-      // The seed has 2 connected connections with null accessTokenExpiresAt,
-      // so they surface in the "unset" tokens-needing-refresh bucket.
       expect(html).not.toContain("No tokens needing refresh.");
       expect(html).toContain("user@gmail.com");
       expect(html).toContain("user@outlook.com");
@@ -177,6 +168,7 @@ describe("E2E admin operational status page", () => {
       const failedAt120Min = isoMinusMinutes(120);
       const failedAt600Min = isoMinusMinutes(600);
       const failedAt1430Min = isoMinusMinutes(1430);
+      const failedAt1500Min = isoMinusMinutes(1500);
 
       await db.execute(`INSERT INTO email_events
         (id, recipient, type, payload_reference, status, attempts, created_at, updated_at, failed_at, last_error_code, last_error_message)
@@ -216,7 +208,8 @@ describe("E2E admin operational status page", () => {
           ('00000000-0000-0000-0000-0000000000c1', 'alice@example.com', 'magic-link', 'ref-f-1', 'failed', 1, '${created}', '${created}', '${failedAt5Min}', 'smtp-timeout', 'Upstream SMTP timed out'),
           ('00000000-0000-0000-0000-0000000000c2', 'bob@example.com', 'invite', 'ref-f-2', 'failed', 1, '${created}', '${created}', '${failedAt120Min}', 'rate-limit', 'Postmark 429'),
           ('00000000-0000-0000-0000-0000000000c3', 'carol@example.com', 'calendar-action-required', 'ref-f-3', 'failed', 1, '${created}', '${created}', '${failedAt600Min}', 'invalid-grant', 'Token revoked by provider'),
-          ('00000000-0000-0000-0000-0000000000c4', 'dave@example.com', 'invite', 'ref-f-4', 'failed', 1, '${created}', '${created}', '${failedAt1430Min}', 'network-error', 'Connection reset by peer')`);
+          ('00000000-0000-0000-0000-0000000000c4', 'dave@example.com', 'invite', 'ref-f-4', 'failed', 1, '${created}', '${created}', '${failedAt1430Min}', 'network-error', 'Connection reset by peer'),
+          ('00000000-0000-0000-0000-0000000000c5', 'eve@example.com', 'invite', 'ref-f-5', 'failed', 1, '${created}', '${created}', '${failedAt1500Min}', 'old-failure', 'Should not appear in 24h window')`);
 
       setSessionRepositoryForTests({
         findById: (sessionId) =>
@@ -234,7 +227,7 @@ describe("E2E admin operational status page", () => {
       expect(html).toContain("Queued: 2");
       expect(html).toContain("Sending: 1");
       expect(html).toContain("Sent: 17");
-      expect(html).toContain("Failed: 4");
+      expect(html).toContain("Failed: 5");
       expect(html).not.toContain("No email events recorded yet.");
       expect(html).not.toContain("No failures in the last 24 hours.");
       expect(html).toContain("alice@example.com");
@@ -247,6 +240,8 @@ describe("E2E admin operational status page", () => {
       expect(html).toContain("invalid-grant");
       expect(html).toContain("Token revoked by provider");
       expect(html).toContain("dave@example.com");
+      expect(html).not.toContain("eve@example.com");
+      expect(html).not.toContain("old-failure");
     },
   );
 
@@ -340,21 +335,13 @@ describe("E2E admin operational status page", () => {
       expect(response.status).toBe(200);
       const html = await response.text();
 
-      // Healthy and unhealthy email delivery both surface.
       expect(html).toContain("Sent: 1");
       expect(html).toContain("Failed: 1");
       expect(html).toContain("unhealthy@example.com");
       expect(html).toContain("smtp-timeout");
 
-      // Calendar Connection status aggregates surface both healthy and
-      // unhealthy connections. Seed contributes 2 connected + 1 new
-      // healthy-conn + 1 new expired-conn = 4 connected in total.
       expect(html).toContain("Connected: 4");
       expect(html).toContain("Disconnected: 1");
-      // The expired-token connection surfaces in the tokens-needing-refresh
-      // table; Disconnected: 1 above proves the disconnected-conn row is
-      // present in the DB even though disconnected rows are not listed
-      // individually on the page (only their count is rendered).
       expect(html).toContain("expired-conn@example.com");
       expect(html).toContain(">expired<");
     },

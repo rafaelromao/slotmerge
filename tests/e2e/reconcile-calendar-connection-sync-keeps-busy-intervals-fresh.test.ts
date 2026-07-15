@@ -9,7 +9,9 @@ import {
 } from "vitest";
 
 vi.mock("../../src/worker/sync", async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = (await importOriginal()) as {
+    enqueueSyncCalendarConnectionJob: typeof enqueueSyncCalendarConnectionJob;
+  };
   return {
     ...actual,
     enqueueSyncCalendarConnectionJob: vi.fn().mockResolvedValue(undefined),

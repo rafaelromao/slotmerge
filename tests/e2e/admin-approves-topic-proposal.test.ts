@@ -4,6 +4,7 @@ import { afterEach, describe, expect, inject, it } from "vitest";
 import { createAdminTopicProposalsHandlers } from "../../src/admin/topic-proposals";
 import { sealSessionCookie } from "../../src/auth/session";
 import {
+  discoverabilityConsents,
   sessions,
   topicProposals,
   topics,
@@ -13,52 +14,19 @@ import {
   findEligibleMatches,
   createMatchingDependencies,
 } from "../../src/matching";
-import {
-  clearDiscoverabilityConsentOverride,
-  setDiscoverabilityConsentRepositoryForTests,
-  type DiscoverabilityConsentRecord,
-  type DiscoverabilityConsentRepository,
-} from "../../src/profile/discoverability-consent";
 import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import {
   listActiveTopics,
   saveUserTopicSelection,
 } from "../../src/topics/repository";
-import { FIXTURE_DATE, USER_FIXTURES } from "../fixtures/seeds";
-import { getTestDb, setupTest } from "../helpers/setup";
+import { USER_FIXTURES } from "../fixtures/seeds";
+import { getTestClock, getTestDb } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
-
-class InMemoryDiscoverabilityConsentRepository implements DiscoverabilityConsentRepository {
-  private readonly state = new Map<string, DiscoverabilityConsentRecord>();
-
-  async findByUserId(
-    userId: string,
-  ): Promise<DiscoverabilityConsentRecord | null> {
-    await Promise.resolve();
-    return this.state.get(userId) ?? null;
-  }
-
-  async grant(userId: string): Promise<DiscoverabilityConsentRecord> {
-    await Promise.resolve();
-    const record: DiscoverabilityConsentRecord = {
-      userId,
-      grantedAt: new Date(FIXTURE_DATE),
-    };
-    this.state.set(userId, record);
-    return record;
-  }
-
-  async revoke(userId: string): Promise<void> {
-    await Promise.resolve();
-    this.state.delete(userId);
-  }
-}
 
 describe("E2E: Admin approves a pending Topic Proposal", () => {
   afterEach(() => {
     setSearchEligibilityProfileInputsForTests(null);
-    clearDiscoverabilityConsentOverride();
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -71,9 +39,8 @@ describe("E2E: Admin approves a pending Topic Proposal", () => {
       if (!db) {
         return;
       }
-      await setupTest();
 
-      const now = new Date(FIXTURE_DATE);
+      const now = getTestClock()();
       const proposerId = USER_FIXTURES[0].id;
       const adminId = USER_FIXTURES[2].id;
 
@@ -99,6 +66,10 @@ describe("E2E: Admin approves a pending Topic Proposal", () => {
         createdAt: now,
       });
 
+      await db
+        .insert(discoverabilityConsents)
+        .values({ userId: proposerId, grantedAt: now });
+
       setSearchEligibilityProfileInputsForTests({
         [proposerId]: {
           hasDisplayName: true,
@@ -107,10 +78,6 @@ describe("E2E: Admin approves a pending Topic Proposal", () => {
           isActive: true,
         },
       });
-
-      const consentRepo = new InMemoryDiscoverabilityConsentRepository();
-      await consentRepo.grant(proposerId);
-      setDiscoverabilityConsentRepositoryForTests(consentRepo);
 
       const adminCookie = await sealSessionCookie({
         sessionId: adminSessionId,

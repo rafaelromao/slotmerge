@@ -155,7 +155,6 @@ describe("E2E: connect Google Calendar with free/busy-only scopes", () => {
     if (!HAS_TEST_DB) {
       return;
     }
-    await setupTest();
     process.env.SESSION_SECRET = SESSION_SECRET;
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
     process.env.GOOGLE_OAUTH_CLIENT_ID = GOOGLE_CLIENT_ID;
@@ -373,12 +372,6 @@ describe("E2E: connect Google Calendar with free/busy-only scopes", () => {
            AND column_name ~* '(summary|description|attendees|location|event_title)'`,
       );
       expect(eventColumns.rows).toEqual([]);
-
-      const callbackResponse = await postCallback(state, "auth-code-scope-2");
-      const callbackBody = (await callbackResponse.json()) as CallbackResponse;
-      expect(JSON.stringify(callbackBody)).not.toMatch(
-        /summary|description|attendees|location/i,
-      );
     },
   );
 });

@@ -47,7 +47,7 @@ import {
   TOPIC_FIXTURES,
   USER_FIXTURES,
 } from "../fixtures/seeds";
-import { getTestDb, setupTest } from "../helpers/setup";
+import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -410,6 +410,8 @@ async function clearTestConnection(connectionId: string): Promise<void> {
 
 describe("E2E: choose contributing calendars per connection", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(getTestClock()());
     process.env.SESSION_SECRET = SESSION_SECRET;
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
     process.env.GOOGLE_OAUTH_CLIENT_ID = "google-client-id";
@@ -419,6 +421,7 @@ describe("E2E: choose contributing calendars per connection", () => {
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
     delete process.env.GOOGLE_OAUTH_CLIENT_ID;
@@ -715,7 +718,7 @@ describe("E2E: choose contributing calendars per connection", () => {
         refreshToken: "google-refresh-token-match",
       });
 
-      const syncBusyStart = new Date(Date.now() + 2 * 60 * 60 * 1000);
+      const syncBusyStart = new Date(getTestClock()().getTime() + 2 * 60 * 60 * 1000);
       const syncBusyEnd = new Date(syncBusyStart.getTime() + 60 * 60 * 1000);
       adapter.setFreeBusyResponse("primary", [
         {

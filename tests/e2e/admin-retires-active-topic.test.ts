@@ -401,7 +401,7 @@ describe("E2E: Admin retires an active Topic", () => {
             busyIntervals,
           };
         },
-        isUserEligibleForSearch: async (uid: string) => uid === userId,
+        isUserEligibleForSearch: (uid: string) => Promise.resolve(uid === userId),
       };
 
       await expect(async () => {

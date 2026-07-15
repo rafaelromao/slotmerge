@@ -37,6 +37,17 @@ const COMPLETE_PROFILE: ProfileInputs = {
   hasAvailabilitySource: true,
 };
 
+const TOPIC_A_NAME = "Product strategy";
+const TOPIC_B_NAME = "AI engineering";
+
+const ELIGIBILITY_INPUTS: Record<string, ProfileInputs> = {
+  [USER_FIXTURES[0].id]: COMPLETE_PROFILE,
+  [USER_FIXTURES[1].id]: COMPLETE_PROFILE,
+  [SUBSET_A_ID]: COMPLETE_PROFILE,
+  [SUBSET_B_ID]: COMPLETE_PROFILE,
+  [NEITHER_ID]: COMPLETE_PROFILE,
+};
+
 async function insertDiscoverableUser(input: {
   id: string;
   email: string;
@@ -80,15 +91,108 @@ async function grantDiscoverabilityConsentForUser(
   );
 }
 
+async function seedNegativeCaseUsers(): Promise<void> {
+  await insertDiscoverableUser({
+    id: SUBSET_A_ID,
+    email: SUBSET_A_EMAIL,
+    displayName: "Subset A",
+    topicIds: [TOPIC_A.id],
+  });
+  await insertDiscoverableUser({
+    id: SUBSET_B_ID,
+    email: SUBSET_B_EMAIL,
+    displayName: "Subset B",
+    topicIds: [TOPIC_B.id],
+  });
+  await insertDiscoverableUser({
+    id: NEITHER_ID,
+    email: NEITHER_EMAIL,
+    displayName: "Neither",
+    topicIds: [],
+  });
+  await grantDiscoverabilityConsentForUser(USER_FIXTURES[0].id);
+  await grantDiscoverabilityConsentForUser(USER_FIXTURES[1].id);
+}
+
+async function runSearchWithSelectedTopics(): Promise<string> {
+  const result = await submitSearch(
+    {
+      organizerId: ORGANIZER.id,
+      activeTopicsRepository: {
+        async listActive() {
+          const catalogue = await getTopicCatalogueRepository().listCatalogue();
+          return catalogue
+            .filter((t) => t.status === "active")
+            .map((t) => ({
+              id: t.id,
+              name: t.name,
+              status: "active" as const,
+            }));
+        },
+      },
+      profileRepository: {
+        async findByUserId(userId) {
+          return getProfileByUserId(userId);
+        },
+      },
+      clock: { now: getTestClock() },
+      matchingPoolSize: 2,
+      matchingDependencies: createMatchingDependencies(),
+      discoverableUserRepository: createPostgresDiscoverableUserRepository(),
+      searchResultRepository: createPostgresSearchResultRepository(),
+    },
+    {
+      selectedTopicIds: [TOPIC_A.id, TOPIC_B.id],
+      minimumMatchingUsers: 2,
+      durationMinutes: 60,
+      dateRangeStart: new Date(SLOT_START_UTC),
+      dateRangeEnd: new Date(SLOT_END_UTC),
+      organizerTimezone: ORGANIZER.profileTimezone ?? "UTC",
+    },
+  );
+
+  expect(result.ok).toBe(true);
+  if (!result.ok || !result.search.id) {
+    throw new Error("submitSearch did not produce a stored search id");
+  }
+  return result.search.id;
+}
+
 type SnapshotRow = {
   snapshot_json: unknown;
 };
 
-async function loadSnapshotJson(searchId: string): Promise<unknown> {
+type SearchSnapshotShape = {
+  generatedAt: string;
+  organizerTimezone: string;
+  dateRangeStart: string;
+  dateRangeEnd: string;
+  durationMinutes: number;
+  slots: Array<{
+    startUtc: string;
+    matchCount: number;
+    matches: Array<{
+      userId: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+      shortBio: string | null;
+      topics: Array<{ id: string; name: string }>;
+      topicProfile: Array<{ id: string; name: string }>;
+      availabilityIndicator: string;
+      calendarFreshness: string;
+    }>;
+  }>;
+};
+
+async function loadStoredSnapshot(searchId: string): Promise<{
+  storedSelectedTopicIds: string[];
+  snapshot: SearchSnapshotShape;
+}> {
   const db = getTestDb();
   if (!db) {
     throw new Error("test db not initialized");
   }
+  const stored = await getSearchRepository().findById(searchId);
   const result = await db.execute<SnapshotRow>(
     `SELECT snapshot_json FROM search_results WHERE search_id = '${searchId}'`,
   );
@@ -96,7 +200,65 @@ async function loadSnapshotJson(searchId: string): Promise<unknown> {
   if (!row) {
     throw new Error(`no search_results row for search_id ${searchId}`);
   }
-  return row.snapshot_json;
+  return {
+    storedSelectedTopicIds: stored?.selectedTopicIds ?? [],
+    snapshot: row.snapshot_json as SearchSnapshotShape,
+  };
+}
+
+function expectedMatch(
+  userId: string,
+  displayName: string,
+): {
+  userId: string;
+  displayName: string;
+  avatarUrl: null;
+  shortBio: null;
+  topics: Array<{ id: string; name: string }>;
+  topicProfile: Array<{ id: string; name: string }>;
+  availabilityIndicator: "available";
+  calendarFreshness: "none";
+} {
+  return {
+    userId,
+    displayName,
+    avatarUrl: null,
+    shortBio: null,
+    topics: [
+      { id: TOPIC_A.id, name: TOPIC_A_NAME },
+      { id: TOPIC_B.id, name: TOPIC_B_NAME },
+    ],
+    topicProfile: [
+      { id: TOPIC_A.id, name: TOPIC_A_NAME },
+      { id: TOPIC_B.id, name: TOPIC_B_NAME },
+    ],
+    availabilityIndicator: "available",
+    calendarFreshness: "none",
+  };
+}
+
+function assertSnapshotMatches(
+  storedSelectedTopicIds: string[],
+  snapshot: SearchSnapshotShape,
+): void {
+  expect(storedSelectedTopicIds).toEqual([TOPIC_A.id, TOPIC_B.id]);
+  expect(snapshot).toEqual({
+    generatedAt: "2026-07-12T12:00:00.001Z",
+    organizerTimezone: "Europe/London",
+    dateRangeStart: SLOT_START_UTC,
+    dateRangeEnd: SLOT_END_UTC,
+    durationMinutes: 60,
+    slots: [
+      {
+        startUtc: SLOT_START_UTC,
+        matchCount: 2,
+        matches: [
+          expectedMatch(USER_FIXTURES[0].id, "Alice User"),
+          expectedMatch(USER_FIXTURES[1].id, "Bob Organizer"),
+        ],
+      },
+    ],
+  });
 }
 
 describe("E2E: Search matches only Users with all selected active Topics", () => {
@@ -114,107 +276,13 @@ describe("E2E: Search matches only Users with all selected active Topics", () =>
       }
 
       await setupTest();
+      setSearchEligibilityProfileInputsForTests(ELIGIBILITY_INPUTS);
+      await seedNegativeCaseUsers();
 
-      await insertDiscoverableUser({
-        id: SUBSET_A_ID,
-        email: SUBSET_A_EMAIL,
-        displayName: "Subset A",
-        topicIds: [TOPIC_A.id],
-      });
-      await insertDiscoverableUser({
-        id: SUBSET_B_ID,
-        email: SUBSET_B_EMAIL,
-        displayName: "Subset B",
-        topicIds: [TOPIC_B.id],
-      });
-      await insertDiscoverableUser({
-        id: NEITHER_ID,
-        email: NEITHER_EMAIL,
-        displayName: "Neither",
-        topicIds: [],
-      });
-      await grantDiscoverabilityConsentForUser(USER_FIXTURES[0].id);
-      await grantDiscoverabilityConsentForUser(USER_FIXTURES[1].id);
-
-      setSearchEligibilityProfileInputsForTests({
-        [USER_FIXTURES[0].id]: COMPLETE_PROFILE,
-        [USER_FIXTURES[1].id]: COMPLETE_PROFILE,
-        [SUBSET_A_ID]: COMPLETE_PROFILE,
-        [SUBSET_B_ID]: COMPLETE_PROFILE,
-        [NEITHER_ID]: COMPLETE_PROFILE,
-      });
-
-      const result = await submitSearch(
-        {
-          organizerId: ORGANIZER.id,
-          activeTopicsRepository: {
-            async listActive() {
-              const catalogue =
-                await getTopicCatalogueRepository().listCatalogue();
-              return catalogue
-                .filter((t) => t.status === "active")
-                .map((t) => ({
-                  id: t.id,
-                  name: t.name,
-                  status: "active" as const,
-                }));
-            },
-          },
-          profileRepository: {
-            async findByUserId(userId) {
-              return getProfileByUserId(userId);
-            },
-          },
-          clock: { now: getTestClock() },
-          matchingPoolSize: 2,
-          matchingDependencies: createMatchingDependencies(),
-          discoverableUserRepository:
-            createPostgresDiscoverableUserRepository(),
-          searchResultRepository: createPostgresSearchResultRepository(),
-        },
-        {
-          selectedTopicIds: [TOPIC_A.id, TOPIC_B.id],
-          minimumMatchingUsers: 2,
-          durationMinutes: 60,
-          dateRangeStart: new Date(SLOT_START_UTC),
-          dateRangeEnd: new Date(SLOT_END_UTC),
-          organizerTimezone: ORGANIZER.profileTimezone ?? "UTC",
-        },
-      );
-
-      expect(result.ok).toBe(true);
-      if (!result.ok) {
-        return;
-      }
-
-      const storedSearchId = result.search.id;
-      expect(storedSearchId).toBeTruthy();
-      if (!storedSearchId) {
-        return;
-      }
-
-      const persisted = getSearchRepository();
-      const stored = await persisted.findById(storedSearchId);
-      expect(stored?.selectedTopicIds).toEqual([TOPIC_A.id, TOPIC_B.id]);
-
-      const snapshot = (await loadSnapshotJson(storedSearchId)) as {
-        slots: Array<{
-          matches: Array<{ userId: string }>;
-        }>;
-      };
-
-      const matchedUserIds = new Set<string>();
-      for (const slot of snapshot.slots) {
-        for (const match of slot.matches) {
-          matchedUserIds.add(match.userId);
-        }
-      }
-
-      const expectedMatches = new Set([
-        USER_FIXTURES[0].id,
-        USER_FIXTURES[1].id,
-      ]);
-      expect(matchedUserIds).toEqual(expectedMatches);
+      const searchId = await runSearchWithSelectedTopics();
+      const { storedSelectedTopicIds, snapshot } =
+        await loadStoredSnapshot(searchId);
+      assertSnapshotMatches(storedSelectedTopicIds, snapshot);
     },
   );
 });

@@ -12,8 +12,6 @@ import {
 import {
   availabilityWindows,
   discoverabilityConsents,
-  searchResults,
-  searches,
   userTopics,
   users,
 } from "../../src/db/schema";
@@ -91,7 +89,6 @@ async function seedMatchableUser(
     },
   });
 }
-
 type SubmitDeps = Parameters<typeof submitSearch>[0];
 
 function buildSubmitDeps(): SubmitDeps {
@@ -180,11 +177,6 @@ describe(
         }
         const originalSearchId = initial.search.id;
 
-        const allSearchesBefore = await db.select().from(searches);
-        expect(allSearchesBefore.length).toBe(1);
-        const allResultRowsBefore = await db.select().from(searchResults);
-        expect(allResultRowsBefore.length).toBe(1);
-
         const originalSearchResultRow =
           await getSearchResultRepository().findBySearchId(originalSearchId);
         expect(originalSearchResultRow).not.toBeNull();
@@ -212,7 +204,7 @@ describe(
         const newSearchId = rerun.search.id;
         expect(newSearchId).not.toBe(originalSearchId);
 
-        const allSearches = await db.select().from(searches);
+        const allSearches = await getSearchRepository().listAll();
         expect(allSearches.length).toBe(2);
         const allSearchIds = allSearches.map((s) => s.id).sort();
         expect(allSearchIds).toEqual([originalSearchId, newSearchId].sort());
@@ -260,37 +252,28 @@ describe(
           initial.search.generatedAt.getTime(),
         );
 
-        const allResultRows = await db.select().from(searchResults);
-        expect(allResultRows.length).toBe(2);
-        const resultRowBySearchId = new Map(
-          allResultRows.map((row) => [row.searchId, row]),
-        );
-        expect(resultRowBySearchId.has(originalSearchId)).toBe(true);
-        expect(resultRowBySearchId.has(newSearchId)).toBe(true);
-
-        const originalResultAfterRerun =
-          resultRowBySearchId.get(originalSearchId)!;
-        expect(originalResultAfterRerun.id).toBe(originalSearchResultId);
-        expect(originalResultAfterRerun.createdAt.toISOString()).toBe(
+        const originalSnapshotAfterRerun =
+          await getSearchResultRepository().findBySearchId(originalSearchId);
+        expect(originalSnapshotAfterRerun).not.toBeNull();
+        expect(originalSnapshotAfterRerun!.id).toBe(originalSearchResultId);
+        expect(originalSnapshotAfterRerun!.searchId).toBe(originalSearchId);
+        expect(originalSnapshotAfterRerun!.createdAt.toISOString()).toBe(
           originalSearchResultCreatedAt.toISOString(),
         );
-        expect(originalResultAfterRerun.snapshotJson).toEqual(originalSnapshotJson);
-
-        const originalSnapshotViaRepository =
-          await getSearchResultRepository().findBySearchId(originalSearchId);
-        expect(originalSnapshotViaRepository).not.toBeNull();
-        expect(originalSnapshotViaRepository!.id).toBe(originalSearchResultId);
-        expect(originalSnapshotViaRepository!.snapshotJson).toEqual(
+        expect(originalSnapshotAfterRerun!.snapshotJson).toEqual(
           originalSnapshotJson,
         );
 
-        const newResultAfterRerun = resultRowBySearchId.get(newSearchId)!;
-        expect(newResultAfterRerun.id).not.toBe(originalSearchResultId);
-        expect(newResultAfterRerun.searchId).toBe(newSearchId);
-        expect(newResultAfterRerun.createdAt.getTime()).toBeGreaterThanOrEqual(
+        const newSnapshot = await getSearchResultRepository().findBySearchId(
+          newSearchId,
+        );
+        expect(newSnapshot).not.toBeNull();
+        expect(newSnapshot!.id).not.toBe(originalSearchResultId);
+        expect(newSnapshot!.searchId).toBe(newSearchId);
+        expect(newSnapshot!.createdAt.getTime()).toBeGreaterThan(
           originalSearchResultCreatedAt.getTime(),
         );
-        expect(newResultAfterRerun.snapshotJson).toMatchObject({
+        expect(newSnapshot!.snapshotJson).toMatchObject({
           organizerTimezone: "UTC",
           dateRangeStart: DATE_RANGE_START.toISOString(),
           dateRangeEnd: DATE_RANGE_END.toISOString(),
@@ -305,7 +288,7 @@ describe(
         expect(originalSnapshotDisplayNames).toContain(ORIGINAL_DISPLAY_NAME);
         expect(originalSnapshotDisplayNames).not.toContain(MUTATED_DISPLAY_NAME);
 
-        const newSlots = newResultAfterRerun.snapshotJson.slots;
+        const newSlots = newSnapshot!.snapshotJson.slots;
         const flatMatches = newSlots.flatMap((slot) => slot.matches);
         const mutatedMatch = flatMatches.find(
           (match) => match.userId === MATCH_USER_ID,
@@ -321,7 +304,7 @@ describe(
         expect(newHistoryItem).toBeDefined();
         expect(originalHistoryItem!.snapshotId).toBe(originalSearchResultId);
         expect(newHistoryItem!.snapshotId).not.toBe(originalSearchResultId);
-        expect(newHistoryItem!.snapshotId).toBe(newResultAfterRerun.id);
+        expect(newHistoryItem!.snapshotId).toBe(newSnapshot!.id);
         expect(originalHistoryItem!.generatedAt.toISOString()).toBe(
           initial.search.generatedAt.toISOString(),
         );

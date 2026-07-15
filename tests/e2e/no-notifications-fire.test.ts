@@ -10,6 +10,7 @@ import {
   buildMockEmailAdapter,
   type MockEmailAdapter,
 } from "../mock-email-adapter";
+import type { EmailDeliveryService } from "../../src/email/service";
 import {
   topicProposals,
   sessions,
@@ -26,6 +27,38 @@ const TEST_DB_URL = inject("testDbUrl") as string | undefined;
 const HAS_TEST_DB = !!TEST_DB_URL;
 
 const SESSION_SECRET = "test-session-secret-124-characters-long";
+
+function buildEmailDeliveryService(
+  adapter: MockEmailAdapter,
+): EmailDeliveryService {
+  return {
+    async sendEmail(input) {
+      await adapter.send({
+        emailEventId: `mock-${input.recipient}`,
+        recipient: input.recipient,
+        type: input.type,
+        payload: input.payload,
+      });
+      return {
+        emailEvent: {
+          id: `mock-${input.recipient}`,
+          recipient: input.recipient,
+          type: input.type,
+          payloadReference: "mock-ref",
+          status: "sent" as const,
+          attempts: 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          sentAt: new Date(),
+          failedAt: null,
+          lastAttemptAt: null,
+          lastErrorCode: null,
+          lastErrorMessage: null,
+        },
+      };
+    },
+  };
+}
 
 describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or Topic Proposals", () => {
   let emailAdapter: MockEmailAdapter;
@@ -51,7 +84,9 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
         await setupTest();
 
         emailAdapter = buildMockEmailAdapter();
-        setEmailDeliveryServiceForTests(null);
+        setEmailDeliveryServiceForTests(
+          buildEmailDeliveryService(emailAdapter),
+        );
 
         const { submitSearch } = await import("../../src/search/search-input");
         const { createMatchingDependencies } =
@@ -143,7 +178,9 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
         await setupTest();
 
         emailAdapter = buildMockEmailAdapter();
-        setEmailDeliveryServiceForTests(null);
+        setEmailDeliveryServiceForTests(
+          buildEmailDeliveryService(emailAdapter),
+        );
 
         const session = SESSION_FIXTURES[0];
         const cookie = await sealSessionCookie({ sessionId: session.id });
@@ -175,7 +212,9 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
         await setupTest();
 
         emailAdapter = buildMockEmailAdapter();
-        setEmailDeliveryServiceForTests(null);
+        setEmailDeliveryServiceForTests(
+          buildEmailDeliveryService(emailAdapter),
+        );
 
         const db = getTestDb()!;
         const now = getTestClock()();
@@ -244,7 +283,9 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
         await setupTest();
 
         emailAdapter = buildMockEmailAdapter();
-        setEmailDeliveryServiceForTests(null);
+        setEmailDeliveryServiceForTests(
+          buildEmailDeliveryService(emailAdapter),
+        );
 
         const db = getTestDb()!;
         const now = getTestClock()();

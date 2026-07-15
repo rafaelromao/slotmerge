@@ -14,8 +14,8 @@ export type TopicProposalListItem = {
   id: string;
   candidateName: string;
   status: TopicProposalStatus;
-  proposedByUserId: string;
-  proposedByUserEmail: string;
+  proposedByUserId: string | null;
+  proposedByUserEmail: string | null;
   createdAt: Date;
 };
 
@@ -184,7 +184,7 @@ function renderTopicProposalsPage({
             (p) => `
               <tr>
                 <td>${escapeHtml(p.candidateName)}</td>
-                <td>${escapeHtml(p.proposedByUserEmail)}</td>
+                <td>${escapeHtml(p.proposedByUserEmail ?? "(deleted User)")}</td>
                 <td>${escapeHtml(labelStatus(p.status))}</td>
                 <td>
                   <form method="post" style="display:inline">
@@ -259,7 +259,7 @@ const databaseTopicProposalRepository: TopicProposalRepository = {
         createdAt: topicProposals.createdAt,
       })
       .from(topicProposals)
-      .innerJoin(users, eq(topicProposals.proposedByUserId, users.id))
+      .leftJoin(users, eq(topicProposals.proposedByUserId, users.id))
       .where(eq(topicProposals.status, "pending"))
       .orderBy(desc(topicProposals.createdAt));
 

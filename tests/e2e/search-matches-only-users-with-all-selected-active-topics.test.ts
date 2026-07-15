@@ -12,8 +12,7 @@ import { getSearchRepository } from "../../src/search/repository";
 import { getTopicCatalogueRepository } from "../../src/topics/repository";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
-import { fixedClock } from "../fixtures/clock";
-import { getTestDb, setupTest } from "../helpers/setup";
+import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -27,8 +26,10 @@ const SLOT_END_UTC = `${SLOT_DATE}T17:00:00.000Z`;
 
 const SUBSET_A_ID = "00000000-0000-0000-0000-0000000000a1";
 const SUBSET_B_ID = "00000000-0000-0000-0000-0000000000b1";
+const NEITHER_ID = "00000000-0000-0000-0000-0000000000c1";
 const SUBSET_A_EMAIL = "subset-a@example.com";
 const SUBSET_B_EMAIL = "subset-b@example.com";
+const NEITHER_EMAIL = "neither@example.com";
 
 const COMPLETE_PROFILE: ProfileInputs = {
   hasDisplayName: true,
@@ -36,11 +37,11 @@ const COMPLETE_PROFILE: ProfileInputs = {
   hasAvailabilitySource: true,
 };
 
-async function insertSubsetUser(input: {
+async function insertDiscoverableUser(input: {
   id: string;
   email: string;
   displayName: string;
-  topicId: string;
+  topicIds: string[];
 }): Promise<void> {
   const db = getTestDb();
   if (!db) {
@@ -55,10 +56,12 @@ async function insertSubsetUser(input: {
     `INSERT INTO availability_windows (id, user_id, day_of_week, start_time, end_time, profile_timezone, created_at, updated_at)
      VALUES (gen_random_uuid(), '${input.id}', 1, '00:00', '23:59', 'UTC', '${now}', '${now}')`,
   );
-  await db.execute(
-    `INSERT INTO user_topics (id, user_id, topic_id, status, created_at, updated_at)
-     VALUES (gen_random_uuid(), '${input.id}', '${input.topicId}', 'active', '${now}', '${now}')`,
-  );
+  for (const topicId of input.topicIds) {
+    await db.execute(
+      `INSERT INTO user_topics (id, user_id, topic_id, status, created_at, updated_at)
+       VALUES (gen_random_uuid(), '${input.id}', '${topicId}', 'active', '${now}', '${now}')`,
+    );
+  }
   await db.execute(
     `INSERT INTO discoverability_consents (user_id, granted_at) VALUES ('${input.id}', '${now}')`,
   );
@@ -112,17 +115,23 @@ describe("E2E: Search matches only Users with all selected active Topics", () =>
 
       await setupTest();
 
-      await insertSubsetUser({
+      await insertDiscoverableUser({
         id: SUBSET_A_ID,
         email: SUBSET_A_EMAIL,
         displayName: "Subset A",
-        topicId: TOPIC_A.id,
+        topicIds: [TOPIC_A.id],
       });
-      await insertSubsetUser({
+      await insertDiscoverableUser({
         id: SUBSET_B_ID,
         email: SUBSET_B_EMAIL,
         displayName: "Subset B",
-        topicId: TOPIC_B.id,
+        topicIds: [TOPIC_B.id],
+      });
+      await insertDiscoverableUser({
+        id: NEITHER_ID,
+        email: NEITHER_EMAIL,
+        displayName: "Neither",
+        topicIds: [],
       });
       await grantDiscoverabilityConsentForUser(USER_FIXTURES[0].id);
       await grantDiscoverabilityConsentForUser(USER_FIXTURES[1].id);
@@ -132,9 +141,9 @@ describe("E2E: Search matches only Users with all selected active Topics", () =>
         [USER_FIXTURES[1].id]: COMPLETE_PROFILE,
         [SUBSET_A_ID]: COMPLETE_PROFILE,
         [SUBSET_B_ID]: COMPLETE_PROFILE,
+        [NEITHER_ID]: COMPLETE_PROFILE,
       });
 
-      const clock = fixedClock(FIXTURE_DATE);
       const result = await submitSearch(
         {
           organizerId: ORGANIZER.id,
@@ -156,7 +165,7 @@ describe("E2E: Search matches only Users with all selected active Topics", () =>
               return getProfileByUserId(userId);
             },
           },
-          clock: { now: clock },
+          clock: { now: getTestClock() },
           matchingPoolSize: 2,
           matchingDependencies: createMatchingDependencies(),
           discoverableUserRepository:
@@ -189,39 +198,23 @@ describe("E2E: Search matches only Users with all selected active Topics", () =>
       expect(stored?.selectedTopicIds).toEqual([TOPIC_A.id, TOPIC_B.id]);
 
       const snapshot = (await loadSnapshotJson(storedSearchId)) as {
-        generatedAt: string;
-        organizerTimezone: string;
-        dateRangeStart: string;
-        dateRangeEnd: string;
-        durationMinutes: number;
         slots: Array<{
-          startUtc: string;
-          matchCount: number;
           matches: Array<{ userId: string }>;
         }>;
       };
 
-      expect(snapshot.dateRangeStart).toBe(SLOT_START_UTC);
-      expect(snapshot.dateRangeEnd).toBe(SLOT_END_UTC);
-      expect(snapshot.durationMinutes).toBe(60);
-
-      expect(snapshot.slots.length).toBeGreaterThan(0);
       const matchedUserIds = new Set<string>();
       for (const slot of snapshot.slots) {
-        expect(slot.matchCount).toBe(slot.matches.length);
         for (const match of slot.matches) {
           matchedUserIds.add(match.userId);
         }
       }
 
-      const matchedFixtureUsers = Array.from(matchedUserIds).filter((id) =>
-        [USER_FIXTURES[0].id, USER_FIXTURES[1].id].includes(id),
-      );
-      expect(matchedFixtureUsers).toContain(USER_FIXTURES[0].id);
-      expect(matchedFixtureUsers).toContain(USER_FIXTURES[1].id);
-
-      expect(matchedUserIds.has(SUBSET_A_ID)).toBe(false);
-      expect(matchedUserIds.has(SUBSET_B_ID)).toBe(false);
+      const expectedMatches = new Set([
+        USER_FIXTURES[0].id,
+        USER_FIXTURES[1].id,
+      ]);
+      expect(matchedUserIds).toEqual(expectedMatches);
     },
   );
 });

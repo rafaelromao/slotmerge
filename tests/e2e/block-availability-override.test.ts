@@ -109,6 +109,8 @@ describe("E2E: persist one-off block Availability override and surface it from t
           startTime: "09:00",
           endTime: "17:00",
           profileTimezone: FIXTURE_TIMEZONE,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         };
 
       const blockRange = expandOverrideToUtcRange(

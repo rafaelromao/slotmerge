@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { POST as postPropose } from "../../app/me/topics/propose/route";
+import { GET as getMyTopics } from "../../app/me/topics/route";
 import { clearPerUserLookupStateForTests } from "../../app/me/route";
 import { sealSessionCookie } from "../../src/auth/session";
 import { topicProposals } from "../../src/db/schema";
@@ -66,6 +67,16 @@ describe("E2E: propose a new Topic is similarity-blocked", () => {
       const location = response.headers.get("Location");
       expect(location).toContain("error=too_similar");
       expect(location).toContain("Product%20strategy");
+
+      const pageResponse = await getMyTopics(
+        new Request(`http://localhost/me/topics${location!.split("?")[1] ? `?${location!.split("?")[1]}` : ""}`, {
+          headers: { cookie },
+        }),
+      );
+      expect(pageResponse.status).toBe(200);
+      const pageHtml = await pageResponse.text();
+      expect(pageHtml).toContain("Too similar to existing");
+      expect(pageHtml).toContain("Product strategy");
 
       const db = getRequiredTestDb();
       const proposals = await db

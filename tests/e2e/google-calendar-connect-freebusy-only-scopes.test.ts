@@ -23,7 +23,7 @@ import {
   SESSION_FIXTURES,
   USER_FIXTURES,
 } from "../fixtures/seeds";
-import { getTestDb, setupTest } from "../helpers/setup";
+import { getTestDb } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 const SESSION_SECRET = "0123456789abcdef0123456789abcdef";
@@ -151,7 +151,7 @@ describe("E2E: connect Google Calendar with free/busy-only scopes", () => {
   let adapter: MockGoogleCalendarAdapter;
   let capturedUrls: string[];
 
-  beforeEach(async () => {
+  beforeEach(() => {
     if (!HAS_TEST_DB) {
       return;
     }

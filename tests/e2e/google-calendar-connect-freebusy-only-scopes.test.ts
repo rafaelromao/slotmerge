@@ -210,4 +210,35 @@ describe("E2E: connect Google Calendar with free/busy-only scopes", () => {
       expect(row.accessTokenExpiresAt).toBeNull();
     },
   );
+
+  it.runIf(HAS_TEST_DB)(
+    "completes the OAuth callback against the mock token endpoint and flips status to connected",
+    async () => {
+      const connectResponse = await postConnect();
+      expect(connectResponse.status).toBe(200);
+      const connectBody = (await connectResponse.json()) as ConnectResponse;
+
+      const authUrl = new URL(connectBody.authorizationUrl);
+      const state = authUrl.searchParams.get("state");
+      expect(state).not.toBeNull();
+
+      const callbackResponse = await postCallback(state ?? "", "auth-code-123");
+      expect(callbackResponse.status).toBe(200);
+      const callbackBody = (await callbackResponse.json()) as CallbackResponse;
+      expect(callbackBody.connection.id).toBe(connectBody.connection.id);
+      expect(callbackBody.connection.provider).toBe("google");
+      expect(callbackBody.connection.status).toBe("connected");
+
+      expect(adapter.oauthCallbacks).toHaveLength(1);
+      const tokenExchange = adapter.oauthCallbacks[0];
+      expect(tokenExchange.code).toBe("auth-code-123");
+      expect(tokenExchange.codeVerifier).not.toBe("");
+      expect(tokenExchange.codeVerifier.length).toBeGreaterThan(20);
+
+      const capturedTokenUrl = capturedUrls.find(
+        (u) => u === "https://oauth2.googleapis.com/token",
+      );
+      expect(capturedTokenUrl).toBe("https://oauth2.googleapis.com/token");
+    },
+  );
 });

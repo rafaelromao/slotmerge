@@ -16,7 +16,7 @@ import { getTestDb, setupTest } from "../helpers/setup";
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 const FIXTURE_USER = USER_FIXTURES[0];
 const FIXTURE_SESSION = SESSION_FIXTURES[0];
-const FIXTURE_TIMEZONE = FIXTURE_USER.profileTimezone ?? "UTC";
+const FIXTURE_TIMEZONE = FIXTURE_USER.profileTimezone;
 const NEW_OVERRIDE_DATE = "2026-07-22";
 const NEW_OVERRIDE_START = "19:00";
 const NEW_OVERRIDE_END = "20:00";
@@ -42,9 +42,9 @@ async function postOverride(): Promise<Response> {
   );
 }
 
-describe("E2E: add one-off add Availability override", () => {
+describe("E2E: persist one-off add Availability override and surface it from the effective Availability helper", () => {
   it.runIf(HAS_TEST_DB)(
-    "POST /me/availability-overrides persists an add override outside the user's weekly windows",
+    "POST /me/availability-overrides persists an add override on a day with no weekly window",
     async () => {
       const db = getTestDb();
       expect(db).not.toBeNull();
@@ -76,7 +76,12 @@ describe("E2E: add one-off add Availability override", () => {
       expect(row.start_time).toBe(NEW_OVERRIDE_START);
       expect(row.end_time).toBe(NEW_OVERRIDE_END);
       expect(row.type).toBe(NEW_OVERRIDE_TYPE);
-      expect(row.profile_timezone).toBe(FIXTURE_USER.profileTimezone);
+      expect(row.profile_timezone).toBe(FIXTURE_TIMEZONE);
+
+      const reloaded = await db.execute<{ count: string }>(
+        `SELECT COUNT(*) as count FROM availability_overrides`,
+      );
+      expect(Number(reloaded.rows[0].count)).toBeGreaterThan(0);
     },
   );
 
@@ -95,16 +100,8 @@ describe("E2E: add one-off add Availability override", () => {
       expect(response.status).toBe(201);
 
       const overrides = await listAvailabilityOverridesByUserId(FIXTURE_USER.id);
-      const windows: Array<{
-        id: string;
-        userId: string;
-        dayOfWeek: number;
-        startTime: string;
-        endTime: string;
-        profileTimezone: string;
-        createdAt: Date;
-        updatedAt: Date;
-      }> = [];
+      const windows: import("../../src/profile/availability-windows").WeeklyAvailabilityWindow[] =
+        [];
 
       const expectedRange = expandOverrideToUtcRange(
         {

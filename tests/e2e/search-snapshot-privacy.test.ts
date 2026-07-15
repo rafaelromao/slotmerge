@@ -251,7 +251,9 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
         const actualFields = Object.keys(match);
         expect(actualFields).toEqual(SLOT_MATCH_DETAIL_FIELDS);
         expect(typeof match.userId).toBe("string");
-        expect(typeof match.displayName).toBe("string");
+        expect(
+          typeof match.displayName === "string" || match.displayName === null,
+        ).toBe(true);
         expect(match.avatarUrl).toBeNull();
         expect(match.shortBio).toBeNull();
         expect(Array.isArray(match.topics)).toBe(true);

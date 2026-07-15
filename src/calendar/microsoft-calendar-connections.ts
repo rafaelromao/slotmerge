@@ -195,6 +195,7 @@ export async function completeMicrosoftCalendarConnection({
       code,
       code_verifier: payload.codeVerifier,
       grant_type: "authorization_code",
+      scope: getMicrosoftCalendarScopes(),
       redirect_uri: new URL(
         "/me/calendar-connections/callback",
         baseUrl,

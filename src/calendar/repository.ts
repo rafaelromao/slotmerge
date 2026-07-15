@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { calendarConnections } from "../db/schema";
@@ -128,7 +128,12 @@ export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectio
       const rows = await getDb()
         .select(calendarConnectionSelectColumns)
         .from(calendarConnections)
-        .where(eq(calendarConnections.userId, userId));
+        .where(
+          and(
+            eq(calendarConnections.userId, userId),
+            eq(calendarConnections.provider, "google"),
+          ),
+        );
 
       return rows as GoogleCalendarConnectionRecord[];
     },
@@ -136,7 +141,12 @@ export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectio
       const [row] = await getDb()
         .select(calendarConnectionSelectColumns)
         .from(calendarConnections)
-        .where(eq(calendarConnections.id, id))
+        .where(
+          and(
+            eq(calendarConnections.id, id),
+            eq(calendarConnections.provider, "google"),
+          ),
+        )
         .limit(1);
 
       return (row as GoogleCalendarConnectionRecord | undefined) ?? null;
@@ -181,7 +191,12 @@ export const databaseMicrosoftCalendarConnectionRepository: MicrosoftCalendarCon
       const rows = await getDb()
         .select(calendarConnectionSelectColumns)
         .from(calendarConnections)
-        .where(eq(calendarConnections.userId, userId));
+        .where(
+          and(
+            eq(calendarConnections.userId, userId),
+            eq(calendarConnections.provider, "microsoft"),
+          ),
+        );
 
       return rows as MicrosoftCalendarConnectionRecord[];
     },
@@ -189,7 +204,12 @@ export const databaseMicrosoftCalendarConnectionRepository: MicrosoftCalendarCon
       const [row] = await getDb()
         .select(calendarConnectionSelectColumns)
         .from(calendarConnections)
-        .where(eq(calendarConnections.id, id))
+        .where(
+          and(
+            eq(calendarConnections.id, id),
+            eq(calendarConnections.provider, "microsoft"),
+          ),
+        )
         .limit(1);
 
       return (row as MicrosoftCalendarConnectionRecord | undefined) ?? null;

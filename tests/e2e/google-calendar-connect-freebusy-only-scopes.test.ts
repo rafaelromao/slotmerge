@@ -241,4 +241,43 @@ describe("E2E: connect Google Calendar with free/busy-only scopes", () => {
       expect(capturedTokenUrl).toBe("https://oauth2.googleapis.com/token");
     },
   );
+
+  it.runIf(HAS_TEST_DB)(
+    "stores refresh and access tokens encrypted, decrypts back to the mock's plaintext, and sets accessTokenExpiresAt",
+    async () => {
+      const connectResponse = await postConnect();
+      const connectBody = (await connectResponse.json()) as ConnectResponse;
+      const state =
+        new URL(connectBody.authorizationUrl).searchParams.get("state") ?? "";
+
+      const callbackResponse = await postCallback(state, "auth-code-456");
+      expect(callbackResponse.status).toBe(200);
+
+      const row = await readConnectionRow(connectBody.connection.id);
+      expect(row.refreshTokenEncrypted).not.toBeNull();
+      expect(row.accessTokenEncrypted).not.toBeNull();
+      expect(row.refreshTokenEncrypted).not.toBe("mock-refresh-token");
+      expect(row.accessTokenEncrypted).not.toBe("mock-access-token");
+
+      expect(
+        decryptCalendarToken({
+          ciphertext: row.refreshTokenEncrypted ?? "",
+          key: TOKEN_ENCRYPTION_KEY,
+        }),
+      ).toBe("mock-refresh-token");
+      expect(
+        decryptCalendarToken({
+          ciphertext: row.accessTokenEncrypted ?? "",
+          key: TOKEN_ENCRYPTION_KEY,
+        }),
+      ).toBe("mock-access-token");
+
+      expect(row.accessTokenExpiresAt).not.toBeNull();
+      const expiresAt = new Date(row.accessTokenExpiresAt as string);
+      const expectedExpiry = new Date(Date.now() + 3600 * 1000);
+      expect(Math.abs(expiresAt.getTime() - expectedExpiry.getTime())).toBeLessThan(
+        5000,
+      );
+    },
+  );
 });

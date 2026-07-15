@@ -52,6 +52,31 @@ async function sessionCookie(): Promise<string> {
   return sealSessionCookie({ sessionId: SESSION.id });
 }
 
+async function aliceCalendarConnections() {
+  const db = getTestDb();
+  if (!db) {
+    throw new Error("test db not initialized");
+  }
+
+  return db
+    .select({
+      id: calendarConnections.id,
+      provider: calendarConnections.provider,
+      providerAccountKey: calendarConnections.providerAccountKey,
+      accountIdentifier: calendarConnections.accountIdentifier,
+      scopes: calendarConnections.scopes,
+      status: calendarConnections.status,
+      refreshTokenEncrypted: calendarConnections.refreshTokenEncrypted,
+      accessTokenEncrypted: calendarConnections.accessTokenEncrypted,
+      accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
+      lastErrorCode: calendarConnections.lastErrorCode,
+      lastErrorMessage: calendarConnections.lastErrorMessage,
+      contributingCalendarIds: calendarConnections.contributingCalendarIds,
+    })
+    .from(calendarConnections)
+    .where(eq(calendarConnections.userId, ALICE.id));
+}
+
 describe("E2E: rejected Google OAuth consent returns an error state", () => {
   let adapter: ReturnType<typeof buildMockGoogleCalendarAdapter>;
 
@@ -126,29 +151,7 @@ describe("E2E: rejected Google OAuth consent returns an error state", () => {
         throw new Error("Google authorization URL did not contain state");
       }
 
-      const db = getTestDb();
-      expect(db).not.toBeNull();
-      if (!db) {
-        throw new Error("test db not initialized");
-      }
-
-      const beforeCallback = await db
-        .select({
-          id: calendarConnections.id,
-          provider: calendarConnections.provider,
-          providerAccountKey: calendarConnections.providerAccountKey,
-          accountIdentifier: calendarConnections.accountIdentifier,
-          scopes: calendarConnections.scopes,
-          status: calendarConnections.status,
-          refreshTokenEncrypted: calendarConnections.refreshTokenEncrypted,
-          accessTokenEncrypted: calendarConnections.accessTokenEncrypted,
-          accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
-          lastErrorCode: calendarConnections.lastErrorCode,
-          lastErrorMessage: calendarConnections.lastErrorMessage,
-          contributingCalendarIds: calendarConnections.contributingCalendarIds,
-        })
-        .from(calendarConnections)
-        .where(eq(calendarConnections.userId, ALICE.id));
+      const beforeCallback = await aliceCalendarConnections();
 
       const deniedRequest = adapter.buildDeniedConsentCallbackRequest({
         baseUrl: "http://localhost",
@@ -171,23 +174,7 @@ describe("E2E: rejected Google OAuth consent returns an error state", () => {
       expect(adapter.oauthCallbacks).toHaveLength(0);
       expect(adapter.freeBusyQueries).toHaveLength(0);
 
-      const afterCallback = await db
-        .select({
-          id: calendarConnections.id,
-          provider: calendarConnections.provider,
-          providerAccountKey: calendarConnections.providerAccountKey,
-          accountIdentifier: calendarConnections.accountIdentifier,
-          scopes: calendarConnections.scopes,
-          status: calendarConnections.status,
-          refreshTokenEncrypted: calendarConnections.refreshTokenEncrypted,
-          accessTokenEncrypted: calendarConnections.accessTokenEncrypted,
-          accessTokenExpiresAt: calendarConnections.accessTokenExpiresAt,
-          lastErrorCode: calendarConnections.lastErrorCode,
-          lastErrorMessage: calendarConnections.lastErrorMessage,
-          contributingCalendarIds: calendarConnections.contributingCalendarIds,
-        })
-        .from(calendarConnections)
-        .where(eq(calendarConnections.userId, ALICE.id));
+      const afterCallback = await aliceCalendarConnections();
 
       expect(afterCallback).toEqual(beforeCallback);
       const pendingConnection = afterCallback.find(

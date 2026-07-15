@@ -77,7 +77,7 @@ async function aliceCalendarConnections() {
     .where(eq(calendarConnections.userId, ALICE.id));
 }
 
-describe("E2E: rejected Google OAuth consent returns an error state", () => {
+describe("E2E: denied Google OAuth consent leaves Calendar Connection pending", () => {
   let adapter: ReturnType<typeof buildMockGoogleCalendarAdapter>;
 
   beforeAll(() => {

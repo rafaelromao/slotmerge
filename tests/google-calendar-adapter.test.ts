@@ -55,42 +55,6 @@ describe("MockGoogleCalendarAdapter", () => {
     });
   });
 
-  describe("Slice 6: Denied OAuth consent recording", () => {
-    it("builds and records a denied consent callback", async () => {
-      const adapter = buildMockGoogleCalendarAdapter();
-      const state = "sealed-google-state";
-
-      const request = adapter.buildDeniedConsentCallbackRequest({
-        baseUrl: "https://slotmerge.example",
-        errorDescription: "The user denied access.",
-        state,
-      });
-
-      expect(request.method).toBe("POST");
-      expect(request.url).toBe(
-        "https://slotmerge.example/me/calendar-connections/callback",
-      );
-      const body = await request.formData();
-      expect(body.get("error")).toBe("access_denied");
-      expect(body.get("error_description")).toBe("The user denied access.");
-      expect(body.get("state")).toBe(state);
-      expect(adapter.denialCallbacks).toEqual([
-        {
-          error: "access_denied",
-          errorDescription: "The user denied access.",
-          state,
-        },
-      ]);
-      expect(adapter.oauthCallbacks).toHaveLength(0);
-      expect(adapter.freeBusyQueries).toHaveLength(0);
-      expect(adapter.webhookDeliveries).toHaveLength(0);
-
-      adapter.reset();
-
-      expect(adapter.denialCallbacks).toHaveLength(0);
-    });
-  });
-
   describe("Slice 2: OAuth scope recording", () => {
     it("records requested OAuth scopes", async () => {
       const adapter = buildMockGoogleCalendarAdapter();
@@ -288,6 +252,42 @@ describe("MockGoogleCalendarAdapter", () => {
     });
   });
 
+  describe("Slice 6: Denied OAuth consent recording", () => {
+    it("builds and records a denied consent callback", async () => {
+      const adapter = buildMockGoogleCalendarAdapter();
+      const state = "sealed-google-state";
+
+      const request = adapter.buildDeniedConsentCallbackRequest({
+        baseUrl: "https://slotmerge.example",
+        errorDescription: "The user denied access.",
+        state,
+      });
+
+      expect(request.method).toBe("POST");
+      expect(request.url).toBe(
+        "https://slotmerge.example/me/calendar-connections/callback",
+      );
+      const body = await request.formData();
+      expect(body.get("error")).toBe("access_denied");
+      expect(body.get("error_description")).toBe("The user denied access.");
+      expect(body.get("state")).toBe(state);
+      expect(adapter.denialCallbacks).toEqual([
+        {
+          error: "access_denied",
+          errorDescription: "The user denied access.",
+          state,
+        },
+      ]);
+      expect(adapter.oauthCallbacks).toHaveLength(0);
+      expect(adapter.freeBusyQueries).toHaveLength(0);
+      expect(adapter.webhookDeliveries).toHaveLength(0);
+
+      adapter.reset();
+
+      expect(adapter.denialCallbacks).toHaveLength(0);
+    });
+  });
+
   describe("reset()", () => {
     it("clears all recorded calls and responses", async () => {
       const adapter = buildMockGoogleCalendarAdapter();
@@ -311,10 +311,15 @@ describe("MockGoogleCalendarAdapter", () => {
       });
       const notifier = adapter.getWebhookNotifier();
       await notifier(new Request("http://localhost/", { method: "POST" }));
+      adapter.buildDeniedConsentCallbackRequest({
+        baseUrl: "http://localhost",
+        state: "state",
+      });
 
       adapter.reset();
 
       expect(adapter.oauthCallbacks).toHaveLength(0);
+      expect(adapter.denialCallbacks).toHaveLength(0);
       expect(adapter.freeBusyQueries).toHaveLength(0);
       expect(adapter.webhookDeliveries).toHaveLength(0);
       expect(adapter.requestedScopes).toHaveLength(0);

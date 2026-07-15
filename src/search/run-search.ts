@@ -133,11 +133,13 @@ export async function runSearch(
       });
     }
 
-    snapshotSlots.push({
-      startUtc: slotStart.toISOString(),
-      matchCount: matches.length,
-      matches,
-    });
+    if (matches.length >= input.minimumMatchingUsers) {
+      snapshotSlots.push({
+        startUtc: slotStart.toISOString(),
+        matchCount: matches.length,
+        matches,
+      });
+    }
   }
 
   const snapshot: SearchSnapshot = {

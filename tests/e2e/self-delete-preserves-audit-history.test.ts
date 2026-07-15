@@ -16,6 +16,7 @@ import {
   availabilityWindows,
   calendarConnections,
   discoverabilityConsents,
+  importedBusyIntervals,
   sessions,
   topicProposals,
   topics,
@@ -184,6 +185,18 @@ describe("E2E: self-delete removes personal data and tokens, preserves audit his
         grantedAt: now,
       });
 
+      await db.insert(importedBusyIntervals).values({
+        id: "00000000-0000-0000-0000-0000000f2078",
+        userId: USER_ID,
+        connectionId: GOOGLE_CONNECTION_ID,
+        providerCalendarId: "primary",
+        providerEventReference: "evt-audit-subject-1",
+        status: "busy",
+        startAt: new Date("2099-07-15T15:00:00.000Z"),
+        endAt: new Date("2099-07-15T16:00:00.000Z"),
+        importedAt: now,
+      });
+
       const seededTopicId = "00000000-0000-0000-0000-00000000c178";
       await db.insert(topics).values({
         id: seededTopicId,
@@ -307,6 +320,12 @@ describe("E2E: self-delete removes personal data and tokens, preserves audit his
       expect(
         await countRows(
           "discoverability_consents",
+          `user_id = '${USER_ID}'`,
+        ),
+      ).toBe(0);
+      expect(
+        await countRows(
+          "imported_busy_intervals",
           `user_id = '${USER_ID}'`,
         ),
       ).toBe(0);

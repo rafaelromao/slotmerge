@@ -259,7 +259,7 @@ const databaseTopicProposalRepository: TopicProposalRepository = {
         createdAt: topicProposals.createdAt,
       })
       .from(topicProposals)
-      .innerJoin(users, eq(topicProposals.proposedByUserId, users.id))
+      .leftJoin(users, eq(topicProposals.proposedByUserId, users.id))
       .where(eq(topicProposals.status, "pending"))
       .orderBy(desc(topicProposals.createdAt));
 

@@ -280,4 +280,65 @@ describe("E2E: connect Google Calendar with free/busy-only scopes", () => {
       );
     },
   );
+
+  it.runIf(HAS_TEST_DB)(
+    "exposes status, scopes, and provider as plain columns queryable without decryption or JSON parsing",
+    async () => {
+      const connectResponse = await postConnect();
+      const connectBody = (await connectResponse.json()) as ConnectResponse;
+      const state =
+        new URL(connectBody.authorizationUrl).searchParams.get("state") ?? "";
+
+      await postCallback(state, "auth-code-789");
+
+      const db = getTestDb();
+      if (!db) {
+        throw new Error("test db not initialized");
+      }
+      const result = await db.execute<{
+        status: string;
+        scopes: string | null;
+        provider: string;
+        refresh_token_encrypted: string | null;
+        access_token_encrypted: string | null;
+        access_token_expires_at: string | null;
+      }>(
+        `SELECT status, scopes, provider,
+                refresh_token_encrypted, access_token_encrypted,
+                access_token_expires_at
+         FROM calendar_connections
+         WHERE id = '${connectBody.connection.id}'`,
+      );
+      const row = result.rows[0];
+      expect(row).toBeDefined();
+      expect(row.status).toBe("connected");
+      expect(row.scopes).toBe(FREEBUSY_SCOPE);
+      expect(row.provider).toBe("google");
+      expect(typeof row.refresh_token_encrypted).toBe("string");
+      expect(typeof row.access_token_encrypted).toBe("string");
+      expect(row.refresh_token_encrypted).not.toBe("mock-refresh-token");
+      expect(row.access_token_encrypted).not.toBe("mock-access-token");
+
+      const columnNames = await db.execute<{ column_name: string }>(
+        `SELECT column_name FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'calendar_connections'
+           AND column_name IN ('status', 'scopes', 'provider',
+                                'refresh_token_encrypted',
+                                'access_token_encrypted',
+                                'access_token_expires_at')`,
+      );
+      const names = columnNames.rows.map((r) => r.column_name).sort();
+      expect(names).toEqual(
+        [
+          "access_token_encrypted",
+          "access_token_expires_at",
+          "provider",
+          "refresh_token_encrypted",
+          "scopes",
+          "status",
+        ].sort(),
+      );
+    },
+  );
 });

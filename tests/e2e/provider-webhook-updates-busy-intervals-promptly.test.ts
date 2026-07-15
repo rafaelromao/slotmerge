@@ -24,6 +24,10 @@ import {
 import { getTestClock, getTestDb } from "../helpers/setup";
 import { encryptCalendarToken } from "../../src/calendar/token-encryption";
 import { calendarConnections } from "../../src/db/schema";
+import {
+  setGoogleCalendarConnectionRepositoryForTests,
+  setMicrosoftCalendarConnectionRepositoryForTests,
+} from "../../src/calendar/repository";
 
 vi.mock("../../src/config/runtime", () => ({
   loadRuntimeConfig: vi.fn().mockReturnValue({
@@ -54,54 +58,46 @@ vi.mock("../../src/calendar/token-encryption", () => ({
   encryptCalendarToken: vi.fn().mockReturnValue("encrypted-token"),
 }));
 
-vi.mock("../../src/calendar/repository", () => ({
-  getGoogleCalendarConnectionRepository: vi.fn(() => ({
-    findById: vi.fn().mockResolvedValue({
-      id: "00000000-0000-0000-0000-000000000030",
-      userId: "00000000-0000-0000-0000-000000000001",
-      provider: "google",
-      status: "connected",
-      accessTokenEncrypted: "encrypted",
-      refreshTokenEncrypted: "encrypted",
-      contributingCalendarIds: ["primary"],
-      accessTokenExpiresAt: new Date("2026-07-13T16:00:00.000Z"),
-    }),
-    updateById: vi.fn().mockResolvedValue(undefined),
-  })),
-  getMicrosoftCalendarConnectionRepository: vi.fn(() => ({
-    findById: vi.fn().mockResolvedValue({
-      id: "00000000-0000-0000-0000-000000000031",
-      userId: "00000000-0000-0000-0000-000000000001",
-      provider: "microsoft",
-      status: "connected",
-      accessTokenEncrypted: "encrypted",
-      refreshTokenEncrypted: "encrypted",
-      contributingCalendarIds: ["primary"],
-      accessTokenExpiresAt: new Date("2026-07-13T16:00:00.000Z"),
-    }),
-    updateById: vi.fn().mockResolvedValue(undefined),
-  })),
-}));
+function makeBusyIntervals() {
+  const now = new Date();
+  const start1 = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const end1 = new Date(start1.getTime() + 60 * 60 * 1000);
+  const start2 = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+  const end2 = new Date(start2.getTime() + 60 * 60 * 1000);
+  return {
+    googleBusyInterval: {
+      providerCalendarId: "primary",
+      eventId: null,
+      status: "busy" as const,
+      startAt: start1,
+      endAt: end1,
+    },
+    googleOooInterval: {
+      providerCalendarId: "primary",
+      eventId: null,
+      status: "out-of-office" as const,
+      startAt: start2,
+      endAt: end2,
+    },
+    microsoftBusyInterval: {
+      providerCalendarId: "primary",
+      eventId: null,
+      status: "busy" as const,
+      startAt: start1,
+      endAt: end1,
+    },
+  };
+}
+
+const busyIntervals = makeBusyIntervals();
 
 vi.mock("../../src/calendar/freebusy/google", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/calendar/freebusy/google")>();
   return {
     ...actual,
     fetchGoogleFreeBusy: vi.fn().mockResolvedValue([
-      {
-        providerCalendarId: "primary",
-        eventId: null,
-        status: "busy",
-        startAt: new Date("2026-07-13T10:00:00.000Z"),
-        endAt: new Date("2026-07-13T11:00:00.000Z"),
-      },
-      {
-        providerCalendarId: "primary",
-        eventId: null,
-        status: "out-of-office",
-        startAt: new Date("2026-07-14T14:00:00.000Z"),
-        endAt: new Date("2026-07-14T15:00:00.000Z"),
-      },
+      busyIntervals.googleBusyInterval,
+      busyIntervals.googleOooInterval,
     ]),
   };
 });
@@ -111,13 +107,7 @@ vi.mock("../../src/calendar/freebusy/microsoft", async (importOriginal) => {
   return {
     ...actual,
     fetchMicrosoftFreeBusy: vi.fn().mockResolvedValue([
-      {
-        providerCalendarId: "primary",
-        eventId: null,
-        status: "busy",
-        startAt: new Date("2026-07-13T10:00:00.000Z"),
-        endAt: new Date("2026-07-13T11:00:00.000Z"),
-      },
+      busyIntervals.microsoftBusyInterval,
     ]),
   };
 });
@@ -165,6 +155,36 @@ async function readConnectionRow(connectionId: string): Promise<{
   };
 }
 
+async function readImportedBusyIntervals(
+  connectionId: string,
+): Promise<
+  Array<{
+    status: string;
+    startAt: Date;
+    endAt: Date;
+  }>
+> {
+  const db = getTestDb();
+  if (!db) {
+    throw new Error("test db not initialized");
+  }
+  const result = await db.execute<{
+    status: string;
+    start_at: Date;
+    end_at: Date;
+  }>(
+    `SELECT status, start_at, end_at
+     FROM imported_busy_intervals
+     WHERE connection_id = '${connectionId}'
+     ORDER BY start_at`,
+  );
+  return result.rows.map((row) => ({
+    status: row.status,
+    startAt: row.start_at,
+    endAt: row.end_at,
+  }));
+}
+
 describe("E2E: provider webhook updates busy intervals promptly", () => {
   beforeAll(() => {
     if (TEST_DB_URL) {
@@ -184,6 +204,8 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
     setClockForTests(getTestClock());
     vi.mocked(enqueueSyncCalendarConnectionJob).mockClear();
+    setGoogleCalendarConnectionRepositoryForTests(null);
+    setMicrosoftCalendarConnectionRepositoryForTests(null);
 
     const db = getTestDb();
     if (db) {
@@ -195,6 +217,8 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
 
   afterEach(() => {
     setClockForTests(null);
+    setGoogleCalendarConnectionRepositoryForTests(null);
+    setMicrosoftCalendarConnectionRepositoryForTests(null);
     vi.unstubAllGlobals();
     vi.useRealTimers();
     delete process.env.SESSION_SECRET;
@@ -249,6 +273,11 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
 
         const connection = await readConnectionRow(GOOGLE_CONNECTION_ID);
         expect(connection.lastSyncAt).not.toBeNull();
+
+        const importedIntervals = await readImportedBusyIntervals(GOOGLE_CONNECTION_ID);
+        expect(importedIntervals).toHaveLength(2);
+        expect(importedIntervals[0].status).toBe("busy");
+        expect(importedIntervals[1].status).toBe("out-of-office");
       },
     );
   });
@@ -305,6 +334,10 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
 
         const connection = await readConnectionRow(MICROSOFT_CONNECTION_ID);
         expect(connection.lastSyncAt).not.toBeNull();
+
+        const importedIntervals = await readImportedBusyIntervals(MICROSOFT_CONNECTION_ID);
+        expect(importedIntervals).toHaveLength(1);
+        expect(importedIntervals[0].status).toBe("busy");
       },
     );
   });

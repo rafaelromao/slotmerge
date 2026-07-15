@@ -223,9 +223,9 @@ export const topics = pgTable("topics", {
 
 export const topicProposals = pgTable("topic_proposals", {
   id: uuid("id").primaryKey().defaultRandom(),
-  proposedByUserId: uuid("proposed_by_user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+  proposedByUserId: uuid("proposed_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
   candidateName: text("candidate_name").notNull(),
   status: text("status")
     .$type<TopicProposalStatus>()

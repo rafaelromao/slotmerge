@@ -1,19 +1,15 @@
 import { eq } from "drizzle-orm";
-import {
-  afterEach,
-  beforeAll,
-  describe,
-  expect,
-  inject,
-  it,
-} from "vitest";
+import { afterEach, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { POST as postPropose } from "../../app/me/topics/propose/route";
 import { createAdminTopicsHandlers } from "../../src/admin/topics";
 import { createAdminTopicProposalsHandlers } from "../../src/admin/topic-proposals";
 import { sealSessionCookie } from "../../src/auth/session";
 import { setEmailDeliveryServiceForTests } from "../../src/calendar/action-required-email-singleton";
-import { buildMockEmailAdapter, type MockEmailAdapter } from "../mock-email-adapter";
+import {
+  buildMockEmailAdapter,
+  type MockEmailAdapter,
+} from "../mock-email-adapter";
 import {
   topicProposals,
   sessions,
@@ -58,20 +54,18 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
         setEmailDeliveryServiceForTests(null);
 
         const { submitSearch } = await import("../../src/search/search-input");
-        const { createMatchingDependencies } = await import("../../src/matching");
-        const { createPostgresDiscoverableUserRepository } = await import(
-          "../../src/search/drizzle-discoverable-user-repository"
-        );
-        const { createPostgresSearchResultRepository } = await import(
-          "../../src/search/drizzle-search-result-repository"
-        );
-        const { getTopicCatalogueRepository } = await import(
-          "../../src/topics/repository"
-        );
-        const { getProfileByUserId } = await import("../../src/profile/repository");
-        const { setSearchEligibilityProfileInputsForTests } = await import(
-          "../../src/search/eligibility"
-        );
+        const { createMatchingDependencies } =
+          await import("../../src/matching");
+        const { createPostgresDiscoverableUserRepository } =
+          await import("../../src/search/drizzle-discoverable-user-repository");
+        const { createPostgresSearchResultRepository } =
+          await import("../../src/search/drizzle-search-result-repository");
+        const { getTopicCatalogueRepository } =
+          await import("../../src/topics/repository");
+        const { getProfileByUserId } =
+          await import("../../src/profile/repository");
+        const { setSearchEligibilityProfileInputsForTests } =
+          await import("../../src/search/eligibility");
 
         const db = getTestDb()!;
         const now = getTestClock()();
@@ -103,10 +97,15 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
             organizerId: USER_FIXTURES[1].id,
             activeTopicsRepository: {
               async listActive() {
-                const catalogue = await getTopicCatalogueRepository().listCatalogue();
+                const catalogue =
+                  await getTopicCatalogueRepository().listCatalogue();
                 return catalogue
                   .filter((t) => t.status === "active")
-                  .map((t) => ({ id: t.id, name: t.name, status: "active" as const }));
+                  .map((t) => ({
+                    id: t.id,
+                    name: t.name,
+                    status: "active" as const,
+                  }));
               },
             },
             profileRepository: {

@@ -92,6 +92,13 @@
       "when": 1783780000011,
       "tag": "0011_availability_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783780000012,
+      "tag": "0012_topic_proposal_audit_preserved",
+      "breakpoints": true
     }
   ]
 }

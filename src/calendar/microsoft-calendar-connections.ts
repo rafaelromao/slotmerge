@@ -195,6 +195,7 @@ export async function completeMicrosoftCalendarConnection({
       code,
       code_verifier: payload.codeVerifier,
       grant_type: "authorization_code",
+      scope: getMicrosoftCalendarScopes(),
       redirect_uri: new URL(
         "/me/calendar-connections/callback",
         baseUrl,
@@ -203,6 +204,16 @@ export async function completeMicrosoftCalendarConnection({
   });
 
   if (!tokenResponse.ok) {
+    const errorPayload = (await tokenResponse.json().catch(() => null)) as {
+      error?: string;
+      error_description?: string;
+    } | null;
+    if (
+      errorPayload?.error === "access_denied" &&
+      errorPayload?.error_description?.toLowerCase().includes("personal")
+    ) {
+      throw new Error("unsupported_microsoft_account");
+    }
     throw new Error("Microsoft token exchange failed.");
   }
 

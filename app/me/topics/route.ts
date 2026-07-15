@@ -105,7 +105,10 @@ export async function submitTopicProposal(request: Request): Promise<Response> {
 
   const jsonRequest = new Request(request.url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      cookie: request.headers.get("cookie") ?? "",
+    },
     body: JSON.stringify({ candidateName }),
   });
 

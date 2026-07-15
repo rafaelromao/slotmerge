@@ -5,6 +5,18 @@ export type OAuthCallback = {
   state: string;
 };
 
+export type OAuthDenialCallback = {
+  error: "access_denied";
+  errorDescription?: string;
+  state: string;
+};
+
+export type DeniedConsentCallbackOptions = {
+  baseUrl: string;
+  errorDescription?: string;
+  state: string;
+};
+
 export type FreeBusyQuery = {
   timeMin: Date;
   timeMax: Date;
@@ -31,9 +43,13 @@ export type MockGoogleCalendarAdapterOptions = {
 
 export type MockGoogleCalendarAdapter = {
   oauthCallbacks: OAuthCallback[];
+  denialCallbacks: OAuthDenialCallback[];
   freeBusyQueries: FreeBusyQuery[];
   webhookDeliveries: WebhookDelivery[];
   requestedScopes: string[];
+  buildDeniedConsentCallbackRequest(
+    options: DeniedConsentCallbackOptions,
+  ): Request;
   getFetchImpl(): typeof fetch;
   getWebhookNotifier(): (req: Request) => Promise<void>;
   setFreeBusyResponse(calendarId: string, intervals: FreeBusyInterval[]): void;
@@ -41,7 +57,8 @@ export type MockGoogleCalendarAdapter = {
 };
 
 const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
-const GOOGLE_FREEBUSY_ENDPOINT = "https://www.googleapis.com/calendar/v3/freeBusy";
+const GOOGLE_FREEBUSY_ENDPOINT =
+  "https://www.googleapis.com/calendar/v3/freeBusy";
 
 export function buildMockGoogleCalendarAdapter(
   options: MockGoogleCalendarAdapterOptions = {},
@@ -51,10 +68,37 @@ export function buildMockGoogleCalendarAdapter(
   const expiresIn = options.expiresIn ?? 3600;
 
   const oauthCallbacks: OAuthCallback[] = [];
+  const denialCallbacks: OAuthDenialCallback[] = [];
   const freeBusyQueries: FreeBusyQuery[] = [];
   const webhookDeliveries: WebhookDelivery[] = [];
   const requestedScopes = new Set<string>();
   const freeBusyResponses = new Map<string, FreeBusyInterval[]>();
+
+  function buildDeniedConsentCallbackRequest({
+    baseUrl,
+    errorDescription,
+    state,
+  }: DeniedConsentCallbackOptions): Request {
+    const body = new URLSearchParams({
+      error: "access_denied",
+      state,
+    });
+    if (errorDescription) {
+      body.set("error_description", errorDescription);
+    }
+
+    const callback: OAuthDenialCallback = {
+      error: "access_denied",
+      state,
+      ...(errorDescription ? { errorDescription } : {}),
+    };
+    denialCallbacks.push(callback);
+
+    return new Request(new URL("/me/calendar-connections/callback", baseUrl), {
+      method: "POST",
+      body,
+    });
+  }
 
   function getFetchImpl(): typeof fetch {
     return (
@@ -120,30 +164,35 @@ export function buildMockGoogleCalendarAdapter(
           calendarIds: body.items?.map((i) => i.id) ?? [],
         });
 
-        const busyItems = body.items?.map((item) => {
-          const intervals = freeBusyResponses.get(item.id) ?? [];
-          return {
-            id: item.id,
-            busy: intervals
-              .filter((i) => i.status === "busy" || i.status === "out-of-office")
-              .map((i) => ({
-                start: i.start.toISOString(),
-                end: i.end.toISOString(),
-              })),
-            outOfOffice: intervals
-              .filter((i) => i.status === "out-of-office")
-              .map((i) => ({
-                start: i.start.toISOString(),
-                end: i.end.toISOString(),
-              })),
-            tentative: intervals
-              .filter((i) => i.status === "tentative" || i.status === "working-elsewhere")
-              .map((i) => ({
-                start: i.start.toISOString(),
-                end: i.end.toISOString(),
-              })),
-          };
-        }) ?? [];
+        const busyItems =
+          body.items?.map((item) => {
+            const intervals = freeBusyResponses.get(item.id) ?? [];
+            return {
+              id: item.id,
+              busy: intervals
+                .filter((i) => i.status === "busy")
+                .map((i) => ({
+                  start: i.start.toISOString(),
+                  end: i.end.toISOString(),
+                })),
+              outOfOffice: intervals
+                .filter((i) => i.status === "out-of-office")
+                .map((i) => ({
+                  start: i.start.toISOString(),
+                  end: i.end.toISOString(),
+                })),
+              tentative: intervals
+                .filter(
+                  (i) =>
+                    i.status === "tentative" ||
+                    i.status === "working-elsewhere",
+                )
+                .map((i) => ({
+                  start: i.start.toISOString(),
+                  end: i.end.toISOString(),
+                })),
+            };
+          }) ?? [];
 
         return Promise.resolve(
           new Response(
@@ -192,6 +241,7 @@ export function buildMockGoogleCalendarAdapter(
 
   function reset(): void {
     oauthCallbacks.length = 0;
+    denialCallbacks.length = 0;
     freeBusyQueries.length = 0;
     webhookDeliveries.length = 0;
     requestedScopes.clear();
@@ -202,6 +252,9 @@ export function buildMockGoogleCalendarAdapter(
     get oauthCallbacks() {
       return oauthCallbacks;
     },
+    get denialCallbacks() {
+      return denialCallbacks;
+    },
     get freeBusyQueries() {
       return freeBusyQueries;
     },
@@ -211,6 +264,7 @@ export function buildMockGoogleCalendarAdapter(
     get requestedScopes() {
       return Array.from(requestedScopes);
     },
+    buildDeniedConsentCallbackRequest,
     getFetchImpl,
     getWebhookNotifier,
     setFreeBusyResponse,

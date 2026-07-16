@@ -28,6 +28,7 @@ const COMPLETE_PROFILE: ProfileInputs = {
   hasDisplayName: true,
   hasTopicOrProposal: true,
   hasAvailabilitySource: true,
+  isActive: true,
 };
 
 async function insertDiscoverableUser(input: {
@@ -163,13 +164,13 @@ async function loadStoredSnapshot(searchId: string): Promise<{
   };
 }
 
-describe("E2E: Search excludes the Searcher and the Searcher does not count", () => {
+describe("E2E: Search excludes the Organizer and the Organizer does not count", () => {
   afterEach(() => {
     setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
-    "AC2: minimum count excludes the Searcher - Organizer + 1 other user qualify with minimum=2, matchCount is 1",
+    "AC2: minimum count excludes the Organizer - Organizer + 1 other user qualify with minimum=2, matchCount is 1",
     async () => {
       const db = getTestDb();
       expect(db).not.toBeNull();
@@ -210,7 +211,7 @@ describe("E2E: Search excludes the Searcher and the Searcher does not count", ()
   );
 
   it.runIf(HAS_TEST_DB)(
-    "AC1: Searcher never appears in candidates - Organizer with matching topics and consent does not appear in results",
+    "AC1: Organizer never appears in candidates - Organizer with matching topics and consent does not appear in results",
     async () => {
       const db = getTestDb();
       expect(db).not.toBeNull();

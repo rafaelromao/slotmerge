@@ -35,6 +35,13 @@ const TOPIC = TOPIC_FIXTURES[0];
 
 const SECOND_MATCH_USER_ID = "00000000-0000-0000-0000-0000000000d1";
 
+const ORGANIZER_SESSION_ID = "00000000-0000-0000-0000-0000000000a1";
+const USER_SESSION_ID = "00000000-0000-0000-0000-0000000000a2";
+const ADMIN_SESSION_ID = "00000000-0000-0000-0000-0000000000a3";
+const ORGANIZER_SESSION_2_ID = "00000000-0000-0000-0000-0000000000b1";
+const ORGANIZER_SESSION_3_ID = "00000000-0000-0000-0000-0000000000b2";
+const ORGANIZER_SESSION_4_ID = "00000000-0000-0000-0000-0000000000b3";
+
 const DATE_RANGE_START = new Date("2026-07-13T12:00:00.000Z");
 const DATE_RANGE_END = new Date("2026-07-19T23:00:00.000Z");
 const DURATION_MINUTES = 60;
@@ -208,7 +215,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       }
       const now = new Date(FIXTURE_DATE);
 
-      await insertSession(db, "organizer-session", ORGANIZER.id, "csrf-token", now);
+      await insertSession(db, ORGANIZER_SESSION_ID, ORGANIZER.id, "csrf-token", now);
       await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
@@ -235,7 +242,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
 
       const searchId = await runSearchAsOrganizer();
 
-      const cookie = await sealSessionCookie({ sessionId: "organizer-session" });
+      const cookie = await sealSessionCookie({ sessionId: ORGANIZER_SESSION_ID });
       const body = await fetchSnapshotApi(searchId, cookie);
 
       expect(body.id).toBe(searchId);
@@ -272,7 +279,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       }
       const now = new Date(FIXTURE_DATE);
 
-      await insertSession(db, "organizer-session-2", ORGANIZER.id, "csrf-token-2", now);
+      await insertSession(db, ORGANIZER_SESSION_2_ID, ORGANIZER.id, "csrf-token-2", now);
       await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
@@ -300,7 +307,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       const searchId = await runSearchAsOrganizer();
 
       const cookie = await sealSessionCookie({
-        sessionId: "organizer-session-2",
+        sessionId: ORGANIZER_SESSION_2_ID,
       });
 
       const response = await GET(
@@ -313,13 +320,14 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       expect(response.status).toBe(200);
 
       const body = (await response.json()) as {
-        slots: Array<{ startUtc: unknown; matchCount: unknown }>;
+        snapshot: { slots: Array<{ startUtc: unknown; matchCount: unknown }> } | null;
       };
 
-      expect(Array.isArray(body.slots)).toBe(true);
-      expect(body.slots.length).toBeGreaterThan(0);
+      expect(body.snapshot).not.toBeNull();
+      expect(Array.isArray(body.snapshot!.slots)).toBe(true);
+      expect(body.snapshot!.slots.length).toBeGreaterThan(0);
 
-      for (const slot of body.slots) {
+      for (const slot of body.snapshot!.slots) {
         expect(typeof slot.startUtc).toBe("string");
         expect((slot.startUtc as string).length).toBeGreaterThan(0);
         expect(typeof slot.matchCount).toBe("number");
@@ -339,8 +347,8 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       }
       const now = new Date(FIXTURE_DATE);
 
-      await insertSession(db, "organizer-session-3", ORGANIZER.id, "csrf-token-3", now);
-      await insertSession(db, "user-session", REGULAR_USER.id, "csrf-user-token", now);
+      await insertSession(db, ORGANIZER_SESSION_3_ID, ORGANIZER.id, "csrf-token-3", now);
+      await insertSession(db, USER_SESSION_ID, REGULAR_USER.id, "csrf-user-token", now);
       await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
@@ -367,7 +375,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
 
       const searchId = await runSearchAsOrganizer();
 
-      const userCookie = await sealSessionCookie({ sessionId: "user-session" });
+      const userCookie = await sealSessionCookie({ sessionId: USER_SESSION_ID });
       const userResponse = await GET(
         new Request(`http://localhost/api/searches/${searchId}`, {
           headers: { cookie: userCookie },
@@ -393,8 +401,8 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       }
       const now = new Date(FIXTURE_DATE);
 
-      await insertSession(db, "organizer-session-4", ORGANIZER.id, "csrf-token-4", now);
-      await insertSession(db, "admin-session", ADMIN.id, "csrf-admin-token", now);
+      await insertSession(db, ORGANIZER_SESSION_4_ID, ORGANIZER.id, "csrf-token-4", now);
+      await insertSession(db, ADMIN_SESSION_ID, ADMIN.id, "csrf-admin-token", now);
       await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
@@ -421,7 +429,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
 
       const searchId = await runSearchAsOrganizer();
 
-      const adminCookie = await sealSessionCookie({ sessionId: "admin-session" });
+      const adminCookie = await sealSessionCookie({ sessionId: ADMIN_SESSION_ID });
       const adminResponse = await GET(
         new Request(`http://localhost/api/searches/${searchId}`, {
           headers: { cookie: adminCookie },

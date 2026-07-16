@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import { generateHourlySlots } from "./hourly-slots";
 
+function getLocalHourMinute(date: Date, timezone: string): { hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "0");
+  return { hour: get("hour"), minute: get("minute") };
+}
+
 describe("generateHourlySlots", () => {
   it("returns a single slot when rangeStart and rangeEnd are in the same hour", () => {
     const rangeStart = new Date("2026-07-06T10:15:00.000Z");
@@ -77,5 +88,59 @@ describe("generateHourlySlots", () => {
 
     expect(slots).toHaveLength(1);
     expect(slots[0].toISOString()).toBe("2026-07-06T10:00:00.000Z");
+  });
+
+  it("with America/Los_Angeles timezone, slots align to PDT hour boundaries", () => {
+    const rangeStart = new Date("2026-07-13T16:00:00.000Z");
+    const rangeEnd = new Date("2026-07-13T23:00:00.000Z");
+
+    const slots = generateHourlySlots(rangeStart, rangeEnd, "America/Los_Angeles");
+
+    expect(slots.length).toBeGreaterThan(0);
+    for (const slot of slots) {
+      const { hour, minute } = getLocalHourMinute(slot, "America/Los_Angeles");
+      expect(minute).toBe(0);
+    }
+    expect(slots[0].toISOString()).toBe("2026-07-13T16:00:00.000Z");
+    expect(slots[1].toISOString()).toBe("2026-07-13T17:00:00.000Z");
+  });
+
+  it("with America/Los_Angeles, slots are also on UTC hour boundaries", () => {
+    const rangeStart = new Date("2026-07-13T16:00:00.000Z");
+    const rangeEnd = new Date("2026-07-13T23:00:00.000Z");
+
+    const slots = generateHourlySlots(rangeStart, rangeEnd, "America/Los_Angeles");
+
+    for (const slot of slots) {
+      expect(slot.getUTCMinutes()).toBe(0);
+      expect(slot.getUTCSeconds()).toBe(0);
+      expect(slot.getUTCMilliseconds()).toBe(0);
+    }
+  });
+
+  it("with Asia/Calcutta timezone, slots align to IST hour boundaries", () => {
+    const rangeStart = new Date("2026-07-13T04:30:00.000Z");
+    const rangeEnd = new Date("2026-07-13T12:00:00.000Z");
+
+    const slots = generateHourlySlots(rangeStart, rangeEnd, "Asia/Calcutta");
+
+    expect(slots.length).toBeGreaterThan(0);
+    for (const slot of slots) {
+      const { hour, minute } = getLocalHourMinute(slot, "Asia/Calcutta");
+      expect(minute).toBe(0);
+    }
+  });
+
+  it("with Asia/Calcutta, a rangeStart not on IST hour floors to the next IST hour", () => {
+    const rangeStart = new Date("2026-07-13T05:00:00.000Z");
+    const rangeEnd = new Date("2026-07-13T12:00:00.000Z");
+
+    const slots = generateHourlySlots(rangeStart, rangeEnd, "Asia/Calcutta");
+
+    expect(slots.length).toBeGreaterThan(0);
+    const firstSlot = slots[0];
+    const { hour: firstHour, minute: firstMinute } = getLocalHourMinute(firstSlot, "Asia/Calcutta");
+    expect(firstMinute).toBe(0);
+    expect(firstHour).toBe(11);
   });
 });

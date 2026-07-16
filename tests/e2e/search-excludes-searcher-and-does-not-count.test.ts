@@ -20,9 +20,13 @@ const SLOT_DATE = "2026-07-13";
 const SLOT_START_UTC = `${SLOT_DATE}T16:00:00.000Z`;
 const SLOT_END_UTC = `${SLOT_DATE}T17:00:00.000Z`;
 
-const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000a1";
-const OTHER_USER_EMAIL = "other@example.com";
-const OTHER_USER_DISPLAY_NAME = "Other User";
+const OTHER_USER_A_ID = "00000000-0000-0000-0000-0000000000a1";
+const OTHER_USER_A_EMAIL = "other-a@example.com";
+const OTHER_USER_A_DISPLAY_NAME = "Other User A";
+
+const OTHER_USER_B_ID = "00000000-0000-0000-0000-0000000000a2";
+const OTHER_USER_B_EMAIL = "other-b@example.com";
+const OTHER_USER_B_DISPLAY_NAME = "Other User B";
 
 const COMPLETE_PROFILE: ProfileInputs = {
   hasDisplayName: true,
@@ -94,7 +98,7 @@ async function runSearchWithMinimum(minimumMatchingUsers: number): Promise<strin
         },
       },
       clock: { now: getTestClock() },
-      matchingPoolSize: 2,
+      matchingPoolSize: 3,
       matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       searchResultRepository: createPostgresSearchResultRepository(),
@@ -170,7 +174,7 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
   });
 
   it.runIf(HAS_TEST_DB)(
-    "AC2: minimum count excludes the Organizer - Organizer + 1 other user qualify with minimum=2, matchCount is 1",
+    "AC1: Organizer never appears in candidates - with 2 non-Organizer qualifying users, slots appear and Organizer is absent from matches",
     async () => {
       const db = getTestDb();
       expect(db).not.toBeNull();
@@ -181,50 +185,16 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
       await setupTest();
 
       await insertDiscoverableUser({
-        id: OTHER_USER_ID,
-        email: OTHER_USER_EMAIL,
-        displayName: OTHER_USER_DISPLAY_NAME,
+        id: OTHER_USER_A_ID,
+        email: OTHER_USER_A_EMAIL,
+        displayName: OTHER_USER_A_DISPLAY_NAME,
         topicIds: [TOPIC.id],
       });
-
-      await grantDiscoverabilityConsentForUser(ORGANIZER.id);
-
-      setSearchEligibilityProfileInputsForTests({
-        [ORGANIZER.id]: COMPLETE_PROFILE,
-        [OTHER_USER_ID]: COMPLETE_PROFILE,
-      });
-
-      const searchId = await runSearchWithMinimum(2);
-      const { storedSelectedTopicIds, snapshot } = await loadStoredSnapshot(searchId);
-
-      expect(storedSelectedTopicIds).toEqual([TOPIC.id]);
-
-      expect(snapshot.slots.length).toBeGreaterThan(0);
-
-      for (const slot of snapshot.slots) {
-        expect(slot.matches.map((m) => m.userId)).not.toContain(ORGANIZER.id);
-      }
-
-      const allMatchCounts = snapshot.slots.map((s) => s.matchCount);
-      expect(allMatchCounts.every((count) => count === 1)).toBe(true);
-    },
-  );
-
-  it.runIf(HAS_TEST_DB)(
-    "AC1: Organizer never appears in candidates - Organizer with matching topics and consent does not appear in results",
-    async () => {
-      const db = getTestDb();
-      expect(db).not.toBeNull();
-      if (!db) {
-        return;
-      }
-
-      await setupTest();
 
       await insertDiscoverableUser({
-        id: OTHER_USER_ID,
-        email: OTHER_USER_EMAIL,
-        displayName: OTHER_USER_DISPLAY_NAME,
+        id: OTHER_USER_B_ID,
+        email: OTHER_USER_B_EMAIL,
+        displayName: OTHER_USER_B_DISPLAY_NAME,
         topicIds: [TOPIC.id],
       });
 
@@ -232,17 +202,64 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
 
       setSearchEligibilityProfileInputsForTests({
         [ORGANIZER.id]: COMPLETE_PROFILE,
-        [OTHER_USER_ID]: COMPLETE_PROFILE,
+        [OTHER_USER_A_ID]: COMPLETE_PROFILE,
+        [OTHER_USER_B_ID]: COMPLETE_PROFILE,
       });
 
       const searchId = await runSearchWithMinimum(2);
       const { snapshot } = await loadStoredSnapshot(searchId);
 
+      expect(snapshot.slots.length).toBeGreaterThan(0);
+
       for (const slot of snapshot.slots) {
         const matchUserIds = slot.matches.map((m) => m.userId);
         expect(matchUserIds).not.toContain(ORGANIZER.id);
-        expect(matchUserIds).toContain(OTHER_USER_ID);
+        expect(matchUserIds).toContain(OTHER_USER_A_ID);
+        expect(matchUserIds).toContain(OTHER_USER_B_ID);
       }
+    },
+  );
+
+  it.runIf(HAS_TEST_DB)(
+    "AC2: minimum count excludes the Organizer - Organizer + 2 others qualify with minimum=3, matchCount is 2 (Organizer not counted)",
+    async () => {
+      const db = getTestDb();
+      expect(db).not.toBeNull();
+      if (!db) {
+        return;
+      }
+
+      await setupTest();
+
+      await insertDiscoverableUser({
+        id: OTHER_USER_A_ID,
+        email: OTHER_USER_A_EMAIL,
+        displayName: OTHER_USER_A_DISPLAY_NAME,
+        topicIds: [TOPIC.id],
+      });
+
+      await insertDiscoverableUser({
+        id: OTHER_USER_B_ID,
+        email: OTHER_USER_B_EMAIL,
+        displayName: OTHER_USER_B_DISPLAY_NAME,
+        topicIds: [TOPIC.id],
+      });
+
+      await grantDiscoverabilityConsentForUser(ORGANIZER.id);
+
+      setSearchEligibilityProfileInputsForTests({
+        [ORGANIZER.id]: COMPLETE_PROFILE,
+        [OTHER_USER_A_ID]: COMPLETE_PROFILE,
+        [OTHER_USER_B_ID]: COMPLETE_PROFILE,
+      });
+
+      const searchId = await runSearchWithMinimum(3);
+      const { snapshot } = await loadStoredSnapshot(searchId);
+
+      expect(snapshot.slots.length).toBeGreaterThan(0);
+
+      const allMatchCounts = snapshot.slots.map((s) => s.matchCount);
+      expect(allMatchCounts.every((count) => count === 2)).toBe(true);
     },
   );
 

@@ -53,6 +53,8 @@ export type MockGoogleCalendarAdapter = {
   getFetchImpl(): typeof fetch;
   getWebhookNotifier(): (req: Request) => Promise<void>;
   setFreeBusyResponse(calendarId: string, intervals: FreeBusyInterval[]): void;
+  setFreeBusyErrorResponse(status: number, retryAfterSeconds?: number): void;
+  clearFreeBusyErrorResponse(): void;
   reset(): void;
 };
 
@@ -73,6 +75,7 @@ export function buildMockGoogleCalendarAdapter(
   const webhookDeliveries: WebhookDelivery[] = [];
   const requestedScopes = new Set<string>();
   const freeBusyResponses = new Map<string, FreeBusyInterval[]>();
+  let freeBusyErrorResponse: { status: number; retryAfterSeconds?: number } | null = null;
 
   function buildDeniedConsentCallbackRequest({
     baseUrl,
@@ -164,6 +167,21 @@ export function buildMockGoogleCalendarAdapter(
           calendarIds: body.items?.map((i) => i.id) ?? [],
         });
 
+        if (freeBusyErrorResponse !== null) {
+          const headers: Record<string, string> = {
+            "content-type": "application/json",
+          };
+          if (freeBusyErrorResponse.retryAfterSeconds !== undefined) {
+            headers["retry-after"] = String(freeBusyErrorResponse.retryAfterSeconds);
+          }
+          return Promise.resolve(
+            new Response(JSON.stringify({ error: "Server Error" }), {
+              status: freeBusyErrorResponse.status,
+              headers,
+            }),
+          );
+        }
+
         const busyItems =
           body.items?.map((item) => {
             const intervals = freeBusyResponses.get(item.id) ?? [];
@@ -239,6 +257,17 @@ export function buildMockGoogleCalendarAdapter(
     freeBusyResponses.set(calendarId, intervals);
   }
 
+  function setFreeBusyErrorResponse(
+    status: number,
+    retryAfterSeconds?: number,
+  ): void {
+    freeBusyErrorResponse = { status, retryAfterSeconds };
+  }
+
+  function clearFreeBusyErrorResponse(): void {
+    freeBusyErrorResponse = null;
+  }
+
   function reset(): void {
     oauthCallbacks.length = 0;
     denialCallbacks.length = 0;
@@ -246,6 +275,7 @@ export function buildMockGoogleCalendarAdapter(
     webhookDeliveries.length = 0;
     requestedScopes.clear();
     freeBusyResponses.clear();
+    freeBusyErrorResponse = null;
   }
 
   return {
@@ -268,6 +298,8 @@ export function buildMockGoogleCalendarAdapter(
     getFetchImpl,
     getWebhookNotifier,
     setFreeBusyResponse,
+    setFreeBusyErrorResponse,
+    clearFreeBusyErrorResponse,
     reset,
   };
 }

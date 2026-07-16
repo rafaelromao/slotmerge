@@ -10,7 +10,7 @@ import {
 
 import { GET } from "../../app/api/searches/[id]/route";
 import { sealSessionCookie } from "../../src/auth/session";
-import { discoverabilityConsents, sessions } from "../../src/db/schema";
+import { availabilityWindows, discoverabilityConsents, sessions, users, userTopics } from "../../src/db/schema";
 import { createMatchingDependencies } from "../../src/matching";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
 import {
@@ -32,6 +32,8 @@ const REGULAR_USER = USER_FIXTURES[0];
 const ORGANIZER = USER_FIXTURES[1];
 const ADMIN = USER_FIXTURES[2];
 const TOPIC = TOPIC_FIXTURES[0];
+
+const SECOND_MATCH_USER_ID = "00000000-0000-0000-0000-0000000000d1";
 
 const DATE_RANGE_START = new Date("2026-07-13T12:00:00.000Z");
 const DATE_RANGE_END = new Date("2026-07-19T23:00:00.000Z");
@@ -89,6 +91,47 @@ describe("E2E: run a Search and render weekly calendar result", () => {
     const now = new Date(FIXTURE_DATE);
     await db.insert(discoverabilityConsents).values({
       userId,
+      grantedAt: now,
+    });
+  }
+
+  async function seedSecondMatchUser(): Promise<void> {
+    const db = getTestDb();
+    if (!db) {
+      throw new Error("test db not initialized");
+    }
+    const now = new Date(FIXTURE_DATE);
+    await db.insert(users).values({
+      id: SECOND_MATCH_USER_ID,
+      email: "second-match@example.com",
+      displayName: "Second Match User",
+      role: "user",
+      status: "active",
+      profileTimezone: "America/New_York",
+      bufferMinutes: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(availabilityWindows).values({
+      id: "00000000-0000-0000-0000-000000000101",
+      userId: SECOND_MATCH_USER_ID,
+      dayOfWeek: 1,
+      startTime: "00:00",
+      endTime: "23:59",
+      profileTimezone: "America/New_York",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(userTopics).values({
+      id: "00000000-0000-0000-0000-000000000102",
+      userId: SECOND_MATCH_USER_ID,
+      topicId: TOPIC.id,
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(discoverabilityConsents).values({
+      userId: SECOND_MATCH_USER_ID,
       grantedAt: now,
     });
   }
@@ -166,6 +209,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       const now = new Date(FIXTURE_DATE);
 
       await insertSession(db, "organizer-session", ORGANIZER.id, "csrf-token", now);
+      await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
       setSearchEligibilityProfileInputsForTests({
@@ -176,6 +220,12 @@ describe("E2E: run a Search and render weekly calendar result", () => {
           isActive: true,
         },
         [ADMIN.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+        [SECOND_MATCH_USER_ID]: {
           hasDisplayName: true,
           hasTopicOrProposal: true,
           hasAvailabilitySource: true,
@@ -223,6 +273,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       const now = new Date(FIXTURE_DATE);
 
       await insertSession(db, "organizer-session-2", ORGANIZER.id, "csrf-token-2", now);
+      await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
       setSearchEligibilityProfileInputsForTests({
@@ -233,6 +284,12 @@ describe("E2E: run a Search and render weekly calendar result", () => {
           isActive: true,
         },
         [ADMIN.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+        [SECOND_MATCH_USER_ID]: {
           hasDisplayName: true,
           hasTopicOrProposal: true,
           hasAvailabilitySource: true,
@@ -284,6 +341,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
 
       await insertSession(db, "organizer-session-3", ORGANIZER.id, "csrf-token-3", now);
       await insertSession(db, "user-session", REGULAR_USER.id, "csrf-user-token", now);
+      await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
       setSearchEligibilityProfileInputsForTests({
@@ -294,6 +352,12 @@ describe("E2E: run a Search and render weekly calendar result", () => {
           isActive: true,
         },
         [ADMIN.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+        [SECOND_MATCH_USER_ID]: {
           hasDisplayName: true,
           hasTopicOrProposal: true,
           hasAvailabilitySource: true,
@@ -331,6 +395,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
 
       await insertSession(db, "organizer-session-4", ORGANIZER.id, "csrf-token-4", now);
       await insertSession(db, "admin-session", ADMIN.id, "csrf-admin-token", now);
+      await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
       setSearchEligibilityProfileInputsForTests({
@@ -341,6 +406,12 @@ describe("E2E: run a Search and render weekly calendar result", () => {
           isActive: true,
         },
         [ADMIN.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+        [SECOND_MATCH_USER_ID]: {
           hasDisplayName: true,
           hasTopicOrProposal: true,
           hasAvailabilitySource: true,

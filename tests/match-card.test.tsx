@@ -147,4 +147,13 @@ describe("MatchCard", () => {
     expect(json).toContain("no calendar connected");
     expect(json).toContain('"className":"calendar-none"');
   });
+
+  it("does not expose email addresses in rendered output", () => {
+    const card = MatchCard({ match: availableMatch });
+    const json = JSON.stringify(card);
+
+    expect(json).not.toMatch(
+      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
+    );
+  });
 });

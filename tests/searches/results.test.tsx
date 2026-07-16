@@ -102,4 +102,16 @@ describe("SearchResultClient click-to-open flow", () => {
     expect(json).toContain("slot-stale-indicator");
     expect(json).toContain("stale calendar data");
   });
+
+  it("does not expose email addresses in rendered output", () => {
+    const client = SearchResultClient({
+      snapshot,
+      organizerTimezone: "America/New_York",
+    });
+    const json = JSON.stringify(client);
+
+    expect(json).not.toMatch(
+      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
+    );
+  });
 });

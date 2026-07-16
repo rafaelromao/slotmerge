@@ -155,6 +155,7 @@ function matchedUserIds(snapshot: SearchSnapshotShape): string[] {
 describe("E2E: stale-data markers appear on affected Slots", () => {
   afterEach(() => {
     setSearchEligibilityProfileInputsForTests(null);
+    setImportedBusyIntervalRepositoryForTests(null);
   });
 
   describe.runIf(HAS_TEST_DB)("AC1: Slot cell shows a stale marker", () => {

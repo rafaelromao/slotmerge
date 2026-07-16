@@ -10,7 +10,7 @@ import {
 
 import { GET } from "../../app/api/searches/[id]/route";
 import { sealSessionCookie } from "../../src/auth/session";
-import { sessions } from "../../src/db/schema";
+import { discoverabilityConsents, sessions } from "../../src/db/schema";
 import { createMatchingDependencies } from "../../src/matching";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
 import {
@@ -34,7 +34,7 @@ const ADMIN = USER_FIXTURES[2];
 const TOPIC = TOPIC_FIXTURES[0];
 
 const DATE_RANGE_START = new Date("2026-07-13T12:00:00.000Z");
-const DATE_RANGE_END = new Date("2026-07-19T23:59:59.000Z");
+const DATE_RANGE_END = new Date("2026-07-19T23:00:00.000Z");
 const DURATION_MINUTES = 60;
 
 type SnapshotResponseBody = {
@@ -78,6 +78,18 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       csrfToken,
       expiresAt: new Date("2099-01-01T00:00:00.000Z"),
       createdAt: now,
+    });
+  }
+
+  async function grantDiscoverabilityConsent(userId: string): Promise<void> {
+    const db = getTestDb();
+    if (!db) {
+      throw new Error("test db not initialized");
+    }
+    const now = new Date(FIXTURE_DATE);
+    await db.insert(discoverabilityConsents).values({
+      userId,
+      grantedAt: now,
     });
   }
 
@@ -154,6 +166,22 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       const now = new Date(FIXTURE_DATE);
 
       await insertSession(db, "organizer-session", ORGANIZER.id, "csrf-token", now);
+      await grantDiscoverabilityConsent(REGULAR_USER.id);
+      await grantDiscoverabilityConsent(ADMIN.id);
+      setSearchEligibilityProfileInputsForTests({
+        [REGULAR_USER.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+        [ADMIN.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+      });
 
       const searchId = await runSearchAsOrganizer();
 
@@ -195,6 +223,22 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       const now = new Date(FIXTURE_DATE);
 
       await insertSession(db, "organizer-session-2", ORGANIZER.id, "csrf-token-2", now);
+      await grantDiscoverabilityConsent(REGULAR_USER.id);
+      await grantDiscoverabilityConsent(ADMIN.id);
+      setSearchEligibilityProfileInputsForTests({
+        [REGULAR_USER.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+        [ADMIN.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+      });
 
       const searchId = await runSearchAsOrganizer();
 
@@ -212,7 +256,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       expect(response.status).toBe(200);
 
       const body = (await response.json()) as {
-        slots: Array<{ startUtc: unknown; matchCount: unknown; matches: unknown[] }>;
+        slots: Array<{ startUtc: unknown; matchCount: unknown }>;
       };
 
       expect(Array.isArray(body.slots)).toBe(true);
@@ -240,6 +284,22 @@ describe("E2E: run a Search and render weekly calendar result", () => {
 
       await insertSession(db, "organizer-session-3", ORGANIZER.id, "csrf-token-3", now);
       await insertSession(db, "user-session", REGULAR_USER.id, "csrf-user-token", now);
+      await grantDiscoverabilityConsent(REGULAR_USER.id);
+      await grantDiscoverabilityConsent(ADMIN.id);
+      setSearchEligibilityProfileInputsForTests({
+        [REGULAR_USER.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+        [ADMIN.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+      });
 
       const searchId = await runSearchAsOrganizer();
 
@@ -271,6 +331,22 @@ describe("E2E: run a Search and render weekly calendar result", () => {
 
       await insertSession(db, "organizer-session-4", ORGANIZER.id, "csrf-token-4", now);
       await insertSession(db, "admin-session", ADMIN.id, "csrf-admin-token", now);
+      await grantDiscoverabilityConsent(REGULAR_USER.id);
+      await grantDiscoverabilityConsent(ADMIN.id);
+      setSearchEligibilityProfileInputsForTests({
+        [REGULAR_USER.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+        [ADMIN.id]: {
+          hasDisplayName: true,
+          hasTopicOrProposal: true,
+          hasAvailabilitySource: true,
+          isActive: true,
+        },
+      });
 
       const searchId = await runSearchAsOrganizer();
 

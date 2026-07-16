@@ -140,4 +140,14 @@ describe("SlotDetailsDrawer", () => {
     expect(json).toContain("0");
     expect(json).toContain("matching");
   });
+
+  it("does not expose email addresses in rendered output", () => {
+    const onClose = vi.fn();
+    const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
+    const json = JSON.stringify(drawer);
+
+    expect(json).not.toMatch(
+      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
+    );
+  });
 });

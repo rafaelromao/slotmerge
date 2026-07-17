@@ -8,10 +8,7 @@ import {
   createDefaultSearchSnapshotAssemblerDeps,
   type SearchSnapshotAssemblerDeps,
 } from "./search-snapshot-assembler";
-import {
-  isValidTimeZone,
-  startOfWeekInTimezone,
-} from "../time/local-time";
+import { isValidTimeZone, startOfWeekInTimezone } from "../time/local-time";
 
 export type Clock = {
   now(): Date;

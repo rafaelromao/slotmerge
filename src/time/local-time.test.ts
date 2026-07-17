@@ -95,10 +95,7 @@ describe("localDateTimeToUtc", () => {
   });
 
   it("defaults omitted hour, minute, and second to 0", () => {
-    const utc = localDateTimeToUtc(
-      { year: 2026, month: 7, day: 6 },
-      "UTC",
-    );
+    const utc = localDateTimeToUtc({ year: 2026, month: 7, day: 6 }, "UTC");
     expect(utc.toISOString()).toBe("2026-07-06T00:00:00.000Z");
   });
 
@@ -227,10 +224,16 @@ describe("localDateTimeToUtc host-clock independence", () => {
     const local = { year: 2026, month: 7, day: 6, hour: 9, minute: 30 };
 
     process.env.TZ = "UTC";
-    const utcAnswer = localDateTimeToUtc(local, "America/New_York").toISOString();
+    const utcAnswer = localDateTimeToUtc(
+      local,
+      "America/New_York",
+    ).toISOString();
 
     process.env.TZ = "America/Los_Angeles";
-    const laAnswer = localDateTimeToUtc(local, "America/New_York").toISOString();
+    const laAnswer = localDateTimeToUtc(
+      local,
+      "America/New_York",
+    ).toISOString();
 
     expect(laAnswer).toBe(utcAnswer);
   });
@@ -242,7 +245,10 @@ describe("localDateTimeToUtc host-clock independence", () => {
     const utcAnswer = localDateTimeToUtc(local, "Asia/Kathmandu").toISOString();
 
     process.env.TZ = "Asia/Tokyo";
-    const tokyoAnswer = localDateTimeToUtc(local, "Asia/Kathmandu").toISOString();
+    const tokyoAnswer = localDateTimeToUtc(
+      local,
+      "Asia/Kathmandu",
+    ).toISOString();
 
     expect(tokyoAnswer).toBe(utcAnswer);
   });
@@ -326,9 +332,9 @@ describe("startOfWeekInTimezone", () => {
   });
 
   it("throws RangeError for an invalid timeZone", () => {
-    expect(() =>
-      startOfWeekInTimezone(new Date(), "Mars/Olympus"),
-    ).toThrow(RangeError);
+    expect(() => startOfWeekInTimezone(new Date(), "Mars/Olympus")).toThrow(
+      RangeError,
+    );
   });
 });
 

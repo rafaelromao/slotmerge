@@ -13,7 +13,12 @@ export class LocalTimeError extends Error {
   readonly local: LocalDateTime;
   readonly timeZone: string;
 
-  constructor(name: string, message: string, local: LocalDateTime, timeZone: string) {
+  constructor(
+    name: string,
+    message: string,
+    local: LocalDateTime,
+    timeZone: string,
+  ) {
     super(message);
     this.name = name;
     this.local = local;

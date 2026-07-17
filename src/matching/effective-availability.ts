@@ -2,6 +2,7 @@ import type { WeeklyAvailabilityWindow } from "../profile/availability-windows";
 import type { AvailabilityOverride } from "../profile/availability-overrides";
 import { expandOverrideToUtcRange } from "../profile/availability-overrides";
 import type { ImportedBusyIntervalRecord } from "../calendar/imported-busy-intervals";
+import { getLocalDateParts, localDateTimeToUtc } from "../time/local-time";
 
 export type EffectiveAvailabilityInputs = {
   userId: string;
@@ -31,44 +32,6 @@ function parseTime(time: string): { hours: number; minutes: number } {
   return { hours, minutes };
 }
 
-function toUtcDateForTimezone(
-  year: number,
-  month: number,
-  day: number,
-  hours: number,
-  minutes: number,
-  timeZone: string,
-): Date {
-  const noonUtc = new Date(Date.UTC(year, month, day, 12, 0, 0));
-  const tzFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const noonInTz = Number(
-    tzFormatter.formatToParts(noonUtc).find((p) => p.type === "hour")!.value,
-  );
-  const utcHours = hours + 12 - noonInTz;
-  return new Date(Date.UTC(year, month, day, utcHours, minutes));
-}
-
-function getLocalDayOfWeekAtNoon(
-  utcYear: number,
-  utcMonth: number,
-  utcDay: number,
-  timeZone: string,
-): number {
-  const noonUtc = new Date(Date.UTC(utcYear, utcMonth, utcDay, 12, 0, 0));
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    weekday: "short",
-  });
-  const dayStr = formatter.format(noonUtc);
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  return days.indexOf(dayStr);
-}
-
 function expandWindowsInTimezone(
   windows: WeeklyAvailabilityWindow[],
   rangeStart: Date,
@@ -77,25 +40,26 @@ function expandWindowsInTimezone(
   const results: Interval[] = [];
 
   for (const window of windows) {
-    const current = new Date(rangeStart);
-    current.setUTCHours(0, 0, 0, 0);
-
-    const end = new Date(rangeEnd);
-    end.setUTCHours(23, 59, 59, 999);
-
-    while (current <= end) {
-      const utcYear = current.getUTCFullYear();
-      const utcMonth = current.getUTCMonth();
-      const utcDay = current.getUTCDate();
-
-      const localDayOfWeek = getLocalDayOfWeekAtNoon(
-        utcYear,
-        utcMonth,
-        utcDay,
+    let cursorUtc = new Date(rangeStart.getTime());
+    while (cursorUtc.getTime() <= rangeEnd.getTime()) {
+      const localParts = getLocalDateParts(cursorUtc, window.profileTimezone);
+      const utcOnLocalDay = localDateTimeToUtc(
+        {
+          year: localParts.year,
+          month: localParts.month,
+          day: localParts.day,
+          hour: 0,
+          minute: 0,
+          second: 0,
+        },
+        window.profileTimezone,
+      );
+      const localDateAtCursor = getLocalDateParts(
+        utcOnLocalDay,
         window.profileTimezone,
       );
 
-      if (localDayOfWeek === window.dayOfWeek) {
+      if (localDateAtCursor.weekday === window.dayOfWeek) {
         const { hours: startHours, minutes: startMinutes } = parseTime(
           window.startTime,
         );
@@ -103,21 +67,25 @@ function expandWindowsInTimezone(
           window.endTime,
         );
 
-        const startUtc = toUtcDateForTimezone(
-          utcYear,
-          utcMonth,
-          utcDay,
-          startHours,
-          startMinutes,
+        const startUtc = localDateTimeToUtc(
+          {
+            year: localDateAtCursor.year,
+            month: localDateAtCursor.month,
+            day: localDateAtCursor.day,
+            hour: startHours,
+            minute: startMinutes,
+          },
           window.profileTimezone,
         );
 
-        const endUtc = toUtcDateForTimezone(
-          utcYear,
-          utcMonth,
-          utcDay,
-          endHours,
-          endMinutes,
+        const endUtc = localDateTimeToUtc(
+          {
+            year: localDateAtCursor.year,
+            month: localDateAtCursor.month,
+            day: localDateAtCursor.day,
+            hour: endHours,
+            minute: endMinutes,
+          },
           window.profileTimezone,
         );
 
@@ -128,7 +96,7 @@ function expandWindowsInTimezone(
         }
       }
 
-      current.setUTCDate(current.getUTCDate() + 1);
+      cursorUtc = new Date(utcOnLocalDay.getTime() + 24 * 60 * 60 * 1000);
     }
   }
 

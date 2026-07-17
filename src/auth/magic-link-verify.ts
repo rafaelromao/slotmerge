@@ -2,10 +2,11 @@ import { createHmac } from "node:crypto";
 
 import { verifyMagicLinkToken, type MagicLinkTokenPayload } from "./magic-link";
 import { sealSessionCookie, getSessionSecret } from "./session";
+import type { Clock } from "../system/clock";
 import type { UserRole } from "../db/schema";
 
 export type MagicLinkVerifyDependencies = {
-  clock?: () => Date;
+  clock: Clock;
   magicLinkSecret?: string;
   sessionLifetimeDays?: number;
   inviteRepository?: InviteRepository;
@@ -76,9 +77,9 @@ function getSessionLifetimeDays(): number {
 }
 
 export function createMagicLinkVerifyHandlers(
-  deps: MagicLinkVerifyDependencies = {},
+  deps: MagicLinkVerifyDependencies,
 ) {
-  const clock = deps.clock ?? (() => new Date());
+  const clock = deps.clock;
   const sessionLifetimeDays =
     deps.sessionLifetimeDays ?? getSessionLifetimeDays();
 
@@ -133,7 +134,7 @@ export function createMagicLinkVerifyHandlers(
         return errorResponse("invite_revoked", 400);
       }
 
-      if (invite.expiresAt <= clock()) {
+      if (invite.expiresAt <= clock.now()) {
         return errorResponse("invite_expired", 400, token);
       }
 
@@ -156,7 +157,7 @@ export function createMagicLinkVerifyHandlers(
 
       const csrfToken = generateCsrfToken();
       const expiresAt = new Date(
-        clock().getTime() + sessionLifetimeDays * 24 * 60 * 60 * 1000,
+        clock.now().getTime() + sessionLifetimeDays * 24 * 60 * 60 * 1000,
       );
 
       const transaction = deps.transaction ?? defaultTransaction;

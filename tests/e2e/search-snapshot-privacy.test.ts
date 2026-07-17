@@ -1,4 +1,12 @@
-import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  inject,
+  it,
+} from "vitest";
 
 import { GET } from "../../app/api/searches/[id]/route";
 import { sealSessionCookie } from "../../src/auth/session";
@@ -11,9 +19,7 @@ import {
 } from "../../src/db/schema";
 import { createMatchingDependencies } from "../../src/matching";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
-import {
-  setSearchEligibilityProfileInputsForTests,
-} from "../../src/search/eligibility";
+import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
 import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
 import { getProfileByUserId } from "../../src/profile/repository";
@@ -197,9 +203,7 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
     return (await response.json()) as SnapshotResponseBody;
   }
 
-  async function loadPersistedSnapshotJson(
-    searchId: string,
-  ): Promise<unknown> {
+  async function loadPersistedSnapshotJson(searchId: string): Promise<unknown> {
     const db = getTestDb();
     if (!db) {
       throw new Error("test db not initialized");

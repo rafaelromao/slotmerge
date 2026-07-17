@@ -103,9 +103,9 @@ describe("E2E: Minimum matching Users default and configurability", () => {
           updatedAt: now,
         },
       ]);
-      await db.insert(discoverabilityConsents).values([
-        { userId: USER_A_ID, grantedAt: now },
-      ]);
+      await db
+        .insert(discoverabilityConsents)
+        .values([{ userId: USER_A_ID, grantedAt: now }]);
       await db.insert(userTopics).values([
         {
           id: "00000000-0000-0000-0000-000000000230",
@@ -311,12 +311,10 @@ describe("E2E: Minimum matching Users default and configurability", () => {
       const min2SearchId = await submitSearchWithMinimum(2);
       const min3SearchId = await submitSearchWithMinimum(3);
 
-      const min2Snapshot = await searchResultRepository.findBySearchId(
-        min2SearchId,
-      );
-      const min3Snapshot = await searchResultRepository.findBySearchId(
-        min3SearchId,
-      );
+      const min2Snapshot =
+        await searchResultRepository.findBySearchId(min2SearchId);
+      const min3Snapshot =
+        await searchResultRepository.findBySearchId(min3SearchId);
 
       expect(min2Snapshot).not.toBeNull();
       expect(min3Snapshot).not.toBeNull();

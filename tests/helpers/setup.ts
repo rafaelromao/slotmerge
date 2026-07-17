@@ -42,6 +42,10 @@ export function getTestClock(): () => Date {
   return currentClock;
 }
 
+export function getTestClockObject(): { now(): Date } {
+  return { now: getTestClock() };
+}
+
 export async function setupTest(): Promise<void> {
   if (!db) {
     return;

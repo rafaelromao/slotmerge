@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import type { Clock } from "../system/clock";
+
 export type EmailType =
   "invite" | "magic-link" | "calendar-action-required" | "admin-critical";
 
@@ -57,7 +59,7 @@ export type EmailTransport = {
 export type QueueEmailJob = (job: QueueEmailJobInput) => Promise<void>;
 
 export type CreateEmailDeliveryServiceOptions = {
-  clock?: () => Date;
+  clock: Clock;
   eventRepository: EmailEventRepository;
   queueJob?: QueueEmailJob;
 };
@@ -76,13 +78,13 @@ export function createPayloadReference(payload: EmailPayload): string {
 }
 
 export function createEmailDeliveryService({
-  clock = () => new Date(),
+  clock,
   eventRepository,
   queueJob = () => Promise.resolve(),
 }: CreateEmailDeliveryServiceOptions): EmailDeliveryService {
   return {
     async sendEmail(input) {
-      const createdAt = clock();
+      const createdAt = clock.now();
       const payloadReference =
         input.payloadReference ?? createPayloadReference(input.payload);
       const emailEvent = await eventRepository.createQueuedEvent({
@@ -102,7 +104,7 @@ export function createEmailDeliveryService({
       } catch (error) {
         const failure =
           error instanceof Error ? error : new Error(String(error));
-        await eventRepository.markFailed(emailEvent.id, clock(), {
+        await eventRepository.markFailed(emailEvent.id, clock.now(), {
           code: normalizeErrorCode(failure.message),
           message: failure.message,
         });

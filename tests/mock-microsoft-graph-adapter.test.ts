@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildMockMicrosoftGraphAdapter,
-} from "./mock-microsoft-graph-adapter";
+import { buildMockMicrosoftGraphAdapter } from "./mock-microsoft-graph-adapter";
 
 const MICROSOFT_TOKEN_ENDPOINT =
   "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
@@ -22,7 +20,8 @@ describe("MockMicrosoftGraphAdapter", () => {
           code: "auth-code-123",
           code_verifier: "code-verifier-1",
           grant_type: "authorization_code",
-          redirect_uri: "https://slotmerge.example/me/calendar-connections/callback",
+          redirect_uri:
+            "https://slotmerge.example/me/calendar-connections/callback",
         }),
       });
 
@@ -44,7 +43,7 @@ describe("MockMicrosoftGraphAdapter", () => {
       });
 
       expect(response.status).toBe(200);
-      const body = await response.json() as {
+      const body = (await response.json()) as {
         access_token: string;
         refresh_token: string;
         expires_in: number;
@@ -71,7 +70,9 @@ describe("MockMicrosoftGraphAdapter", () => {
       });
 
       expect(adapter.oauthCallbacks).toHaveLength(1);
-      expect(adapter.oauthCallbacks[0].scope).toBe("offline_access Calendars.ReadBasic");
+      expect(adapter.oauthCallbacks[0].scope).toBe(
+        "offline_access Calendars.ReadBasic",
+      );
       expect(adapter.oauthCallbacks[0].state).toBe("state-1");
     });
   });
@@ -107,7 +108,7 @@ describe("MockMicrosoftGraphAdapter", () => {
       );
 
       expect(response.status).toBe(200);
-      const body = await response.json() as {
+      const body = (await response.json()) as {
         value: Array<{ id: string; isPrimaryCalendar?: boolean }>;
       };
       expect(body.value[0].id).toBe("primary-calendar-id");
@@ -139,8 +140,12 @@ describe("MockMicrosoftGraphAdapter", () => {
       );
 
       expect(adapter.getScheduleCalls).toHaveLength(1);
-      expect(adapter.getScheduleCalls[0].timeMin.getTime()).toBe(new Date(timeMin).getTime());
-      expect(adapter.getScheduleCalls[0].timeMax.getTime()).toBe(new Date(timeMax).getTime());
+      expect(adapter.getScheduleCalls[0].timeMin.getTime()).toBe(
+        new Date(timeMin).getTime(),
+      );
+      expect(adapter.getScheduleCalls[0].timeMax.getTime()).toBe(
+        new Date(timeMax).getTime(),
+      );
       expect(adapter.getScheduleCalls[0].schedules).toEqual([
         "primary",
         "work@example.com",
@@ -185,7 +190,7 @@ describe("MockMicrosoftGraphAdapter", () => {
       );
 
       expect(response.status).toBe(200);
-      const body = await response.json() as {
+      const body = (await response.json()) as {
         value: Array<{
           scheduleId: string;
           availabilityView?: string;
@@ -247,7 +252,7 @@ describe("MockMicrosoftGraphAdapter", () => {
       );
 
       expect(response.status).toBe(200);
-      const body = await response.json() as {
+      const body = (await response.json()) as {
         value: Array<{
           scheduleId: string;
           availabilityView?: string;
@@ -271,12 +276,16 @@ describe("MockMicrosoftGraphAdapter", () => {
           code: "auth-code-1",
           code_verifier: "verifier-1",
           grant_type: "authorization_code",
-          redirect_uri: "https://slotmerge.example/me/calendar-connections/callback",
+          redirect_uri:
+            "https://slotmerge.example/me/calendar-connections/callback",
         }),
       });
 
       expect(response.status).toBe(400);
-      const body = await response.json() as { error: string; error_description: string };
+      const body = (await response.json()) as {
+        error: string;
+        error_description: string;
+      };
       expect(body.error).toBe("access_denied");
       expect(body.error_description).toContain("personal");
     });
@@ -295,7 +304,7 @@ describe("MockMicrosoftGraphAdapter", () => {
       });
 
       expect(response.status).toBe(200);
-      const body = await response.json() as { access_token: string };
+      const body = (await response.json()) as { access_token: string };
       expect(body.access_token).toBe("work-school-access");
     });
   });
@@ -320,7 +329,9 @@ describe("MockMicrosoftGraphAdapter", () => {
       );
 
       expect(adapter.webhookDeliveries).toHaveLength(1);
-      expect(adapter.webhookDeliveries[0].subscriptionId).toBe("subscription-abc");
+      expect(adapter.webhookDeliveries[0].subscriptionId).toBe(
+        "subscription-abc",
+      );
       expect(adapter.webhookDeliveries[0].channelId).toBe("channel-xyz");
       expect(adapter.webhookDeliveries[0].clientState).toBe("connection-1");
     });
@@ -329,11 +340,18 @@ describe("MockMicrosoftGraphAdapter", () => {
       const adapter = buildMockMicrosoftGraphAdapter();
       const notifier = adapter.getWebhookNotifier();
 
-      const webhookBody = { subscriptionId: "sub-1", clientState: "conn-1", value: [{ test: true }] };
+      const webhookBody = {
+        subscriptionId: "sub-1",
+        clientState: "conn-1",
+        value: [{ test: true }],
+      };
       await notifier(
         new Request("http://localhost/", {
           method: "POST",
-          headers: { "x-ms-subscription-id": "sub-1", "x-ms-channel-id": "ch-1" },
+          headers: {
+            "x-ms-subscription-id": "sub-1",
+            "x-ms-channel-id": "ch-1",
+          },
           body: JSON.stringify(webhookBody),
         }),
       );
@@ -375,7 +393,10 @@ describe("MockMicrosoftGraphAdapter", () => {
       await notifier(
         new Request("http://localhost/", {
           method: "POST",
-          headers: { "x-ms-subscription-id": "sub-1", "x-ms-channel-id": "ch-1" },
+          headers: {
+            "x-ms-subscription-id": "sub-1",
+            "x-ms-channel-id": "ch-1",
+          },
           body: JSON.stringify({ subscriptionId: "sub-1", clientState: "c1" }),
         }),
       );

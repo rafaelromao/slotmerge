@@ -131,190 +131,186 @@ function buildRerunDeps(): Parameters<typeof rerunSearch>[1] {
   };
 }
 
-describe(
-  "E2E: re-run a Search creates a new snapshot and preserves the original",
-  () => {
-    beforeAll(() => {
-      if (TEST_DB_URL) {
-        process.env.DATABASE_URL = TEST_DB_URL;
+describe("E2E: re-run a Search creates a new snapshot and preserves the original", () => {
+  beforeAll(() => {
+    if (TEST_DB_URL) {
+      process.env.DATABASE_URL = TEST_DB_URL;
+    }
+    process.env.SESSION_SECRET = "test-session-secret-70-characters-long";
+  });
+
+  afterAll(() => {
+    if (TEST_DB_URL) {
+      delete process.env.DATABASE_URL;
+    }
+    delete process.env.SESSION_SECRET;
+  });
+
+  afterEach(() => {
+    setSearchEligibilityProfileInputsForTests(null);
+  });
+
+  it.runIf(HAS_TEST_DB)(
+    "re-run creates a new Search Result row and leaves the original snapshot untouched",
+    async () => {
+      await setupTest();
+      const db = getTestDb();
+      if (!db) {
+        throw new Error("test db not initialized");
       }
-      process.env.SESSION_SECRET = "test-session-secret-70-characters-long";
-    });
 
-    afterAll(() => {
-      if (TEST_DB_URL) {
-        delete process.env.DATABASE_URL;
+      await seedMatchableUser(db);
+
+      const initial = await submitSearch(buildSubmitDeps(), {
+        selectedTopicIds: [TOPIC_FIXTURES[0].id],
+        minimumMatchingUsers: MINIMUM_MATCHING_USERS,
+        durationMinutes: DURATION_MINUTES,
+        dateRangeStart: DATE_RANGE_START,
+        dateRangeEnd: DATE_RANGE_END,
+        organizerTimezone: "UTC",
+      });
+      expect(initial.ok).toBe(true);
+      if (!initial.ok || !initial.search.id) {
+        throw new Error("expected initial submitSearch to succeed");
       }
-      delete process.env.SESSION_SECRET;
-    });
+      const originalSearchId = initial.search.id;
 
-    afterEach(() => {
-      setSearchEligibilityProfileInputsForTests(null);
-    });
+      const originalSearchResultRow =
+        await getSearchResultRepository().findBySearchId(originalSearchId);
+      expect(originalSearchResultRow).not.toBeNull();
+      const originalSnapshotJson = originalSearchResultRow!.snapshotJson;
+      const originalSearchResultId = originalSearchResultRow!.id;
+      const originalSearchResultCreatedAt = originalSearchResultRow!.createdAt;
+      expect(originalSnapshotJson).toMatchObject({
+        organizerTimezone: "UTC",
+        dateRangeStart: DATE_RANGE_START.toISOString(),
+        dateRangeEnd: DATE_RANGE_END.toISOString(),
+        durationMinutes: DURATION_MINUTES,
+      });
 
-    it.runIf(HAS_TEST_DB)(
-      "re-run creates a new Search Result row and leaves the original snapshot untouched",
-      async () => {
-        await setupTest();
-        const db = getTestDb();
-        if (!db) {
-          throw new Error("test db not initialized");
-        }
+      await db
+        .update(users)
+        .set({ displayName: MUTATED_DISPLAY_NAME })
+        .where(eq(users.id, MATCH_USER_ID));
 
-        await seedMatchableUser(db);
+      const rerun = await rerunSearch(originalSearchId, buildRerunDeps());
+      expect(rerun.ok).toBe(true);
+      if (!rerun.ok || !rerun.search.id) {
+        throw new Error("expected rerunSearch to succeed");
+      }
+      const newSearchId = rerun.search.id;
+      expect(newSearchId).not.toBe(originalSearchId);
 
-        const initial = await submitSearch(buildSubmitDeps(), {
-          selectedTopicIds: [TOPIC_FIXTURES[0].id],
-          minimumMatchingUsers: MINIMUM_MATCHING_USERS,
-          durationMinutes: DURATION_MINUTES,
-          dateRangeStart: DATE_RANGE_START,
-          dateRangeEnd: DATE_RANGE_END,
-          organizerTimezone: "UTC",
-        });
-        expect(initial.ok).toBe(true);
-        if (!initial.ok || !initial.search.id) {
-          throw new Error("expected initial submitSearch to succeed");
-        }
-        const originalSearchId = initial.search.id;
+      const allSearches = await getSearchRepository().listAll();
+      expect(allSearches.length).toBe(2);
+      const allSearchIds = allSearches.map((s) => s.id).sort();
+      expect(allSearchIds).toEqual([originalSearchId, newSearchId].sort());
 
-        const originalSearchResultRow =
-          await getSearchResultRepository().findBySearchId(originalSearchId);
-        expect(originalSearchResultRow).not.toBeNull();
-        const originalSnapshotJson = originalSearchResultRow!.snapshotJson;
-        const originalSearchResultId = originalSearchResultRow!.id;
-        const originalSearchResultCreatedAt =
-          originalSearchResultRow!.createdAt;
-        expect(originalSnapshotJson).toMatchObject({
-          organizerTimezone: "UTC",
-          dateRangeStart: DATE_RANGE_START.toISOString(),
-          dateRangeEnd: DATE_RANGE_END.toISOString(),
-          durationMinutes: DURATION_MINUTES,
-        });
+      const originalSearchStillExists =
+        await getSearchRepository().findById(originalSearchId);
+      expect(originalSearchStillExists).not.toBeNull();
+      expect(originalSearchStillExists!.id).toBe(originalSearchId);
+      expect(originalSearchStillExists!.generatedAt.toISOString()).toBe(
+        initial.search.generatedAt.toISOString(),
+      );
+      expect(originalSearchStillExists!.selectedTopicIds).toEqual(
+        initial.search.selectedTopicIds,
+      );
+      expect(originalSearchStillExists!.minimumMatchingUsers).toBe(
+        MINIMUM_MATCHING_USERS,
+      );
+      expect(originalSearchStillExists!.durationMinutes).toBe(DURATION_MINUTES);
+      expect(originalSearchStillExists!.dateRangeStart.toISOString()).toBe(
+        DATE_RANGE_START.toISOString(),
+      );
+      expect(originalSearchStillExists!.dateRangeEnd.toISOString()).toBe(
+        DATE_RANGE_END.toISOString(),
+      );
+      expect(originalSearchStillExists!.organizerTimezone).toBe("UTC");
 
-        await db
-          .update(users)
-          .set({ displayName: MUTATED_DISPLAY_NAME })
-          .where(eq(users.id, MATCH_USER_ID));
+      const newSearchRecord = await getSearchRepository().findById(newSearchId);
+      expect(newSearchRecord).not.toBeNull();
+      expect(newSearchRecord!.id).toBe(newSearchId);
+      expect(newSearchRecord!.organizerId).toBe(ORGANIZER_A.id);
+      expect(newSearchRecord!.selectedTopicIds).toEqual(
+        initial.search.selectedTopicIds,
+      );
+      expect(newSearchRecord!.minimumMatchingUsers).toBe(
+        MINIMUM_MATCHING_USERS,
+      );
+      expect(newSearchRecord!.durationMinutes).toBe(DURATION_MINUTES);
+      expect(newSearchRecord!.dateRangeStart.toISOString()).toBe(
+        DATE_RANGE_START.toISOString(),
+      );
+      expect(newSearchRecord!.dateRangeEnd.toISOString()).toBe(
+        DATE_RANGE_END.toISOString(),
+      );
+      expect(newSearchRecord!.organizerTimezone).toBe("UTC");
+      expect(newSearchRecord!.generatedAt.getTime()).toBeGreaterThan(
+        initial.search.generatedAt.getTime(),
+      );
 
-        const rerun = await rerunSearch(originalSearchId, buildRerunDeps());
-        expect(rerun.ok).toBe(true);
-        if (!rerun.ok || !rerun.search.id) {
-          throw new Error("expected rerunSearch to succeed");
-        }
-        const newSearchId = rerun.search.id;
-        expect(newSearchId).not.toBe(originalSearchId);
+      const originalSnapshotAfterRerun =
+        await getSearchResultRepository().findBySearchId(originalSearchId);
+      expect(originalSnapshotAfterRerun).not.toBeNull();
+      expect(originalSnapshotAfterRerun!.id).toBe(originalSearchResultId);
+      expect(originalSnapshotAfterRerun!.searchId).toBe(originalSearchId);
+      expect(originalSnapshotAfterRerun!.createdAt.toISOString()).toBe(
+        originalSearchResultCreatedAt.toISOString(),
+      );
+      expect(originalSnapshotAfterRerun!.snapshotJson).toEqual(
+        originalSnapshotJson,
+      );
 
-        const allSearches = await getSearchRepository().listAll();
-        expect(allSearches.length).toBe(2);
-        const allSearchIds = allSearches.map((s) => s.id).sort();
-        expect(allSearchIds).toEqual([originalSearchId, newSearchId].sort());
+      const newSnapshot =
+        await getSearchResultRepository().findBySearchId(newSearchId);
+      expect(newSnapshot).not.toBeNull();
+      expect(newSnapshot!.id).not.toBe(originalSearchResultId);
+      expect(newSnapshot!.searchId).toBe(newSearchId);
+      expect(newSnapshot!.createdAt.getTime()).toBeGreaterThan(
+        originalSearchResultCreatedAt.getTime(),
+      );
+      expect(newSnapshot!.snapshotJson).toMatchObject({
+        organizerTimezone: "UTC",
+        dateRangeStart: DATE_RANGE_START.toISOString(),
+        dateRangeEnd: DATE_RANGE_END.toISOString(),
+        durationMinutes: DURATION_MINUTES,
+      });
 
-        const originalSearchStillExists = await getSearchRepository().findById(
-          originalSearchId,
-        );
-        expect(originalSearchStillExists).not.toBeNull();
-        expect(originalSearchStillExists!.id).toBe(originalSearchId);
-        expect(originalSearchStillExists!.generatedAt.toISOString()).toBe(
-          initial.search.generatedAt.toISOString(),
-        );
-        expect(originalSearchStillExists!.selectedTopicIds).toEqual(
-          initial.search.selectedTopicIds,
-        );
-        expect(originalSearchStillExists!.minimumMatchingUsers).toBe(
-          MINIMUM_MATCHING_USERS,
-        );
-        expect(originalSearchStillExists!.durationMinutes).toBe(DURATION_MINUTES);
-        expect(originalSearchStillExists!.dateRangeStart.toISOString()).toBe(
-          DATE_RANGE_START.toISOString(),
-        );
-        expect(originalSearchStillExists!.dateRangeEnd.toISOString()).toBe(
-          DATE_RANGE_END.toISOString(),
-        );
-        expect(originalSearchStillExists!.organizerTimezone).toBe("UTC");
+      const originalSnapshotDisplayNames = (
+        originalSnapshotJson.slots as Array<{
+          matches: Array<{ displayName: string | null }>;
+        }>
+      ).flatMap((slot) => slot.matches.map((m) => m.displayName));
+      expect(originalSnapshotDisplayNames).toContain(ORIGINAL_DISPLAY_NAME);
+      expect(originalSnapshotDisplayNames).not.toContain(MUTATED_DISPLAY_NAME);
 
-        const newSearchRecord = await getSearchRepository().findById(newSearchId);
-        expect(newSearchRecord).not.toBeNull();
-        expect(newSearchRecord!.id).toBe(newSearchId);
-        expect(newSearchRecord!.organizerId).toBe(ORGANIZER_A.id);
-        expect(newSearchRecord!.selectedTopicIds).toEqual(
-          initial.search.selectedTopicIds,
-        );
-        expect(newSearchRecord!.minimumMatchingUsers).toBe(MINIMUM_MATCHING_USERS);
-        expect(newSearchRecord!.durationMinutes).toBe(DURATION_MINUTES);
-        expect(newSearchRecord!.dateRangeStart.toISOString()).toBe(
-          DATE_RANGE_START.toISOString(),
-        );
-        expect(newSearchRecord!.dateRangeEnd.toISOString()).toBe(
-          DATE_RANGE_END.toISOString(),
-        );
-        expect(newSearchRecord!.organizerTimezone).toBe("UTC");
-        expect(newSearchRecord!.generatedAt.getTime()).toBeGreaterThan(
-          initial.search.generatedAt.getTime(),
-        );
+      const newSlots = newSnapshot!.snapshotJson.slots;
+      const flatMatches = newSlots.flatMap((slot) => slot.matches);
+      const mutatedMatch = flatMatches.find(
+        (match) => match.userId === MATCH_USER_ID,
+      );
+      expect(mutatedMatch?.displayName).toBe(MUTATED_DISPLAY_NAME);
 
-        const originalSnapshotAfterRerun =
-          await getSearchResultRepository().findBySearchId(originalSearchId);
-        expect(originalSnapshotAfterRerun).not.toBeNull();
-        expect(originalSnapshotAfterRerun!.id).toBe(originalSearchResultId);
-        expect(originalSnapshotAfterRerun!.searchId).toBe(originalSearchId);
-        expect(originalSnapshotAfterRerun!.createdAt.toISOString()).toBe(
-          originalSearchResultCreatedAt.toISOString(),
-        );
-        expect(originalSnapshotAfterRerun!.snapshotJson).toEqual(
-          originalSnapshotJson,
-        );
-
-        const newSnapshot = await getSearchResultRepository().findBySearchId(
-          newSearchId,
-        );
-        expect(newSnapshot).not.toBeNull();
-        expect(newSnapshot!.id).not.toBe(originalSearchResultId);
-        expect(newSnapshot!.searchId).toBe(newSearchId);
-        expect(newSnapshot!.createdAt.getTime()).toBeGreaterThan(
-          originalSearchResultCreatedAt.getTime(),
-        );
-        expect(newSnapshot!.snapshotJson).toMatchObject({
-          organizerTimezone: "UTC",
-          dateRangeStart: DATE_RANGE_START.toISOString(),
-          dateRangeEnd: DATE_RANGE_END.toISOString(),
-          durationMinutes: DURATION_MINUTES,
-        });
-
-        const originalSnapshotDisplayNames = (
-          originalSnapshotJson.slots as Array<{
-            matches: Array<{ displayName: string | null }>;
-          }>
-        ).flatMap((slot) => slot.matches.map((m) => m.displayName));
-        expect(originalSnapshotDisplayNames).toContain(ORIGINAL_DISPLAY_NAME);
-        expect(originalSnapshotDisplayNames).not.toContain(MUTATED_DISPLAY_NAME);
-
-        const newSlots = newSnapshot!.snapshotJson.slots;
-        const flatMatches = newSlots.flatMap((slot) => slot.matches);
-        const mutatedMatch = flatMatches.find(
-          (match) => match.userId === MATCH_USER_ID,
-        );
-        expect(mutatedMatch?.displayName).toBe(MUTATED_DISPLAY_NAME);
-
-        const history = await getSearchRepository().listSearchHistory();
-        expect(history.length).toBe(2);
-        const historyById = new Map(history.map((item) => [item.id, item]));
-        const originalHistoryItem = historyById.get(originalSearchId);
-        const newHistoryItem = historyById.get(newSearchId);
-        expect(originalHistoryItem).toBeDefined();
-        expect(newHistoryItem).toBeDefined();
-        expect(originalHistoryItem!.snapshotId).toBe(originalSearchResultId);
-        expect(newHistoryItem!.snapshotId).not.toBe(originalSearchResultId);
-        expect(newHistoryItem!.snapshotId).toBe(newSnapshot!.id);
-        expect(originalHistoryItem!.generatedAt.toISOString()).toBe(
-          initial.search.generatedAt.toISOString(),
-        );
-        expect(newHistoryItem!.generatedAt.toISOString()).toBe(
-          newSearchRecord!.generatedAt.toISOString(),
-        );
-        expect(newHistoryItem!.generatedAt.getTime()).toBeGreaterThan(
-          originalHistoryItem!.generatedAt.getTime(),
-        );
-      },
-    );
-  },
-);
+      const history = await getSearchRepository().listSearchHistory();
+      expect(history.length).toBe(2);
+      const historyById = new Map(history.map((item) => [item.id, item]));
+      const originalHistoryItem = historyById.get(originalSearchId);
+      const newHistoryItem = historyById.get(newSearchId);
+      expect(originalHistoryItem).toBeDefined();
+      expect(newHistoryItem).toBeDefined();
+      expect(originalHistoryItem!.snapshotId).toBe(originalSearchResultId);
+      expect(newHistoryItem!.snapshotId).not.toBe(originalSearchResultId);
+      expect(newHistoryItem!.snapshotId).toBe(newSnapshot!.id);
+      expect(originalHistoryItem!.generatedAt.toISOString()).toBe(
+        initial.search.generatedAt.toISOString(),
+      );
+      expect(newHistoryItem!.generatedAt.toISOString()).toBe(
+        newSearchRecord!.generatedAt.toISOString(),
+      );
+      expect(newHistoryItem!.generatedAt.getTime()).toBeGreaterThan(
+        originalHistoryItem!.generatedAt.getTime(),
+      );
+    },
+  );
+});

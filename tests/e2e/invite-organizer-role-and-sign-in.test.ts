@@ -10,14 +10,14 @@ import {
 } from "vitest";
 
 import { createAdminInvitesHandlers } from "../../src/admin/invites";
-import { systemClock } from "../../src/system/clock";
+import { systemDependencies } from "../../src/system";
 import { createMagicLinkVerifyHandlers } from "../../src/auth/magic-link-verify";
-import { getSessionFromRequest, sealSessionCookie } from "../../src/auth/session";
+import {
+  getSessionFromRequest,
+  sealSessionCookie,
+} from "../../src/auth/session";
 import { invites, sessions } from "../../src/db/schema";
-import type {
-  EmailDeliveryService,
-  EmailType,
-} from "../../src/email/service";
+import type { EmailDeliveryService, EmailType } from "../../src/email/service";
 import {
   createMatchingDependencies,
   findEligibleMatches,
@@ -186,10 +186,11 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
 
       const emailService = createRecordingEmailService();
       const { POST: postInvite } = createAdminInvitesHandlers({
-        clock: systemClock(),
+        ...systemDependencies(),
         emailDeliveryService: emailService,
       });
       const { POST: postVerify } = createMagicLinkVerifyHandlers({
+        ...systemDependencies(),
         magicLinkSecret: process.env.MAGIC_LINK_SECRET,
       });
 
@@ -317,7 +318,7 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
       });
 
       const { GET } = createAdminInvitesHandlers({
-        clock: systemClock(),
+        ...systemDependencies(),
         emailDeliveryService: createRecordingEmailService(),
       });
 

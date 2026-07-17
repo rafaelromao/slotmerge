@@ -9,6 +9,8 @@ import { createPostgresEmailEventRepository } from "../email/repository";
 import { enqueueInviteEmailJob } from "../email/invite-jobs";
 import { loadRuntimeConfig } from "../config/runtime";
 import { getDb } from "../db/client";
+import type { Clock } from "../system/clock";
+import { systemClock } from "../system/clock";
 import { invites, users, type UserRole } from "../db/schema";
 
 export type MagicLinkRequestInviteRecord = {
@@ -44,7 +46,7 @@ export type MagicLinkRequestUserRepository = {
 };
 
 export type MagicLinkRequestDependencies = {
-  clock?: () => Date;
+  clock: Clock;
   magicLinkSecret?: string;
   inviteRepository?: MagicLinkRequestInviteRepository;
   userRepository?: MagicLinkRequestUserRepository;
@@ -61,10 +63,10 @@ export type MagicLinkRequestRateLimiter = {
 const magicLinkLifetimeHours = 1;
 
 export function createMagicLinkRequestHandlers(
-  deps: MagicLinkRequestDependencies = {},
+  deps: MagicLinkRequestDependencies,
 ) {
-  const clock = deps.clock ?? (() => new Date());
-  const rateLimiter = deps.rateLimiter ?? createInMemoryRateLimiter();
+  const clock = deps.clock;
+  const rateLimiter = deps.rateLimiter ?? createInMemoryRateLimiter({ clock });
 
   return {
     POST: async (request: Request): Promise<Response> => {
@@ -135,10 +137,10 @@ async function handlePendingInvite({
   invite: MagicLinkRequestInviteRecord;
   issuer: MagicLinkTokenIssuer;
   emailService: EmailDeliveryService | undefined;
-  clock: () => Date;
+  clock: Clock;
 }): Promise<Response> {
   const expiresAt = new Date(
-    clock().getTime() + magicLinkLifetimeHours * 60 * 60 * 1000,
+    clock.now().getTime() + magicLinkLifetimeHours * 60 * 60 * 1000,
   );
 
   const magicLink = issuer.issueMagicLinkToken({
@@ -171,10 +173,10 @@ async function handleExistingUser({
   user: MagicLinkRequestUserRecord;
   issuer: MagicLinkTokenIssuer;
   emailService: EmailDeliveryService | undefined;
-  clock: () => Date;
+  clock: Clock;
 }): Promise<Response> {
   const expiresAt = new Date(
-    clock().getTime() + magicLinkLifetimeHours * 60 * 60 * 1000,
+    clock.now().getTime() + magicLinkLifetimeHours * 60 * 60 * 1000,
   );
 
   const magicLink = issuer.issueMagicLinkToken({
@@ -205,20 +207,22 @@ function jsonResponse(data: unknown, status: number): Response {
   });
 }
 
-function createInMemoryRateLimiter({
-  clock = () => new Date(),
-  limit = 5,
-  windowMs = 60_000,
-}: {
-  clock?: () => Date;
-  limit?: number;
-  windowMs?: number;
-} = {}): MagicLinkRequestRateLimiter {
+function createInMemoryRateLimiter(
+  {
+    clock,
+    limit = 5,
+    windowMs = 60_000,
+  }: {
+    clock: Clock;
+    limit?: number;
+    windowMs?: number;
+  } = { clock: systemClock() },
+): MagicLinkRequestRateLimiter {
   const state = new Map<string, { windowStart: number; count: number }>();
 
   return {
     take(request: Request): boolean {
-      const now = clock().getTime();
+      const now = clock.now().getTime();
       const key = getRequestKey(request);
       const current = state.get(key);
 
@@ -248,7 +252,7 @@ function getRequestKey(request: Request): string {
 function createDefaultEmailDeliveryService({
   clock,
 }: {
-  clock: () => Date;
+  clock: Clock;
 }): EmailDeliveryService {
   return createEmailDeliveryService({
     clock,
@@ -258,7 +262,7 @@ function createDefaultEmailDeliveryService({
 }
 
 function createDatabaseInviteRepository(
-  clock: () => Date,
+  clock: Clock,
 ): MagicLinkRequestInviteRepository {
   return {
     findById: async (id) => {
@@ -290,7 +294,7 @@ function createDatabaseInviteRepository(
           and(
             eq(invites.email, email),
             eq(invites.status, "pending"),
-            gt(invites.expiresAt, clock()),
+            gt(invites.expiresAt, clock.now()),
           ),
         )
         .limit(1);
@@ -300,7 +304,7 @@ function createDatabaseInviteRepository(
     accept: async (id) => {
       await getDb()
         .update(invites)
-        .set({ status: "accepted", updatedAt: clock() })
+        .set({ status: "accepted", updatedAt: clock.now() })
         .where(eq(invites.id, id));
     },
   };

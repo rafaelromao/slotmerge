@@ -13,22 +13,14 @@ import {
   listActiveTopics,
   saveUserTopicSelection,
 } from "../../src/topics/repository";
-import {
-  listWeeklyAvailabilityWindowsByUserId,
-} from "../../src/profile/availability-windows";
-import {
-  listAvailabilityOverridesByUserId,
-} from "../../src/profile/availability-overrides";
+import { listWeeklyAvailabilityWindowsByUserId } from "../../src/profile/availability-windows";
+import { listAvailabilityOverridesByUserId } from "../../src/profile/availability-overrides";
 import { getImportedBusyIntervalRepository } from "../../src/calendar/imported-busy-intervals";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
-import {
-  createPostgresDiscoverableUserRepository,
-} from "../../src/search/drizzle-discoverable-user-repository";
-import {
-  createPostgresSearchResultRepository,
-} from "../../src/search/drizzle-search-result-repository";
+import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
+import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
 import { TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
 
@@ -252,9 +244,7 @@ describe("E2E: Admin retires an active Topic", () => {
       const topicToRetire = TOPIC_FIXTURES[0];
       const userId = USER_FIXTURES[0].id;
 
-      await db.execute(
-        `DELETE FROM user_topics WHERE user_id = '${userId}'`,
-      );
+      await db.execute(`DELETE FROM user_topics WHERE user_id = '${userId}'`);
 
       const adminSessionId = "00000000-0000-0000-0000-0000000000a4";
       const adminCsrfToken = "admin-csrf-token-4";
@@ -371,16 +361,13 @@ describe("E2E: Admin retires an active Topic", () => {
             .select({ topicId: userTopics.topicId })
             .from(userTopics)
             .where(
-              and(
-                eq(userTopics.userId, uid),
-                eq(userTopics.status, "active"),
-              ),
+              and(eq(userTopics.userId, uid), eq(userTopics.status, "active")),
             );
           return result.map((r) => r.topicId);
         },
-        computeEffectiveAvailability:
-          (await import("../../src/matching/effective-availability"))
-            .computeEffectiveAvailability,
+        computeEffectiveAvailability: (
+          await import("../../src/matching/effective-availability")
+        ).computeEffectiveAvailability,
         getUserAvailabilityData: async (uid: string) => {
           const [profile, windows, overrides, busyIntervals] =
             await Promise.all([
@@ -401,7 +388,8 @@ describe("E2E: Admin retires an active Topic", () => {
             busyIntervals,
           };
         },
-        isUserEligibleForSearch: (uid: string) => Promise.resolve(uid === userId),
+        isUserEligibleForSearch: (uid: string) =>
+          Promise.resolve(uid === userId),
       };
 
       await expect(async () => {
@@ -431,8 +419,7 @@ describe("E2E: Admin retires an active Topic", () => {
             matchingDependencies,
             discoverableUserRepository:
               createPostgresDiscoverableUserRepository(),
-            searchResultRepository:
-              createPostgresSearchResultRepository(),
+            searchResultRepository: createPostgresSearchResultRepository(),
           },
           {
             selectedTopicIds: [topicToRetire.id],

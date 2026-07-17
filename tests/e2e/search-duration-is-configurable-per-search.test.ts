@@ -33,10 +33,13 @@ const MINIMUM_MATCHING_USERS = 2;
 function countSlotsAtMinimum(
   slots: ReadonlyArray<{ matchCount: number }>,
 ): number {
-  return slots.filter((slot) => slot.matchCount >= MINIMUM_MATCHING_USERS).length;
+  return slots.filter((slot) => slot.matchCount >= MINIMUM_MATCHING_USERS)
+    .length;
 }
 
-async function submitSearchWithDuration(durationMinutes: number): Promise<string> {
+async function submitSearchWithDuration(
+  durationMinutes: number,
+): Promise<string> {
   const result = await submitSearch(
     {
       organizerId: ORGANIZER.id,
@@ -183,22 +186,16 @@ describe("E2E: Search duration is configurable per Search", () => {
         LONG_DURATION_MINUTES,
       );
 
-      const shortSnapshot = await searchResultRepository.findBySearchId(
-        shortSearchId,
-      );
-      const longSnapshot = await searchResultRepository.findBySearchId(
-        longSearchId,
-      );
+      const shortSnapshot =
+        await searchResultRepository.findBySearchId(shortSearchId);
+      const longSnapshot =
+        await searchResultRepository.findBySearchId(longSearchId);
 
       expect(shortSnapshot).not.toBeNull();
       expect(longSnapshot).not.toBeNull();
 
-      const shortSlots = countSlotsAtMinimum(
-        shortSnapshot!.snapshotJson.slots,
-      );
-      const longSlots = countSlotsAtMinimum(
-        longSnapshot!.snapshotJson.slots,
-      );
+      const shortSlots = countSlotsAtMinimum(shortSnapshot!.snapshotJson.slots);
+      const longSlots = countSlotsAtMinimum(longSnapshot!.snapshotJson.slots);
 
       expect(shortSlots).toBeGreaterThan(longSlots);
       expect(shortSlots).toBe(1);

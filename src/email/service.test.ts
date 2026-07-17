@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import { createEmailDeliveryService } from "./service";
 
+const pinnedClock = (iso: string) => ({ now: () => new Date(iso) });
+
 describe("email delivery service", () => {
   it("creates a queued email event and sends it through one transport seam", async () => {
     const events: Array<{ id: string; status: string; attempts: number }> = [];
@@ -13,7 +15,7 @@ describe("email delivery service", () => {
       .digest("hex");
 
     const service = createEmailDeliveryService({
-      clock: () => new Date("2026-01-01T00:00:00.000Z"),
+      clock: pinnedClock("2026-01-01T00:00:00.000Z"),
       eventRepository: {
         createQueuedEvent: (event) => {
           const record = {
@@ -75,7 +77,7 @@ describe("email delivery service", () => {
     const calls: Array<string> = [];
 
     const service = createEmailDeliveryService({
-      clock: () => new Date("2026-01-01T00:00:00.000Z"),
+      clock: pinnedClock("2026-01-01T00:00:00.000Z"),
       eventRepository: {
         createQueuedEvent: (event) => {
           calls.push(`queued:${event.payloadReference}`);

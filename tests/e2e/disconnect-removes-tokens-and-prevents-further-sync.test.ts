@@ -22,7 +22,10 @@ import {
   buildMockGoogleCalendarAdapter,
   type MockGoogleCalendarAdapter,
 } from "../google-calendar-adapter";
-import { createMatchingDependencies, findEligibleMatches } from "../../src/matching";
+import {
+  createMatchingDependencies,
+  findEligibleMatches,
+} from "../../src/matching";
 import {
   discoverabilityConsents,
   calendarConnections,
@@ -77,7 +80,9 @@ function aliceSession() {
   };
 }
 
-function buildDisconnectFetch(adapter: MockGoogleCalendarAdapter): typeof fetch {
+function buildDisconnectFetch(
+  adapter: MockGoogleCalendarAdapter,
+): typeof fetch {
   return (input, init) => {
     const url =
       typeof input === "string"
@@ -265,7 +270,11 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
       const listResponse = await getConnectionView();
       expect(listResponse.status).toBe(200);
       const listBody = (await listResponse.json()) as {
-        connections: Array<{ id: string; status: string; healthStatus: string }>;
+        connections: Array<{
+          id: string;
+          status: string;
+          healthStatus: string;
+        }>;
       };
       const listed = listBody.connections.find((c) => c.id === CONNECTION_ID);
       expect(listed).toBeDefined();

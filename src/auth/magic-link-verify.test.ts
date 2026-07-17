@@ -117,7 +117,7 @@ describe("magic link verify handler", () => {
   describe("POST", () => {
     it("returns error for missing token", async () => {
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
       });
 
@@ -135,7 +135,7 @@ describe("magic link verify handler", () => {
 
     it("returns error for invalid token", async () => {
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
       });
 
@@ -153,7 +153,7 @@ describe("magic link verify handler", () => {
 
     it("returns error for expired token", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -164,7 +164,7 @@ describe("magic link verify handler", () => {
       });
 
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-20T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-20T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
       });
 
@@ -184,7 +184,7 @@ describe("magic link verify handler", () => {
 
     it("returns error for non-existent invite", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -201,7 +201,7 @@ describe("magic link verify handler", () => {
       const mockSessionRepo = createMockSessionRepository();
 
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -226,7 +226,7 @@ describe("magic link verify handler", () => {
 
     it("returns error for already-accepted invite", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -247,7 +247,7 @@ describe("magic link verify handler", () => {
       });
 
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
       });
@@ -266,7 +266,7 @@ describe("magic link verify handler", () => {
 
     it("returns error for expired invite record", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -287,7 +287,7 @@ describe("magic link verify handler", () => {
       });
 
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
       });
@@ -306,7 +306,7 @@ describe("magic link verify handler", () => {
 
     it("returns error for email mismatch", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -327,7 +327,7 @@ describe("magic link verify handler", () => {
       });
 
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
       });
@@ -346,7 +346,7 @@ describe("magic link verify handler", () => {
 
     it("creates user, session, accepts invite, and redirects on valid token", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -380,7 +380,7 @@ describe("magic link verify handler", () => {
       mockSessionRepo.create.mockResolvedValue({ id: "session-1" });
 
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -415,7 +415,7 @@ describe("magic link verify handler", () => {
 
     it("rejects a token from an older magic-link generation", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -438,7 +438,7 @@ describe("magic link verify handler", () => {
       });
 
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
       });
@@ -458,7 +458,7 @@ describe("magic link verify handler", () => {
 
     it("rolls back session if invite.accept fails", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -492,7 +492,7 @@ describe("magic link verify handler", () => {
       mockSessionRepo.create.mockResolvedValue({ id: "session-1" });
 
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -516,7 +516,7 @@ describe("magic link verify handler", () => {
 
     it("reuses existing user without creating new one", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -549,7 +549,7 @@ describe("magic link verify handler", () => {
       mockSessionRepo.create.mockResolvedValue({ id: "session-1" });
 
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -574,7 +574,7 @@ describe("magic link verify handler", () => {
 
     it("error page for token_expired includes resend form", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -585,7 +585,7 @@ describe("magic link verify handler", () => {
       });
 
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-20T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-20T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
       });
 
@@ -605,7 +605,7 @@ describe("magic link verify handler", () => {
 
     it("error page for invite_already_accepted does NOT include resend form", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -626,7 +626,7 @@ describe("magic link verify handler", () => {
       });
 
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
       });
@@ -646,7 +646,7 @@ describe("magic link verify handler", () => {
 
     it("error page for invite_revoked does NOT include resend form", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -667,7 +667,7 @@ describe("magic link verify handler", () => {
       });
 
       const { POST } = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
       });
@@ -689,7 +689,7 @@ describe("magic link verify handler", () => {
   describe("GET", () => {
     it("renders an auto-submit form", async () => {
       const handlers = createMagicLinkVerifyHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
       });
 

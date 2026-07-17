@@ -1,20 +1,10 @@
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  inject,
-  it,
-} from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { createAdminInvitesHandlers } from "../../src/admin/invites";
-import { systemClock } from "../../src/system/clock";
+import { systemDependencies } from "../../src/system";
 import { sealSessionCookie } from "../../src/auth/session";
 import { sessions } from "../../src/db/schema";
-import type {
-  EmailDeliveryService,
-  EmailType,
-} from "../../src/email/service";
+import type { EmailDeliveryService, EmailType } from "../../src/email/service";
 import { USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
 
@@ -146,7 +136,7 @@ describe("E2E: invites default to User when role is unspecified", () => {
 
       const emailService = createRecordingEmailService();
       const { POST: postInvite } = createAdminInvitesHandlers({
-        clock: systemClock(),
+        ...systemDependencies(),
         emailDeliveryService: emailService,
       });
 

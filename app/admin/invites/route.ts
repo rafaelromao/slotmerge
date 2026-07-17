@@ -1,9 +1,7 @@
 import { createAdminInvitesHandlers } from "../../../src/admin/invites";
-import { systemClock } from "../../../src/system/clock";
+import { systemDependencies } from "../../../src/system";
 
-const handlers = createAdminInvitesHandlers({
-  clock: systemClock(),
-});
+const handlers = createAdminInvitesHandlers(systemDependencies());
 
 export const GET = handlers.GET;
 export const POST = handlers.POST;

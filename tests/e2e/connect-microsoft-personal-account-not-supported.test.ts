@@ -154,7 +154,9 @@ describe("E2E: connect Microsoft personal account surfaces not-supported message
         status: "pending",
       });
 
-      const state = new URL(startBody.authorizationUrl).searchParams.get("state");
+      const state = new URL(startBody.authorizationUrl).searchParams.get(
+        "state",
+      );
       expect(state).toBeTruthy();
       if (!state) {
         throw new Error("Microsoft authorization URL did not contain state");
@@ -217,7 +219,9 @@ describe("E2E: connect Microsoft personal account surfaces not-supported message
         status: "pending",
       });
       expect(matchingConnections[0]).not.toHaveProperty("accessTokenEncrypted");
-      expect(matchingConnections[0]).not.toHaveProperty("refreshTokenEncrypted");
+      expect(matchingConnections[0]).not.toHaveProperty(
+        "refreshTokenEncrypted",
+      );
     },
   );
 });

@@ -6,9 +6,7 @@ import {
   sealSessionCookie,
   setSessionRepositoryForTests,
 } from "../../src/auth/session";
-import {
-  calendarConnections,
-} from "../../src/db/schema";
+import { calendarConnections } from "../../src/db/schema";
 import {
   CALENDAR_CONNECTION_FIXTURES,
   SESSION_FIXTURES,
@@ -61,116 +59,119 @@ function getRequiredTestDb() {
   return db;
 }
 
-describe.runIf(HAS_TEST_DB)("Calendar Connection Health - AC1: My availability shows status and last_sync", () => {
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("GET /me/calendar-connections returns healthStatus, lastSyncAt, and stale fields", async () => {
-    await setupTest();
-    const db = getRequiredTestDb();
-
-    await db
-      .update(calendarConnections)
-      .set({
-        status: "connected",
-        lastSyncAt: new Date("2026-07-12T12:00:00.000Z"),
-      })
-      .where(eq(calendarConnections.id, CONNECTION_ID));
-
-    setSessionRepositoryForTests({
-      findById: (sessionId) =>
-        Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
+describe.runIf(HAS_TEST_DB)(
+  "Calendar Connection Health - AC1: My availability shows status and last_sync",
+  () => {
+    afterEach(() => {
+      vi.resetAllMocks();
     });
 
-    const response = await getConnectionView();
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      connections: Array<{
-        id: string;
-        status: string;
-        healthStatus: string;
-        lastSyncAt: string | null;
-        stale: boolean;
-      }>;
-    };
+    it("GET /me/calendar-connections returns healthStatus, lastSyncAt, and stale fields", async () => {
+      await setupTest();
+      const db = getRequiredTestDb();
 
-    const connection = body.connections.find((c) => c.id === CONNECTION_ID);
-    expect(connection).toBeDefined();
-    expect(connection?.id).toBe(CONNECTION_ID);
-    expect(connection?.status).toBe("connected");
-    expect(connection).toHaveProperty("healthStatus");
-    expect(connection).toHaveProperty("lastSyncAt");
-    expect(connection).toHaveProperty("stale");
-    expect(typeof connection?.healthStatus).toBe("string");
-    expect(typeof connection?.stale).toBe("boolean");
-  });
+      await db
+        .update(calendarConnections)
+        .set({
+          status: "connected",
+          lastSyncAt: new Date("2026-07-12T12:00:00.000Z"),
+        })
+        .where(eq(calendarConnections.id, CONNECTION_ID));
 
-  it("connection with null lastSyncAt shows stale true", async () => {
-    await setupTest();
-    const db = getRequiredTestDb();
+      setSessionRepositoryForTests({
+        findById: (sessionId) =>
+          Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
+      });
 
-    await db
-      .update(calendarConnections)
-      .set({
-        status: "connected",
-        lastSyncAt: null,
-      })
-      .where(eq(calendarConnections.id, CONNECTION_ID));
+      const response = await getConnectionView();
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        connections: Array<{
+          id: string;
+          status: string;
+          healthStatus: string;
+          lastSyncAt: string | null;
+          stale: boolean;
+        }>;
+      };
 
-    setSessionRepositoryForTests({
-      findById: (sessionId) =>
-        Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
+      const connection = body.connections.find((c) => c.id === CONNECTION_ID);
+      expect(connection).toBeDefined();
+      expect(connection?.id).toBe(CONNECTION_ID);
+      expect(connection?.status).toBe("connected");
+      expect(connection).toHaveProperty("healthStatus");
+      expect(connection).toHaveProperty("lastSyncAt");
+      expect(connection).toHaveProperty("stale");
+      expect(typeof connection?.healthStatus).toBe("string");
+      expect(typeof connection?.stale).toBe("boolean");
     });
 
-    const response = await getConnectionView();
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      connections: Array<{
-        id: string;
-        healthStatus: string;
-        stale: boolean;
-      }>;
-    };
+    it("connection with null lastSyncAt shows stale true", async () => {
+      await setupTest();
+      const db = getRequiredTestDb();
 
-    const connection = body.connections.find((c) => c.id === CONNECTION_ID);
-    expect(connection).toBeDefined();
-    expect(connection?.healthStatus).toBe("connected");
-    expect(connection?.stale).toBe(true);
-  });
+      await db
+        .update(calendarConnections)
+        .set({
+          status: "connected",
+          lastSyncAt: null,
+        })
+        .where(eq(calendarConnections.id, CONNECTION_ID));
 
-  it("disconnected connection shows healthStatus disconnected but stale false", async () => {
-    await setupTest();
-    const db = getRequiredTestDb();
+      setSessionRepositoryForTests({
+        findById: (sessionId) =>
+          Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
+      });
 
-    await db
-      .update(calendarConnections)
-      .set({
-        status: "disconnected",
-        lastSyncAt: new Date("2026-07-12T12:00:00.000Z"),
-      })
-      .where(eq(calendarConnections.id, CONNECTION_ID));
+      const response = await getConnectionView();
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        connections: Array<{
+          id: string;
+          healthStatus: string;
+          stale: boolean;
+        }>;
+      };
 
-    setSessionRepositoryForTests({
-      findById: (sessionId) =>
-        Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
+      const connection = body.connections.find((c) => c.id === CONNECTION_ID);
+      expect(connection).toBeDefined();
+      expect(connection?.healthStatus).toBe("connected");
+      expect(connection?.stale).toBe(true);
     });
 
-    const response = await getConnectionView();
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      connections: Array<{
-        id: string;
-        status: string;
-        healthStatus: string;
-        stale: boolean;
-      }>;
-    };
+    it("disconnected connection shows healthStatus disconnected but stale false", async () => {
+      await setupTest();
+      const db = getRequiredTestDb();
 
-    const connection = body.connections.find((c) => c.id === CONNECTION_ID);
-    expect(connection).toBeDefined();
-    expect(connection?.status).toBe("disconnected");
-    expect(connection?.healthStatus).toBe("disconnected");
-    expect(connection?.stale).toBe(false);
-  });
-});
+      await db
+        .update(calendarConnections)
+        .set({
+          status: "disconnected",
+          lastSyncAt: new Date("2026-07-12T12:00:00.000Z"),
+        })
+        .where(eq(calendarConnections.id, CONNECTION_ID));
+
+      setSessionRepositoryForTests({
+        findById: (sessionId) =>
+          Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
+      });
+
+      const response = await getConnectionView();
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        connections: Array<{
+          id: string;
+          status: string;
+          healthStatus: string;
+          stale: boolean;
+        }>;
+      };
+
+      const connection = body.connections.find((c) => c.id === CONNECTION_ID);
+      expect(connection).toBeDefined();
+      expect(connection?.status).toBe("disconnected");
+      expect(connection?.healthStatus).toBe("disconnected");
+      expect(connection?.stale).toBe(false);
+    });
+  },
+);

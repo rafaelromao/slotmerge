@@ -70,7 +70,7 @@ function createMockEmailDeliveryService() {
 describe("magic link resend handler", () => {
   it("sends a fresh magic link to the invited email", async () => {
     const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
       baseUrl: "https://slotmerge.example.com",
       secret: "test-secret",
     });
@@ -108,7 +108,7 @@ describe("magic link resend handler", () => {
     });
 
     const { POST } = createMagicLinkResendHandlers({
-      clock: () => new Date("2026-07-15T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
       magicLinkSecret: "test-secret",
       inviteRepository: mockInviteRepo,
       emailDeliveryService: mockEmailService,
@@ -144,7 +144,7 @@ describe("magic link resend handler", () => {
 
   it("rotates the magic-link generation on repeated requests", async () => {
     const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
       baseUrl: "https://slotmerge.example.com",
       secret: "test-secret",
     });
@@ -187,7 +187,7 @@ describe("magic link resend handler", () => {
     });
 
     const { POST } = createMagicLinkResendHandlers({
-      clock: () => new Date("2026-07-15T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
       magicLinkSecret: "test-secret",
       inviteRepository: mockInviteRepo,
       emailDeliveryService: mockEmailService,
@@ -215,7 +215,7 @@ describe("magic link resend handler", () => {
 
   it("returns a rate-limited response without sending email", async () => {
     const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
       baseUrl: "https://slotmerge.example.com",
       secret: "test-secret",
     });
@@ -240,7 +240,7 @@ describe("magic link resend handler", () => {
     const mockEmailService = createMockEmailDeliveryService();
 
     const { POST } = createMagicLinkResendHandlers({
-      clock: () => new Date("2026-07-15T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
       magicLinkSecret: "test-secret",
       inviteRepository: mockInviteRepo,
       emailDeliveryService: mockEmailService,
@@ -261,7 +261,7 @@ describe("magic link resend handler", () => {
 
   it("rolls back the generation if email delivery fails", async () => {
     const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
       baseUrl: "https://slotmerge.example.com",
       secret: "test-secret",
     });
@@ -309,7 +309,7 @@ describe("magic link resend handler", () => {
     mockEmailService.sendEmail.mockRejectedValue(new Error("queue failed"));
 
     const { POST } = createMagicLinkResendHandlers({
-      clock: () => new Date("2026-07-15T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
       magicLinkSecret: "test-secret",
       inviteRepository: mockInviteRepo,
       emailDeliveryService: mockEmailService,

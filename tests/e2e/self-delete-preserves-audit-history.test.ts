@@ -1,12 +1,5 @@
 import { eq } from "drizzle-orm";
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  inject,
-  it,
-} from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { DELETE } from "../../app/me/route";
 import { createAdminTopicProposalsHandlers } from "../../src/admin/topic-proposals";
@@ -40,10 +33,7 @@ const PROPOSAL_NAME = "Knowledge graphs";
 
 type CountResult = { count: string };
 
-async function countRows(
-  table: string,
-  whereClause: string,
-): Promise<number> {
+async function countRows(table: string, whereClause: string): Promise<number> {
   const db = getTestDb();
   if (!db) {
     throw new Error("test db not initialized");
@@ -279,19 +269,12 @@ describe("E2E: self-delete removes personal data and tokens, preserves audit his
       );
 
       expect(deleteResponse.status).toBe(204);
-      expect(deleteResponse.headers.get("set-cookie")).toContain(
-        "Max-Age=0",
-      );
+      expect(deleteResponse.headers.get("set-cookie")).toContain("Max-Age=0");
 
       expect(await countRows("users", `id = '${USER_ID}'`)).toBe(0);
+      expect(await countRows("sessions", `user_id = '${USER_ID}'`)).toBe(0);
       expect(
-        await countRows("sessions", `user_id = '${USER_ID}'`),
-      ).toBe(0);
-      expect(
-        await countRows(
-          "calendar_connections",
-          `user_id = '${USER_ID}'`,
-        ),
+        await countRows("calendar_connections", `user_id = '${USER_ID}'`),
       ).toBe(0);
       expect(
         await countRows(
@@ -306,32 +289,18 @@ describe("E2E: self-delete removes personal data and tokens, preserves audit his
         ),
       ).toBe(0);
       expect(
-        await countRows(
-          "availability_windows",
-          `user_id = '${USER_ID}'`,
-        ),
+        await countRows("availability_windows", `user_id = '${USER_ID}'`),
       ).toBe(0);
       expect(
-        await countRows(
-          "availability_overrides",
-          `user_id = '${USER_ID}'`,
-        ),
+        await countRows("availability_overrides", `user_id = '${USER_ID}'`),
       ).toBe(0);
       expect(
-        await countRows(
-          "discoverability_consents",
-          `user_id = '${USER_ID}'`,
-        ),
+        await countRows("discoverability_consents", `user_id = '${USER_ID}'`),
       ).toBe(0);
       expect(
-        await countRows(
-          "imported_busy_intervals",
-          `user_id = '${USER_ID}'`,
-        ),
+        await countRows("imported_busy_intervals", `user_id = '${USER_ID}'`),
       ).toBe(0);
-      expect(
-        await countRows("user_topics", `user_id = '${USER_ID}'`),
-      ).toBe(0);
+      expect(await countRows("user_topics", `user_id = '${USER_ID}'`)).toBe(0);
 
       const afterProposal = await selectProposal(PROPOSAL_ID);
       expect(afterProposal).not.toBeNull();

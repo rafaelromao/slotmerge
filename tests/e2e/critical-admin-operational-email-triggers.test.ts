@@ -1,3 +1,4 @@
+import { systemDependencies } from "../../src/system";
 import { createHash } from "node:crypto";
 
 import { afterAll, describe, expect, inject, it } from "vitest";
@@ -106,7 +107,7 @@ function buildTriggerHarness(): TriggerHarness {
   }
 
   const emailDeliveryService = createEmailDeliveryService({
-    clock: () => clock.now(),
+    clock: clock,
     eventRepository: createPostgresEmailEventRepository(db),
     queueJob: async (job) => {
       await adapter.send(job);
@@ -126,7 +127,7 @@ function buildTriggerHarness(): TriggerHarness {
           adminDirectory,
           emailDeliveryService,
           lastDispatchLookup: dispatchLookup,
-          clock: () => clock.now(),
+          clock: clock,
           dedupWindowMs: DEDUP_WINDOW_MS,
         },
       );

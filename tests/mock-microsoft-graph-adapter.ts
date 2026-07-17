@@ -45,10 +45,13 @@ export type MockMicrosoftGraphAdapter = {
   accountKind: "work-school" | "personal";
   getFetchImpl(): typeof fetch;
   getWebhookNotifier(): (req: Request) => Promise<void>;
-  setScheduleResponse(calendarId: string, response: {
-    availabilityView?: string;
-    scheduleItems?: ScheduleItem[];
-  }): void;
+  setScheduleResponse(
+    calendarId: string,
+    response: {
+      availabilityView?: string;
+      scheduleItems?: ScheduleItem[];
+    },
+  ): void;
   setAccountKind(kind: "work-school" | "personal"): void;
   reset(): void;
 };
@@ -64,16 +67,20 @@ export function buildMockMicrosoftGraphAdapter(
   const accessToken = options.accessToken ?? "mock-access-token";
   const refreshToken = options.refreshToken ?? "mock-refresh-token";
   const expiresIn = options.expiresIn ?? 3600;
-  const primaryCalendarId = options.primaryCalendarId ?? "mock-primary-calendar-id";
+  const primaryCalendarId =
+    options.primaryCalendarId ?? "mock-primary-calendar-id";
 
   const oauthCallbacks: MicrosoftOAuthCallback[] = [];
   const getScheduleCalls: GetScheduleCall[] = [];
   const primaryCalendarCalls: PrimaryCalendarCall[] = [];
   const webhookDeliveries: WebhookDelivery[] = [];
-  const scheduleResponses = new Map<string, {
-    availabilityView?: string;
-    scheduleItems?: ScheduleItem[];
-  }>();
+  const scheduleResponses = new Map<
+    string,
+    {
+      availabilityView?: string;
+      scheduleItems?: ScheduleItem[];
+    }
+  >();
   let accountKind: "work-school" | "personal" = "work-school";
 
   function getFetchImpl(): typeof fetch {
@@ -140,7 +147,7 @@ export function buildMockMicrosoftGraphAdapter(
 
       if (
         url ===
-          `${MICROSOFT_GRAPH_ENDPOINT}/me/calendars?$filter=isPrimaryCalendar eq true&$top=1`
+        `${MICROSOFT_GRAPH_ENDPOINT}/me/calendars?$filter=isPrimaryCalendar eq true&$top=1`
       ) {
         primaryCalendarCalls.push({ accessToken: "mock" });
         return Promise.resolve(
@@ -180,23 +187,21 @@ export function buildMockMicrosoftGraphAdapter(
           schedules: body.schedules ?? [],
         });
 
-        const scheduleItems = body.schedules?.map((scheduleId) => {
-          const configured = scheduleResponses.get(scheduleId);
-          return {
-            scheduleId,
-            availabilityView: configured?.availabilityView ?? "0",
-            calendarEvents: configured?.scheduleItems ?? [],
-          };
-        }) ?? [];
+        const scheduleItems =
+          body.schedules?.map((scheduleId) => {
+            const configured = scheduleResponses.get(scheduleId);
+            return {
+              scheduleId,
+              availabilityView: configured?.availabilityView ?? "0",
+              calendarEvents: configured?.scheduleItems ?? [],
+            };
+          }) ?? [];
 
         return Promise.resolve(
-          new Response(
-            JSON.stringify({ value: scheduleItems }),
-            {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            },
-          ),
+          new Response(JSON.stringify({ value: scheduleItems }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
         );
       }
 
@@ -220,7 +225,8 @@ export function buildMockMicrosoftGraphAdapter(
       webhookDeliveries.push({
         subscriptionId: req.headers.get("x-ms-subscription-id") ?? "",
         channelId: req.headers.get("x-ms-channel-id") ?? "",
-        clientState: (body as { clientState?: string } | null)?.clientState ?? "",
+        clientState:
+          (body as { clientState?: string } | null)?.clientState ?? "",
         body,
       });
     };

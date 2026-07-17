@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { processEmailDeliveryJob } from "./worker";
 
+const pinnedClock = (iso: string) => ({ now: () => new Date(iso) });
+
 describe("email delivery worker - admin-critical trigger", () => {
   it("triggers an admin-critical email when transport delivery fails", async () => {
     const trigger = vi.fn().mockResolvedValue({ deliveries: [] });
@@ -15,7 +17,7 @@ describe("email delivery worker - admin-critical trigger", () => {
           payload: { inviteId: "invite-3" },
         },
         {
-          clock: () => new Date("2026-01-01T02:00:00.000Z"),
+          clock: pinnedClock("2026-01-01T02:00:00.000Z"),
           eventRepository: failedAttemptRepository(),
           transport: {
             send: () => Promise.reject(new Error("provider unavailable")),
@@ -55,7 +57,7 @@ describe("email delivery worker - admin-critical trigger more", () => {
         payload: { inviteId: "invite-4" },
       },
       {
-        clock: () => new Date("2026-01-01T03:00:00.000Z"),
+        clock: pinnedClock("2026-01-01T03:00:00.000Z"),
         eventRepository: deliveredRepository(),
         transport: {
           send: () =>
@@ -162,7 +164,7 @@ describe("email delivery worker - admin-critical trigger extra", () => {
           payload: { inviteId: "invite-5" },
         },
         {
-          clock: () => new Date("2026-01-01T04:00:00.000Z"),
+          clock: pinnedClock("2026-01-01T04:00:00.000Z"),
           eventRepository: failedAttemptRepository(),
           transport: {
             send: () => Promise.reject(new Error("provider unavailable")),
@@ -183,7 +185,7 @@ describe("email delivery worker - admin-critical trigger extra", () => {
           payload: { inviteId: "invite-6" },
         },
         {
-          clock: () => new Date("2026-01-01T05:00:00.000Z"),
+          clock: pinnedClock("2026-01-01T05:00:00.000Z"),
           eventRepository: failedAttemptRepository(),
           transport: {
             send: () => Promise.reject(new Error("provider unavailable")),

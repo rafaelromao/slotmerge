@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { createAdminInvitesHandlers } from "../../src/admin/invites";
-import { systemClock } from "../../src/system/clock";
+import { systemDependencies } from "../../src/system";
 import { createMagicLinkVerifyHandlers } from "../../src/auth/magic-link-verify";
 import {
   getSessionFromRequest,
@@ -190,10 +190,11 @@ describe("E2E: invite role selection is explicit for User", () => {
 
       const emailService = createRecordingEmailService();
       const { POST: postInvite } = createAdminInvitesHandlers({
-        clock: systemClock(),
+        ...systemDependencies(),
         emailDeliveryService: emailService,
       });
       const { POST: postVerify } = createMagicLinkVerifyHandlers({
+        ...systemDependencies(),
         magicLinkSecret: process.env.MAGIC_LINK_SECRET,
       });
 

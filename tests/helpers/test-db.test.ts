@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  createEphemeralDatabase,
-  closeEphemeralDatabase,
-} from "./test-db";
+import { createEphemeralDatabase, closeEphemeralDatabase } from "./test-db";
 
 const HAS_DATABASE = !!process.env.DATABASE_URL;
 

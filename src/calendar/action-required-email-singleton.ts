@@ -6,6 +6,8 @@ import {
   createEmailDeliveryService,
   type EmailDeliveryService,
 } from "../email/service";
+import type { Clock } from "../system/clock";
+import { systemClock } from "../system/clock";
 import { getConnectionActionRequiredDispatchLookup } from "./action-required-email.repository";
 import {
   triggerCalendarActionRequiredEmail,
@@ -28,17 +30,19 @@ export function getEmailDeliveryService(): EmailDeliveryService {
     return emailDeliveryServiceOverride;
   }
   if (!defaultEmailDeliveryService) {
-    defaultEmailDeliveryService = createDefaultEmailDeliveryService();
+    defaultEmailDeliveryService =
+      createDefaultEmailDeliveryService(systemClock());
   }
   return defaultEmailDeliveryService;
 }
 
 let defaultEmailDeliveryService: EmailDeliveryService | null = null;
 
-function createDefaultEmailDeliveryService(): EmailDeliveryService {
+function createDefaultEmailDeliveryService(clock: Clock): EmailDeliveryService {
   const config = loadRuntimeConfig();
   const eventRepository = createPostgresEmailEventRepository();
   return createEmailDeliveryService({
+    clock,
     eventRepository,
     queueJob: (queued) =>
       enqueueCalendarActionRequiredJob(queued, config.databaseUrl),

@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, inject, it } from "vitest";
 
-import { type ProfileInputs, setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
+import {
+  type ProfileInputs,
+  setSearchEligibilityProfileInputsForTests,
+} from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
 import { createMatchingDependencies } from "../../src/matching";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
@@ -92,7 +95,9 @@ async function insertDiscoverableUser(input: {
   );
 }
 
-async function grantDiscoverabilityConsentForUser(userId: string): Promise<void> {
+async function grantDiscoverabilityConsentForUser(
+  userId: string,
+): Promise<void> {
   const db = getTestDb();
   if (!db) {
     throw new Error("test db not initialized");
@@ -103,7 +108,9 @@ async function grantDiscoverabilityConsentForUser(userId: string): Promise<void>
   );
 }
 
-async function runSearchWithMinimum(minimumMatchingUsers: number): Promise<string> {
+async function runSearchWithMinimum(
+  minimumMatchingUsers: number,
+): Promise<string> {
   const result = await submitSearch(
     {
       organizerId: ORGANIZER.id,
@@ -237,8 +244,18 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
       const { snapshot } = await loadStoredSnapshot(searchId);
 
       const expectedMatches = [
-        expectedMatch(OTHER_USER_A_ID, OTHER_USER_A_DISPLAY_NAME, TOPIC.id, TOPIC.name),
-        expectedMatch(OTHER_USER_B_ID, OTHER_USER_B_DISPLAY_NAME, TOPIC.id, TOPIC.name),
+        expectedMatch(
+          OTHER_USER_A_ID,
+          OTHER_USER_A_DISPLAY_NAME,
+          TOPIC.id,
+          TOPIC.name,
+        ),
+        expectedMatch(
+          OTHER_USER_B_ID,
+          OTHER_USER_B_DISPLAY_NAME,
+          TOPIC.id,
+          TOPIC.name,
+        ),
       ].sort((a, b) => a.userId.localeCompare(b.userId));
 
       const actualMatches = [...snapshot.slots[0].matches].sort((a, b) =>

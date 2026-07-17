@@ -1,8 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import type { Clock } from "../system/clock";
+
 export type MagicLinkTokenIssuerOptions = {
   baseUrl: string;
-  clock?: () => Date;
+  clock: Clock;
   secret: string;
 };
 
@@ -41,12 +43,12 @@ export type MagicLinkTokenIssuer = ReturnType<
 
 export function createMagicLinkTokenIssuer({
   baseUrl,
-  clock = () => new Date(),
+  clock,
   secret,
 }: MagicLinkTokenIssuerOptions) {
   return {
     issueMagicLinkToken(input: MagicLinkTokenInput): MagicLinkToken {
-      const issuedAt = clock();
+      const issuedAt = clock.now();
       const payload: Record<string, unknown> = {
         email: input.email,
         expiresAt: input.expiresAt.toISOString(),
@@ -92,12 +94,12 @@ function base64UrlEncode(value: string): string {
 export function verifyMagicLinkToken(
   token: string,
   secret: string,
-  clock: () => Date = () => new Date(),
+  clock: { now(): Date },
 ): MagicLinkTokenPayload {
   const payload = decodeMagicLinkTokenPayload(token, secret);
 
   const expiresAt = new Date(payload.expiresAt);
-  if (isNaN(expiresAt.getTime()) || expiresAt <= clock()) {
+  if (isNaN(expiresAt.getTime()) || expiresAt <= clock.now()) {
     throw new MagicLinkTokenError("token_expired");
   }
 

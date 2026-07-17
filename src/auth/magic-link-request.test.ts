@@ -97,7 +97,7 @@ describe("magic link request handler", () => {
       mockUserRepo.findByEmail.mockResolvedValue(null);
 
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -126,7 +126,7 @@ describe("magic link request handler", () => {
       mockUserRepo.findByEmail.mockResolvedValue(null);
 
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -160,7 +160,7 @@ describe("magic link request handler", () => {
       });
 
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -201,7 +201,7 @@ describe("magic link request handler", () => {
       });
 
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -231,7 +231,7 @@ describe("magic link request handler", () => {
       mockUserRepo.findByEmail.mockResolvedValue(null);
 
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -256,7 +256,7 @@ describe("magic link request handler", () => {
 
     it("returns invalid_email for missing email", async () => {
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
       });
 
@@ -277,7 +277,7 @@ describe("magic link request handler", () => {
 
     it("returns invalid_email for empty email", async () => {
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
       });
 
@@ -298,7 +298,7 @@ describe("magic link request handler", () => {
 
     it("issues magic link and sends email for pending invite", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -336,7 +336,7 @@ describe("magic link request handler", () => {
       });
 
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -371,7 +371,7 @@ describe("magic link request handler", () => {
 
     it("issues magic link and sends email for existing active user", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -407,7 +407,7 @@ describe("magic link request handler", () => {
       });
 
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -442,7 +442,7 @@ describe("magic link request handler", () => {
 
     it("sends magic link to existing user even when pending invite also exists for same email", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -485,7 +485,7 @@ describe("magic link request handler", () => {
       });
 
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -519,7 +519,7 @@ describe("magic link request handler", () => {
 
     it("normalizes email to lowercase before lookup", async () => {
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: "test-secret",
       });
@@ -556,7 +556,7 @@ describe("magic link request handler", () => {
       });
 
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,
@@ -585,7 +585,7 @@ describe("magic link request handler", () => {
       mockUserRepo.findByEmail.mockResolvedValue(null);
 
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date("2026-07-15T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
         magicLinkSecret: "test-secret",
         inviteRepository: mockInviteRepo,
         userRepository: mockUserRepo,

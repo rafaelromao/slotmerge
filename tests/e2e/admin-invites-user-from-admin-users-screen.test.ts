@@ -1,10 +1,8 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { createAdminInvitesHandlers } from "../../src/admin/invites";
-import { systemClock } from "../../src/system/clock";
-import {
-  sealSessionCookie,
-} from "../../src/auth/session";
+import { systemDependencies } from "../../src/system";
+import { sealSessionCookie } from "../../src/auth/session";
 import { sessions } from "../../src/db/schema";
 import type { EmailDeliveryService, EmailType } from "../../src/email/service";
 import { USER_FIXTURES } from "../fixtures/seeds";
@@ -145,10 +143,11 @@ describe("E2E: Admin invites a User with role selection from the Admin Users scr
       });
 
       const emailService = createRecordingEmailService();
-      const { GET: getInvitePage, POST: postInvite } = createAdminInvitesHandlers({
-        clock: systemClock(),
-        emailDeliveryService: emailService,
-      });
+      const { GET: getInvitePage, POST: postInvite } =
+        createAdminInvitesHandlers({
+          ...systemDependencies(),
+          emailDeliveryService: emailService,
+        });
 
       const inviteeEmail = "ui-test-user@example.com";
 

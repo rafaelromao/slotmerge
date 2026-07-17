@@ -47,6 +47,7 @@ export async function handleEmailDeliveryJob(
       env: process.env,
     });
   const emailDeliveryService = createEmailDeliveryService({
+    clock: deps.clock,
     eventRepository,
     queueJob: (queued) => enqueueEmailDeliveryJob(queued, config.databaseUrl),
   });
@@ -54,10 +55,11 @@ export async function handleEmailDeliveryJob(
     adminDirectory: createPostgresAdminDirectory(),
     emailDeliveryService,
     lastDispatchLookup: createPostgresAdminCriticalDispatchLookup(),
+    clock: deps.clock,
   });
 
   await processEmailDeliveryJob(job, {
-    clock: () => deps.clock.now(),
+    clock: deps.clock,
     eventRepository,
     transport,
     criticalEmail,

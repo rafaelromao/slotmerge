@@ -10,6 +10,7 @@ import { invites } from "../db/schema";
 import { createEmailDeliveryService } from "../email/service";
 import { createPostgresEmailEventRepository } from "../email/repository";
 import { enqueueInviteEmailJob } from "../email/invite-jobs";
+import type { Clock } from "../system/clock";
 import type { MagicLinkTokenPayload } from "./magic-link";
 
 export type MagicLinkResendInviteRecord = {
@@ -35,7 +36,7 @@ export type MagicLinkResendRateLimiter = {
 };
 
 export type MagicLinkResendDependencies = {
-  clock?: () => Date;
+  clock: Clock;
   magicLinkSecret?: string;
   inviteRepository?: MagicLinkResendInviteRepository;
   emailDeliveryService?: ReturnType<typeof createEmailDeliveryService>;
@@ -44,14 +45,14 @@ export type MagicLinkResendDependencies = {
 };
 
 export function createMagicLinkResendHandlers(
-  deps: MagicLinkResendDependencies = {},
+  deps: MagicLinkResendDependencies,
 ) {
-  const clock = deps.clock ?? (() => new Date());
+  const clock = deps.clock;
   const inviteRepository = deps.inviteRepository ?? defaultInviteRepository;
   const emailDeliveryService =
     deps.emailDeliveryService ?? loadDefaultEmailDeliveryService({ clock });
   const magicLinkTokenIssuer =
-    deps.magicLinkTokenIssuer ?? createDefaultMagicLinkTokenIssuer();
+    deps.magicLinkTokenIssuer ?? createDefaultMagicLinkTokenIssuer(clock);
   const rateLimiter = deps.rateLimiter ?? createDefaultRateLimiter({ clock });
 
   return {
@@ -77,7 +78,7 @@ export function createMagicLinkResendHandlers(
       }
 
       const tokenExpiresAt = new Date(payload.expiresAt);
-      if (isNaN(tokenExpiresAt.getTime()) || tokenExpiresAt > clock()) {
+      if (isNaN(tokenExpiresAt.getTime()) || tokenExpiresAt > clock.now()) {
         return errorResponse("token_not_expired", 400);
       }
 
@@ -98,7 +99,7 @@ export function createMagicLinkResendHandlers(
         return errorResponse("invite_revoked", 400);
       }
 
-      if (invite.expiresAt <= clock()) {
+      if (invite.expiresAt <= clock.now()) {
         return errorResponse("invite_expired", 400);
       }
 
@@ -179,20 +180,21 @@ function getMagicLinkSecret(): string {
   return "local-magic-link-secret-do-not-use-in-production";
 }
 
-function createDefaultMagicLinkTokenIssuer(): ReturnType<
-  typeof createMagicLinkTokenIssuer
-> {
+function createDefaultMagicLinkTokenIssuer(
+  clock: Clock,
+): ReturnType<typeof createMagicLinkTokenIssuer> {
   const config = loadRuntimeConfig();
   return createMagicLinkTokenIssuer({
     baseUrl: config.appBaseUrl,
     secret: config.magicLinkSecret,
+    clock,
   });
 }
 
 function loadDefaultEmailDeliveryService({
   clock,
 }: {
-  clock: () => Date;
+  clock: Clock;
 }): ReturnType<typeof createEmailDeliveryService> {
   return createEmailDeliveryService({
     clock,
@@ -206,7 +208,7 @@ function createDefaultRateLimiter({
   limit = 5,
   windowMs = 15 * 60 * 1000,
 }: {
-  clock: () => Date;
+  clock: Clock;
   limit?: number;
   windowMs?: number;
 }): MagicLinkResendRateLimiter {
@@ -214,7 +216,7 @@ function createDefaultRateLimiter({
 
   return {
     allow(key: string): boolean {
-      const now = clock().getTime();
+      const now = clock.now().getTime();
       const bucket = buckets.get(key);
 
       if (!bucket || now >= bucket.resetAt) {

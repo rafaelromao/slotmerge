@@ -19,10 +19,7 @@ import {
   buildMockGoogleCalendarAdapter,
   type MockGoogleCalendarAdapter,
 } from "../google-calendar-adapter";
-import {
-  SESSION_FIXTURES,
-  USER_FIXTURES,
-} from "../fixtures/seeds";
+import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;

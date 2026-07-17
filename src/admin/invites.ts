@@ -6,6 +6,7 @@ import { createMagicLinkTokenIssuer } from "../auth/magic-link";
 import { loadRuntimeConfig } from "../config/runtime";
 import { getDb } from "../db/client";
 import type { Clock } from "../system/clock";
+import type { RandomSource } from "../system/random";
 import {
   invites,
   type InviteRole,
@@ -36,7 +37,7 @@ export type InviteRepository = {
     email: string;
     role: InviteRole;
     invitedByAdminId: string;
-    now?: Date;
+    now: Date;
   }): Promise<CreateInviteResult>;
 };
 
@@ -49,6 +50,7 @@ export type AdminInvitesDependencies = {
   magicLinkTokenIssuer?: ReturnType<typeof createMagicLinkTokenIssuer>;
   emailDeliveryService?: ReturnType<typeof createEmailDeliveryService>;
   clock: Clock;
+  randomSource: RandomSource;
 };
 
 const inviteSubmissionSchema = z.object({
@@ -64,6 +66,7 @@ export function createAdminInvitesHandlers({
   magicLinkTokenIssuer,
   emailDeliveryService,
   clock,
+  randomSource: _randomSource,
 }: AdminInvitesDependencies) {
   return {
     GET: async (request: Request): Promise<Response> => {
@@ -134,7 +137,7 @@ export function createAdminInvitesHandlers({
       }
 
       const magicLink = (
-        magicLinkTokenIssuer ?? createDefaultMagicLinkTokenIssuer()
+        magicLinkTokenIssuer ?? createDefaultMagicLinkTokenIssuer(clock)
       ).issueMagicLinkToken({
         inviteId: result.invite.id,
         email: result.invite.email,
@@ -286,13 +289,14 @@ function getDefaultInviteExpiration(now: Date): Date {
   return new Date(now.getTime() + inviteLifetimeDays * 24 * 60 * 60 * 1000);
 }
 
-function createDefaultMagicLinkTokenIssuer(): ReturnType<
-  typeof createMagicLinkTokenIssuer
-> {
+function createDefaultMagicLinkTokenIssuer(
+  clock: Clock,
+): ReturnType<typeof createMagicLinkTokenIssuer> {
   const config = loadRuntimeConfig();
   return createMagicLinkTokenIssuer({
     baseUrl: config.appBaseUrl,
     secret: config.magicLinkSecret,
+    clock,
   });
 }
 
@@ -302,7 +306,7 @@ function loadDefaultEmailDeliveryService({
   clock: Clock;
 }): ReturnType<typeof createEmailDeliveryService> {
   return createEmailDeliveryService({
-    clock: () => clock.now(),
+    clock,
     eventRepository: createPostgresEmailEventRepository(),
     queueJob: (job) => enqueueInviteEmailJob(job),
   });
@@ -345,7 +349,7 @@ const databaseInviteRepository: InviteRepository = {
           role,
           status: "pending",
           invitedByAdminId,
-          expiresAt: getDefaultInviteExpiration(now ?? new Date()),
+          expiresAt: getDefaultInviteExpiration(now),
           magicLinkGeneration: 0,
         })
         .returning({

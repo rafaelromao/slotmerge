@@ -50,9 +50,11 @@ vi.mock("../src/db/client", () => ({
       from: vi.fn().mockReturnValue({
         innerJoin: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([
-              { email: "user@example.com", displayName: "Test User" },
-            ]),
+            limit: vi
+              .fn()
+              .mockResolvedValue([
+                { email: "user@example.com", displayName: "Test User" },
+              ]),
           }),
         }),
       }),
@@ -68,9 +70,7 @@ vi.mock("../src/config/runtime", () => ({
   }),
 }));
 
-import {
-  handleSyncCalendarConnectionJob,
-} from "../src/worker/sync";
+import { handleSyncCalendarConnectionJob } from "../src/worker/sync";
 import { buildTestClock, type TestClock } from "./test-clock";
 import { syncCalendarConnection } from "../src/calendar/sync";
 import type { RandomSource } from "../src/system/random";

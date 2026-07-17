@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import type { Clock } from "../system/clock";
+
 export type OperationalEventKind = string;
 
 export type OperationalEvent = {
@@ -49,7 +51,7 @@ export type TriggerAdminCriticalEmailDeps = {
   adminDirectory: AdminDirectory;
   emailDeliveryService: AdminCriticalEmailDeliveryService;
   lastDispatchLookup: AdminCriticalDispatchLookup;
-  clock?: () => Date;
+  clock: Clock;
   dedupWindowMs?: number;
 };
 
@@ -82,9 +84,9 @@ export async function triggerAdminCriticalEmail(
   input: TriggerAdminCriticalEmailInput,
   deps: TriggerAdminCriticalEmailDeps,
 ): Promise<TriggerAdminCriticalEmailResult> {
-  const clock = deps.clock ?? (() => new Date());
+  const clock = deps.clock;
   const dedupWindowMs = deps.dedupWindowMs ?? defaultDedupWindowMs;
-  const now = clock();
+  const now = clock.now();
 
   const admins = await deps.adminDirectory.listActiveAdmins();
 

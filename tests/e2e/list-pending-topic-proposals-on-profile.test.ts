@@ -18,10 +18,7 @@ import { GET as getMyTopics } from "../../app/me/topics/route";
 import { POST as postPropose } from "../../app/me/topics/propose/route";
 import { sealSessionCookie } from "../../src/auth/session";
 import { topicProposals, type TopicProposalStatus } from "../../src/db/schema";
-import {
-  SESSION_FIXTURES,
-  USER_FIXTURES,
-} from "../fixtures/seeds";
+import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, setupTest } from "../helpers/setup";
 
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;

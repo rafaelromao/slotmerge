@@ -1,13 +1,9 @@
 import { afterEach, describe, expect, inject, it } from "vitest";
 
 import { createAdminUsersHandlers } from "../../src/admin/users";
-import {
-  createMagicLinkRequestHandlers,
-} from "../../src/auth/magic-link-request";
+import { createMagicLinkRequestHandlers } from "../../src/auth/magic-link-request";
 import { sealSessionCookie } from "../../src/auth/session";
-import {
-  sessions,
-} from "../../src/db/schema";
+import { sessions } from "../../src/db/schema";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
 import {
@@ -16,12 +12,8 @@ import {
 } from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
 import { createMatchingDependencies } from "../../src/matching";
-import {
-  createPostgresDiscoverableUserRepository,
-} from "../../src/search/drizzle-discoverable-user-repository";
-import {
-  createPostgresSearchResultRepository,
-} from "../../src/search/drizzle-search-result-repository";
+import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
+import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
 import { grantDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
 import { getProfileByUserId } from "../../src/profile/repository";
 
@@ -114,10 +106,16 @@ function extractCsrfToken(html: string): string {
   return match[1];
 }
 
-function extractUserIdFromActionForm(html: string, email: string): string | null {
+function extractUserIdFromActionForm(
+  html: string,
+  email: string,
+): string | null {
   const emailPattern = email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const rowMatch = html.match(
-    new RegExp(`<tr>[\\s\\S]*?${emailPattern}[\\s\\S]*?<input type="hidden" name="userId" value="([^"]+)"[\\s\\S]*?</tr>`, "m"),
+    new RegExp(
+      `<tr>[\\s\\S]*?${emailPattern}[\\s\\S]*?<input type="hidden" name="userId" value="([^"]+)"[\\s\\S]*?</tr>`,
+      "m",
+    ),
   );
   return rowMatch ? rowMatch[1] : null;
 }
@@ -138,7 +136,10 @@ type SearchSnapshotShape = {
   }>;
 };
 
-async function runSearch(organizerId: string, poolSize: number): Promise<string> {
+async function runSearch(
+  organizerId: string,
+  poolSize: number,
+): Promise<string> {
   const result = await submitSearch(
     {
       organizerId,
@@ -327,7 +328,10 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       expect(getResponse.status).toBe(200);
       const htmlBefore = await getResponse.text();
 
-      const targetUserId = extractUserIdFromActionForm(htmlBefore, TARGET_USER.email);
+      const targetUserId = extractUserIdFromActionForm(
+        htmlBefore,
+        TARGET_USER.email,
+      );
       expect(targetUserId).not.toBeNull();
 
       const csrfToken = extractCsrfToken(htmlBefore);
@@ -388,7 +392,7 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       );
 
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date(FIXTURE_DATE),
+        clock: { now: () => new Date(FIXTURE_DATE) },
         magicLinkSecret: "test-magic-link-secret-80",
       });
 
@@ -496,7 +500,10 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       expect(getResponse.status).toBe(200);
       const htmlBefore = await getResponse.text();
 
-      const targetUserIdFromForm = extractUserIdFromActionForm(htmlBefore, targetEmail);
+      const targetUserIdFromForm = extractUserIdFromActionForm(
+        htmlBefore,
+        targetEmail,
+      );
       expect(targetUserIdFromForm).not.toBeNull();
 
       const csrfToken = extractCsrfToken(htmlBefore);
@@ -579,7 +586,9 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       );
       await grantDiscoverabilityConsent(reinstatedUserId);
 
-      const adminCookie = await sealSessionCookie({ sessionId: adminSessionId });
+      const adminCookie = await sealSessionCookie({
+        sessionId: adminSessionId,
+      });
       const { GET, POST } = createAdminUsersHandlers();
 
       const getResponse = await GET(
@@ -590,7 +599,10 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       expect(getResponse.status).toBe(200);
       const htmlBefore = await getResponse.text();
 
-      const targetUserIdFromForm = extractUserIdFromActionForm(htmlBefore, reinstatedEmail);
+      const targetUserIdFromForm = extractUserIdFromActionForm(
+        htmlBefore,
+        reinstatedEmail,
+      );
       expect(targetUserIdFromForm).not.toBeNull();
 
       const csrfToken = extractCsrfToken(htmlBefore);
@@ -617,7 +629,7 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       });
 
       const { POST: requestPost } = createMagicLinkRequestHandlers({
-        clock: () => new Date(FIXTURE_DATE),
+        clock: { now: () => new Date(FIXTURE_DATE) },
         magicLinkSecret: "test-magic-link-secret-80",
       });
 

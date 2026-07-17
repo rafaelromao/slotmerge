@@ -1,5 +1,13 @@
 import { eq } from "drizzle-orm";
-import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  inject,
+  it,
+} from "vitest";
 
 import { POST as postPropose } from "../../app/me/topics/propose/route";
 import { GET as getMyTopics } from "../../app/me/topics/route";
@@ -69,9 +77,12 @@ describe("E2E: propose a new Topic is similarity-blocked", () => {
       expect(location).toContain("Product%20strategy");
 
       const pageResponse = await getMyTopics(
-        new Request(`http://localhost/me/topics${location!.split("?")[1] ? `?${location!.split("?")[1]}` : ""}`, {
-          headers: { cookie },
-        }),
+        new Request(
+          `http://localhost/me/topics${location!.split("?")[1] ? `?${location!.split("?")[1]}` : ""}`,
+          {
+            headers: { cookie },
+          },
+        ),
       );
       expect(pageResponse.status).toBe(200);
       const pageHtml = await pageResponse.text();

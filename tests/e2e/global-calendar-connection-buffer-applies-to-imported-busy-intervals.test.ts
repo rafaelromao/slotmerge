@@ -1,13 +1,19 @@
-import { afterEach, beforeEach, describe, expect, inject, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  inject,
+  it,
+  vi,
+} from "vitest";
 
 import {
   clearInMemoryImportedBusyIntervalStore,
   setImportedBusyIntervalRepositoryForTests,
 } from "../../src/calendar/imported-busy-intervals";
 import { createPostgresImportedBusyIntervalRepository } from "../../src/calendar/imported-busy-intervals.repository";
-import {
-  setGoogleCalendarConnectionRepositoryForTests,
-} from "../../src/calendar/repository";
+import { setGoogleCalendarConnectionRepositoryForTests } from "../../src/calendar/repository";
 import { calendarConnections } from "../../src/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { createMatchingDependencies } from "../../src/matching";
@@ -17,10 +23,7 @@ import { setSearchEligibilityProfileInputsForTests } from "../../src/search/elig
 import { submitSearch } from "../../src/search/search-input";
 import { getSearchResultRepository } from "../../src/search/search-result-repository";
 import { listActiveTopics } from "../../src/topics/repository";
-import {
-  TOPIC_FIXTURES,
-  USER_FIXTURES,
-} from "../fixtures/seeds";
+import { TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
@@ -220,7 +223,9 @@ async function seedImportedBusyInterval(): Promise<void> {
   );
 }
 
-async function updateCandidateBufferMinutes(bufferMinutes: number): Promise<void> {
+async function updateCandidateBufferMinutes(
+  bufferMinutes: number,
+): Promise<void> {
   const db = getRequiredTestDb();
   await db.execute(
     `UPDATE users SET buffer_minutes = ${bufferMinutes} WHERE id = '${CANDIDATE_USER_ID}'`,
@@ -266,15 +271,25 @@ function wireTestRepositories(): void {
       const sets: ReturnType<typeof sql>[] = [];
       if ("status" in patch) sets.push(sql`status = ${patch.status as string}`);
       if ("contributingCalendarIds" in patch)
-        sets.push(sql`contributing_calendar_ids = ${JSON.stringify(patch.contributingCalendarIds)}`);
+        sets.push(
+          sql`contributing_calendar_ids = ${JSON.stringify(patch.contributingCalendarIds)}`,
+        );
       if (sets.length > 0) {
-        await db.execute(sql`UPDATE calendar_connections SET ${sql.join(sets)} WHERE id = ${id}`);
+        await db.execute(
+          sql`UPDATE calendar_connections SET ${sql.join(sets)} WHERE id = ${id}`,
+        );
       }
     },
   };
 
-  setGoogleCalendarConnectionRepositoryForTests(googleRepository as unknown as ReturnType<typeof import("../../src/calendar/repository").getGoogleCalendarConnectionRepository>);
-  setImportedBusyIntervalRepositoryForTests(createPostgresImportedBusyIntervalRepository());
+  setGoogleCalendarConnectionRepositoryForTests(
+    googleRepository as unknown as ReturnType<
+      typeof import("../../src/calendar/repository").getGoogleCalendarConnectionRepository
+    >,
+  );
+  setImportedBusyIntervalRepositoryForTests(
+    createPostgresImportedBusyIntervalRepository(),
+  );
 }
 
 describe("E2E: global Calendar Connection buffer applies to imported busy intervals", () => {
@@ -282,7 +297,8 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
     vi.useFakeTimers();
     vi.setSystemTime(getTestClock()());
     process.env.SESSION_SECRET = "0123456789abcdef0123456789abcdef";
-    process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef";
+    process.env.CALENDAR_TOKEN_ENCRYPTION_KEY =
+      "0123456789abcdef0123456789abcdef";
 
     await setupTest();
     await seedAlwaysAvailableUser();
@@ -317,15 +333,31 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
 
     const db = getTestDb();
     if (db) {
-      await db.execute(`DELETE FROM imported_busy_intervals WHERE connection_id = '${CANDIDATE_CONNECTION_ID}'`);
-      await db.execute(`DELETE FROM calendar_connections WHERE id = '${CANDIDATE_CONNECTION_ID}'`);
-      await db.execute(`DELETE FROM sessions WHERE user_id = '${CANDIDATE_USER_ID}'`);
-      await db.execute(`DELETE FROM user_topics WHERE id = '${CANDIDATE_USER_TOPIC_ID}'`);
-      await db.execute(`DELETE FROM availability_windows WHERE user_id = '${CANDIDATE_USER_ID}'`);
+      await db.execute(
+        `DELETE FROM imported_busy_intervals WHERE connection_id = '${CANDIDATE_CONNECTION_ID}'`,
+      );
+      await db.execute(
+        `DELETE FROM calendar_connections WHERE id = '${CANDIDATE_CONNECTION_ID}'`,
+      );
+      await db.execute(
+        `DELETE FROM sessions WHERE user_id = '${CANDIDATE_USER_ID}'`,
+      );
+      await db.execute(
+        `DELETE FROM user_topics WHERE id = '${CANDIDATE_USER_TOPIC_ID}'`,
+      );
+      await db.execute(
+        `DELETE FROM availability_windows WHERE user_id = '${CANDIDATE_USER_ID}'`,
+      );
       await db.execute(`DELETE FROM users WHERE id = '${CANDIDATE_USER_ID}'`);
-      await db.execute(`DELETE FROM user_topics WHERE id = '${ALWAYS_AVAILABLE_USER_TOPIC_ID}'`);
-      await db.execute(`DELETE FROM availability_windows WHERE user_id = '${ALWAYS_AVAILABLE_USER_ID}'`);
-      await db.execute(`DELETE FROM users WHERE id = '${ALWAYS_AVAILABLE_USER_ID}'`);
+      await db.execute(
+        `DELETE FROM user_topics WHERE id = '${ALWAYS_AVAILABLE_USER_TOPIC_ID}'`,
+      );
+      await db.execute(
+        `DELETE FROM availability_windows WHERE user_id = '${ALWAYS_AVAILABLE_USER_ID}'`,
+      );
+      await db.execute(
+        `DELETE FROM users WHERE id = '${ALWAYS_AVAILABLE_USER_ID}'`,
+      );
     }
   });
 
@@ -335,7 +367,9 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
       const intervals = await queryImportedBusyIntervals();
 
       expect(intervals).toHaveLength(1);
-      expect(new Date(intervals[0].start_at).getTime()).toBe(BUSY_START.getTime());
+      expect(new Date(intervals[0].start_at).getTime()).toBe(
+        BUSY_START.getTime(),
+      );
       expect(new Date(intervals[0].end_at).getTime()).toBe(BUSY_END.getTime());
       expect(intervals[0].status).toBe("busy");
     },
@@ -351,7 +385,9 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
         minimumMatchingUsers: 2,
         durationMinutes: LONG_DURATION_MINUTES,
         dateRangeStart: SLOT_START_09_00,
-        dateRangeEnd: new Date(SLOT_START_09_00.getTime() + LONG_DURATION_MINUTES * 60_000),
+        dateRangeEnd: new Date(
+          SLOT_START_09_00.getTime() + LONG_DURATION_MINUTES * 60_000,
+        ),
         organizerTimezone: PROFILE_TIMEZONE,
       };
 
@@ -382,7 +418,9 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
         throw new Error("expected Search submission to succeed");
       }
 
-      const snapshot09 = await searchResultRepository.findBySearchId(result09.search.id);
+      const snapshot09 = await searchResultRepository.findBySearchId(
+        result09.search.id,
+      );
       expect(snapshot09).not.toBeNull();
       expect(snapshot09!.snapshotJson.slots).toHaveLength(0);
     },
@@ -394,13 +432,16 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
       const searchResultRepository = getSearchResultRepository();
 
       const searchId10 = await runSearch(SLOT_START_10_00);
-      const snapshot10 = await searchResultRepository.findBySearchId(searchId10);
+      const snapshot10 =
+        await searchResultRepository.findBySearchId(searchId10);
       expect(snapshot10).not.toBeNull();
       expect(snapshot10!.snapshotJson).toEqual({
         generatedAt: "2026-07-12T12:00:00.002Z",
         organizerTimezone: PROFILE_TIMEZONE,
         dateRangeStart: SLOT_START_10_00.toISOString(),
-        dateRangeEnd: new Date(SLOT_START_10_00.getTime() + DURATION_MINUTES * 60_000).toISOString(),
+        dateRangeEnd: new Date(
+          SLOT_START_10_00.getTime() + DURATION_MINUTES * 60_000,
+        ).toISOString(),
         durationMinutes: DURATION_MINUTES,
         slots: [
           {
@@ -419,12 +460,15 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
       const searchResultRepository = getSearchResultRepository();
 
       const searchId11Before = await runSearch(SLOT_START_11_00);
-      const snapshot11Before = await searchResultRepository.findBySearchId(searchId11Before);
+      const snapshot11Before =
+        await searchResultRepository.findBySearchId(searchId11Before);
       expect(snapshot11Before!.snapshotJson).toEqual({
         generatedAt: "2026-07-12T12:00:00.003Z",
         organizerTimezone: PROFILE_TIMEZONE,
         dateRangeStart: SLOT_START_11_00.toISOString(),
-        dateRangeEnd: new Date(SLOT_START_11_00.getTime() + DURATION_MINUTES * 60_000).toISOString(),
+        dateRangeEnd: new Date(
+          SLOT_START_11_00.getTime() + DURATION_MINUTES * 60_000,
+        ).toISOString(),
         durationMinutes: DURATION_MINUTES,
         slots: [
           {
@@ -438,7 +482,8 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
       await updateCandidateBufferMinutes(0);
 
       const searchId11After = await runSearch(SLOT_START_11_00);
-      const snapshot11After = await searchResultRepository.findBySearchId(searchId11After);
+      const snapshot11After =
+        await searchResultRepository.findBySearchId(searchId11After);
       expect(snapshot11After!.snapshotJson.slots[0]).toEqual({
         startUtc: SLOT_START_11_00.toISOString(),
         matchCount: 2,

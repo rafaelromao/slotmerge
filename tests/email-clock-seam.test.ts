@@ -59,9 +59,8 @@ describe("handleEmailDeliveryJob boundary clock seam", () => {
       markFailed: vi.fn(),
     };
 
-    const { createPostgresEmailEventRepository } = await import(
-      "../src/email/repository"
-    );
+    const { createPostgresEmailEventRepository } =
+      await import("../src/email/repository");
     vi.mocked(createPostgresEmailEventRepository).mockReturnValue(
       mockEventRepository,
     );

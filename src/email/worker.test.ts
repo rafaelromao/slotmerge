@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { processEmailDeliveryJob } from "./worker";
 
+const pinnedClock = (iso: string) => ({ now: () => new Date(iso) });
+
 describe("email delivery worker", () => {
   it("records an attempt and marks the email delivered on success", async () => {
     const calls: Array<string> = [];
@@ -14,7 +16,7 @@ describe("email delivery worker", () => {
         payload: { inviteId: "invite-1" },
       },
       {
-        clock: () => new Date("2026-01-01T00:00:00.000Z"),
+        clock: pinnedClock("2026-01-01T00:00:00.000Z"),
         eventRepository: {
           recordAttempt: (emailEventId) => {
             calls.push(`attempt:${emailEventId}`);
@@ -85,7 +87,7 @@ describe("email delivery worker", () => {
           payload: { token: "magic-link-token" },
         },
         {
-          clock: () => new Date("2026-01-01T01:00:00.000Z"),
+          clock: pinnedClock("2026-01-01T01:00:00.000Z"),
           eventRepository: {
             recordAttempt: (emailEventId) => {
               calls.push(`attempt:${emailEventId}`);

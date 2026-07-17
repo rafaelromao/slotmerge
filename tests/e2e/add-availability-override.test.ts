@@ -7,10 +7,7 @@ import {
   listAvailabilityOverridesByUserId,
 } from "../../src/profile/availability-overrides";
 import { computeEffectiveAvailability } from "../../src/matching/effective-availability";
-import {
-  SESSION_FIXTURES,
-  USER_FIXTURES,
-} from "../fixtures/seeds";
+import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, setupTest } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
@@ -99,7 +96,9 @@ describe("E2E: persist one-off add Availability override and surface it from the
       const response = await postOverride();
       expect(response.status).toBe(201);
 
-      const overrides = await listAvailabilityOverridesByUserId(FIXTURE_USER.id);
+      const overrides = await listAvailabilityOverridesByUserId(
+        FIXTURE_USER.id,
+      );
       const windows: import("../../src/profile/availability-windows").WeeklyAvailabilityWindow[] =
         [];
 
@@ -114,12 +113,8 @@ describe("E2E: persist one-off add Availability override and surface it from the
       );
 
       const paddingMs = 60 * 60 * 1000;
-      const rangeStart = new Date(
-        expectedRange.startUtc.getTime() - paddingMs,
-      );
-      const rangeEnd = new Date(
-        expectedRange.endUtc.getTime() + paddingMs,
-      );
+      const rangeStart = new Date(expectedRange.startUtc.getTime() - paddingMs);
+      const rangeEnd = new Date(expectedRange.endUtc.getTime() + paddingMs);
 
       const effective = computeEffectiveAvailability({
         userId: FIXTURE_USER.id,

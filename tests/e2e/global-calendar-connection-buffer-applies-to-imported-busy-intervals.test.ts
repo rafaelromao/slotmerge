@@ -39,7 +39,9 @@ const ALWAYS_AVAILABLE_USER_TOPIC_ID = "00000000-0000-0000-0000-000000000091";
 
 const PROFILE_TIMEZONE = "UTC";
 const DURATION_MINUTES = 30;
+const LONG_DURATION_MINUTES = 60;
 
+const SLOT_START_09_00 = new Date("2026-07-13T09:00:00.000Z");
 const SLOT_START_10_00 = new Date("2026-07-13T10:00:00.000Z");
 const SLOT_START_11_00 = new Date("2026-07-13T11:00:00.000Z");
 
@@ -340,15 +342,74 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
   );
 
   it.runIf(HAS_TEST_DB)(
-    "search with 15-min buffer excludes buffered range 09:45-11:15 from matches",
+    "search with 15-min buffer excludes leading buffer 09:45-10:00",
+    async () => {
+      const searchResultRepository = getSearchResultRepository();
+
+      const searchParams60 = {
+        selectedTopicIds: [SELECTED_TOPIC.id],
+        minimumMatchingUsers: 2,
+        durationMinutes: LONG_DURATION_MINUTES,
+        dateRangeStart: SLOT_START_09_00,
+        dateRangeEnd: new Date(SLOT_START_09_00.getTime() + LONG_DURATION_MINUTES * 60_000),
+        organizerTimezone: PROFILE_TIMEZONE,
+      };
+
+      const result09 = await submitSearch(
+        {
+          organizerId: ORGANIZER.id,
+          activeTopicsRepository: {
+            async listActive() {
+              return (await listActiveTopics()).map(({ id, name }) => ({
+                id,
+                name,
+                status: "active" as const,
+              }));
+            },
+          },
+          profileRepository: { findByUserId: getProfileByUserId },
+          clock: { now: getTestClock() },
+          matchingPoolSize: 10,
+          matchingDependencies: createMatchingDependencies(),
+          discoverableUserRepository: getDiscoverableUserRepository(),
+          searchResultRepository: getSearchResultRepository(),
+        },
+        searchParams60,
+      );
+
+      expect(result09.ok).toBe(true);
+      if (!result09.ok || !result09.search.id) {
+        throw new Error("expected Search submission to succeed");
+      }
+
+      const snapshot09 = await searchResultRepository.findBySearchId(result09.search.id);
+      expect(snapshot09).not.toBeNull();
+      expect(snapshot09!.snapshotJson.slots).toHaveLength(0);
+    },
+  );
+
+  it.runIf(HAS_TEST_DB)(
+    "search with 15-min buffer excludes trailing buffer 10:00-11:15 from matches",
     async () => {
       const searchResultRepository = getSearchResultRepository();
 
       const searchId10 = await runSearch(SLOT_START_10_00);
       const snapshot10 = await searchResultRepository.findBySearchId(searchId10);
       expect(snapshot10).not.toBeNull();
-      const json10 = snapshot10!.snapshotJson;
-      expect(json10.slots).toHaveLength(0);
+      expect(snapshot10!.snapshotJson).toEqual({
+        generatedAt: "2026-07-12T12:00:00.002Z",
+        organizerTimezone: PROFILE_TIMEZONE,
+        dateRangeStart: SLOT_START_10_00.toISOString(),
+        dateRangeEnd: new Date(SLOT_START_10_00.getTime() + DURATION_MINUTES * 60_000).toISOString(),
+        durationMinutes: DURATION_MINUTES,
+        slots: [
+          {
+            startUtc: SLOT_START_10_00.toISOString(),
+            matchCount: 0,
+            matches: [],
+          },
+        ],
+      });
     },
   );
 
@@ -359,14 +420,33 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
 
       const searchId11Before = await runSearch(SLOT_START_11_00);
       const snapshot11Before = await searchResultRepository.findBySearchId(searchId11Before);
-      expect(snapshot11Before!.snapshotJson.slots).toHaveLength(0);
+      expect(snapshot11Before!.snapshotJson).toEqual({
+        generatedAt: "2026-07-12T12:00:00.003Z",
+        organizerTimezone: PROFILE_TIMEZONE,
+        dateRangeStart: SLOT_START_11_00.toISOString(),
+        dateRangeEnd: new Date(SLOT_START_11_00.getTime() + DURATION_MINUTES * 60_000).toISOString(),
+        durationMinutes: DURATION_MINUTES,
+        slots: [
+          {
+            startUtc: SLOT_START_11_00.toISOString(),
+            matchCount: 0,
+            matches: [],
+          },
+        ],
+      });
 
       await updateCandidateBufferMinutes(0);
 
       const searchId11After = await runSearch(SLOT_START_11_00);
       const snapshot11After = await searchResultRepository.findBySearchId(searchId11After);
-      expect(snapshot11After!.snapshotJson.slots[0].matchCount).toBe(2);
-      expect(snapshot11After!.snapshotJson.slots[0].matches.some((m: { userId: string }) => m.userId === CANDIDATE_USER_ID)).toBe(true);
+      expect(snapshot11After!.snapshotJson.slots[0]).toEqual({
+        startUtc: SLOT_START_11_00.toISOString(),
+        matchCount: 2,
+        matches: [
+          expect.objectContaining({ userId: CANDIDATE_USER_ID }),
+          expect.objectContaining({ userId: ALWAYS_AVAILABLE_USER_ID }),
+        ],
+      });
     },
   );
 });

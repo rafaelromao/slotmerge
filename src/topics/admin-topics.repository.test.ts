@@ -7,7 +7,7 @@ import {
 } from "../topics/repository";
 
 describe("topic catalogue admin repository", () => {
-  it("listActiveAdminTopics returns every topic ordered by name", async () => {
+  it("listActiveAdminTopics returns only active topics ordered by createdAt desc", async () => {
     const orderBy = vi.fn().mockResolvedValue([
       {
         id: "topic-1",
@@ -16,15 +16,9 @@ describe("topic catalogue admin repository", () => {
         retiredAt: null,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
       },
-      {
-        id: "topic-2",
-        name: "Product strategy",
-        status: "retired",
-        retiredAt: new Date("2026-02-01T00:00:00.000Z"),
-        createdAt: new Date("2025-12-01T00:00:00.000Z"),
-      },
     ]);
-    const from = vi.fn().mockReturnValue({ orderBy });
+    const where = vi.fn().mockReturnValue({ orderBy });
+    const from = vi.fn().mockReturnValue({ where });
     const select = vi.fn().mockReturnValue({ from });
     const db = { select };
 
@@ -36,9 +30,9 @@ describe("topic catalogue admin repository", () => {
 
     const items = await repo.listActiveAdminTopics();
 
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(1);
+    expect(items[0].status).toBe("active");
     expect(items[0].name).toBe("AI engineering");
-    expect(items[1].status).toBe("retired");
   });
 
   it("retire forwards the explicit now timestamp to retiredAt and updatedAt", async () => {

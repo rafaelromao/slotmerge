@@ -124,7 +124,11 @@ describe("E2E: Admin retires an active Topic", () => {
       const topicToRetire = TOPIC_FIXTURES[0];
       const userId = USER_FIXTURES[0].id;
 
-      await saveUserTopicSelection(userId, [topicToRetire.id]);
+      await saveUserTopicSelection({
+        userId,
+        topicIds: [topicToRetire.id],
+        now: new Date(),
+      });
 
       const [beforeRetire] = await db
         .select()
@@ -291,7 +295,11 @@ describe("E2E: Admin retires an active Topic", () => {
       expect(activeTopics.some((t) => t.id === topicToRetire.id)).toBe(false);
       expect(activeTopics.some((t) => t.id === TOPIC_B.id)).toBe(true);
 
-      await saveUserTopicSelection(userId, [topicToRetire.id, TOPIC_B.id]);
+      await saveUserTopicSelection({
+        userId,
+        topicIds: [topicToRetire.id, TOPIC_B.id],
+        now: new Date(),
+      });
 
       const allUserTopics = await db
         .select()

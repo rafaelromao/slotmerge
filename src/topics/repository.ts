@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import {
@@ -34,10 +34,11 @@ export type TopicCatalogueRepository = {
   listCatalogue(): Promise<TopicCatalogueEntry[]>;
   listSelectedTopicIds(userId: string): Promise<string[]>;
   listAssociations(userId: string): Promise<TopicAssociation[]>;
-  saveAssociations(
-    userId: string,
-    associations: TopicAssociation[],
-  ): Promise<void>;
+  saveAssociations(input: {
+    userId: string;
+    associations: TopicAssociation[];
+    now: Date;
+  }): Promise<void>;
   listActiveAdminTopics(): Promise<AdminTopicListItem[]>;
   retire(input: { id: string; now: Date }): Promise<RetireResult>;
 };
@@ -73,25 +74,24 @@ export async function getTopicPageState(userId: string | null) {
   return { catalogue, selectedTopicIds };
 }
 
-export async function replaceUserTopics({
-  userId,
-  topicIds,
-}: {
+export async function replaceUserTopics(input: {
   userId: string;
   topicIds: string[];
+  now: Date;
 }): Promise<void> {
   const repository = getTopicCatalogueRepository();
   const catalogue = await repository.listCatalogue();
-  const existingAssociations = await repository.listAssociations(userId);
+  const existingAssociations = await repository.listAssociations(input.userId);
 
-  await repository.saveAssociations(
-    userId,
-    deriveUserTopicAssociations({
+  await repository.saveAssociations({
+    userId: input.userId,
+    associations: deriveUserTopicAssociations({
       catalogue,
       existingAssociations,
-      selectedTopicIds: topicIds,
+      selectedTopicIds: input.topicIds,
     }),
-  );
+    now: input.now,
+  });
 }
 
 export function deriveUserTopicAssociations({
@@ -145,17 +145,19 @@ export function deriveUserTopicAssociations({
   return nextAssociations;
 }
 
-export async function saveUserTopicSelection(
-  userId: string,
-  topicIds: string[],
-): Promise<void> {
+export async function saveUserTopicSelection(input: {
+  userId: string;
+  topicIds: string[];
+  now: Date;
+}): Promise<void> {
   const activeTopicIds = new Set(
     (await listActiveTopics()).map((topic) => topic.id),
   );
 
   await replaceUserTopics({
-    userId,
-    topicIds: topicIds.filter((topicId) => activeTopicIds.has(topicId)),
+    userId: input.userId,
+    topicIds: input.topicIds.filter((topicId) => activeTopicIds.has(topicId)),
+    now: input.now,
   });
 }
 
@@ -180,7 +182,7 @@ export function createPostgresTopicCatalogueRepository(
         .from(userTopics)
         .where(eq(userTopics.userId, userId))
         .orderBy(userTopics.createdAt),
-    saveAssociations: async (userId, associations) => {
+    saveAssociations: async ({ userId, associations, now }) => {
       if (associations.length === 0) {
         return;
       }
@@ -192,13 +194,14 @@ export function createPostgresTopicCatalogueRepository(
             userId,
             topicId: association.topicId,
             status: association.status,
+            updatedAt: now,
           })),
         )
         .onConflictDoUpdate({
           target: [userTopics.userId, userTopics.topicId],
           set: {
             status: sql`excluded.status`,
-            updatedAt: sql`now()`,
+            updatedAt: now,
           },
         });
     },
@@ -212,7 +215,8 @@ export function createPostgresTopicCatalogueRepository(
           createdAt: topics.createdAt,
         })
         .from(topics)
-        .orderBy(asc(topics.name)),
+        .where(eq(topics.status, "active"))
+        .orderBy(desc(topics.createdAt)),
     retire: async ({ id, now }) => {
       const [topic] = await db
         .select({ status: topics.status })

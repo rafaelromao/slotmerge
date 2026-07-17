@@ -125,7 +125,7 @@ describe("/me/topics route", () => {
         ]),
       listSelectedTopicIds: () => Promise.resolve([]),
       listAssociations: () => Promise.resolve([]),
-      saveAssociations: (_userId, associations) => {
+      saveAssociations: ({ associations }) => {
         savedAssociations = associations;
         savedTopicIds = associations
           .filter((association) => association.status === "active")

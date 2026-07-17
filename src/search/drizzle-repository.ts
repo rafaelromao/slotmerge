@@ -47,7 +47,7 @@ export function createPostgresSearchRepository(): SearchRepository {
         .orderBy(desc(searches.generatedAt));
       return rows.map(toRecord);
     },
-    async listSearchHistory() {
+    async listSearchHistory(options?: { clock?: { now: () => Date } }) {
       const rows = await getDb()
         .select({
           id: searches.id,
@@ -65,7 +65,7 @@ export function createPostgresSearchRepository(): SearchRepository {
         .leftJoin(searchResults, eq(searches.id, searchResults.searchId))
         .orderBy(desc(searches.generatedAt));
 
-      const now = new Date();
+      const now = (options?.clock ? options.clock.now : () => new Date())();
 
       return rows
         .filter(

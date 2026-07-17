@@ -29,7 +29,9 @@ export type SearchRepository = {
   save(record: SearchRecord): Promise<SearchRecord>;
   findById(id: string): Promise<SearchRecord | null>;
   listByOrganizer(organizerId: string): Promise<SearchRecord[]>;
-  listSearchHistory(): Promise<SearchHistoryItem[]>;
+  listSearchHistory(options?: {
+    clock?: { now: () => Date };
+  }): Promise<SearchHistoryItem[]>;
   listAll(): Promise<SearchRecord[]>;
 };
 

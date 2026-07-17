@@ -28,6 +28,7 @@ import {
 } from "../../src/calendar/repository";
 import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
+import { systemRandomSource } from "../../src/system/random";
 import {
   buildMockGoogleCalendarAdapter,
   type MockGoogleCalendarAdapter,
@@ -272,7 +273,13 @@ describe("E2E: manual refresh updates imported intervals", () => {
       vi.mocked(enqueueSyncCalendarConnectionJob).mockImplementation(
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         async (connectionId: string, _databaseUrl: string) => {
-          await handleSyncCalendarConnectionJob({ connectionId });
+          await handleSyncCalendarConnectionJob(
+            { connectionId },
+            {
+              clock: { now: getTestClock() },
+              randomSource: systemRandomSource(),
+            },
+          );
         },
       );
 

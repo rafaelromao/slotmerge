@@ -140,7 +140,7 @@ export async function handleSyncCalendarConnectionJob(
           },
           { connectionLookup },
         ),
-      clock: clock.now,
+      clock: () => clock.now(),
     });
 
     await updateLastSyncAt(connection.id, connection.provider, clock.now());

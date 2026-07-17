@@ -57,7 +57,7 @@ export async function handleEmailDeliveryJob(
   });
 
   await processEmailDeliveryJob(job, {
-    clock: deps.clock.now,
+    clock: () => deps.clock.now(),
     eventRepository,
     transport,
     criticalEmail,

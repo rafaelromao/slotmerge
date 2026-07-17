@@ -11,8 +11,7 @@ vi.mock("./sync", () => ({
 import { listActiveConnections } from "../calendar/repository";
 import { enqueueSyncCalendarConnectionJob } from "./sync";
 import { handlePollCalendarConnectionsJob, MAX_JITTER_MS } from "./poll";
-import { buildTestClock } from "../../tests/test-clock";
-import type { Clock } from "../system/clock";
+import { buildTestClock, type TestClock } from "../../tests/test-clock";
 import type { RandomSource } from "../system/random";
 
 const FIXED_NOW = new Date("2026-07-12T12:00:00Z");
@@ -55,7 +54,7 @@ describe("handlePollCalendarConnectionsJob", () => {
   });
 
   it("enqueues sync jobs with jitter for each active connection", async () => {
-    const clock: Clock = buildTestClock(FIXED_NOW);
+    const clock: TestClock = buildTestClock(FIXED_NOW);
     const randomSource = constantRandomSource(0.5);
 
     const expectedDelay = Math.floor(MAX_JITTER_MS * 0.5);
@@ -89,7 +88,7 @@ describe("handlePollCalendarConnectionsJob", () => {
       mockConnections[0],
     ] as never);
 
-    const clock: Clock = buildTestClock(FIXED_NOW);
+    const clock: TestClock = buildTestClock(FIXED_NOW);
     const randomSource = constantRandomSource(0.5);
 
     await handlePollCalendarConnectionsJob(undefined, { clock, randomSource });
@@ -113,7 +112,7 @@ describe("handlePollCalendarConnectionsJob", () => {
   });
 
   it("runAt tracks the injected clock when time is advanced", async () => {
-    const clock: Clock = buildTestClock(FIXED_NOW);
+    const clock: TestClock = buildTestClock(FIXED_NOW);
     const randomSource = constantRandomSource(0);
 
     const advanced = new Date("2027-01-01T00:00:00Z");
@@ -131,7 +130,7 @@ describe("handlePollCalendarConnectionsJob", () => {
 
   it("jitter uses injected randomSource rather than Math.random", async () => {
     const spy = vi.spyOn(Math, "random");
-    const clock: Clock = buildTestClock(FIXED_NOW);
+    const clock: TestClock = buildTestClock(FIXED_NOW);
 
     const values = [0.1, 0.9];
     let index = 0;
@@ -143,9 +142,11 @@ describe("handlePollCalendarConnectionsJob", () => {
 
     expect(spy).not.toHaveBeenCalled();
 
-    const delays = vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls.map(
-      (call) => (call[2] as Date).getTime() - FIXED_NOW.getTime(),
-    );
+    const delays = vi
+      .mocked(enqueueSyncCalendarConnectionJob)
+      .mock.calls.map(
+        (call) => (call[2] as Date).getTime() - FIXED_NOW.getTime(),
+      );
     expect(delays[0]).toBe(Math.floor(MAX_JITTER_MS * 0.1));
     expect(delays[1]).toBe(Math.floor(MAX_JITTER_MS * 0.9));
   });

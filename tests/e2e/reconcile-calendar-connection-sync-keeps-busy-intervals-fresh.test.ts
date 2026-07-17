@@ -33,7 +33,6 @@ import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
 import {
   handleSyncCalendarConnectionJob,
   enqueueSyncCalendarConnectionJob,
-  setClockForTests,
 } from "../../src/worker/sync";
 import {
   buildMockGoogleCalendarAdapter,
@@ -41,6 +40,7 @@ import {
 } from "../google-calendar-adapter";
 import { buildTestClock } from "../test-clock";
 import { encryptCalendarToken } from "../../src/calendar/token-encryption";
+import { systemRandomSource } from "../../src/system/random";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -178,7 +178,6 @@ describe("E2E: reconcile Calendar Connection sync keeps busy intervals fresh", (
 
   afterEach(async () => {
     vi.useRealTimers();
-    setClockForTests(null);
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
     delete process.env.GOOGLE_OAUTH_CLIENT_ID;
@@ -237,9 +236,14 @@ describe("E2E: reconcile Calendar Connection sync keeps busy intervals fresh", (
       ]);
 
       const clock = buildTestClock(testClock);
-      setClockForTests(() => clock.now());
 
-      await handleSyncCalendarConnectionJob({ connectionId: GOOGLE_CONNECTION_ID });
+      await handleSyncCalendarConnectionJob(
+        { connectionId: GOOGLE_CONNECTION_ID },
+        {
+          clock,
+          randomSource: systemRandomSource(),
+        },
+      );
 
       const intervals = await fetchBusyIntervalsForConnection(GOOGLE_CONNECTION_ID);
       expect(intervals).toHaveLength(1);
@@ -278,9 +282,14 @@ describe("E2E: reconcile Calendar Connection sync keeps busy intervals fresh", (
       expect(lastSyncBefore).toBeNull();
 
       const clock = buildTestClock(testClock);
-      setClockForTests(() => clock.now());
 
-      await handleSyncCalendarConnectionJob({ connectionId: GOOGLE_CONNECTION_ID });
+      await handleSyncCalendarConnectionJob(
+        { connectionId: GOOGLE_CONNECTION_ID },
+        {
+          clock,
+          randomSource: systemRandomSource(),
+        },
+      );
 
       const lastSyncAfter = await getLastSyncAt(GOOGLE_CONNECTION_ID);
       expect(lastSyncAfter).not.toBeNull();
@@ -307,9 +316,14 @@ describe("E2E: reconcile Calendar Connection sync keeps busy intervals fresh", (
       );
 
       const clock = buildTestClock(new Date());
-      setClockForTests(() => clock.now());
 
-      await handleSyncCalendarConnectionJob({ connectionId: GOOGLE_CONNECTION_ID });
+      await handleSyncCalendarConnectionJob(
+        { connectionId: GOOGLE_CONNECTION_ID },
+        {
+          clock,
+          randomSource: systemRandomSource(),
+        },
+      );
 
       expect(enqueueSyncCalendarConnectionJob).toHaveBeenCalledTimes(1);
       const [enqueuedConnectionId, , runAt] = vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls[0] as [
@@ -345,9 +359,14 @@ describe("E2E: reconcile Calendar Connection sync keeps busy intervals fresh", (
 
       const testClock = getTestClock()();
       const clock = buildTestClock(testClock);
-      setClockForTests(() => clock.now());
 
-      await handleSyncCalendarConnectionJob({ connectionId: GOOGLE_CONNECTION_ID });
+      await handleSyncCalendarConnectionJob(
+        { connectionId: GOOGLE_CONNECTION_ID },
+        {
+          clock,
+          randomSource: systemRandomSource(),
+        },
+      );
 
       expect(enqueueSyncCalendarConnectionJob).toHaveBeenCalledTimes(1);
       const [enqueuedConnectionId, , runAt] = vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls[0] as [
@@ -375,9 +394,14 @@ describe("E2E: reconcile Calendar Connection sync keeps busy intervals fresh", (
       ]);
 
       clock.advance(RATE_LIMIT_BASE_MS + 1000);
-      setClockForTests(() => clock.now());
 
-      await handleSyncCalendarConnectionJob({ connectionId: GOOGLE_CONNECTION_ID });
+      await handleSyncCalendarConnectionJob(
+        { connectionId: GOOGLE_CONNECTION_ID },
+        {
+          clock,
+          randomSource: systemRandomSource(),
+        },
+      );
 
       expect(enqueueSyncCalendarConnectionJob).not.toHaveBeenCalled();
 

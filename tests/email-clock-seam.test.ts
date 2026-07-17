@@ -2,8 +2,7 @@ import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 
 import { handleEmailDeliveryJob } from "../src/worker/email";
 import type { EmailEventRepository } from "../src/email/service";
-import { buildTestClock } from "./test-clock";
-import type { Clock } from "../src/system/clock";
+import { buildTestClock, type TestClock } from "./test-clock";
 
 vi.mock("../src/email/repository", () => ({
   createPostgresEmailEventRepository: vi.fn(),
@@ -19,7 +18,7 @@ vi.mock("../src/admin/critical-email.repository", () => ({
 }));
 
 describe("handleEmailDeliveryJob boundary clock seam", () => {
-  let clock: Clock;
+  let clock: TestClock;
   let mockEventRepository: EmailEventRepository;
 
   beforeEach(async () => {

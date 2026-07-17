@@ -71,9 +71,8 @@ vi.mock("../src/config/runtime", () => ({
 import {
   handleSyncCalendarConnectionJob,
 } from "../src/worker/sync";
-import { buildTestClock } from "./test-clock";
+import { buildTestClock, type TestClock } from "./test-clock";
 import { syncCalendarConnection } from "../src/calendar/sync";
-import type { Clock } from "../src/system/clock";
 import type { RandomSource } from "../src/system/random";
 import { RateLimitError } from "../src/calendar/sync";
 
@@ -82,7 +81,7 @@ function constantRandomSource(value: number): RandomSource {
 }
 
 describe("handleSyncCalendarConnectionJob boundary deps seam", () => {
-  let clock: Clock;
+  let clock: TestClock;
 
   beforeEach(() => {
     clock = buildTestClock(new Date("2026-01-01T00:00:00.000Z"));
@@ -103,6 +102,7 @@ describe("handleSyncCalendarConnectionJob boundary deps seam", () => {
 
     expect(syncCalendarConnection).toHaveBeenCalledWith(
       expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         clock: expect.any(Function),
       }),
     );

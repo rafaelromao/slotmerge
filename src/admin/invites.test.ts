@@ -1,10 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createAdminInvitesHandlers } from "./invites";
+import { buildTestClock } from "../../tests/test-clock";
+import type { Clock } from "../system/clock";
+
+const testClock: Clock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 describe("admin invites", () => {
   it("renders an invite form that defaults the role to User", async () => {
     const { GET } = createAdminInvitesHandlers({
+      clock: testClock,
+
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -69,6 +75,8 @@ describe("admin invites", () => {
     });
 
     const { POST } = createAdminInvitesHandlers({
+      clock: testClock,
+
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -94,7 +102,6 @@ describe("admin invites", () => {
         }),
       },
       emailDeliveryService: { sendEmail },
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
     });
 
     const response = await POST(
@@ -129,6 +136,8 @@ describe("admin invites", () => {
     });
 
     const { POST } = createAdminInvitesHandlers({
+      clock: testClock,
+
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -179,6 +188,8 @@ describe("admin invites", () => {
 
   it("lists pending and accepted invites", async () => {
     const { GET } = createAdminInvitesHandlers({
+      clock: testClock,
+
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -228,6 +239,8 @@ describe("admin invites", () => {
     const createInvite = vi.fn();
 
     const { POST } = createAdminInvitesHandlers({
+      clock: testClock,
+
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -267,6 +280,8 @@ describe("admin invites", () => {
     const createInvite = vi.fn();
 
     const { POST } = createAdminInvitesHandlers({
+      clock: testClock,
+
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -337,6 +352,8 @@ describe("admin invites", () => {
     });
 
     const { POST } = createAdminInvitesHandlers({
+      clock: testClock,
+
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -398,6 +415,8 @@ describe("admin invites", () => {
 
   it("renders '(deleted Admin)' when the inviter has been self-deleted", async () => {
     const { GET } = createAdminInvitesHandlers({
+      clock: testClock,
+
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",

@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { createAdminInvitesHandlers } from "../../src/admin/invites";
+import { systemClock } from "../../src/system/clock";
 import { sealSessionCookie } from "../../src/auth/session";
 import { sessions } from "../../src/db/schema";
 import { createPostgresEmailEventRepository } from "../../src/email/repository";
@@ -153,6 +154,7 @@ describe("E2E: transactional email delivery records state", () => {
       });
 
       const { POST: postInvite } = createAdminInvitesHandlers({
+        clock: systemClock(),
         emailDeliveryService: emailService,
       });
 

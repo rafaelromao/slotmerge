@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { UserProfile } from "../profile/repository";
+import type { Clock } from "../system/clock";
 
 import { InMemorySearchRepository } from "./in-memory-repository";
 import {
   type ActiveTopicsRepository,
-  type Clock,
   type ProfileRepository,
   type SearchInput,
   createSearchInputBuilder,

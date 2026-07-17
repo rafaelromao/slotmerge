@@ -8,6 +8,7 @@ import {
 } from "vitest";
 
 import { createAdminInvitesHandlers } from "../../src/admin/invites";
+import { systemClock } from "../../src/system/clock";
 import { sealSessionCookie } from "../../src/auth/session";
 import { sessions } from "../../src/db/schema";
 import type {
@@ -145,6 +146,7 @@ describe("E2E: invites default to User when role is unspecified", () => {
 
       const emailService = createRecordingEmailService();
       const { POST: postInvite } = createAdminInvitesHandlers({
+        clock: systemClock(),
         emailDeliveryService: emailService,
       });
 

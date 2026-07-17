@@ -10,6 +10,7 @@ import {
 } from "vitest";
 
 import { createAdminInvitesHandlers } from "../../src/admin/invites";
+import { systemClock } from "../../src/system/clock";
 import { createMagicLinkVerifyHandlers } from "../../src/auth/magic-link-verify";
 import { getSessionFromRequest, sealSessionCookie } from "../../src/auth/session";
 import { invites, sessions } from "../../src/db/schema";
@@ -185,6 +186,7 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
 
       const emailService = createRecordingEmailService();
       const { POST: postInvite } = createAdminInvitesHandlers({
+        clock: systemClock(),
         emailDeliveryService: emailService,
       });
       const { POST: postVerify } = createMagicLinkVerifyHandlers({
@@ -315,6 +317,7 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
       });
 
       const { GET } = createAdminInvitesHandlers({
+        clock: systemClock(),
         emailDeliveryService: createRecordingEmailService(),
       });
 

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { createAdminInvitesHandlers } from "../../src/admin/invites";
+import { systemClock } from "../../src/system/clock";
 import {
   sealSessionCookie,
 } from "../../src/auth/session";
@@ -145,6 +146,7 @@ describe("E2E: Admin invites a User with role selection from the Admin Users scr
 
       const emailService = createRecordingEmailService();
       const { GET: getInvitePage, POST: postInvite } = createAdminInvitesHandlers({
+        clock: systemClock(),
         emailDeliveryService: emailService,
       });
 

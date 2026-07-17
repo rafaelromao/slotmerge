@@ -5,6 +5,7 @@ import { getSessionFromRequest, type Session } from "../auth/session";
 import { createMagicLinkTokenIssuer } from "../auth/magic-link";
 import { loadRuntimeConfig } from "../config/runtime";
 import { getDb } from "../db/client";
+import type { Clock } from "../system/clock";
 import {
   invites,
   type InviteRole,
@@ -47,7 +48,7 @@ export type AdminInvitesDependencies = {
   inviteRepository?: InviteRepository;
   magicLinkTokenIssuer?: ReturnType<typeof createMagicLinkTokenIssuer>;
   emailDeliveryService?: ReturnType<typeof createEmailDeliveryService>;
-  clock?: () => Date;
+  clock: Clock;
 };
 
 const inviteSubmissionSchema = z.object({
@@ -62,8 +63,8 @@ export function createAdminInvitesHandlers({
   inviteRepository = databaseInviteRepository,
   magicLinkTokenIssuer,
   emailDeliveryService,
-  clock = () => new Date(),
-}: AdminInvitesDependencies = {}) {
+  clock,
+}: AdminInvitesDependencies) {
   return {
     GET: async (request: Request): Promise<Response> => {
       const session = await getSession(request);
@@ -118,7 +119,7 @@ export function createAdminInvitesHandlers({
         email: normalizeEmail(submission.data.email),
         role: submission.data.role,
         invitedByAdminId: session.user.id,
-        now: clock(),
+        now: clock.now(),
       });
 
       if (!result.ok) {
@@ -298,10 +299,10 @@ function createDefaultMagicLinkTokenIssuer(): ReturnType<
 function loadDefaultEmailDeliveryService({
   clock,
 }: {
-  clock: () => Date;
+  clock: Clock;
 }): ReturnType<typeof createEmailDeliveryService> {
   return createEmailDeliveryService({
-    clock,
+    clock: () => clock.now(),
     eventRepository: createPostgresEmailEventRepository(),
     queueJob: (job) => enqueueInviteEmailJob(job),
   });

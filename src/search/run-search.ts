@@ -54,7 +54,11 @@ export async function runSearch(
       input.selectedTopicIds,
     );
 
-  const slots = generateHourlySlots(input.dateRangeStart, input.dateRangeEnd);
+  const slots = generateHourlySlots(
+    input.dateRangeStart,
+    input.dateRangeEnd,
+    input.organizerTimezone,
+  );
 
   const topicMap = new Map(
     (await topicRepository.listActive()).map((t) => [t.id, t]),

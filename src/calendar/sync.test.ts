@@ -2,10 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { syncCalendarConnection, RateLimitError, ServerError } from "./sync";
 import type { ImportedBusyIntervalRecord } from "./imported-busy-intervals";
-import {
-  googleCalendarProvider,
-  microsoftCalendarProvider,
-} from "./providers";
+import { googleCalendarProvider, microsoftCalendarProvider } from "./providers";
 import type { CalendarProvider } from "./provider";
 
 const fixedNow = new Date("2026-07-12T12:00:00.000Z");
@@ -19,8 +16,7 @@ function providerWithFetch(
 ): CalendarProvider {
   return {
     ...base,
-    fetchFreeBusy: (input) =>
-      base.fetchFreeBusy({ ...input, fetchImpl }),
+    fetchFreeBusy: (input) => base.fetchFreeBusy({ ...input, fetchImpl }),
   };
 }
 

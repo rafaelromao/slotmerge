@@ -1,8 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
-import {
-  setCalendarConnectionRepositoryForTests,
-} from "../src/calendar/repository";
+import { setCalendarConnectionRepositoryForTests } from "../src/calendar/repository";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,
@@ -27,7 +25,8 @@ const USER: SessionUser = {
 };
 const CSRF_TOKEN = "csrf-token-1";
 
-const SESSION_SECRET = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const SESSION_SECRET =
+  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 describe("GET /me/calendar-connections/[id]/calendars", () => {
   beforeEach(() => {
@@ -47,7 +46,9 @@ describe("GET /me/calendar-connections/[id]/calendars", () => {
     setSessionRepositoryForTests({
       findById: (sessionId) =>
         Promise.resolve(
-          sessionId === SESSION_ID ? { user: USER, csrfToken: CSRF_TOKEN } : null,
+          sessionId === SESSION_ID
+            ? { user: USER, csrfToken: CSRF_TOKEN }
+            : null,
         ),
     });
 
@@ -76,7 +77,8 @@ describe("GET /me/calendar-connections/[id]/calendars", () => {
     setCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([connection]),
-      findById: (id) => Promise.resolve(id === connection.id ? { ...connection } : null),
+      findById: (id) =>
+        Promise.resolve(id === connection.id ? { ...connection } : null),
       updateById: () => Promise.resolve(null),
     });
 
@@ -84,8 +86,16 @@ describe("GET /me/calendar-connections/[id]/calendars", () => {
       new Response(
         JSON.stringify({
           value: [
-            { id: "AAMkAD-primary=", name: "Calendar", isPrimaryCalendar: true },
-            { id: "AAMkAD-second=", name: "Holidays", isPrimaryCalendar: false },
+            {
+              id: "AAMkAD-primary=",
+              name: "Calendar",
+              isPrimaryCalendar: true,
+            },
+            {
+              id: "AAMkAD-second=",
+              name: "Holidays",
+              isPrimaryCalendar: false,
+            },
           ],
         }),
         { status: 200, headers: { "content-type": "application/json" } },
@@ -96,19 +106,37 @@ describe("GET /me/calendar-connections/[id]/calendars", () => {
 
     const cookie = await sealSessionCookie({ sessionId: SESSION_ID });
     const response = await GET(
-      new Request(`https://example.com/me/calendar-connections/${connection.id}/calendars`, {
-        headers: { cookie },
-      }),
+      new Request(
+        `https://example.com/me/calendar-connections/${connection.id}/calendars`,
+        {
+          headers: { cookie },
+        },
+      ),
       { params: Promise.resolve({ id: connection.id }) },
     );
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
-      calendars: Array<{ id: string; name: string; isPrimary: boolean; isIncluded: boolean }>;
+      calendars: Array<{
+        id: string;
+        name: string;
+        isPrimary: boolean;
+        isIncluded: boolean;
+      }>;
     };
     expect(body.calendars).toEqual([
-      { id: "AAMkAD-primary=", name: "Calendar", isPrimary: true, isIncluded: true },
-      { id: "AAMkAD-second=", name: "Holidays", isPrimary: false, isIncluded: false },
+      {
+        id: "AAMkAD-primary=",
+        name: "Calendar",
+        isPrimary: true,
+        isIncluded: true,
+      },
+      {
+        id: "AAMkAD-second=",
+        name: "Holidays",
+        isPrimary: false,
+        isIncluded: false,
+      },
     ]);
   });
 });

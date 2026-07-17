@@ -24,7 +24,10 @@ export class FreeBusyAuthError extends Error {
 export class FreeBusyRateLimitError extends Error {
   readonly provider: CalendarProviderId;
   readonly retryAfterSeconds: number | undefined;
-  constructor(provider: CalendarProviderId, retryAfterSeconds: number | undefined) {
+  constructor(
+    provider: CalendarProviderId,
+    retryAfterSeconds: number | undefined,
+  ) {
     super(`${capitalize(provider)} FreeBusy rate limit exceeded`);
     this.name = "FreeBusyRateLimitError";
     this.provider = provider;

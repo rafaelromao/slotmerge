@@ -1,5 +1,8 @@
 import { getSessionFromRequest } from "../../../../../src/auth/session";
-import { listProviderCalendarsForProvider, getCalendarProvider } from "../../../../../src/calendar/providers";
+import {
+  listProviderCalendarsForProvider,
+  getCalendarProvider,
+} from "../../../../../src/calendar/providers";
 import { findCalendarConnectionById } from "../../../../../src/calendar/repository";
 import { decryptCalendarToken } from "../../../../../src/calendar/token-encryption";
 

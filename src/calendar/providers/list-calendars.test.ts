@@ -28,8 +28,16 @@ describe("listProviderCalendarsForProvider", () => {
       new Response(
         JSON.stringify({
           value: [
-            { id: "AAMkAD-primary=", name: "Calendar", isPrimaryCalendar: true },
-            { id: "AAMkAD-second=", name: "Holidays", isPrimaryCalendar: false },
+            {
+              id: "AAMkAD-primary=",
+              name: "Calendar",
+              isPrimaryCalendar: true,
+            },
+            {
+              id: "AAMkAD-second=",
+              name: "Holidays",
+              isPrimaryCalendar: false,
+            },
           ],
         }),
         { status: 200, headers: { "content-type": "application/json" } },
@@ -49,7 +57,9 @@ describe("listProviderCalendarsForProvider", () => {
   });
 
   it("throws when Microsoft Graph request fails", async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(new Response(null, { status: 401 }));
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 401 }));
 
     await expect(
       listProviderCalendarsForProvider(

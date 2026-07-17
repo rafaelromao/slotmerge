@@ -39,7 +39,9 @@ export class InMemorySearchRepository implements SearchRepository {
     );
   }
 
-  async listSearchHistory(options?: { clock?: { now: () => Date } }): Promise<SearchHistoryItem[]> {
+  async listSearchHistory(options?: {
+    clock?: { now: () => Date };
+  }): Promise<SearchHistoryItem[]> {
     await Promise.resolve();
     const searches = Array.from(this.byId.values()).sort(
       (a, b) => b.generatedAt.getTime() - a.generatedAt.getTime(),

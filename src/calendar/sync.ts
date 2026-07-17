@@ -1,22 +1,20 @@
+import { randomUUID } from "node:crypto";
+
 import type {
   ImportedBusyIntervalRecord,
   ImportedBusyIntervalRepository,
 } from "./imported-busy-intervals";
-import { fetchGoogleFreeBusy } from "./freebusy/google";
-import { fetchMicrosoftFreeBusy } from "./freebusy/microsoft";
 import {
-  GoogleFreeBusyAuthError,
-  GoogleFreeBusyRateLimitError,
-  GoogleFreeBusyServerError,
-  MicrosoftFreeBusyAuthError,
-  MicrosoftFreeBusyRateLimitError,
-  MicrosoftFreeBusyServerError,
+  FreeBusyAuthError,
+  FreeBusyRateLimitError,
+  FreeBusyServerError,
 } from "./freebusy/types";
-import { randomUUID } from "node:crypto";
+import type { CalendarProvider } from "./provider";
+import { getCalendarProvider } from "./providers";
 
 export type SyncCalendarConnectionParams = {
   connectionId: string;
-  provider: "google" | "microsoft";
+  provider: CalendarProvider;
   accessToken: string;
   contributingCalendarIds: string[];
   userId: string;
@@ -50,8 +48,7 @@ export async function syncCalendarConnection(
   }
 
   try {
-    const intervals = await fetchBusyIntervals({
-      provider,
+    const intervals = await provider.fetchFreeBusy({
       accessToken,
       calendarIds: contributingCalendarIds,
       timeMin,
@@ -77,28 +74,19 @@ export async function syncCalendarConnection(
 
     await busyIntervalRepository.upsertBatch(records);
   } catch (error) {
-    if (
-      error instanceof GoogleFreeBusyAuthError ||
-      error instanceof MicrosoftFreeBusyAuthError
-    ) {
+    if (error instanceof FreeBusyAuthError) {
       await recordFailure({ code: "AUTH_ERROR", message: error.message });
       return;
     }
 
-    if (
-      error instanceof GoogleFreeBusyRateLimitError ||
-      error instanceof MicrosoftFreeBusyRateLimitError
-    ) {
+    if (error instanceof FreeBusyRateLimitError) {
       const retryAfterSeconds = error.retryAfterSeconds;
       throw new RateLimitError(
         retryAfterSeconds !== undefined ? retryAfterSeconds * 1000 : undefined,
       );
     }
 
-    if (
-      error instanceof GoogleFreeBusyServerError ||
-      error instanceof MicrosoftFreeBusyServerError
-    ) {
+    if (error instanceof FreeBusyServerError) {
       throw new ServerError(
         error.retryAfterSeconds !== undefined
           ? error.retryAfterSeconds * 1000
@@ -137,29 +125,4 @@ export class ServerError extends Error {
   }
 }
 
-async function fetchBusyIntervals(params: {
-  provider: "google" | "microsoft";
-  accessToken: string;
-  calendarIds: string[];
-  timeMin: string;
-  timeMax: string;
-  fetchImpl: typeof fetch;
-}) {
-  if (params.provider === "google") {
-    return fetchGoogleFreeBusy({
-      accessToken: params.accessToken,
-      calendarIds: params.calendarIds,
-      timeMin: params.timeMin,
-      timeMax: params.timeMax,
-      fetchImpl: params.fetchImpl,
-    });
-  } else {
-    return fetchMicrosoftFreeBusy({
-      accessToken: params.accessToken,
-      calendarIds: params.calendarIds,
-      timeMin: params.timeMin,
-      timeMax: params.timeMax,
-      fetchImpl: params.fetchImpl,
-    });
-  }
-}
+export { getCalendarProvider };

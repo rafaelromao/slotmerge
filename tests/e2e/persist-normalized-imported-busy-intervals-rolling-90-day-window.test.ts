@@ -8,6 +8,7 @@ import {
   setImportedBusyIntervalRepositoryForTests,
 } from "../../src/calendar/imported-busy-intervals";
 import { syncCalendarConnection } from "../../src/calendar/sync";
+import { googleCalendarProvider } from "../../src/calendar/providers";
 import {
   sealGoogleCalendarConnectionState,
 } from "../../src/calendar/google-calendar-connections";
@@ -176,7 +177,7 @@ async function runSyncForGoogleConnection(params: {
   const now = getTestClock()();
   await syncCalendarConnection({
     connectionId: params.connectionId,
-    provider: "google",
+    provider: googleCalendarProvider,
     accessToken: params.accessToken,
     contributingCalendarIds: params.contributingCalendarIds,
     userId: params.userId,

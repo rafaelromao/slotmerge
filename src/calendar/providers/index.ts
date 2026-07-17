@@ -11,3 +11,5 @@ const providers: Record<CalendarProviderId, CalendarProvider> = {
 export function getCalendarProvider(id: CalendarProviderId): CalendarProvider {
   return providers[id];
 }
+
+export { googleCalendarProvider, microsoftCalendarProvider };

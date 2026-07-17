@@ -17,6 +17,10 @@ import {
 } from "../../src/calendar/imported-busy-intervals";
 import { syncCalendarConnection } from "../../src/calendar/sync";
 import {
+  googleCalendarProvider,
+  microsoftCalendarProvider,
+} from "../../src/calendar/providers";
+import {
   sealGoogleCalendarConnectionState,
 } from "../../src/calendar/google-calendar-connections";
 import {
@@ -266,7 +270,7 @@ async function runSyncForGoogleConnection(params: {
   const now = new Date();
   await syncCalendarConnection({
     connectionId: params.connectionId,
-    provider: "google",
+    provider: googleCalendarProvider,
     accessToken: params.accessToken,
     contributingCalendarIds: params.contributingCalendarIds,
     userId: params.userId,

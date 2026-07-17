@@ -3,6 +3,7 @@ import { quickAddJob } from "graphile-worker";
 
 import { ROLLING_WINDOW_DAYS } from "../calendar/imported-busy-intervals";
 import { createPostgresImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals.repository";
+import { getCalendarProvider } from "../calendar/providers";
 import { decryptCalendarToken } from "../calendar/token-encryption";
 import {
   findCalendarConnectionById,
@@ -117,7 +118,7 @@ export async function handleSyncCalendarConnectionJob(
   try {
     await syncCalendarConnection({
       connectionId: connection.id,
-      provider: connection.provider,
+      provider: getCalendarProvider(connection.provider),
       accessToken,
       contributingCalendarIds: connection.contributingCalendarIds,
       userId: connection.userId,

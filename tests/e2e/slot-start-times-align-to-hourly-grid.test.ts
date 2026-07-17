@@ -184,10 +184,22 @@ describe("E2E: Slot start times align to an hourly grid", () => {
       const snapshot = await searchResultRepository.findBySearchId(result.search.id);
       expect(snapshot).not.toBeNull();
 
+      expect(snapshot!.snapshotJson).toMatchObject({
+        organizerTimezone: "UTC",
+        dateRangeStart: new Date("2026-07-13T05:00:00.000Z").toISOString(),
+        dateRangeEnd: new Date("2026-07-13T12:00:00.000Z").toISOString(),
+        durationMinutes: DURATION_MINUTES,
+      });
+
       const slots = snapshot!.snapshotJson.slots;
       expect(slots.length).toBeGreaterThan(0);
 
       for (const slot of slots) {
+        expect(typeof slot.startUtc).toBe("string");
+        expect(new Date(slot.startUtc).getTime()).not.toBeNaN();
+        expect(typeof slot.matchCount).toBe("number");
+        expect(Array.isArray(slot.matches)).toBe(true);
+
         const slotDate = new Date(slot.startUtc);
         expect(slotDate.getUTCMinutes()).toBe(0);
         expect(slotDate.getUTCSeconds()).toBe(0);
@@ -331,10 +343,22 @@ describe("E2E: Slot start times align to an hourly grid", () => {
       const snapshot = await searchResultRepository.findBySearchId(result.search.id);
       expect(snapshot).not.toBeNull();
 
+      expect(snapshot!.snapshotJson).toMatchObject({
+        organizerTimezone,
+        dateRangeStart: new Date("2026-07-13T05:00:00.000Z").toISOString(),
+        dateRangeEnd: new Date("2026-07-13T12:00:00.000Z").toISOString(),
+        durationMinutes: DURATION_MINUTES,
+      });
+
       const slots = snapshot!.snapshotJson.slots;
       expect(slots.length).toBeGreaterThan(0);
 
       for (const slot of slots) {
+        expect(typeof slot.startUtc).toBe("string");
+        expect(new Date(slot.startUtc).getTime()).not.toBeNaN();
+        expect(typeof slot.matchCount).toBe("number");
+        expect(Array.isArray(slot.matches)).toBe(true);
+
         const slotDate = new Date(slot.startUtc);
         const { minute } = getLocalHourMinutes(slotDate, organizerTimezone);
         expect(minute).toBe(0);

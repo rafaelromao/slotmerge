@@ -25,8 +25,7 @@ import { getTestClock, getTestDb } from "../helpers/setup";
 import { encryptCalendarToken } from "../../src/calendar/token-encryption";
 import { calendarConnections } from "../../src/db/schema";
 import {
-  setGoogleCalendarConnectionRepositoryForTests,
-  setMicrosoftCalendarConnectionRepositoryForTests,
+  setCalendarConnectionRepositoryForTests,
 } from "../../src/calendar/repository";
 
 vi.mock("../../src/config/runtime", () => ({
@@ -204,8 +203,7 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
     setClockForTests(getTestClock());
     vi.mocked(enqueueSyncCalendarConnectionJob).mockClear();
-    setGoogleCalendarConnectionRepositoryForTests(null);
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
 
     const db = getTestDb();
     if (db) {
@@ -217,8 +215,7 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
 
   afterEach(() => {
     setClockForTests(null);
-    setGoogleCalendarConnectionRepositoryForTests(null);
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
     vi.unstubAllGlobals();
     vi.useRealTimers();
     delete process.env.SESSION_SECRET;

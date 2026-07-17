@@ -6,10 +6,9 @@ import {
   setSessionRepositoryForTests,
 } from "../src/auth/session";
 import { encryptCalendarToken } from "../src/calendar/token-encryption";
-import type { GoogleCalendarConnectionRecord } from "../src/calendar/google-calendar-connections";
+import type { CalendarConnectionRecord } from "../src/calendar/connection";
 import {
-  setGoogleCalendarConnectionRepositoryForTests,
-  setMicrosoftCalendarConnectionRepositoryForTests,
+  setCalendarConnectionRepositoryForTests,
 } from "../src/calendar/repository";
 
 export const TOKEN_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef";
@@ -30,8 +29,8 @@ export const USER = {
 };
 
 export function buildGoogleConnection(
-  overrides: Partial<GoogleCalendarConnectionRecord> = {},
-): GoogleCalendarConnectionRecord {
+  overrides: Partial<CalendarConnectionRecord> = {},
+): CalendarConnectionRecord {
   return {
     id: "connection-1",
     userId: "user-1",
@@ -53,14 +52,14 @@ export function buildGoogleConnection(
   };
 }
 
-export async function revoke(connection: GoogleCalendarConnectionRecord) {
+export async function revoke(connection: CalendarConnectionRecord) {
   setSessionRepositoryForTests({
     findById: (sessionId) =>
       Promise.resolve(
         sessionId === SESSION_ID ? { user: USER, csrfToken: CSRF_TOKEN } : null,
       ),
   });
-  setGoogleCalendarConnectionRepositoryForTests({
+  setCalendarConnectionRepositoryForTests({
     createPending: (record) => Promise.resolve(record),
     listByUserId: () => Promise.resolve([connection]),
     findById: (id) =>
@@ -72,12 +71,6 @@ export async function revoke(connection: GoogleCalendarConnectionRecord) {
       Object.assign(connection, patch);
       return Promise.resolve({ ...connection });
     },
-  });
-  setMicrosoftCalendarConnectionRepositoryForTests({
-    createPending: (record) => Promise.resolve(record),
-    listByUserId: () => Promise.resolve([]),
-    findById: () => Promise.resolve(null),
-    updateById: () => Promise.resolve(null),
   });
   vi.stubGlobal(
     "fetch",

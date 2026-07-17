@@ -6,10 +6,7 @@ import {
   recordCalendarConnectionSyncFailure,
   setRecordCalendarConnectionSyncFailureForTests,
 } from "./sync-failure-recorder";
-import {
-  setGoogleCalendarConnectionRepositoryForTests,
-  setMicrosoftCalendarConnectionRepositoryForTests,
-} from "./repository";
+import { setCalendarConnectionRepositoryForTests } from "./repository";
 
 describe("recordCalendarConnectionSyncFailure", () => {
   beforeEach(() => {
@@ -24,8 +21,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
     setEmailDeliveryServiceForTests(null);
     setConnectionActionRequiredDispatchLookupForTests(null);
     setRecordCalendarConnectionSyncFailureForTests(null);
-    setGoogleCalendarConnectionRepositoryForTests(null);
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
   });
 
   it("writes the error metadata and triggers a sync-failure action-required email for the connection owner", async () => {
@@ -38,7 +34,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
     setConnectionActionRequiredDispatchLookupForTests({
       findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(null),
     });
-    setGoogleCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([]),
       findById: () => Promise.resolve(null),
@@ -63,12 +59,6 @@ describe("recordCalendarConnectionSyncFailure", () => {
           ...updated,
         });
       },
-    });
-    setMicrosoftCalendarConnectionRepositoryForTests({
-      createPending: (record) => Promise.resolve(record),
-      listByUserId: () => Promise.resolve([]),
-      findById: () => Promise.resolve(null),
-      updateById: () => Promise.resolve(null),
     });
 
     const lookup = vi.fn().mockResolvedValue({
@@ -115,17 +105,11 @@ describe("recordCalendarConnectionSyncFailure", () => {
     setConnectionActionRequiredDispatchLookupForTests({
       findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(null),
     });
-    setGoogleCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([]),
       findById: () => Promise.resolve(null),
       updateById: () => Promise.reject(new Error("db unavailable")),
-    });
-    setMicrosoftCalendarConnectionRepositoryForTests({
-      createPending: (record) => Promise.resolve(record),
-      listByUserId: () => Promise.resolve([]),
-      findById: () => Promise.resolve(null),
-      updateById: () => Promise.resolve(null),
     });
 
     const result = await recordCalendarConnectionSyncFailure(
@@ -158,7 +142,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
         .fn()
         .mockResolvedValue(new Date(Date.now() - 5 * 60 * 1000)),
     });
-    setGoogleCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([]),
       findById: () => Promise.resolve(null),
@@ -167,12 +151,6 @@ describe("recordCalendarConnectionSyncFailure", () => {
         Object.assign(updated, patch);
         return Promise.resolve({} as never);
       },
-    });
-    setMicrosoftCalendarConnectionRepositoryForTests({
-      createPending: (record) => Promise.resolve(record),
-      listByUserId: () => Promise.resolve([]),
-      findById: () => Promise.resolve(null),
-      updateById: () => Promise.resolve(null),
     });
 
     const result = await recordCalendarConnectionSyncFailure(
@@ -208,7 +186,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
     setConnectionActionRequiredDispatchLookupForTests({
       findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(null),
     });
-    setGoogleCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([]),
       findById: () => Promise.resolve(null),
@@ -233,12 +211,6 @@ describe("recordCalendarConnectionSyncFailure", () => {
           ...updated,
         });
       },
-    });
-    setMicrosoftCalendarConnectionRepositoryForTests({
-      createPending: (record) => Promise.resolve(record),
-      listByUserId: () => Promise.resolve([]),
-      findById: () => Promise.resolve(null),
-      updateById: () => Promise.resolve(null),
     });
 
     const result = await recordCalendarConnectionSyncFailure(
@@ -275,7 +247,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
     setConnectionActionRequiredDispatchLookupForTests({
       findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(null),
     });
-    setGoogleCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([]),
       findById: () => Promise.resolve(null),
@@ -300,12 +272,6 @@ describe("recordCalendarConnectionSyncFailure", () => {
           ...updated,
         });
       },
-    });
-    setMicrosoftCalendarConnectionRepositoryForTests({
-      createPending: (record) => Promise.resolve(record),
-      listByUserId: () => Promise.resolve([]),
-      findById: () => Promise.resolve(null),
-      updateById: () => Promise.resolve(null),
     });
 
     const result = await recordCalendarConnectionSyncFailure(
@@ -342,7 +308,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
     setConnectionActionRequiredDispatchLookupForTests({
       findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(null),
     });
-    setGoogleCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([]),
       findById: () => Promise.resolve(null),
@@ -367,12 +333,6 @@ describe("recordCalendarConnectionSyncFailure", () => {
           ...updated,
         });
       },
-    });
-    setMicrosoftCalendarConnectionRepositoryForTests({
-      createPending: (record) => Promise.resolve(record),
-      listByUserId: () => Promise.resolve([]),
-      findById: () => Promise.resolve(null),
-      updateById: () => Promise.resolve(null),
     });
 
     const result = await recordCalendarConnectionSyncFailure(
@@ -408,7 +368,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
     setConnectionActionRequiredDispatchLookupForTests({
       findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(null),
     });
-    setGoogleCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([]),
       findById: () => Promise.resolve(null),
@@ -433,12 +393,6 @@ describe("recordCalendarConnectionSyncFailure", () => {
           ...updated,
         });
       },
-    });
-    setMicrosoftCalendarConnectionRepositoryForTests({
-      createPending: (record) => Promise.resolve(record),
-      listByUserId: () => Promise.resolve([]),
-      findById: () => Promise.resolve(null),
-      updateById: () => Promise.resolve(null),
     });
 
     const result = await recordCalendarConnectionSyncFailure(

@@ -10,16 +10,10 @@ import {
 import { syncCalendarConnection } from "../../src/calendar/sync";
 import {
   sealGoogleCalendarConnectionState,
-  type GoogleCalendarConnectionRecord,
-  type GoogleCalendarConnectionRepository,
 } from "../../src/calendar/google-calendar-connections";
+import type { CalendarConnectionRecord } from "../../src/calendar/connection";
 import {
-  type MicrosoftCalendarConnectionRecord,
-  type MicrosoftCalendarConnectionRepository,
-} from "../../src/calendar/microsoft-calendar-connections";
-import {
-  setGoogleCalendarConnectionRepositoryForTests,
-  setMicrosoftCalendarConnectionRepositoryForTests,
+  setCalendarConnectionRepositoryForTests,
 } from "../../src/calendar/repository";
 import { calendarConnections } from "../../src/db/schema";
 import { eq, sql } from "drizzle-orm";
@@ -80,14 +74,14 @@ async function clearTestConnection(connectionId: string): Promise<void> {
 function wireTestRepositories(): void {
   const db = getRequiredTestDb();
 
-  const googleRepository: GoogleCalendarConnectionRepository = {
+  setCalendarConnectionRepositoryForTests({
     createPending: (record) => Promise.resolve(record),
-    listByUserId: async () => {
+    listByUserId: async (userId) => {
       const rows = await db
         .select()
         .from(calendarConnections)
-        .where(eq(calendarConnections.provider, "google"));
-      return rows as GoogleCalendarConnectionRecord[];
+        .where(eq(calendarConnections.userId, userId));
+      return rows as CalendarConnectionRecord[];
     },
     findById: async (id) => {
       const [row] = await db
@@ -95,8 +89,7 @@ function wireTestRepositories(): void {
         .from(calendarConnections)
         .where(eq(calendarConnections.id, id))
         .limit(1);
-      if (!row || row.provider !== "google") return null;
-      return row as GoogleCalendarConnectionRecord;
+      return (row as CalendarConnectionRecord | undefined) ?? null;
     },
     updateById: async (id, patch) => {
       const sets: ReturnType<typeof sql>[] = [];
@@ -132,78 +125,11 @@ function wireTestRepositories(): void {
       );
 
       const result = await db.execute(
-        sql`UPDATE calendar_connections SET ${setSql} WHERE id = ${id} AND provider = 'google' RETURNING *`,
+        sql`UPDATE calendar_connections SET ${setSql} WHERE id = ${id} RETURNING *`,
       );
-      const updated = (result.rows[0] ?? null) as
-        | GoogleCalendarConnectionRecord
-        | null;
-      return updated;
+      return (result.rows[0] ?? null) as CalendarConnectionRecord | null;
     },
-  };
-
-  const microsoftRepository: MicrosoftCalendarConnectionRepository = {
-    createPending: (record) => Promise.resolve(record),
-    listByUserId: async () => {
-      const rows = await db
-        .select()
-        .from(calendarConnections)
-        .where(eq(calendarConnections.provider, "microsoft"));
-      return rows as MicrosoftCalendarConnectionRecord[];
-    },
-    findById: async (id) => {
-      const [row] = await db
-        .select()
-        .from(calendarConnections)
-        .where(eq(calendarConnections.id, id))
-        .limit(1);
-      if (!row || row.provider !== "microsoft") return null;
-      return row as MicrosoftCalendarConnectionRecord;
-    },
-    updateById: async (id, patch) => {
-      const sets: ReturnType<typeof sql>[] = [];
-      if ("accountIdentifier" in patch)
-        sets.push(sql`account_identifier = ${patch.accountIdentifier}`);
-      if ("providerAccountKey" in patch)
-        sets.push(sql`provider_account_key = ${patch.providerAccountKey}`);
-      if ("scopes" in patch) sets.push(sql`scopes = ${patch.scopes}`);
-      if ("status" in patch) sets.push(sql`status = ${patch.status}`);
-      if ("accessTokenEncrypted" in patch)
-        sets.push(sql`access_token_encrypted = ${patch.accessTokenEncrypted}`);
-      if ("refreshTokenEncrypted" in patch)
-        sets.push(sql`refresh_token_encrypted = ${patch.refreshTokenEncrypted}`);
-      if ("accessTokenExpiresAt" in patch)
-        sets.push(sql`access_token_expires_at = ${patch.accessTokenExpiresAt}`);
-      if ("lastErrorCode" in patch)
-        sets.push(sql`last_error_code = ${patch.lastErrorCode}`);
-      if ("lastErrorMessage" in patch)
-        sets.push(sql`last_error_message = ${patch.lastErrorMessage}`);
-      if ("lastSyncAt" in patch)
-        sets.push(sql`last_sync_at = ${patch.lastSyncAt}`);
-      if ("contributingCalendarIds" in patch)
-        sets.push(
-          sql`contributing_calendar_ids = ${JSON.stringify(
-            patch.contributingCalendarIds,
-          )}::jsonb`,
-        );
-      sets.push(sql`updated_at = NOW()`);
-
-      const setSql = sets.reduce(
-        (acc, curr, i) =>
-          i === 0 ? curr : sql`${acc}, ${curr}`,
-      );
-
-      const result = await db.execute(
-        sql`UPDATE calendar_connections SET ${setSql} WHERE id = ${id} AND provider = 'microsoft' RETURNING *`,
-      );
-      const updated = (result.rows[0] ?? null) as
-        | MicrosoftCalendarConnectionRecord
-        | null;
-      return updated;
-    },
-  };
-
-  setGoogleCalendarConnectionRepositoryForTests(googleRepository);
-  setMicrosoftCalendarConnectionRepositoryForTests(microsoftRepository);
+  });
 }
 
 function googleAdapterFetchWithUrlRewrite(
@@ -305,6 +231,7 @@ describe("E2E: persist normalized imported busy intervals for the rolling 90-day
     vi.useRealTimers();
     clearInMemoryImportedBusyIntervalStore();
     setImportedBusyIntervalRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
     if (HAS_TEST_DB) {
       await clearTestConnection(GOOGLE_CONNECTION_ID);
     }

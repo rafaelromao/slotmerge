@@ -16,16 +16,16 @@ export async function GET(
 
   const { id: expectedId } = await params;
 
-  const found = await findCalendarConnectionById(expectedId);
+  const connection = await findCalendarConnectionById(expectedId);
 
-  if (!found) {
+  if (!connection) {
     return Response.json(
       { error: "calendar_connection_not_found" },
       { status: 404 },
     );
   }
 
-  if (found.record.userId !== session.user.id) {
+  if (connection.userId !== session.user.id) {
     return Response.json(
       { error: "calendar_connection_not_found" },
       { status: 404 },
@@ -37,14 +37,14 @@ export async function GET(
     return Response.json({ error: "oauth_not_configured" }, { status: 500 });
   }
 
-  if (found.provider === "google") {
+  if (connection.provider === "google") {
     decryptCalendarToken({
-      ciphertext: found.record.accessTokenEncrypted ?? "",
+      ciphertext: connection.accessTokenEncrypted ?? "",
       key: tokenEncryptionKey,
     });
 
     const primaryIncluded =
-      found.record.contributingCalendarIds.includes("primary");
+      connection.contributingCalendarIds.includes("primary");
 
     return Response.json({
       calendars: [
@@ -59,7 +59,7 @@ export async function GET(
   }
 
   const accessToken = decryptCalendarToken({
-    ciphertext: found.record.accessTokenEncrypted ?? "",
+    ciphertext: connection.accessTokenEncrypted ?? "",
     key: tokenEncryptionKey,
   });
 
@@ -73,7 +73,7 @@ export async function GET(
   }
 
   const calendars = calendarsResult.calendars;
-  const includedIds = new Set(found.record.contributingCalendarIds);
+  const includedIds = new Set(connection.contributingCalendarIds);
   const calendarsWithStatus = calendars.map((cal) => ({
     id: cal.id,
     name: cal.name,

@@ -5,8 +5,8 @@ import { ROLLING_WINDOW_DAYS } from "../calendar/imported-busy-intervals";
 import { createPostgresImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals.repository";
 import { decryptCalendarToken } from "../calendar/token-encryption";
 import {
-  getGoogleCalendarConnectionRepository,
-  getMicrosoftCalendarConnectionRepository,
+  findCalendarConnectionById,
+  getCalendarConnectionRepository,
 } from "../calendar/repository";
 import {
   syncCalendarConnection,
@@ -51,12 +51,10 @@ export async function handleSyncCalendarConnectionJob(
 ): Promise<void> {
   const job = parseSyncCalendarConnectionPayload(payload);
 
-  const found = await findCalendarConnectionById(job.connectionId);
-  if (!found) {
+  const connection = await findCalendarConnectionById(job.connectionId);
+  if (!connection) {
     return;
   }
-
-  const { record: connection } = found;
 
   if (connection.status !== "connected") {
     return;
@@ -81,12 +79,12 @@ export async function handleSyncCalendarConnectionJob(
       const [user] = await getDb()
         .select({ email: users.email, displayName: users.displayName })
         .from(users)
-        .where(eq(users.id, conn.record.userId))
+        .where(eq(users.id, conn.userId))
         .limit(1);
 
       return {
-        id: conn.record.id,
-        userId: conn.record.userId,
+        id: conn.id,
+        userId: conn.userId,
         provider: conn.provider,
         user: {
           email: user?.email ?? "",
@@ -140,7 +138,9 @@ export async function handleSyncCalendarConnectionJob(
       clock: clockOverride ?? (() => new Date()),
     });
 
-    await updateLastSyncAt(connection.id, connection.provider, new Date());
+    await getCalendarConnectionRepository().updateById(connection.id, {
+      lastSyncAt: new Date(),
+    });
   } catch (error) {
     if (error instanceof RateLimitError || error instanceof ServerError) {
       // NOTE: Uses constant + jitter backoff (not exponential) per MVP spec trade-off.
@@ -157,22 +157,6 @@ export async function handleSyncCalendarConnectionJob(
       return;
     }
     throw error;
-  }
-}
-
-async function updateLastSyncAt(
-  connectionId: string,
-  provider: "google" | "microsoft",
-  lastSyncAt: Date,
-) {
-  if (provider === "google") {
-    await getGoogleCalendarConnectionRepository().updateById(connectionId, {
-      lastSyncAt,
-    });
-  } else {
-    await getMicrosoftCalendarConnectionRepository().updateById(connectionId, {
-      lastSyncAt,
-    });
   }
 }
 
@@ -200,20 +184,4 @@ function parseSyncCalendarConnectionPayload(
   throw new Error(
     "sync_calendar_connection job requires a connectionId payload",
   );
-}
-
-async function findCalendarConnectionById(id: string) {
-  const googleRepo = getGoogleCalendarConnectionRepository();
-  const googleRecord = await googleRepo.findById(id);
-  if (googleRecord) {
-    return { provider: "google" as const, record: googleRecord };
-  }
-
-  const microsoftRepo = getMicrosoftCalendarConnectionRepository();
-  const microsoftRecord = await microsoftRepo.findById(id);
-  if (microsoftRecord) {
-    return { provider: "microsoft" as const, record: microsoftRecord };
-  }
-
-  return null;
 }

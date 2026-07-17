@@ -39,7 +39,7 @@ export async function listActiveCalendarConnectionRecords(): Promise<
     .from(calendarConnections)
     .where(eq(calendarConnections.status, "connected"));
 
-  return rows as CalendarConnectionRecord[];
+  return rows;
 }
 
 const calendarConnectionSelectColumns = {
@@ -79,7 +79,7 @@ export const databaseCalendarConnectionRepository: CalendarConnectionRepository 
         })
         .returning(calendarConnectionSelectColumns);
 
-      return (row as CalendarConnectionRecord | undefined) ?? record;
+      return (row) ?? record;
     },
     listByUserId: async (userId) => {
       const rows = await getDb()
@@ -87,7 +87,7 @@ export const databaseCalendarConnectionRepository: CalendarConnectionRepository 
         .from(calendarConnections)
         .where(eq(calendarConnections.userId, userId));
 
-      return rows as CalendarConnectionRecord[];
+      return rows;
     },
     findById: async (id) => {
       const [row] = await getDb()
@@ -96,7 +96,7 @@ export const databaseCalendarConnectionRepository: CalendarConnectionRepository 
         .where(eq(calendarConnections.id, id))
         .limit(1);
 
-      return (row as CalendarConnectionRecord | undefined) ?? null;
+      return (row) ?? null;
     },
     updateById: async (id, patch) => {
       const [row] = await getDb()
@@ -108,6 +108,6 @@ export const databaseCalendarConnectionRepository: CalendarConnectionRepository 
         .where(eq(calendarConnections.id, id))
         .returning(calendarConnectionSelectColumns);
 
-      return (row as CalendarConnectionRecord | undefined) ?? null;
+      return (row) ?? null;
     },
   };

@@ -82,7 +82,7 @@ function wireTestRepositories(): void {
         .select()
         .from(calendarConnections)
         .where(eq(calendarConnections.userId, userId));
-      return rows as CalendarConnectionRecord[];
+      return rows;
     },
     findById: async (id) => {
       const [row] = await db
@@ -90,7 +90,7 @@ function wireTestRepositories(): void {
         .from(calendarConnections)
         .where(eq(calendarConnections.id, id))
         .limit(1);
-      return (row as CalendarConnectionRecord | undefined) ?? null;
+      return (row) ?? null;
     },
     updateById: async (id, patch) => {
       const sets: ReturnType<typeof sql>[] = [];

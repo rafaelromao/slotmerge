@@ -88,7 +88,9 @@ describe("shared CalendarConnectionRepository", () => {
       ["google-connection", google],
       ["microsoft-connection", microsoft],
     ]);
-    const findById = vi.fn(async (id: string) => records.get(id) ?? null);
+    const findById = vi.fn((id: string) =>
+      Promise.resolve(records.get(id) ?? null),
+    );
 
     setCalendarConnectionRepositoryForTests({
       createPending: vi.fn(),

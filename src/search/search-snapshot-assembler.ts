@@ -82,7 +82,7 @@ export type SearchSnapshotAssemblerDeps = {
   ): CalendarFreshness;
 };
 
-export type CandidatePreparation = {
+export type MatchPreparation = {
   userId: string;
   profile: UserProfile | null;
   selectedTopicIds: string[];
@@ -105,7 +105,7 @@ export class SearchSnapshotAssembler {
     const activeTopics = await this.deps.topicRepository.listActive();
     const topicMap = new Map(activeTopics.map((t) => [t.id, t]));
 
-    const candidateUserIds =
+    const discoverableUserIds =
       await this.deps.discoverableUserRepository.listDiscoverableUserIds(
         input.selectedTopicIds,
       );
@@ -117,9 +117,9 @@ export class SearchSnapshotAssembler {
     );
 
     const prepared = await Promise.all(
-      candidateUserIds
+      discoverableUserIds
         .filter((userId) => userId !== input.organizerId)
-        .map((userId) => this.prepareCandidate(userId, input, now, topicMap)),
+        .map((userId) => this.prepareMatch(userId, input, now, topicMap)),
     );
 
     const eligible = prepared.filter((c) => c !== null);
@@ -128,20 +128,20 @@ export class SearchSnapshotAssembler {
     for (const slotStart of slots) {
       const slotKey = slotStart.toISOString();
       const matches: SlotMatchDetail[] = [];
-      for (const candidate of eligible) {
-        const indicator = candidate.availabilityBySlot.get(slotKey);
+      for (const match of eligible) {
+        const indicator = match.availabilityBySlot.get(slotKey);
         if (indicator !== "available") {
           continue;
         }
         matches.push({
-          userId: candidate.userId,
-          displayName: candidate.displayName,
-          avatarUrl: candidate.avatarUrl,
-          shortBio: candidate.shortBio,
-          topics: candidate.matchedTopics,
-          topicProfile: candidate.topicProfileDetails,
+          userId: match.userId,
+          displayName: match.displayName,
+          avatarUrl: match.avatarUrl,
+          shortBio: match.shortBio,
+          topics: match.matchedTopics,
+          topicProfile: match.topicProfileDetails,
           availabilityIndicator: indicator,
-          calendarFreshness: candidate.calendarFreshness,
+          calendarFreshness: match.calendarFreshness,
         });
       }
       if (matches.length >= input.minimumMatchingUsers) {
@@ -163,12 +163,12 @@ export class SearchSnapshotAssembler {
     };
   }
 
-  private async prepareCandidate(
+  private async prepareMatch(
     userId: string,
     input: SearchSnapshotAssemblerInput,
     now: Date,
     topicMap: Map<string, { id: string; name: string; status: "active" }>,
-  ): Promise<CandidatePreparation | null> {
+  ): Promise<MatchPreparation | null> {
     const [profile, consent, hasTopicProposal, availabilityData] =
       await Promise.all([
         this.deps.profileRepository.findByUserId(userId),

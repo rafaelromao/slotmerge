@@ -316,8 +316,6 @@ async function persistAndRunSearch(
     { searchRecord: stored, input: deps.input },
     {
       assemblerDependencies,
-      discoverableUserRepository: deps.discoverableUserRepository,
-      clock: deps.clock,
       searchResultRepository: deps.searchResultRepository,
     },
   );

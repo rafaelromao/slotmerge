@@ -1,4 +1,3 @@
-import type { Clock } from "./search-input";
 import type { SearchInput } from "./search-input";
 import type { SearchRecord } from "./repository";
 import type {
@@ -11,13 +10,10 @@ import {
   type SearchSnapshotAssemblerDeps,
 } from "./search-snapshot-assembler";
 
-import type { DiscoverableUserRepository } from "./discoverable-user-repository";
 import type { SearchResultRepository } from "./search-result-repository";
 
 export type RunSearchDeps = {
   assemblerDependencies: SearchSnapshotAssemblerDeps;
-  discoverableUserRepository: DiscoverableUserRepository;
-  clock: Clock;
   searchResultRepository: SearchResultRepository;
 };
 

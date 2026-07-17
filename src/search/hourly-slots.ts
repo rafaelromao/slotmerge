@@ -69,7 +69,7 @@ function floorToHourInTimezone(date: Date, timezone: string): Date {
   const tzHour = hour;
   const tzMinute = 0;
 
-  let offsetMinutes = (tzHour - utcHour) * 60 + (tzMinute - utcMinute);
+  const offsetMinutes = (tzHour - utcHour) * 60 + (tzMinute - utcMinute);
   const offsetMs = offsetMinutes * 60000;
 
   return new Date(naiveUtc - offsetMs);

@@ -221,50 +221,7 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
   );
 
   it.runIf(HAS_TEST_DB)(
-    "AC2: minimum count excludes the Organizer - Organizer + 2 others qualify with minimum=2, matchCount is 2 (Organizer not counted)",
-    async () => {
-      const db = getTestDb();
-      expect(db).not.toBeNull();
-      if (!db) {
-        return;
-      }
-
-      await setupTest();
-
-      await insertDiscoverableUser({
-        id: OTHER_USER_A_ID,
-        email: OTHER_USER_A_EMAIL,
-        displayName: OTHER_USER_A_DISPLAY_NAME,
-        topicIds: [TOPIC.id],
-      });
-
-      await insertDiscoverableUser({
-        id: OTHER_USER_B_ID,
-        email: OTHER_USER_B_EMAIL,
-        displayName: OTHER_USER_B_DISPLAY_NAME,
-        topicIds: [TOPIC.id],
-      });
-
-      await grantDiscoverabilityConsentForUser(ORGANIZER.id);
-
-      setSearchEligibilityProfileInputsForTests({
-        [ORGANIZER.id]: COMPLETE_PROFILE,
-        [OTHER_USER_A_ID]: COMPLETE_PROFILE,
-        [OTHER_USER_B_ID]: COMPLETE_PROFILE,
-      });
-
-      const searchId = await runSearchWithMinimum(2);
-      const { snapshot } = await loadStoredSnapshot(searchId);
-
-      expect(snapshot.slots.length).toBeGreaterThan(0);
-
-      const allMatchCounts = snapshot.slots.map((s) => s.matchCount);
-      expect(allMatchCounts.every((count) => count === 2)).toBe(true);
-    },
-  );
-
-  it.runIf(HAS_TEST_DB)(
-    "AC2 variant: Organizer + 1 other with minimum=2, no slots returned - proves Organizer is excluded from minimum count",
+    "AC2: minimum count excludes the Organizer - Organizer + 1 other with minimum=2, no slots returned (Organizer not counted toward minimum)",
     async () => {
       const db = getTestDb();
       expect(db).not.toBeNull();

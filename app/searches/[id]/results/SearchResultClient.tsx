@@ -3,12 +3,17 @@
 import { useState } from "react";
 import { SlotDetailsDrawer } from "../../../components/SlotDetailsDrawer";
 import type { Slot, SearchSnapshot } from "../../../../src/db/schema";
+import { getLocalDateParts } from "../../../../src/time/local-time";
 
 type WeeklyDay = {
   date: Date;
   label: string;
   slots: Slot[];
 };
+
+function formatDayKey(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
 
 function buildWeeklyGrid(
   snapshot: SearchSnapshot,
@@ -25,20 +30,20 @@ function buildWeeklyGrid(
     timeZone: timezone,
   });
 
-  const dayDateFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-  });
-
-  const slotDateFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-  });
-
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dayDate = new Date(d);
-    const dayKey = dayDateFormatter.format(dayDate);
+    const localParts = getLocalDateParts(dayDate, timezone);
+    const dayKey = formatDayKey(
+      localParts.year,
+      localParts.month,
+      localParts.day,
+    );
     const daySlots = snapshot.slots.filter((slot) => {
       const slotDate = new Date(slot.startUtc);
-      return slotDateFormatter.format(slotDate) === dayKey;
+      const slotParts = getLocalDateParts(slotDate, timezone);
+      return (
+        formatDayKey(slotParts.year, slotParts.month, slotParts.day) === dayKey
+      );
     });
 
     days.push({

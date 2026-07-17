@@ -1,11 +1,9 @@
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 
-import {
-  handleEmailDeliveryJob,
-  setClockForTests,
-} from "../src/worker/email";
+import { handleEmailDeliveryJob } from "../src/worker/email";
 import type { EmailEventRepository } from "../src/email/service";
 import { buildTestClock } from "./test-clock";
+import type { Clock } from "../src/system/clock";
 
 vi.mock("../src/email/repository", () => ({
   createPostgresEmailEventRepository: vi.fn(),
@@ -20,13 +18,12 @@ vi.mock("../src/admin/critical-email.repository", () => ({
   })),
 }));
 
-describe("setClockForTests seam in email worker", () => {
-  let clock: ReturnType<typeof buildTestClock>;
+describe("handleEmailDeliveryJob boundary clock seam", () => {
+  let clock: Clock;
   let mockEventRepository: EmailEventRepository;
 
   beforeEach(async () => {
     clock = buildTestClock(new Date("2026-01-01T00:00:00.000Z"));
-    setClockForTests(() => clock.now());
 
     mockEventRepository = {
       createQueuedEvent: vi.fn(),
@@ -72,17 +69,19 @@ describe("setClockForTests seam in email worker", () => {
   });
 
   afterEach(() => {
-    setClockForTests(null);
     vi.restoreAllMocks();
   });
 
-  it("clock from setClockForTests flows into recordAttempt", async () => {
-    await handleEmailDeliveryJob({
-      emailEventId: "evt-clock-1",
-      recipient: "user@example.com",
-      type: "invite",
-      payload: { inviteId: "invite-1" },
-    });
+  it("injected clock flows into recordAttempt", async () => {
+    await handleEmailDeliveryJob(
+      {
+        emailEventId: "evt-clock-1",
+        recipient: "user@example.com",
+        type: "invite",
+        payload: { inviteId: "invite-1" },
+      },
+      { clock },
+    );
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockEventRepository.recordAttempt).toHaveBeenCalledWith(
@@ -90,17 +89,21 @@ describe("setClockForTests seam in email worker", () => {
       expect.any(Date),
     );
     // eslint-disable-next-line @typescript-eslint/unbound-method
-    const [, attemptedAt] = vi.mocked(mockEventRepository.recordAttempt).mock.calls[0];
+    const [, attemptedAt] = vi.mocked(mockEventRepository.recordAttempt).mock
+      .calls[0];
     expect(attemptedAt).toEqual(new Date("2026-01-01T00:00:00.000Z"));
   });
 
-  it("clock from setClockForTests flows into markDelivered", async () => {
-    await handleEmailDeliveryJob({
-      emailEventId: "evt-clock-2",
-      recipient: "user@example.com",
-      type: "invite",
-      payload: { inviteId: "invite-2" },
-    });
+  it("injected clock flows into markDelivered", async () => {
+    await handleEmailDeliveryJob(
+      {
+        emailEventId: "evt-clock-2",
+        recipient: "user@example.com",
+        type: "invite",
+        payload: { inviteId: "invite-2" },
+      },
+      { clock },
+    );
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockEventRepository.markDelivered).toHaveBeenCalledWith(
@@ -109,25 +112,27 @@ describe("setClockForTests seam in email worker", () => {
       expect.anything(),
     );
     // eslint-disable-next-line @typescript-eslint/unbound-method
-    const [, deliveredAt] = vi.mocked(mockEventRepository.markDelivered).mock.calls[0] as [
-      string,
-      Date,
-    ];
+    const [, deliveredAt] = vi.mocked(mockEventRepository.markDelivered).mock
+      .calls[0] as [string, Date];
     expect(deliveredAt).toEqual(new Date("2026-01-01T00:00:00.000Z"));
   });
 
   it("advanced clock is reflected in recordAttempt timestamps", async () => {
     clock.advance(3600 * 1000);
 
-    await handleEmailDeliveryJob({
-      emailEventId: "evt-clock-3",
-      recipient: "user@example.com",
-      type: "magic-link",
-      payload: { token: "token-3" },
-    });
+    await handleEmailDeliveryJob(
+      {
+        emailEventId: "evt-clock-3",
+        recipient: "user@example.com",
+        type: "magic-link",
+        payload: { token: "token-3" },
+      },
+      { clock },
+    );
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
-    const [, attemptedAt] = vi.mocked(mockEventRepository.recordAttempt).mock.calls[0];
+    const [, attemptedAt] = vi.mocked(mockEventRepository.recordAttempt).mock
+      .calls[0];
     expect(attemptedAt).toEqual(new Date("2026-01-01T01:00:00.000Z"));
   });
 });

@@ -16,6 +16,7 @@ import {
   processEmailDeliveryJob,
 } from "../email/worker";
 import type { QueueEmailJobInput } from "../email/service";
+import type { Clock } from "../system/clock";
 
 export const emailDeliveryTaskName = "deliver_email";
 
@@ -27,13 +28,14 @@ export function setEmailTransportForTests(
   emailTransportOverride = transport;
 }
 
-let clockOverride: (() => Date) | null = null;
+export type HandleEmailDeliveryJobDeps = {
+  clock: Clock;
+};
 
-export function setClockForTests(clock: (() => Date) | null): void {
-  clockOverride = clock;
-}
-
-export async function handleEmailDeliveryJob(payload: unknown): Promise<void> {
+export async function handleEmailDeliveryJob(
+  payload: unknown,
+  deps: HandleEmailDeliveryJobDeps,
+): Promise<void> {
   const job = parseEmailDeliveryJob(payload);
   const config = loadRuntimeConfig();
 
@@ -55,7 +57,7 @@ export async function handleEmailDeliveryJob(payload: unknown): Promise<void> {
   });
 
   await processEmailDeliveryJob(job, {
-    clock: clockOverride ?? (() => new Date()),
+    clock: deps.clock.now,
     eventRepository,
     transport,
     criticalEmail,

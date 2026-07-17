@@ -35,6 +35,33 @@ const COMPLETE_PROFILE: ProfileInputs = {
   isActive: true,
 };
 
+function expectedMatch(
+  userId: string,
+  displayName: string,
+  topicId: string,
+  topicName: string,
+): {
+  userId: string;
+  displayName: string;
+  avatarUrl: null;
+  shortBio: null;
+  topics: Array<{ id: string; name: string }>;
+  topicProfile: Array<{ id: string; name: string }>;
+  availabilityIndicator: "available";
+  calendarFreshness: "none";
+} {
+  return {
+    userId,
+    displayName,
+    avatarUrl: null,
+    shortBio: null,
+    topics: [{ id: topicId, name: topicName }],
+    topicProfile: [{ id: topicId, name: topicName }],
+    availabilityIndicator: "available",
+    calendarFreshness: "none",
+  };
+}
+
 async function insertDiscoverableUser(input: {
   id: string;
   email: string;
@@ -209,10 +236,17 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
       const searchId = await runSearchWithMinimum(2);
       const { snapshot } = await loadStoredSnapshot(searchId);
 
-      const sortedMatches = [...snapshot.slots[0].matches].sort((a, b) =>
+      const expectedMatches = [
+        expectedMatch(OTHER_USER_A_ID, OTHER_USER_A_DISPLAY_NAME, TOPIC.id, TOPIC.name),
+        expectedMatch(OTHER_USER_B_ID, OTHER_USER_B_DISPLAY_NAME, TOPIC.id, TOPIC.name),
+      ].sort((a, b) => a.userId.localeCompare(b.userId));
+
+      const actualMatches = [...snapshot.slots[0].matches].sort((a, b) =>
         a.userId.localeCompare(b.userId),
       );
 
+      expect(actualMatches).toEqual(expectedMatches);
+      expect(snapshot.slots[0].matchCount).toBe(2);
       expect(snapshot).toEqual({
         generatedAt: "2026-07-12T12:00:00.001Z",
         organizerTimezone: ORGANIZER.profileTimezone ?? "UTC",
@@ -223,7 +257,7 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
           {
             startUtc: SLOT_START_UTC,
             matchCount: 2,
-            matches: sortedMatches,
+            matches: actualMatches,
           },
         ],
       });

@@ -31,7 +31,10 @@ const MATCH_USER_2_DISPLAY_NAME = "Match User 2";
 const DURATION_MINUTES = 60;
 const MINIMUM_MATCHING_USERS = 2;
 
-function getLocalHourMinutes(date: Date, timezone: string): { hour: number; minute: number } {
+function getLocalHourMinutes(
+  date: Date,
+  timezone: string,
+): { hour: number; minute: number } {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour: "2-digit",
@@ -39,11 +42,73 @@ function getLocalHourMinutes(date: Date, timezone: string): { hour: number; minu
     hour12: false,
   }).formatToParts(date);
 
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  const get = (type: string) =>
+    parts.find((p) => p.type === type)?.value ?? "00";
   return {
     hour: Number(get("hour")),
     minute: Number(get("minute")),
   };
+}
+
+async function insertMatchUserFixtures(
+  db: NonNullable<ReturnType<typeof getTestDb>>,
+  dayOfWeek: number,
+): Promise<void> {
+  const now = new Date(FIXTURE_DATE);
+
+  for (const [id, email, displayName, userTopicId, windowId] of [
+    [MATCH_USER_ID, MATCH_USER_EMAIL, MATCH_USER_DISPLAY_NAME, "00000000-0000-0000-0000-000000000230", "00000000-0000-0000-0000-000000000220"],
+    [MATCH_USER_2_ID, MATCH_USER_2_EMAIL, MATCH_USER_2_DISPLAY_NAME, "00000000-0000-0000-0000-000000000231", "00000000-0000-0000-0000-000000000221"],
+  ] as const) {
+    await db.insert(users).values({
+      id,
+      email,
+      displayName,
+      role: "user",
+      status: "active",
+      profileTimezone: "UTC",
+      bufferMinutes: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(discoverabilityConsents).values({
+      userId: id,
+      grantedAt: now,
+    });
+    await db.insert(userTopics).values({
+      id: userTopicId,
+      userId: id,
+      topicId: SELECTED_TOPIC.id,
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(availabilityWindows).values({
+      id: windowId,
+      userId: id,
+      dayOfWeek,
+      startTime: "00:00",
+      endTime: "23:59",
+      profileTimezone: "UTC",
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  setSearchEligibilityProfileInputsForTests({
+    [MATCH_USER_ID]: {
+      hasDisplayName: true,
+      hasTopicOrProposal: true,
+      hasAvailabilitySource: true,
+      isActive: true,
+    },
+    [MATCH_USER_2_ID]: {
+      hasDisplayName: true,
+      hasTopicOrProposal: true,
+      hasAvailabilitySource: true,
+      isActive: true,
+    },
+  });
 }
 
 describe("E2E: Slot start times align to an hourly grid", () => {
@@ -61,90 +126,7 @@ describe("E2E: Slot start times align to an hourly grid", () => {
       }
 
       await setupTest();
-
-      const now = new Date(FIXTURE_DATE);
-      await db.insert(users).values({
-        id: MATCH_USER_ID,
-        email: MATCH_USER_EMAIL,
-        displayName: MATCH_USER_DISPLAY_NAME,
-        role: "user",
-        status: "active",
-        profileTimezone: "UTC",
-        bufferMinutes: 0,
-        createdAt: now,
-        updatedAt: now,
-      });
-      await db.insert(discoverabilityConsents).values({
-        userId: MATCH_USER_ID,
-        grantedAt: now,
-      });
-      await db.insert(userTopics).values({
-        id: "00000000-0000-0000-0000-000000000230",
-        userId: MATCH_USER_ID,
-        topicId: SELECTED_TOPIC.id,
-        status: "active",
-        createdAt: now,
-        updatedAt: now,
-      });
-      await db.insert(availabilityWindows).values({
-        id: "00000000-0000-0000-0000-000000000220",
-        userId: MATCH_USER_ID,
-        dayOfWeek: 1,
-        startTime: "00:00",
-        endTime: "23:59",
-        profileTimezone: "UTC",
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      await db.insert(users).values({
-        id: MATCH_USER_2_ID,
-        email: MATCH_USER_2_EMAIL,
-        displayName: MATCH_USER_2_DISPLAY_NAME,
-        role: "user",
-        status: "active",
-        profileTimezone: "UTC",
-        bufferMinutes: 0,
-        createdAt: now,
-        updatedAt: now,
-      });
-      await db.insert(discoverabilityConsents).values({
-        userId: MATCH_USER_2_ID,
-        grantedAt: now,
-      });
-      await db.insert(userTopics).values({
-        id: "00000000-0000-0000-0000-000000000231",
-        userId: MATCH_USER_2_ID,
-        topicId: SELECTED_TOPIC.id,
-        status: "active",
-        createdAt: now,
-        updatedAt: now,
-      });
-      await db.insert(availabilityWindows).values({
-        id: "00000000-0000-0000-0000-000000000221",
-        userId: MATCH_USER_2_ID,
-        dayOfWeek: 1,
-        startTime: "00:00",
-        endTime: "23:59",
-        profileTimezone: "UTC",
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      setSearchEligibilityProfileInputsForTests({
-        [MATCH_USER_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [MATCH_USER_2_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
+      await insertMatchUserFixtures(db, 1);
 
       const result = await submitSearch(
         {
@@ -162,7 +144,8 @@ describe("E2E: Slot start times align to an hourly grid", () => {
           clock: { now: getTestClock() },
           matchingPoolSize: 2,
           matchingDependencies: createMatchingDependencies(),
-          discoverableUserRepository: createPostgresDiscoverableUserRepository(),
+          discoverableUserRepository:
+            createPostgresDiscoverableUserRepository(),
           searchResultRepository: createPostgresSearchResultRepository(),
         },
         {
@@ -181,7 +164,9 @@ describe("E2E: Slot start times align to an hourly grid", () => {
       }
 
       const searchResultRepository = createPostgresSearchResultRepository();
-      const snapshot = await searchResultRepository.findBySearchId(result.search.id);
+      const snapshot = await searchResultRepository.findBySearchId(
+        result.search.id,
+      );
       expect(snapshot).not.toBeNull();
 
       expect(snapshot!.snapshotJson).toMatchObject({
@@ -218,92 +203,9 @@ describe("E2E: Slot start times align to an hourly grid", () => {
       }
 
       await setupTest();
+      await insertMatchUserFixtures(db, 6);
 
-      const now = new Date(FIXTURE_DATE);
-      await db.insert(users).values({
-        id: MATCH_USER_ID,
-        email: MATCH_USER_EMAIL,
-        displayName: MATCH_USER_DISPLAY_NAME,
-        role: "user",
-        status: "active",
-        profileTimezone: "UTC",
-        bufferMinutes: 0,
-        createdAt: now,
-        updatedAt: now,
-      });
-      await db.insert(discoverabilityConsents).values({
-        userId: MATCH_USER_ID,
-        grantedAt: now,
-      });
-      await db.insert(userTopics).values({
-        id: "00000000-0000-0000-0000-000000000230",
-        userId: MATCH_USER_ID,
-        topicId: SELECTED_TOPIC.id,
-        status: "active",
-        createdAt: now,
-        updatedAt: now,
-      });
-      await db.insert(availabilityWindows).values({
-        id: "00000000-0000-0000-0000-000000000220",
-        userId: MATCH_USER_ID,
-        dayOfWeek: 1,
-        startTime: "00:00",
-        endTime: "23:59",
-        profileTimezone: "UTC",
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      await db.insert(users).values({
-        id: MATCH_USER_2_ID,
-        email: MATCH_USER_2_EMAIL,
-        displayName: MATCH_USER_2_DISPLAY_NAME,
-        role: "user",
-        status: "active",
-        profileTimezone: "UTC",
-        bufferMinutes: 0,
-        createdAt: now,
-        updatedAt: now,
-      });
-      await db.insert(discoverabilityConsents).values({
-        userId: MATCH_USER_2_ID,
-        grantedAt: now,
-      });
-      await db.insert(userTopics).values({
-        id: "00000000-0000-0000-0000-000000000231",
-        userId: MATCH_USER_2_ID,
-        topicId: SELECTED_TOPIC.id,
-        status: "active",
-        createdAt: now,
-        updatedAt: now,
-      });
-      await db.insert(availabilityWindows).values({
-        id: "00000000-0000-0000-0000-000000000221",
-        userId: MATCH_USER_2_ID,
-        dayOfWeek: 1,
-        startTime: "00:00",
-        endTime: "23:59",
-        profileTimezone: "UTC",
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      setSearchEligibilityProfileInputsForTests({
-        [MATCH_USER_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [MATCH_USER_2_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
-      const organizerTimezone = "America/Los_Angeles";
+      const organizerTimezone = "Australia/Lord_Howe";
 
       const result = await submitSearch(
         {
@@ -321,15 +223,16 @@ describe("E2E: Slot start times align to an hourly grid", () => {
           clock: { now: getTestClock() },
           matchingPoolSize: 2,
           matchingDependencies: createMatchingDependencies(),
-          discoverableUserRepository: createPostgresDiscoverableUserRepository(),
+          discoverableUserRepository:
+            createPostgresDiscoverableUserRepository(),
           searchResultRepository: createPostgresSearchResultRepository(),
         },
         {
           selectedTopicIds: [SELECTED_TOPIC.id],
           minimumMatchingUsers: MINIMUM_MATCHING_USERS,
           durationMinutes: DURATION_MINUTES,
-          dateRangeStart: new Date("2026-07-13T05:00:00.000Z"),
-          dateRangeEnd: new Date("2026-07-13T12:00:00.000Z"),
+          dateRangeStart: new Date("2026-10-03T13:00:00.000Z"),
+          dateRangeEnd: new Date("2026-10-03T18:00:00.000Z"),
           organizerTimezone,
         },
       );
@@ -340,29 +243,45 @@ describe("E2E: Slot start times align to an hourly grid", () => {
       }
 
       const searchResultRepository = createPostgresSearchResultRepository();
-      const snapshot = await searchResultRepository.findBySearchId(result.search.id);
+      const snapshot = await searchResultRepository.findBySearchId(
+        result.search.id,
+      );
       expect(snapshot).not.toBeNull();
-
-      expect(snapshot!.snapshotJson).toMatchObject({
-        organizerTimezone,
-        dateRangeStart: new Date("2026-07-13T05:00:00.000Z").toISOString(),
-        dateRangeEnd: new Date("2026-07-13T12:00:00.000Z").toISOString(),
-        durationMinutes: DURATION_MINUTES,
-      });
 
       const slots = snapshot!.snapshotJson.slots;
       expect(slots.length).toBeGreaterThan(0);
 
-      for (const slot of slots) {
-        expect(typeof slot.startUtc).toBe("string");
-        expect(new Date(slot.startUtc).getTime()).not.toBeNaN();
-        expect(typeof slot.matchCount).toBe("number");
-        expect(Array.isArray(slot.matches)).toBe(true);
+      const expectedSlots = [
+        "2026-10-03T13:30:00.000Z",
+        "2026-10-03T14:30:00.000Z",
+        "2026-10-03T16:00:00.000Z",
+        "2026-10-03T17:00:00.000Z",
+      ];
 
-        const slotDate = new Date(slot.startUtc);
-        const { minute } = getLocalHourMinutes(slotDate, organizerTimezone);
+      expect(slots.length).toBe(expectedSlots.length);
+
+      for (const slot of slots) {
+        const { minute } = getLocalHourMinutes(
+          new Date(slot.startUtc),
+          organizerTimezone,
+        );
         expect(minute).toBe(0);
       }
+
+      expect(slots.map((s) => s.startUtc)).toEqual(expectedSlots);
+
+      expect(snapshot!.snapshotJson).toEqual({
+        generatedAt: snapshot!.snapshotJson.generatedAt,
+        organizerTimezone,
+        dateRangeStart: new Date("2026-10-03T13:00:00.000Z").toISOString(),
+        dateRangeEnd: new Date("2026-10-03T18:00:00.000Z").toISOString(),
+        durationMinutes: DURATION_MINUTES,
+        slots: slots.map((slot) => ({
+          startUtc: slot.startUtc,
+          matchCount: slot.matchCount,
+          matches: slot.matches,
+        })),
+      });
     },
   );
 });

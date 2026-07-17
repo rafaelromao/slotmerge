@@ -113,6 +113,24 @@ describe("generateHourlySlots", () => {
     expect(slots[1].toISOString()).toBe("2026-07-13T17:00:00.000Z");
   });
 
+  it("keeps slots on the local hour across a 30-minute DST transition", () => {
+    const timezone = "Australia/Lord_Howe";
+    const rangeStart = new Date("2026-10-03T13:00:00.000Z");
+    const rangeEnd = new Date("2026-10-03T18:00:00.000Z");
+
+    const slots = generateHourlySlots(rangeStart, rangeEnd, timezone);
+
+    expect(slots.map((slot) => slot.toISOString())).toEqual([
+      "2026-10-03T13:30:00.000Z",
+      "2026-10-03T14:30:00.000Z",
+      "2026-10-03T16:00:00.000Z",
+      "2026-10-03T17:00:00.000Z",
+    ]);
+    for (const slot of slots) {
+      expect(getLocalHourMinute(slot, timezone).minute).toBe(0);
+    }
+  });
+
   it("with America/Los_Angeles, slots are also on UTC hour boundaries", () => {
     const rangeStart = new Date("2026-07-13T16:00:00.000Z");
     const rangeEnd = new Date("2026-07-13T23:00:00.000Z");

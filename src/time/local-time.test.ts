@@ -247,3 +247,119 @@ describe("localDateTimeToUtc host-clock independence", () => {
     expect(tokyoAnswer).toBe(utcAnswer);
   });
 });
+
+import {
+  getLocalDateParts,
+  getLocalDayHour,
+  startOfWeekInTimezone,
+} from "./local-time";
+
+describe("getLocalDateParts", () => {
+  it("returns the date parts with one-based month", () => {
+    const parts = getLocalDateParts(
+      new Date("2026-07-06T15:30:45.000Z"),
+      "UTC",
+    );
+    expect(parts.year).toBe(2026);
+    expect(parts.month).toBe(7);
+    expect(parts.day).toBe(6);
+    expect(parts.hour).toBe(15);
+    expect(parts.minute).toBe(30);
+    expect(parts.second).toBe(45);
+  });
+
+  it("returns weekday 0 (Sun) through 6 (Sat)", () => {
+    expect(
+      getLocalDateParts(new Date("2026-07-05T12:00:00.000Z"), "UTC").weekday,
+    ).toBe(0);
+    expect(
+      getLocalDateParts(new Date("2026-07-06T12:00:00.000Z"), "UTC").weekday,
+    ).toBe(1);
+    expect(
+      getLocalDateParts(new Date("2026-07-11T12:00:00.000Z"), "UTC").weekday,
+    ).toBe(6);
+  });
+
+  it("shifts the calendar day across the date line for half-hour zones", () => {
+    const parts = getLocalDateParts(
+      new Date("2026-07-06T20:30:00.000Z"),
+      "Asia/Kathmandu",
+    );
+    expect(parts.year).toBe(2026);
+    expect(parts.month).toBe(7);
+    expect(parts.day).toBe(7);
+    expect(parts.hour).toBe(2);
+    expect(parts.minute).toBe(15);
+  });
+
+  it("throws RangeError for an invalid timeZone", () => {
+    expect(() => getLocalDateParts(new Date(), "Mars/Olympus")).toThrow(
+      RangeError,
+    );
+  });
+});
+
+describe("startOfWeekInTimezone", () => {
+  it("returns the UTC instant for Monday 00:00 local in America/Sao_Paulo", () => {
+    const utc = startOfWeekInTimezone(
+      new Date("2026-07-08T15:00:00.000Z"),
+      "America/Sao_Paulo",
+    );
+    expect(utc.toISOString()).toBe("2026-07-06T03:00:00.000Z");
+  });
+
+  it("returns the UTC instant for Monday 00:00 local in UTC", () => {
+    const utc = startOfWeekInTimezone(
+      new Date("2026-07-08T15:00:00.000Z"),
+      "UTC",
+    );
+    expect(utc.toISOString()).toBe("2026-07-06T00:00:00.000Z");
+  });
+
+  it("returns the same Monday 00:00 UTC for a Monday input in Asia/Kathmandu", () => {
+    const utc = startOfWeekInTimezone(
+      new Date("2026-07-06T05:00:00.000Z"),
+      "Asia/Kathmandu",
+    );
+    expect(getLocalDayHour(utc, "Asia/Kathmandu").dayIndex).toBe(0);
+    expect(getLocalDayHour(utc, "Asia/Kathmandu").hour).toBe(0);
+  });
+
+  it("throws RangeError for an invalid timeZone", () => {
+    expect(() =>
+      startOfWeekInTimezone(new Date(), "Mars/Olympus"),
+    ).toThrow(RangeError);
+  });
+});
+
+describe("getLocalDayHour", () => {
+  it("returns Monday-first day index 0..6 and hour 0..23", () => {
+    const monMidnightUtc = new Date("2026-07-06T03:00:00.000Z");
+    const dh = getLocalDayHour(monMidnightUtc, "America/Sao_Paulo");
+    expect(dh.dayIndex).toBe(0);
+    expect(dh.hour).toBe(0);
+  });
+
+  it("returns hour 9 in NY for 13:00 UTC on a summer day", () => {
+    const dh = getLocalDayHour(
+      new Date("2026-07-06T13:00:00.000Z"),
+      "America/New_York",
+    );
+    expect(dh.hour).toBe(9);
+  });
+
+  it("shifts dayIndex when local time crosses midnight", () => {
+    const dh = getLocalDayHour(
+      new Date("2026-07-05T23:30:00.000Z"),
+      "Asia/Kathmandu",
+    );
+    expect(dh.dayIndex).toBeGreaterThanOrEqual(0);
+    expect(dh.dayIndex).toBeLessThanOrEqual(6);
+  });
+
+  it("throws RangeError for an invalid timeZone", () => {
+    expect(() => getLocalDayHour(new Date(), "Mars/Olympus")).toThrow(
+      RangeError,
+    );
+  });
+});

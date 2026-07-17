@@ -226,3 +226,91 @@ function isAmbiguousAt(utc: Date, timeZone: string): boolean {
   const after = getLocalPartsFromUtc(hourLater, timeZone);
   return sameLocalParts(before, after);
 }
+
+export type LocalDateParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+  weekday: number;
+};
+
+export type LocalDayHour = {
+  dayIndex: number;
+  hour: number;
+};
+
+const WEEKDAY_ORDER: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+export function getLocalDateParts(
+  date: Date,
+  timeZone: string,
+): LocalDateParts {
+  if (!isValidTimeZone(timeZone)) {
+    throw new RangeError(
+      `Invalid IANA timeZone: ${timeZone}. No UTC fallback.`,
+    );
+  }
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    weekday: "short",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(date);
+  const get = (type: string) =>
+    Number(parts.find((p) => p.type === type)?.value ?? "0");
+  const weekdayStr = parts.find((p) => p.type === "weekday")?.value ?? "Sun";
+  const weekday = WEEKDAY_ORDER[weekdayStr] ?? 0;
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute"),
+    second: get("second"),
+    weekday,
+  };
+}
+
+export function startOfWeekInTimezone(date: Date, timeZone: string): Date {
+  if (!isValidTimeZone(timeZone)) {
+    throw new RangeError(
+      `Invalid IANA timeZone: ${timeZone}. No UTC fallback.`,
+    );
+  }
+  const parts = getLocalDateParts(date, timeZone);
+  const mondayIndex = parts.weekday === 0 ? 6 : parts.weekday - 1;
+  return localDateTimeToUtc(
+    {
+      year: parts.year,
+      month: parts.month,
+      day: parts.day - mondayIndex,
+      hour: 0,
+      minute: 0,
+      second: 0,
+    },
+    timeZone,
+  );
+}
+
+export function getLocalDayHour(date: Date, timeZone: string): LocalDayHour {
+  const parts = getLocalDateParts(date, timeZone);
+  const dayIndex = parts.weekday === 0 ? 6 : parts.weekday - 1;
+  return { dayIndex, hour: parts.hour };
+}

@@ -25,7 +25,12 @@ const adminSession: Session = {
 };
 
 const userSession: Session = {
-  user: { ...adminSession.user, id: "user-1", email: "user@example.com", role: "user" },
+  user: {
+    ...adminSession.user,
+    id: "user-1",
+    email: "user@example.com",
+    role: "user",
+  },
   csrfToken: "csrf-token-2",
 };
 
@@ -105,7 +110,7 @@ describe("admin page shell", () => {
       });
 
       expect(html).toContain("<!doctype html>");
-      expect(html).toContain("<html lang=\"en\">");
+      expect(html).toContain('<html lang="en">');
       expect(html).toContain("<main>");
       expect(html).toContain("<h1>Users</h1>");
       expect(html).toContain("<table>");
@@ -129,7 +134,9 @@ describe("admin page shell", () => {
         alert: { message: 'Invalid <role> "x"' },
       });
 
-      expect(html).toContain('<p role="alert">Invalid &lt;role&gt; &quot;x&quot;</p>');
+      expect(html).toContain(
+        '<p role="alert">Invalid &lt;role&gt; &quot;x&quot;</p>',
+      );
     });
 
     it("does not render any alert role markup when no alert is supplied", () => {
@@ -144,7 +151,7 @@ describe("admin page shell", () => {
     it("does not require or accept a csrf token in its shape", () => {
       const html = renderAdminShell({
         title: "Topics",
-        body: "<input type=\"hidden\" name=\"_csrf\" value=\"csrf-token-1\" />",
+        body: '<input type="hidden" name="_csrf" value="csrf-token-1" />',
       });
 
       expect(html).toContain('name="_csrf"');

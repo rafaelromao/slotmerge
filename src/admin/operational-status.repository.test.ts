@@ -14,42 +14,11 @@ describe("createPostgresOperationalStatusRepository", () => {
       failedAt: new Date("2026-01-01T23:55:00Z"),
     };
 
-    const groupBy = vi.fn().mockImplementation((_column: unknown) => {
-      const inner = (handler: (rows: unknown[]) => unknown) =>
-        handler([
-          { status: "queued", value: "2" },
-          { status: "sent", value: "17" },
-          { status: "failed", value: "4" },
-        ]);
-      void inner;
-      return Promise.resolve({
-        queued: 2,
-        sending: 0,
-        sent: 17,
-        failed: 4,
-      });
-    });
-    const gteWhere = vi
-      .fn()
-      .mockReturnValueOnce({ groupBy })
-      .mockReturnValueOnce({
-        orderBy: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue([failedRow]),
-        }),
-      });
-    const fromEmail = vi.fn().mockReturnValue({ where: gteWhere });
-    const fromCal = vi.fn().mockReturnValue({ groupBy: vi.fn() });
-    const select = vi.fn().mockReturnValueOnce({ from: fromEmail });
-    void select;
-    void fromCal;
-
-    // Use a single chainable db whose .select().from() can vary per call.
     let callIndex = 0;
     const db = {
       select: vi.fn().mockImplementation(() => {
         callIndex += 1;
         if (callIndex === 1) {
-          // counts by status
           return {
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
@@ -62,7 +31,6 @@ describe("createPostgresOperationalStatusRepository", () => {
             }),
           };
         }
-        // recent failures
         return {
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({

@@ -12,16 +12,14 @@ export type UserListItem = {
 };
 
 export type ChangeRoleResult =
-  | { ok: true }
-  | { ok: false; reason: "not_found" | "self" };
+  { ok: true } | { ok: false; reason: "not_found" | "self" };
 
 export type SuspendResult =
   | { ok: true }
   | { ok: false; reason: "not_found" | "already_suspended" | "self" };
 
 export type ReinstateResult =
-  | { ok: true }
-  | { ok: false; reason: "not_found" | "already_active" | "self" };
+  { ok: true } | { ok: false; reason: "not_found" | "already_active" | "self" };
 
 export type AdminUserRepository = {
   listUsers(): Promise<UserListItem[]>;
@@ -43,7 +41,9 @@ export type AdminUserRepository = {
   }): Promise<ReinstateResult>;
 };
 
-export function createPostgresAdminUserRepository(db = getDb()): AdminUserRepository {
+export function createPostgresAdminUserRepository(
+  db = getDb(),
+): AdminUserRepository {
   return {
     async listUsers() {
       const rows = await db

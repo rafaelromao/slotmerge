@@ -2,15 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createPostgresTopicProposalRepository } from "./proposals.repository";
 
-function buildDb() {
-  return {
-    select: vi.fn(),
-    update: vi.fn(),
-    insert: vi.fn(),
-    transaction: vi.fn(),
-  };
-}
-
 describe("createPostgresTopicProposalRepository", () => {
   it("listPending joins the proposer and orders by createdAt desc", async () => {
     const orderBy = vi.fn().mockResolvedValue([
@@ -74,8 +65,8 @@ describe("createPostgresTopicProposalRepository", () => {
       select,
       transaction: vi
         .fn()
-        .mockImplementation(
-          async (handler: (tx: Tx) => Promise<unknown>) => handler(tx),
+        .mockImplementation(async (handler: (tx: Tx) => Promise<unknown>) =>
+          handler(tx),
         ),
     };
 
@@ -125,9 +116,7 @@ describe("createPostgresTopicProposalRepository", () => {
 
   it("reject forwards the explicit now timestamp to updatedAt", async () => {
     const now = new Date("2026-05-02T00:00:00.000Z");
-    const limit = vi
-      .fn()
-      .mockResolvedValue([{ status: "pending" }]);
+    const limit = vi.fn().mockResolvedValue([{ status: "pending" }]);
     const where = vi.fn().mockReturnValue({ limit });
     const from = vi.fn().mockReturnValue({ where });
     const select = vi.fn().mockReturnValue({ from });

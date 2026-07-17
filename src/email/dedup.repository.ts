@@ -15,9 +15,7 @@ export type EmailDedupLookup = {
   findMostRecent(input: FindMostRecentInput): Promise<Date | null>;
 };
 
-export function createPostgresEmailDedupLookup(
-  db = getDb(),
-): EmailDedupLookup {
+export function createPostgresEmailDedupLookup(db = getDb()): EmailDedupLookup {
   return {
     async findMostRecent({ type, payloadReference, since, status }) {
       const where = status

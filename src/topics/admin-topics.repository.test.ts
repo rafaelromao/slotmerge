@@ -6,13 +6,6 @@ import {
   setTopicCatalogueRepositoryForTests,
 } from "../topics/repository";
 
-function buildDb() {
-  return {
-    select: vi.fn(),
-    update: vi.fn(),
-  };
-}
-
 describe("topic catalogue admin repository", () => {
   it("listActiveAdminTopics returns every topic ordered by name", async () => {
     const orderBy = vi.fn().mockResolvedValue([
@@ -122,7 +115,7 @@ describe("topic catalogue admin repository", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  it("getTopicCatalogueRepository exposes the admin ops through the shared interface", async () => {
+  it("getTopicCatalogueRepository exposes the admin ops through the shared interface", () => {
     setTopicCatalogueRepositoryForTests(null);
     const repository = getTopicCatalogueRepository();
     expect(typeof repository.listActiveAdminTopics).toBe("function");

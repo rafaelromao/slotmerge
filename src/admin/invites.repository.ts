@@ -1,7 +1,12 @@
 import { desc, eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
-import { invites, users, type InviteRole, type InviteStatus } from "../db/schema";
+import {
+  invites,
+  users,
+  type InviteRole,
+  type InviteStatus,
+} from "../db/schema";
 
 export type InviteListItem = {
   id: string;
@@ -18,8 +23,7 @@ export type InviteRecord = InviteListItem & {
 };
 
 export type CreateInviteResult =
-  | { ok: true; invite: InviteRecord }
-  | { ok: false; reason: "duplicate" };
+  { ok: true; invite: InviteRecord } | { ok: false; reason: "duplicate" };
 
 export type InviteRepository = {
   listInvites(): Promise<InviteListItem[]>;
@@ -40,9 +44,7 @@ export type CreateInvitePersistenceInput = {
   expiresAt: Date;
 };
 
-export function createPostgresInviteRepository(
-  db = getDb(),
-): InviteRepository {
+export function createPostgresInviteRepository(db = getDb()): InviteRepository {
   return {
     async listInvites() {
       const rows = await db

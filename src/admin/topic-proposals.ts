@@ -1,39 +1,29 @@
-import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { getSessionFromRequest, type Session } from "../auth/session";
-import { getDb } from "../db/client";
+import type { TopicProposalStatus } from "../db/schema";
 import {
-  topicProposals,
-  topics,
-  users,
-  type TopicProposalStatus,
-} from "../db/schema";
+  adminAccessDeniedResponse,
+  escapeHtml,
+  htmlResponse,
+  isAdminSession,
+  renderAdminShell,
+} from "./page";
+import {
+  createPostgresTopicProposalRepository,
+  type TopicProposalAdminRepository,
+  type TopicProposalListItem,
+} from "../topics/proposals.repository";
 
-export type TopicProposalListItem = {
-  id: string;
-  candidateName: string;
-  status: TopicProposalStatus;
-  proposedByUserId: string | null;
-  proposedByUserEmail: string | null;
-  createdAt: Date;
-};
-
-export type ApproveResult =
-  { ok: true; topicId: string } | { ok: false; reason: "already_processed" };
-
-export type RejectResult =
-  { ok: true } | { ok: false; reason: "already_processed" };
-
-export type TopicProposalRepository = {
-  listPending(): Promise<TopicProposalListItem[]>;
-  approve(id: string): Promise<ApproveResult>;
-  reject(id: string): Promise<RejectResult>;
-};
+export type {
+  ApproveResult,
+  RejectResult,
+} from "../topics/proposals.repository";
 
 export type AdminTopicProposalsDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
-  topicProposalRepository?: TopicProposalRepository;
+  topicProposalRepository?: TopicProposalAdminRepository;
+  clock?: () => Date;
 };
 
 const actionSchema = z.object({
@@ -43,20 +33,25 @@ const actionSchema = z.object({
 
 export function createAdminTopicProposalsHandlers({
   getSession = getSessionFromRequest,
-  topicProposalRepository = databaseTopicProposalRepository,
+  topicProposalRepository = createPostgresTopicProposalRepository(),
+  clock = () => new Date(),
 }: AdminTopicProposalsDependencies = {}) {
+  const repository = topicProposalRepository;
   return {
     GET: async (request: Request): Promise<Response> => {
       const session = await getSession(request);
       if (!isAdminSession(session)) {
-        return createAccessDeniedResponse(session);
+        return adminAccessDeniedResponse(session);
       }
 
-      const proposals = await topicProposalRepository.listPending();
+      const proposals = await repository.listPending();
       return htmlResponse(
-        renderTopicProposalsPage({
-          proposalRows: proposals,
-          csrfToken: session.csrfToken,
+        renderAdminShell({
+          title: "Topic Proposals",
+          body: renderTopicProposalsBody({
+            proposalRows: proposals,
+            csrfToken: session.csrfToken,
+          }),
         }),
       );
     },
@@ -64,17 +59,20 @@ export function createAdminTopicProposalsHandlers({
     POST: async (request: Request): Promise<Response> => {
       const session = await getSession(request);
       if (!isAdminSession(session)) {
-        return createAccessDeniedResponse(session);
+        return adminAccessDeniedResponse(session);
       }
 
       const formData = await request.formData();
       const csrfToken = formData.get("_csrf");
       if (typeof csrfToken !== "string" || csrfToken !== session.csrfToken) {
         return htmlResponse(
-          renderTopicProposalsPage({
-            proposalRows: await topicProposalRepository.listPending(),
-            csrfToken: session.csrfToken,
-            errorMessage: "Invalid CSRF token.",
+          renderAdminShell({
+            title: "Topic Proposals",
+            body: renderTopicProposalsBody({
+              proposalRows: await repository.listPending(),
+              csrfToken: session.csrfToken,
+            }),
+            alert: { message: "Invalid CSRF token." },
           }),
           403,
         );
@@ -87,10 +85,13 @@ export function createAdminTopicProposalsHandlers({
 
       if (!actionResult.success) {
         return htmlResponse(
-          renderTopicProposalsPage({
-            proposalRows: await topicProposalRepository.listPending(),
-            csrfToken: session.csrfToken,
-            errorMessage: "Invalid action.",
+          renderAdminShell({
+            title: "Topic Proposals",
+            body: renderTopicProposalsBody({
+              proposalRows: await repository.listPending(),
+              csrfToken: session.csrfToken,
+            }),
+            alert: { message: "Invalid action." },
           }),
           400,
         );
@@ -99,41 +100,56 @@ export function createAdminTopicProposalsHandlers({
       const id = formData.get("id");
       if (typeof id !== "string") {
         return htmlResponse(
-          renderTopicProposalsPage({
-            proposalRows: await topicProposalRepository.listPending(),
-            csrfToken: session.csrfToken,
-            errorMessage: "Missing proposal ID.",
+          renderAdminShell({
+            title: "Topic Proposals",
+            body: renderTopicProposalsBody({
+              proposalRows: await repository.listPending(),
+              csrfToken: session.csrfToken,
+            }),
+            alert: { message: "Missing proposal ID." },
           }),
           400,
         );
       }
 
+      const now = clock();
+
       if (actionResult.data.action === "approve") {
-        const result = await topicProposalRepository.approve(id);
+        const result = await repository.approve({ id, now });
         if (!result.ok) {
           return htmlResponse(
-            renderTopicProposalsPage({
-              proposalRows: await topicProposalRepository.listPending(),
-              csrfToken: session.csrfToken,
-              errorMessage:
-                result.reason === "already_processed"
-                  ? "This proposal has already been processed."
-                  : "Failed to approve proposal.",
+            renderAdminShell({
+              title: "Topic Proposals",
+              body: renderTopicProposalsBody({
+                proposalRows: await repository.listPending(),
+                csrfToken: session.csrfToken,
+              }),
+              alert: {
+                message:
+                  result.reason === "already_processed"
+                    ? "This proposal has already been processed."
+                    : "Failed to approve proposal.",
+              },
             }),
             409,
           );
         }
       } else {
-        const result = await topicProposalRepository.reject(id);
+        const result = await repository.reject({ id, now });
         if (!result.ok) {
           return htmlResponse(
-            renderTopicProposalsPage({
-              proposalRows: await topicProposalRepository.listPending(),
-              csrfToken: session.csrfToken,
-              errorMessage:
-                result.reason === "already_processed"
-                  ? "This proposal has already been processed."
-                  : "Failed to reject proposal.",
+            renderAdminShell({
+              title: "Topic Proposals",
+              body: renderTopicProposalsBody({
+                proposalRows: await repository.listPending(),
+                csrfToken: session.csrfToken,
+              }),
+              alert: {
+                message:
+                  result.reason === "already_processed"
+                    ? "This proposal has already been processed."
+                    : "Failed to reject proposal.",
+              },
             }),
             409,
           );
@@ -148,34 +164,12 @@ export function createAdminTopicProposalsHandlers({
   };
 }
 
-function isAdminSession(session: Session | null): session is Session {
-  return session?.user.role === "admin";
-}
-
-function createAccessDeniedResponse(session: Session | null): Response {
-  return htmlResponse(
-    session
-      ? "<h1>Forbidden</h1><p>Admin access required.</p>"
-      : "<h1>Unauthorized</h1><p>Sign in required.</p>",
-    session ? 403 : 401,
-  );
-}
-
-function htmlResponse(body: string, status = 200): Response {
-  return new Response(body, {
-    status,
-    headers: { "Content-Type": "text/html; charset=utf-8" },
-  });
-}
-
-function renderTopicProposalsPage({
+function renderTopicProposalsBody({
   proposalRows,
   csrfToken,
-  errorMessage,
 }: {
   proposalRows: TopicProposalListItem[];
   csrfToken: string;
-  errorMessage?: string;
 }): string {
   const rows =
     proposalRows.length > 0
@@ -185,7 +179,7 @@ function renderTopicProposalsPage({
               <tr>
                 <td>${escapeHtml(p.candidateName)}</td>
                 <td>${escapeHtml(p.proposedByUserEmail ?? "(deleted User)")}</td>
-                <td>${escapeHtml(labelStatus(p.status))}</td>
+                <td>${escapeHtml(labelProposalStatus(p.status))}</td>
                 <td>
                   <form method="post" style="display:inline">
                     <input type="hidden" name="id" value="${escapeHtml(p.id)}" />
@@ -205,118 +199,26 @@ function renderTopicProposalsPage({
           .join("")
       : `<tr><td colspan="4">No pending proposals.</td></tr>`;
 
-  return `<!doctype html>
-<html lang="en">
-  <body>
-    <main>
-      <h1>Topic Proposals</h1>
-      ${errorMessage ? `<p role="alert">${escapeHtml(errorMessage)}</p>` : ""}
-      <section>
-        <h2>Pending Proposals</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Proposed by</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </section>
-    </main>
-  </body>
-</html>`;
+  return `<section>
+    <h2>Pending Proposals</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Proposed by</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </section>`;
 }
 
-function labelStatus(status: TopicProposalStatus): string {
+function labelProposalStatus(status: TopicProposalStatus): string {
   return status === "pending"
     ? "Pending"
     : status === "approved"
       ? "Approved"
       : "Rejected";
 }
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-const databaseTopicProposalRepository: TopicProposalRepository = {
-  listPending: async () => {
-    const rows = await getDb()
-      .select({
-        id: topicProposals.id,
-        candidateName: topicProposals.candidateName,
-        status: topicProposals.status,
-        proposedByUserId: topicProposals.proposedByUserId,
-        proposedByUserEmail: users.email,
-        createdAt: topicProposals.createdAt,
-      })
-      .from(topicProposals)
-      .leftJoin(users, eq(topicProposals.proposedByUserId, users.id))
-      .where(eq(topicProposals.status, "pending"))
-      .orderBy(desc(topicProposals.createdAt));
-
-    return rows;
-  },
-
-  approve: async (id: string) => {
-    const db = getDb();
-
-    const [proposal] = await db
-      .select()
-      .from(topicProposals)
-      .where(eq(topicProposals.id, id))
-      .limit(1);
-
-    if (!proposal || proposal.status !== "pending") {
-      return { ok: false, reason: "already_processed" };
-    }
-
-    const result = await db.transaction(async (tx) => {
-      const [topic] = await tx
-        .insert(topics)
-        .values({
-          name: proposal.candidateName,
-          status: "active",
-        })
-        .returning({ id: topics.id });
-
-      await tx
-        .update(topicProposals)
-        .set({ status: "approved", updatedAt: new Date() })
-        .where(eq(topicProposals.id, id));
-
-      return { topicId: topic.id };
-    });
-
-    return { ok: true, topicId: result.topicId };
-  },
-
-  reject: async (id: string) => {
-    const db = getDb();
-
-    const [proposal] = await db
-      .select()
-      .from(topicProposals)
-      .where(eq(topicProposals.id, id))
-      .limit(1);
-
-    if (!proposal || proposal.status !== "pending") {
-      return { ok: false, reason: "already_processed" };
-    }
-
-    await db
-      .update(topicProposals)
-      .set({ status: "rejected", updatedAt: new Date() })
-      .where(eq(topicProposals.id, id));
-
-    return { ok: true };
-  },
-};

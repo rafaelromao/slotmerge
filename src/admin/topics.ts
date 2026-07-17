@@ -1,29 +1,32 @@
-import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { getSessionFromRequest, type Session } from "../auth/session";
-import { getDb } from "../db/client";
-import { topics, type TopicStatus } from "../db/schema";
+import type { TopicStatus } from "../db/schema";
+import {
+  adminAccessDeniedResponse,
+  escapeHtml,
+  htmlResponse,
+  isAdminSession,
+  renderAdminShell,
+} from "./page";
+import {
+  getTopicCatalogueRepository,
+  setTopicCatalogueRepositoryForTests,
+  type AdminTopicListItem,
+  type TopicCatalogueRepository,
+} from "../topics/repository";
 
-export type TopicListItem = {
-  id: string;
-  name: string;
-  status: TopicStatus;
-  retiredAt: Date | null;
-  createdAt: Date;
-};
+export type { RetireResult } from "../topics/repository";
 
-export type RetireResult =
-  { ok: true } | { ok: false; reason: "not_found" | "already_retired" };
-
-export type TopicRepository = {
-  listActive(): Promise<TopicListItem[]>;
-  retire(id: string): Promise<RetireResult>;
-};
+export type AdminTopicsRepository = Pick<
+  TopicCatalogueRepository,
+  "listActiveAdminTopics" | "retire"
+>;
 
 export type AdminTopicsDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
-  topicRepository?: TopicRepository;
+  topicRepository?: AdminTopicsRepository;
+  clock?: () => Date;
 };
 
 const actionSchema = z.object({
@@ -33,20 +36,25 @@ const actionSchema = z.object({
 
 export function createAdminTopicsHandlers({
   getSession = getSessionFromRequest,
-  topicRepository = databaseTopicRepository,
+  topicRepository,
+  clock = () => new Date(),
 }: AdminTopicsDependencies = {}) {
+  const repository = topicRepository ?? getTopicCatalogueRepository();
   return {
     GET: async (request: Request): Promise<Response> => {
       const session = await getSession(request);
       if (!isAdminSession(session)) {
-        return createAccessDeniedResponse(session);
+        return adminAccessDeniedResponse(session);
       }
 
-      const topicsList = await topicRepository.listActive();
+      const topicsList = await repository.listActiveAdminTopics();
       return htmlResponse(
-        renderTopicsPage({
-          topicRows: topicsList,
-          csrfToken: session.csrfToken,
+        renderAdminShell({
+          title: "Topics",
+          body: renderTopicsBody({
+            topicRows: topicsList,
+            csrfToken: session.csrfToken,
+          }),
         }),
       );
     },
@@ -54,17 +62,20 @@ export function createAdminTopicsHandlers({
     POST: async (request: Request): Promise<Response> => {
       const session = await getSession(request);
       if (!isAdminSession(session)) {
-        return createAccessDeniedResponse(session);
+        return adminAccessDeniedResponse(session);
       }
 
       const formData = await request.formData();
       const csrfToken = formData.get("_csrf");
       if (typeof csrfToken !== "string" || csrfToken !== session.csrfToken) {
         return htmlResponse(
-          renderTopicsPage({
-            topicRows: await topicRepository.listActive(),
-            csrfToken: session.csrfToken,
-            errorMessage: "Invalid CSRF token.",
+          renderAdminShell({
+            title: "Topics",
+            body: renderTopicsBody({
+              topicRows: await repository.listActiveAdminTopics(),
+              csrfToken: session.csrfToken,
+            }),
+            alert: { message: "Invalid CSRF token." },
           }),
           403,
         );
@@ -77,10 +88,13 @@ export function createAdminTopicsHandlers({
 
       if (!actionResult.success) {
         return htmlResponse(
-          renderTopicsPage({
-            topicRows: await topicRepository.listActive(),
-            csrfToken: session.csrfToken,
-            errorMessage: "Invalid action.",
+          renderAdminShell({
+            title: "Topics",
+            body: renderTopicsBody({
+              topicRows: await repository.listActiveAdminTopics(),
+              csrfToken: session.csrfToken,
+            }),
+            alert: { message: "Invalid action." },
           }),
           400,
         );
@@ -89,27 +103,35 @@ export function createAdminTopicsHandlers({
       const id = formData.get("id");
       if (typeof id !== "string") {
         return htmlResponse(
-          renderTopicsPage({
-            topicRows: await topicRepository.listActive(),
-            csrfToken: session.csrfToken,
-            errorMessage: "Missing topic ID.",
+          renderAdminShell({
+            title: "Topics",
+            body: renderTopicsBody({
+              topicRows: await repository.listActiveAdminTopics(),
+              csrfToken: session.csrfToken,
+            }),
+            alert: { message: "Missing topic ID." },
           }),
           400,
         );
       }
 
-      const result = await topicRepository.retire(id);
+      const result = await repository.retire({ id, now: clock() });
       if (!result.ok) {
         return htmlResponse(
-          renderTopicsPage({
-            topicRows: await topicRepository.listActive(),
-            csrfToken: session.csrfToken,
-            errorMessage:
-              result.reason === "not_found"
-                ? "Topic not found."
-                : result.reason === "already_retired"
-                  ? "This topic is already retired."
-                  : "Failed to retire topic.",
+          renderAdminShell({
+            title: "Topics",
+            body: renderTopicsBody({
+              topicRows: await repository.listActiveAdminTopics(),
+              csrfToken: session.csrfToken,
+            }),
+            alert: {
+              message:
+                result.reason === "not_found"
+                  ? "Topic not found."
+                  : result.reason === "already_retired"
+                    ? "This topic is already retired."
+                    : "Failed to retire topic.",
+            },
           }),
           409,
         );
@@ -120,34 +142,14 @@ export function createAdminTopicsHandlers({
   };
 }
 
-function isAdminSession(session: Session | null): session is Session {
-  return session?.user.role === "admin";
-}
+export { setTopicCatalogueRepositoryForTests };
 
-function createAccessDeniedResponse(session: Session | null): Response {
-  return htmlResponse(
-    session
-      ? "<h1>Forbidden</h1><p>Admin access required.</p>"
-      : "<h1>Unauthorized</h1><p>Sign in required.</p>",
-    session ? 403 : 401,
-  );
-}
-
-function htmlResponse(body: string, status = 200): Response {
-  return new Response(body, {
-    status,
-    headers: { "Content-Type": "text/html; charset=utf-8" },
-  });
-}
-
-function renderTopicsPage({
+function renderTopicsBody({
   topicRows,
   csrfToken,
-  errorMessage,
 }: {
-  topicRows: TopicListItem[];
+  topicRows: AdminTopicListItem[];
   csrfToken: string;
-  errorMessage?: string;
 }): string {
   const rows =
     topicRows.length > 0
@@ -156,7 +158,7 @@ function renderTopicsPage({
             (t) => `
               <tr>
                 <td>${escapeHtml(t.name)}</td>
-                <td>${escapeHtml(labelStatus(t.status))}</td>
+                <td>${escapeHtml(labelTopicStatus(t.status))}</td>
                 <td>${t.retiredAt ? escapeHtml(formatDate(t.retiredAt)) : "—"}</td>
                 <td>
                   ${
@@ -176,32 +178,23 @@ function renderTopicsPage({
           .join("")
       : `<tr><td colspan="4">No active topics.</td></tr>`;
 
-  return `<!doctype html>
-<html lang="en">
-  <body>
-    <main>
-      <h1>Topics</h1>
-      ${errorMessage ? `<p role="alert">${escapeHtml(errorMessage)}</p>` : ""}
-      <section>
-        <h2>Active Topics</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Status</th>
-              <th>Retired At</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </section>
-    </main>
-  </body>
-</html>`;
+  return `<section>
+    <h2>Active Topics</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Status</th>
+          <th>Retired At</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </section>`;
 }
 
-function labelStatus(status: TopicStatus): string {
+function labelTopicStatus(status: TopicStatus): string {
   return status === "active"
     ? "Active"
     : status === "pending"
@@ -212,55 +205,3 @@ function labelStatus(status: TopicStatus): string {
 function formatDate(date: Date): string {
   return date.toISOString();
 }
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-const databaseTopicRepository: TopicRepository = {
-  listActive: async () => {
-    const rows = await getDb()
-      .select({
-        id: topics.id,
-        name: topics.name,
-        status: topics.status,
-        retiredAt: topics.retiredAt,
-        createdAt: topics.createdAt,
-      })
-      .from(topics)
-      .where(eq(topics.status, "active"))
-      .orderBy(desc(topics.createdAt));
-
-    return rows;
-  },
-
-  retire: async (id: string) => {
-    const db = getDb();
-
-    const [topic] = await db
-      .select()
-      .from(topics)
-      .where(eq(topics.id, id))
-      .limit(1);
-
-    if (!topic) {
-      return { ok: false, reason: "not_found" };
-    }
-
-    if (topic.status === "retired") {
-      return { ok: false, reason: "already_retired" };
-    }
-
-    await db
-      .update(topics)
-      .set({ status: "retired", retiredAt: new Date(), updatedAt: new Date() })
-      .where(eq(topics.id, id));
-
-    return { ok: true };
-  },
-};

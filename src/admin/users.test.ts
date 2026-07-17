@@ -163,6 +163,8 @@ describe("admin users", () => {
         userId: "user-2",
         actingAdminId: "admin-1",
         role: "organizer",
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        now: expect.any(Date),
       });
     });
 
@@ -298,6 +300,8 @@ describe("admin users", () => {
       expect(suspend).toHaveBeenCalledWith({
         userId: "user-2",
         actingAdminId: "admin-1",
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        now: expect.any(Date),
       });
     });
 
@@ -463,6 +467,8 @@ describe("admin users", () => {
       expect(reinstate).toHaveBeenCalledWith({
         userId: "user-2",
         actingAdminId: "admin-1",
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        now: expect.any(Date),
       });
     });
 

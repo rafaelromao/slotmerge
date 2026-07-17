@@ -23,8 +23,7 @@ export type AdminTopicListItem = {
 };
 
 export type RetireResult =
-  | { ok: true }
-  | { ok: false; reason: "not_found" | "already_retired" };
+  { ok: true } | { ok: false; reason: "not_found" | "already_retired" };
 
 export type TopicAssociation = {
   topicId: string;
@@ -239,4 +238,5 @@ export function createPostgresTopicCatalogueRepository(
   };
 }
 
-const databaseTopicCatalogueRepository = createPostgresTopicCatalogueRepository();
+const databaseTopicCatalogueRepository =
+  createPostgresTopicCatalogueRepository();

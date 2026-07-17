@@ -1,8 +1,6 @@
 import type { Session } from "../auth/session";
 
-export function isAdminSession(
-  session: Session | null,
-): session is Session {
+export function isAdminSession(session: Session | null): session is Session {
   return session?.user.role === "admin";
 }
 

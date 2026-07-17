@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import {
@@ -17,13 +17,6 @@ export type TopicProposalListItem = {
   createdAt: Date;
 };
 
-export type ApproveResult =
-  | { ok: true; topicId: string }
-  | { ok: false; reason: "already_processed" };
-
-export type RejectResult =
-  | { ok: true } | { ok: false; reason: "already_processed" };
-
 export type UserTopicProposal = {
   id: string;
   candidateName: string;
@@ -38,18 +31,29 @@ export type TopicProposalUserInput = {
   createdAt: Date;
 };
 
-export type TopicProposalRouteRecord = {
-  id: string;
-  candidateName: string;
-  status: string;
-  createdAt: Date;
-};
+export type ApproveResult =
+  { ok: true; topicId: string } | { ok: false; reason: "already_processed" };
 
-export type TopicProposalRepository = {
+export type RejectResult =
+  { ok: true } | { ok: false; reason: "already_processed" };
+
+export type TopicProposalReadRepository = {
   listPending(): Promise<TopicProposalListItem[]>;
   listUserProposals(userId: string): Promise<UserTopicProposal[]>;
+  listActiveTopics(): Promise<{ id: string; name: string }[]>;
+  listPendingForSimilarity(): Promise<TopicProposalUserInput[]>;
+};
+
+export type TopicProposalAdminRepository = {
+  listPending(): Promise<TopicProposalListItem[]>;
   approve(input: { id: string; now: Date }): Promise<ApproveResult>;
   reject(input: { id: string; now: Date }): Promise<RejectResult>;
+};
+
+export type TopicProposalUserRepository = {
+  listActiveTopics(): Promise<{ id: string; name: string }[]>;
+  listPendingForSimilarity(): Promise<TopicProposalUserInput[]>;
+  listUserProposals(userId: string): Promise<UserTopicProposal[]>;
   findPendingByUserAndName(
     userId: string,
     candidateName: string,
@@ -58,13 +62,11 @@ export type TopicProposalRepository = {
     userId: string,
     candidateName: string,
   ): Promise<TopicProposalUserInput>;
-  listActiveTopics(): Promise<{ id: string; name: string }[]>;
-  listPendingForSimilarity(): Promise<TopicProposalUserInput[]>;
 };
 
 export function createPostgresTopicProposalRepository(
   db = getDb(),
-): TopicProposalRepository {
+): TopicProposalAdminRepository & TopicProposalUserRepository {
   return {
     async listPending() {
       const rows = await db
@@ -94,7 +96,7 @@ export function createPostgresTopicProposalRepository(
         })
         .from(topicProposals)
         .where(eq(topicProposals.proposedByUserId, userId))
-        .orderBy(topicProposals.createdAt);
+        .orderBy(asc(topicProposals.createdAt));
 
       return rows;
     },
@@ -190,7 +192,7 @@ export function createPostgresTopicProposalRepository(
       return {
         id: row.id,
         candidateName: row.candidateName,
-        status: row.status as TopicProposalStatus,
+        status: row.status,
         createdAt: row.createdAt,
       };
     },
@@ -216,7 +218,7 @@ export function createPostgresTopicProposalRepository(
       return rows.map((row) => ({
         id: row.id,
         candidateName: row.candidateName,
-        status: row.status as TopicProposalStatus,
+        status: row.status,
         createdAt: row.createdAt,
       }));
     },

@@ -121,7 +121,11 @@ describe("admin topic-proposals", () => {
     expect(response.headers.get("location")).toBe(
       "http://localhost/admin/topic-proposals",
     );
-    expect(approve).toHaveBeenCalledWith("proposal-1");
+    expect(approve).toHaveBeenCalledWith({
+      id: "proposal-1",
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      now: expect.any(Date),
+    });
   });
 
   it("rejects a proposal and redirects", async () => {
@@ -165,7 +169,11 @@ describe("admin topic-proposals", () => {
     expect(response.headers.get("location")).toBe(
       "http://localhost/admin/topic-proposals",
     );
-    expect(reject).toHaveBeenCalledWith("proposal-1");
+    expect(reject).toHaveBeenCalledWith({
+      id: "proposal-1",
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      now: expect.any(Date),
+    });
   });
 
   it("returns 403 for wrong CSRF token on approve", async () => {

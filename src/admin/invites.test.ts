@@ -119,6 +119,7 @@ describe("admin invites", () => {
       role: "user",
       invitedByAdminId: "admin-1",
       now: new Date("2026-07-12T00:00:00.000Z"),
+      expiresAt: new Date("2026-08-11T00:00:00.000Z"),
     });
   });
 

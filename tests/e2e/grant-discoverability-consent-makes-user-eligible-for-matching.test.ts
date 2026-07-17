@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, inject, it } from "vitest";
 
-import {
-  type ProfileInputs,
-  setSearchEligibilityProfileInputsForTests,
-} from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
-import { createMatchingDependencies } from "../../src/matching";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
 import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
 import { grantDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
@@ -25,13 +20,6 @@ const DURATION_MINUTES = 60;
 const NEW_USER_ID = "00000000-0000-0000-0000-0000000000d1";
 const NEW_USER_EMAIL = "newly-consented@example.com";
 const NEW_USER_DISPLAY_NAME = "Newly Consented User";
-
-const COMPLETE_PROFILE: ProfileInputs = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-  isActive: true,
-};
 
 async function insertFixtureUserWithoutConsent(): Promise<void> {
   const db = getTestDb();
@@ -88,7 +76,6 @@ async function runSearch(): Promise<string> {
       },
       clock: { now: getTestClock() },
       matchingPoolSize: 2,
-      matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       searchResultRepository: createPostgresSearchResultRepository(),
     },
@@ -138,7 +125,6 @@ function matchedUserIds(snapshot: SearchSnapshotShape): string[] {
 
 describe("E2E: Grant discoverability consent makes User eligible for matching", () => {
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -177,11 +163,6 @@ describe("E2E: Grant discoverability consent makes User eligible for matching", 
 
       await setupTest();
       await insertFixtureUserWithoutConsent();
-      setSearchEligibilityProfileInputsForTests({
-        [NEW_USER_ID]: COMPLETE_PROFILE,
-        [SECONDARY_ELIGIBLE_USER.id]: COMPLETE_PROFILE,
-      });
-
       await grantDiscoverabilityConsent(NEW_USER_ID);
       await grantDiscoverabilityConsent(SECONDARY_ELIGIBLE_USER.id);
 

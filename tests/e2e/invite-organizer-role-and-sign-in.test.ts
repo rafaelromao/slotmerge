@@ -17,12 +17,13 @@ import type {
   EmailDeliveryService,
   EmailType,
 } from "../../src/email/service";
-import {
-  createMatchingDependencies,
-  findEligibleMatches,
-} from "../../src/matching";
 import { grantDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
+import { getProfileByUserId } from "../../src/profile/repository";
+import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
+import {
+  createDefaultSearchSnapshotAssemblerDeps,
+  SearchSnapshotAssembler,
+} from "../../src/search/search-snapshot-assembler";
 import { TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
 
@@ -157,7 +158,6 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
   });
 
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -267,30 +267,57 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
 
       const candidateId = USER_FIXTURES[0].id;
       await grantDiscoverabilityConsent(candidateId);
-      setSearchEligibilityProfileInputsForTests({
-        [candidateId]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
-      const matches = await findEligibleMatches(
-        {
-          organizerId: newOrganizerId,
-          selectedTopicIds: [TOPIC_FIXTURES[0].id],
-          candidateUserIds: [candidateId],
-          durationMinutes: 60,
-          rangeStart: new Date("2026-07-13T00:00:00.000Z"),
-          rangeEnd: new Date("2026-07-14T00:00:00.000Z"),
-        },
-        createMatchingDependencies(),
-      );
+      const matches = await runMatchingViaAssembler(newOrganizerId, candidateId);
 
       expect(matches).toContain(candidateId);
     },
   );
+
+async function runMatchingViaAssembler(
+  organizerId: string,
+  candidateId: string,
+): Promise<string[]> {
+  const assembler = new SearchSnapshotAssembler(
+    createDefaultSearchSnapshotAssemblerDeps({
+      discoverableUserRepository: createPostgresDiscoverableUserRepository(),
+      topicRepository: {
+        listActive() {
+          return Promise.resolve(
+            TOPIC_FIXTURES.filter((t) => t.status === "active").map((t) => ({
+              id: t.id,
+              name: t.name,
+              status: "active" as const,
+            })),
+          );
+        },
+      },
+      profileRepository: {
+        findByUserId(uid) {
+          return getProfileByUserId(uid);
+        },
+      },
+    }),
+  );
+  const snapshot = await assembler.assemble({
+    organizerId,
+    selectedTopicIds: [TOPIC_FIXTURES[0].id],
+    durationMinutes: 60,
+    dateRangeStart: new Date("2026-07-13T00:00:00.000Z"),
+    dateRangeEnd: new Date("2026-07-14T00:00:00.000Z"),
+    organizerTimezone: "UTC",
+    minimumMatchingUsers: 1,
+    now: getTestClock()(),
+  });
+  const matched = new Set<string>();
+  for (const slot of snapshot.slots) {
+    for (const match of slot.matches) {
+      if (match.userId === candidateId) {
+        matched.add(match.userId);
+      }
+    }
+  }
+  return Array.from(matched);
+}
 
   it.runIf(HAS_TEST_DB)(
     "the Admin invite form renders an explicit role select with an Organizer option and an Admin option",

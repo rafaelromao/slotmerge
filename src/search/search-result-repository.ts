@@ -2,11 +2,15 @@ import type {
   SearchSnapshot as SchemaSearchSnapshot,
   CalendarFreshness as SchemaCalendarFreshness,
   AvailabilityIndicator as SchemaAvailabilityIndicator,
+  Slot as SchemaSlot,
+  SlotMatchDetail as SchemaSlotMatchDetail,
 } from "../db/schema";
 
 export type SearchSnapshot = SchemaSearchSnapshot;
 export type CalendarFreshness = SchemaCalendarFreshness;
 export type AvailabilityIndicator = SchemaAvailabilityIndicator;
+export type Slot = SchemaSlot;
+export type SlotMatchDetail = SchemaSlotMatchDetail;
 
 export type SearchResultRecord = {
   id?: string;

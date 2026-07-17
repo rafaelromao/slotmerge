@@ -1,4 +1,4 @@
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gt, lt } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { importedBusyIntervals } from "../db/schema";
@@ -87,8 +87,8 @@ export function createPostgresImportedBusyIntervalRepository(): ImportedBusyInte
         .where(
           and(
             eq(importedBusyIntervals.userId, userId),
-            gte(importedBusyIntervals.startAt, start),
-            lte(importedBusyIntervals.startAt, end),
+            lt(importedBusyIntervals.startAt, end),
+            gt(importedBusyIntervals.endAt, start),
           ),
         );
       return rows.map(toRecord);
@@ -98,7 +98,7 @@ export function createPostgresImportedBusyIntervalRepository(): ImportedBusyInte
       const db = getDb();
       const deleted = await db
         .delete(importedBusyIntervals)
-        .where(lte(importedBusyIntervals.startAt, before))
+        .where(lt(importedBusyIntervals.startAt, before))
         .returning({ id: importedBusyIntervals.id });
       return deleted.length;
     },

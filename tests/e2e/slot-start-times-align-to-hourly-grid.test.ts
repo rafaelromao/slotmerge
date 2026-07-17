@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, inject, it } from "vitest";
 
-import { createMatchingDependencies } from "../../src/matching";
 import { getProfileByUserId } from "../../src/profile/repository";
 import {
   availabilityWindows,
@@ -9,7 +8,6 @@ import {
   users,
 } from "../../src/db/schema";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
 import { submitSearch } from "../../src/search/search-input";
 import { listActiveTopics } from "../../src/topics/repository";
@@ -95,25 +93,10 @@ async function insertMatchUserFixtures(
     });
   }
 
-  setSearchEligibilityProfileInputsForTests({
-    [MATCH_USER_ID]: {
-      hasDisplayName: true,
-      hasTopicOrProposal: true,
-      hasAvailabilitySource: true,
-      isActive: true,
-    },
-    [MATCH_USER_2_ID]: {
-      hasDisplayName: true,
-      hasTopicOrProposal: true,
-      hasAvailabilitySource: true,
-      isActive: true,
-    },
-  });
 }
 
 describe("E2E: Slot start times align to an hourly grid", () => {
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -143,7 +126,6 @@ describe("E2E: Slot start times align to an hourly grid", () => {
           profileRepository: { findByUserId: getProfileByUserId },
           clock: { now: getTestClock() },
           matchingPoolSize: 2,
-          matchingDependencies: createMatchingDependencies(),
           discoverableUserRepository:
             createPostgresDiscoverableUserRepository(),
           searchResultRepository: createPostgresSearchResultRepository(),
@@ -222,7 +204,6 @@ describe("E2E: Slot start times align to an hourly grid", () => {
           profileRepository: { findByUserId: getProfileByUserId },
           clock: { now: getTestClock() },
           matchingPoolSize: 2,
-          matchingDependencies: createMatchingDependencies(),
           discoverableUserRepository:
             createPostgresDiscoverableUserRepository(),
           searchResultRepository: createPostgresSearchResultRepository(),

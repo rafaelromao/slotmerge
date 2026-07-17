@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, inject, it } from "vitest";
 
-import { type ProfileInputs, setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
-import { createMatchingDependencies } from "../../src/matching";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
 import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
 import { getSearchRepository } from "../../src/search/repository";
@@ -27,13 +25,6 @@ const OTHER_USER_A_DISPLAY_NAME = "Other User A";
 const OTHER_USER_B_ID = "00000000-0000-0000-0000-0000000000a2";
 const OTHER_USER_B_EMAIL = "other-b@example.com";
 const OTHER_USER_B_DISPLAY_NAME = "Other User B";
-
-const COMPLETE_PROFILE: ProfileInputs = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-  isActive: true,
-};
 
 function expectedMatch(
   userId: string,
@@ -126,7 +117,6 @@ async function runSearchWithMinimum(minimumMatchingUsers: number): Promise<strin
       },
       clock: { now: getTestClock() },
       matchingPoolSize: 3,
-      matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       searchResultRepository: createPostgresSearchResultRepository(),
     },
@@ -197,7 +187,6 @@ async function loadStoredSnapshot(searchId: string): Promise<{
 
 describe("E2E: Search excludes the Organizer and the Organizer does not count", () => {
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -226,12 +215,6 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
       });
 
       await grantDiscoverabilityConsentForUser(ORGANIZER.id);
-
-      setSearchEligibilityProfileInputsForTests({
-        [ORGANIZER.id]: COMPLETE_PROFILE,
-        [OTHER_USER_A_ID]: COMPLETE_PROFILE,
-        [OTHER_USER_B_ID]: COMPLETE_PROFILE,
-      });
 
       const searchId = await runSearchWithMinimum(2);
       const { snapshot } = await loadStoredSnapshot(searchId);
@@ -283,11 +266,6 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
       });
 
       await grantDiscoverabilityConsentForUser(ORGANIZER.id);
-
-      setSearchEligibilityProfileInputsForTests({
-        [ORGANIZER.id]: COMPLETE_PROFILE,
-        [OTHER_USER_A_ID]: COMPLETE_PROFILE,
-      });
 
       const searchId = await runSearchWithMinimum(2);
       const { snapshot } = await loadStoredSnapshot(searchId);

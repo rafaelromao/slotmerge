@@ -95,7 +95,7 @@ const inMemoryImportedBusyIntervalRepository: ImportedBusyIntervalRepository = {
   async findByUserIdAndDateRange(userId, start, end) {
     return Promise.resolve(
       inMemoryStore.filter(
-        (i) => i.userId === userId && i.startAt >= start && i.startAt <= end,
+        (i) => i.userId === userId && i.startAt < end && i.endAt > start,
       ),
     );
   },

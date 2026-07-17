@@ -1,13 +1,22 @@
-import { afterEach, describe, expect, inject, it } from "vitest";
+import { describe, expect, inject, it } from "vitest";
 
+import { eq } from "drizzle-orm";
 import {
-  createMatchingDependencies,
-  findEligibleMatches,
-} from "../../src/matching";
+  availabilityWindows,
+  calendarConnections,
+  users,
+  userTopics,
+} from "../../src/db/schema";
 import { grantDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
+import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
+import {
+  createDefaultSearchSnapshotAssemblerDeps,
+  SearchSnapshotAssembler,
+} from "../../src/search/search-snapshot-assembler";
+import { listActiveTopics } from "../../src/topics/repository";
+import { getProfileByUserId } from "../../src/profile/repository";
 import { TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
-import { getTestDb, setupTest } from "../helpers/setup";
+import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -20,33 +29,52 @@ const RANGE_START = new Date("2026-07-13T00:00:00.000Z");
 const RANGE_END = new Date("2026-07-14T00:00:00.000Z");
 const DURATION_MINUTES = 60;
 
-const COMPLETE_ELIGIBILITY = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-  isActive: true,
-} as const;
-
 async function runMatchingForAlice(): Promise<string[]> {
-  return findEligibleMatches(
-    {
-      organizerId: ORGANIZER_ID,
-      selectedTopicIds: [SELECTED_TOPIC_ID],
-      candidateUserIds: [ALICE_ID],
-      durationMinutes: DURATION_MINUTES,
-      rangeStart: RANGE_START,
-      rangeEnd: RANGE_END,
-      slotStart: SLOT_START,
-    },
-    createMatchingDependencies(),
+  const assembler = new SearchSnapshotAssembler(
+    createDefaultSearchSnapshotAssemblerDeps({
+      discoverableUserRepository: createPostgresDiscoverableUserRepository(),
+      topicRepository: {
+        listActive() {
+          return listActiveTopics().then((topics) =>
+            topics.map(({ id, name }) => ({
+              id,
+              name,
+              status: "active" as const,
+            })),
+          );
+        },
+      },
+      profileRepository: {
+        findByUserId(uid) {
+          return getProfileByUserId(uid);
+        },
+      },
+    }),
   );
+  const snapshot = await assembler.assemble({
+    organizerId: ORGANIZER_ID,
+    selectedTopicIds: [SELECTED_TOPIC_ID],
+    durationMinutes: DURATION_MINUTES,
+    dateRangeStart: RANGE_START,
+    dateRangeEnd: RANGE_END,
+    organizerTimezone: "UTC",
+    minimumMatchingUsers: 1,
+    now: getTestClock()(),
+  });
+  const slotKey = SLOT_START.toISOString();
+  const matched = new Set<string>();
+  for (const slot of snapshot.slots) {
+    if (slot.startUtc !== slotKey) continue;
+    for (const match of slot.matches) {
+      if (match.userId === ALICE_ID) {
+        matched.add(match.userId);
+      }
+    }
+  }
+  return Array.from(matched);
 }
 
 describe("E2E: setup checklist gates matching eligibility", () => {
-  afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
-  });
-
   it.runIf(HAS_TEST_DB)(
     "includes the User when every required setup item is complete (positive control)",
     async () => {
@@ -58,9 +86,6 @@ describe("E2E: setup checklist gates matching eligibility", () => {
 
       await setupTest();
       await grantDiscoverabilityConsent(ALICE_ID);
-      setSearchEligibilityProfileInputsForTests({
-        [ALICE_ID]: COMPLETE_ELIGIBILITY,
-      });
 
       const matches = await runMatchingForAlice();
 
@@ -78,13 +103,11 @@ describe("E2E: setup checklist gates matching eligibility", () => {
       }
 
       await setupTest();
+      await db
+        .update(users)
+        .set({ displayName: null })
+        .where(eq(users.id, ALICE_ID));
       await grantDiscoverabilityConsent(ALICE_ID);
-      setSearchEligibilityProfileInputsForTests({
-        [ALICE_ID]: {
-          ...COMPLETE_ELIGIBILITY,
-          hasDisplayName: false,
-        },
-      });
 
       const matches = await runMatchingForAlice();
 
@@ -102,9 +125,6 @@ describe("E2E: setup checklist gates matching eligibility", () => {
       }
 
       await setupTest();
-      setSearchEligibilityProfileInputsForTests({
-        [ALICE_ID]: COMPLETE_ELIGIBILITY,
-      });
 
       const matches = await runMatchingForAlice();
 
@@ -122,13 +142,8 @@ describe("E2E: setup checklist gates matching eligibility", () => {
       }
 
       await setupTest();
+      await db.delete(userTopics).where(eq(userTopics.userId, ALICE_ID));
       await grantDiscoverabilityConsent(ALICE_ID);
-      setSearchEligibilityProfileInputsForTests({
-        [ALICE_ID]: {
-          ...COMPLETE_ELIGIBILITY,
-          hasTopicOrProposal: false,
-        },
-      });
 
       const matches = await runMatchingForAlice();
 
@@ -146,13 +161,13 @@ describe("E2E: setup checklist gates matching eligibility", () => {
       }
 
       await setupTest();
+      await db
+        .delete(availabilityWindows)
+        .where(eq(availabilityWindows.userId, ALICE_ID));
+      await db
+        .delete(calendarConnections)
+        .where(eq(calendarConnections.userId, ALICE_ID));
       await grantDiscoverabilityConsent(ALICE_ID);
-      setSearchEligibilityProfileInputsForTests({
-        [ALICE_ID]: {
-          ...COMPLETE_ELIGIBILITY,
-          hasAvailabilitySource: false,
-        },
-      });
 
       const matches = await runMatchingForAlice();
 

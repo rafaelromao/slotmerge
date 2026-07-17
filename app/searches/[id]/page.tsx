@@ -9,6 +9,7 @@ import {
   getSlotsForWeek,
   slotHasStaleMatch,
 } from "../../../src/search/calendar-utils";
+import { getLocalDayHour } from "../../../src/time/local-time";
 
 type SearchDetail = {
   id: string;
@@ -268,8 +269,7 @@ function buildGrid(
 
   for (const slot of slots) {
     const date = new Date(slot.startUtc);
-    const dayIndex = getDayIndexInTimezone(date, timezone);
-    const hour = getHourInTimezone(date, timezone);
+    const { dayIndex, hour } = getLocalDayHour(date, timezone);
     const key = `${dayIndex}-${hour}`;
 
     map.set(key, {
@@ -279,37 +279,4 @@ function buildGrid(
   }
 
   return map;
-}
-
-function getDayIndexInTimezone(date: Date, timezone: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    weekday: "short",
-  }).formatToParts(date);
-  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
-  const weekdayIndex =
-    weekday === "Mon"
-      ? 0
-      : weekday === "Tue"
-        ? 1
-        : weekday === "Wed"
-          ? 2
-          : weekday === "Thu"
-            ? 3
-            : weekday === "Fri"
-              ? 4
-              : weekday === "Sat"
-                ? 5
-                : 6;
-  return weekdayIndex;
-}
-
-function getHourInTimezone(date: Date, timezone: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    hour: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-  const hourStr = parts.find((p) => p.type === "hour")?.value ?? "0";
-  return Number(hourStr);
 }

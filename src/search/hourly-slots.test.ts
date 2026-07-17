@@ -2,14 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import { generateHourlySlots } from "./hourly-slots";
 
-function getLocalHourMinute(date: Date, timezone: string): { hour: number; minute: number } {
+function getLocalHourMinute(
+  date: Date,
+  timezone: string,
+): { hour: number; minute: number } {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   }).formatToParts(date);
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "0");
+  const get = (type: string) =>
+    Number(parts.find((p) => p.type === type)?.value ?? "0");
   return { hour: get("hour"), minute: get("minute") };
 }
 
@@ -94,7 +98,11 @@ describe("generateHourlySlots", () => {
     const rangeStart = new Date("2026-07-13T16:00:00.000Z");
     const rangeEnd = new Date("2026-07-13T23:00:00.000Z");
 
-    const slots = generateHourlySlots(rangeStart, rangeEnd, "America/Los_Angeles");
+    const slots = generateHourlySlots(
+      rangeStart,
+      rangeEnd,
+      "America/Los_Angeles",
+    );
 
     expect(slots.length).toBeGreaterThan(0);
     for (const slot of slots) {
@@ -109,7 +117,11 @@ describe("generateHourlySlots", () => {
     const rangeStart = new Date("2026-07-13T16:00:00.000Z");
     const rangeEnd = new Date("2026-07-13T23:00:00.000Z");
 
-    const slots = generateHourlySlots(rangeStart, rangeEnd, "America/Los_Angeles");
+    const slots = generateHourlySlots(
+      rangeStart,
+      rangeEnd,
+      "America/Los_Angeles",
+    );
 
     for (const slot of slots) {
       expect(slot.getUTCMinutes()).toBe(0);
@@ -139,7 +151,10 @@ describe("generateHourlySlots", () => {
 
     expect(slots.length).toBeGreaterThan(0);
     const firstSlot = slots[0];
-    const { hour: firstHour, minute: firstMinute } = getLocalHourMinute(firstSlot, "Asia/Calcutta");
+    const { hour: firstHour, minute: firstMinute } = getLocalHourMinute(
+      firstSlot,
+      "Asia/Calcutta",
+    );
     expect(firstMinute).toBe(0);
     expect(firstHour).toBe(11);
   });

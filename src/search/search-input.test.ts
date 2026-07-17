@@ -21,7 +21,12 @@ import type {
   SearchSnapshot,
 } from "./search-result-repository";
 import type { DiscoverableUserRepository } from "./discoverable-user-repository";
-import type { MatchingDependencies } from "../matching/find-eligible-matches";
+import type { SearchSnapshotAssemblerDeps } from "./search-snapshot-assembler";
+import type { DiscoverabilityConsentRecord } from "../profile/discoverability-consent";
+import type { WeeklyAvailabilityWindow } from "../profile/availability-windows";
+import type { AvailabilityOverride } from "../profile/availability-overrides";
+import type { ImportedBusyIntervalRecord } from "../calendar/imported-busy-intervals";
+import type { Interval } from "../matching/effective-availability";
 
 class InMemoryActiveTopicsRepository implements ActiveTopicsRepository {
   constructor(
@@ -91,24 +96,34 @@ class InMemoryDiscoverableUserRepository implements DiscoverableUserRepository {
   }
 }
 
-const mockMatchingDependencies: MatchingDependencies = {
+const mockAssemblerDeps: SearchSnapshotAssemblerDeps = {
+  discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
+  topicRepository: new InMemoryActiveTopicsRepository(),
+  profileRepository: new InMemoryProfileRepository(null),
   listSelectedTopicIds() {
     return Promise.resolve([]);
   },
-  computeEffectiveAvailability() {
-    return [];
-  },
-  getUserAvailabilityData() {
+  loadUserAvailabilityData() {
     return Promise.resolve({
-      profileTimezone: "UTC",
-      bufferMinutes: 0,
-      windows: [],
-      overrides: [],
-      busyIntervals: [],
+      windows: [] as WeeklyAvailabilityWindow[],
+      overrides: [] as AvailabilityOverride[],
+      busyIntervals: [] as ImportedBusyIntervalRecord[],
     });
   },
-  isUserEligibleForSearch() {
+  loadCalendarConnectionLastSyncAt() {
+    return Promise.resolve(null);
+  },
+  getDiscoverabilityConsent() {
+    return Promise.resolve(null as DiscoverabilityConsentRecord | null);
+  },
+  hasTopicProposal() {
     return Promise.resolve(false);
+  },
+  computeEffectiveAvailability() {
+    return [] as Interval[];
+  },
+  deriveCalendarFreshness() {
+    return "none";
   },
 };
 
@@ -419,7 +434,7 @@ describe("submitSearch", () => {
         profileRepository: new InMemoryProfileRepository(organizerProfile),
         clock: pinnedClock("2026-07-08T15:00:00.000Z"),
         matchingPoolSize: 5,
-        matchingDependencies: mockMatchingDependencies,
+        assemblerDependencies: mockAssemblerDeps,
         discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
         searchResultRepository: searchResultRepo,
       },
@@ -453,7 +468,7 @@ describe("submitSearch", () => {
         profileRepository: new InMemoryProfileRepository(organizerProfile),
         clock: pinnedClock("2026-07-08T15:00:00.000Z"),
         matchingPoolSize: 5,
-        matchingDependencies: mockMatchingDependencies,
+        assemblerDependencies: mockAssemblerDeps,
         discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
         searchResultRepository: new InMemorySearchResultRepository(),
       },
@@ -488,7 +503,7 @@ describe("rerunSearch", () => {
     setSearchRepositoryForTests(repo);
 
     const result = await rerunSearch("nonexistent-id", {
-      matchingDependencies: mockMatchingDependencies,
+      assemblerDependencies: mockAssemblerDeps,
       discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
       clock: pinnedClock("2026-07-08T15:00:00.000Z"),
       searchResultRepository: new InMemorySearchResultRepository(),
@@ -521,7 +536,7 @@ describe("rerunSearch", () => {
     });
 
     const result = await rerunSearch(originalSearch.id!, {
-      matchingDependencies: mockMatchingDependencies,
+      assemblerDependencies: mockAssemblerDeps,
       discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
       clock: pinnedClock("2026-07-08T15:00:00.000Z"),
       searchResultRepository: searchResultRepo,
@@ -577,7 +592,7 @@ describe("rerunSearch", () => {
     });
 
     const result = await rerunSearch(originalSearch.id!, {
-      matchingDependencies: mockMatchingDependencies,
+      assemblerDependencies: mockAssemblerDeps,
       discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
       clock: pinnedClock("2026-07-08T15:00:00.000Z"),
       searchResultRepository: trackingRepo,
@@ -609,7 +624,7 @@ describe("rerunSearch", () => {
     });
 
     const result = await rerunSearch(originalSearch.id!, {
-      matchingDependencies: mockMatchingDependencies,
+      assemblerDependencies: mockAssemblerDeps,
       discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
       clock: pinnedClock("2026-07-08T15:00:00.000Z"),
       searchResultRepository: new InMemorySearchResultRepository(),
@@ -678,7 +693,7 @@ describe("rerunSearch", () => {
     setSearchResultRepositoryForTests(trackingRepo);
 
     await rerunSearch(originalSearch.id!, {
-      matchingDependencies: mockMatchingDependencies,
+      assemblerDependencies: mockAssemblerDeps,
       discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
       clock: pinnedClock("2026-07-08T15:00:00.000Z"),
       searchResultRepository: trackingRepo,

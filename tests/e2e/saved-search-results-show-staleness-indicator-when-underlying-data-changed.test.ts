@@ -7,10 +7,8 @@ import {
   userTopics,
   users,
 } from "../../src/db/schema";
-import { createMatchingDependencies } from "../../src/matching";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { getDiscoverableUserRepository } from "../../src/search/discoverable-user-repository";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { getSearchRepository } from "../../src/search/repository";
 import { submitSearch } from "../../src/search/search-input";
 import {
@@ -52,7 +50,6 @@ function buildSubmitDeps(clock: { now: () => Date }): SubmitDeps {
     profileRepository: { findByUserId: getProfileByUserId },
     clock,
     matchingPoolSize: 5,
-    matchingDependencies: createMatchingDependencies(),
     discoverableUserRepository: getDiscoverableUserRepository(),
     searchResultRepository: getSearchResultRepository(),
   };
@@ -105,14 +102,6 @@ async function seedMatchUser(): Promise<void> {
     createdAt: now,
     updatedAt: now,
   });
-  setSearchEligibilityProfileInputsForTests({
-    [MATCH_USER_ID]: {
-      hasDisplayName: true,
-      hasTopicOrProposal: true,
-      hasAvailabilitySource: true,
-      isActive: true,
-    },
-  });
 }
 
 async function loadSnapshotJson(
@@ -122,9 +111,7 @@ async function loadSnapshotJson(
   if (!db) {
     throw new Error("test db not initialized");
   }
-  const result = await db.execute<{
-    snapshot_json: SearchResultRecord["snapshotJson"];
-  }>(
+  const result = await db.execute<{ snapshot_json: SearchResultRecord["snapshotJson"] }>(
     `SELECT snapshot_json FROM search_results WHERE search_id = '${searchId}'`,
   );
   const row = result.rows[0];
@@ -138,84 +125,83 @@ describe.runIf(HAS_TEST_DB)(
   "E2E: saved Search Results show staleness indicator when underlying data changed",
   () => {
     afterEach(() => {
-      setSearchEligibilityProfileInputsForTests(null);
     });
 
-    it("AC1: Snapshot content is unchanged after User availability is mutated", async () => {
-      await setupTest();
-      await seedMatchUser();
-      await grantDiscoverabilityConsent(MATCH_USER_ID);
+    it(
+      "AC1: Snapshot content is unchanged after User availability is mutated",
+      async () => {
+        await setupTest();
+        await seedMatchUser();
+        await grantDiscoverabilityConsent(MATCH_USER_ID);
 
-      const testClock = buildTestClock(new Date(FIXTURE_DATE));
-      const result = await submitSearch(
-        buildSubmitDeps({ now: () => testClock.now() }),
-        {
+        const testClock = buildTestClock(new Date(FIXTURE_DATE));
+        const result = await submitSearch(buildSubmitDeps({ now: () => testClock.now() }), {
           selectedTopicIds: [TOPIC.id],
           minimumMatchingUsers: MINIMUM_MATCHING_USERS,
           durationMinutes: DURATION_MINUTES,
           dateRangeStart: DATE_RANGE_START,
           dateRangeEnd: DATE_RANGE_END,
           organizerTimezone: "UTC",
-        },
-      );
-      expect(result.ok).toBe(true);
-      if (!result.ok || !result.search.id) {
-        throw new Error("submitSearch did not produce a stored search id");
-      }
-      const searchId = result.search.id;
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok || !result.search.id) {
+          throw new Error("submitSearch did not produce a stored search id");
+        }
+        const searchId = result.search.id;
 
-      const originalSnapshot = await loadSnapshotJson(searchId);
+        const originalSnapshot = await loadSnapshotJson(searchId);
 
-      const db = getTestDb();
-      if (!db) {
-        throw new Error("test db not initialized");
-      }
-      await db
-        .update(availabilityWindows)
-        .set({ startTime: "09:00", endTime: "10:00" })
-        .where(eq(availabilityWindows.userId, MATCH_USER_ID));
+        const db = getTestDb();
+        if (!db) {
+          throw new Error("test db not initialized");
+        }
+        await db
+          .update(availabilityWindows)
+          .set({ startTime: "09:00", endTime: "10:00" })
+          .where(eq(availabilityWindows.userId, MATCH_USER_ID));
 
-      const reopenedSnapshot = await loadSnapshotJson(searchId);
-      expect(reopenedSnapshot).toEqual(originalSnapshot);
-    });
+        const reopenedSnapshot = await loadSnapshotJson(searchId);
+        expect(reopenedSnapshot).toEqual(originalSnapshot);
+      },
+    );
 
-    it("AC2: Staleness indicator appears on re-open after clock advances past threshold", async () => {
-      await setupTest();
-      await seedMatchUser();
-      await grantDiscoverabilityConsent(MATCH_USER_ID);
+    it(
+      "AC2: Staleness indicator appears on re-open after clock advances past threshold",
+      async () => {
+        await setupTest();
+        await seedMatchUser();
+        await grantDiscoverabilityConsent(MATCH_USER_ID);
 
-      const testClock = buildTestClock(new Date(FIXTURE_DATE));
-      const result = await submitSearch(
-        buildSubmitDeps({ now: () => testClock.now() }),
-        {
+        const testClock = buildTestClock(new Date(FIXTURE_DATE));
+        const result = await submitSearch(buildSubmitDeps({ now: () => testClock.now() }), {
           selectedTopicIds: [TOPIC.id],
           minimumMatchingUsers: MINIMUM_MATCHING_USERS,
           durationMinutes: DURATION_MINUTES,
           dateRangeStart: DATE_RANGE_START,
           dateRangeEnd: DATE_RANGE_END,
           organizerTimezone: "UTC",
-        },
-      );
-      expect(result.ok).toBe(true);
-      if (!result.ok || !result.search.id) {
-        throw new Error("submitSearch did not produce a stored search id");
-      }
-      const searchId = result.search.id;
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok || !result.search.id) {
+          throw new Error("submitSearch did not produce a stored search id");
+        }
+        const searchId = result.search.id;
 
-      const originalSnapshot = await loadSnapshotJson(searchId);
+        const originalSnapshot = await loadSnapshotJson(searchId);
 
-      testClock.advance(25 * 60 * 60 * 1000);
+        testClock.advance(25 * 60 * 60 * 1000);
 
-      const history = await getSearchRepository().listSearchHistory({
-        clock: { now: () => testClock.now() },
-      });
-      expect(history.length).toBeGreaterThan(0);
-      const historyItem = history.find((item) => item.id === searchId);
-      expect(historyItem).toBeDefined();
-      expect(historyItem!.stale).toBe(true);
+        const history = await getSearchRepository().listSearchHistory({
+          clock: { now: () => testClock.now() },
+        });
+        expect(history.length).toBeGreaterThan(0);
+        const historyItem = history.find((item) => item.id === searchId);
+        expect(historyItem).toBeDefined();
+        expect(historyItem!.stale).toBe(true);
 
-      const reopenedSnapshot = await loadSnapshotJson(searchId);
-      expect(reopenedSnapshot).toEqual(originalSnapshot);
-    });
+        const reopenedSnapshot = await loadSnapshotJson(searchId);
+        expect(reopenedSnapshot).toEqual(originalSnapshot);
+      },
+    );
   },
 );

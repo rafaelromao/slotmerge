@@ -16,10 +16,8 @@ import { createPostgresImportedBusyIntervalRepository } from "../../src/calendar
 import { setGoogleCalendarConnectionRepositoryForTests } from "../../src/calendar/repository";
 import { calendarConnections } from "../../src/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { createMatchingDependencies } from "../../src/matching";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { getDiscoverableUserRepository } from "../../src/search/discoverable-user-repository";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
 import { getSearchResultRepository } from "../../src/search/search-result-repository";
 import { listActiveTopics } from "../../src/topics/repository";
@@ -91,7 +89,6 @@ async function runSearch(slotStart: Date): Promise<string> {
       profileRepository: { findByUserId: getProfileByUserId },
       clock: { now: getTestClock() },
       matchingPoolSize: 10,
-      matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: getDiscoverableUserRepository(),
       searchResultRepository: getSearchResultRepository(),
     },
@@ -307,27 +304,12 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
     await seedImportedBusyInterval();
     wireTestRepositories();
 
-    setSearchEligibilityProfileInputsForTests({
-      [CANDIDATE_USER_ID]: {
-        hasDisplayName: true,
-        hasTopicOrProposal: true,
-        hasAvailabilitySource: true,
-        isActive: true,
-      },
-      [ALWAYS_AVAILABLE_USER_ID]: {
-        hasDisplayName: true,
-        hasTopicOrProposal: true,
-        hasAvailabilitySource: true,
-        isActive: true,
-      },
-    });
   });
 
   afterEach(async () => {
     vi.useRealTimers();
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
-    setSearchEligibilityProfileInputsForTests(null);
     setImportedBusyIntervalRepositoryForTests(null);
     clearInMemoryImportedBusyIntervalStore();
 
@@ -406,7 +388,6 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
           profileRepository: { findByUserId: getProfileByUserId },
           clock: { now: getTestClock() },
           matchingPoolSize: 10,
-          matchingDependencies: createMatchingDependencies(),
           discoverableUserRepository: getDiscoverableUserRepository(),
           searchResultRepository: getSearchResultRepository(),
         },

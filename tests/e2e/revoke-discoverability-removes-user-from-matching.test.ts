@@ -12,7 +12,6 @@ import {
   userTopics,
   availabilityWindows,
 } from "../../src/db/schema";
-import { createMatchingDependencies } from "../../src/matching";
 import {
   getDiscoverabilityConsent,
   grantDiscoverabilityConsent,
@@ -20,10 +19,6 @@ import {
 import { getProfileByUserId } from "../../src/profile/repository";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
 import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
-import {
-  type ProfileInputs,
-  setSearchEligibilityProfileInputsForTests,
-} from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
 import { listActiveTopics } from "../../src/topics/repository";
 import {
@@ -54,19 +49,6 @@ const EXTRA_DISCOVERABLE_USER_EMAIL = "extra-discoverable@example.com";
 const EXTRA_DISCOVERABLE_USER_DISPLAY_NAME = "Extra Discoverable User";
 const EXTRA_USER_TOPIC_ROW_ID = "00000000-0000-0000-0000-0000000001f2";
 const EXTRA_AVAILABILITY_WINDOW_ID = "00000000-0000-0000-0000-0000000001f3";
-
-const COMPLETE_PROFILE: ProfileInputs = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-  isActive: true,
-};
-
-const ELIGIBILITY_INPUTS: Record<string, ProfileInputs> = {
-  [ALICE_ID]: COMPLETE_PROFILE,
-  [BOB_ID]: COMPLETE_PROFILE,
-  [EXTRA_DISCOVERABLE_USER_ID]: COMPLETE_PROFILE,
-};
 
 type SearchSnapshotShape = {
   slots: Array<{
@@ -177,7 +159,6 @@ async function submitDiscoverableSearch(): Promise<string> {
       profileRepository: { findByUserId: getProfileByUserId },
       clock: { now: getTestClock() },
       matchingPoolSize: MATCHING_POOL_SIZE,
-      matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       searchResultRepository: createPostgresSearchResultRepository(),
     },
@@ -221,7 +202,6 @@ async function callRevokeRoute(): Promise<{
 describe("E2E: revoke discoverability removes User from matching", () => {
   afterEach(() => {
     setSessionRepositoryForTests(null);
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -242,7 +222,6 @@ describe("E2E: revoke discoverability removes User from matching", () => {
 
       expect(await getDiscoverabilityConsent(ALICE_ID)).not.toBeNull();
 
-      setSearchEligibilityProfileInputsForTests(ELIGIBILITY_INPUTS);
       setSessionRepositoryForTests({
         findById: (sessionId) =>
           Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),

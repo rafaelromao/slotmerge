@@ -16,6 +16,8 @@ export type EffectiveAvailabilityInputs = {
 
 type Interval = { startUtc: Date; endUtc: Date };
 
+export type { Interval };
+
 function isInRange(
   interval: Interval,
   rangeStart: Date,

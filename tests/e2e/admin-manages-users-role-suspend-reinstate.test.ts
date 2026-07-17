@@ -1,19 +1,22 @@
 import { afterEach, describe, expect, inject, it } from "vitest";
 
 import { createAdminUsersHandlers } from "../../src/admin/users";
-import { createMagicLinkRequestHandlers } from "../../src/auth/magic-link-request";
+import {
+  createMagicLinkRequestHandlers,
+} from "../../src/auth/magic-link-request";
 import { sealSessionCookie } from "../../src/auth/session";
-import { sessions } from "../../src/db/schema";
+import {
+  sessions,
+} from "../../src/db/schema";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
-import {
-  type ProfileInputs,
-  setSearchEligibilityProfileInputsForTests,
-} from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
-import { createMatchingDependencies } from "../../src/matching";
-import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
-import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
+import {
+  createPostgresDiscoverableUserRepository,
+} from "../../src/search/drizzle-discoverable-user-repository";
+import {
+  createPostgresSearchResultRepository,
+} from "../../src/search/drizzle-search-result-repository";
 import { grantDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
 import { getProfileByUserId } from "../../src/profile/repository";
 
@@ -106,16 +109,10 @@ function extractCsrfToken(html: string): string {
   return match[1];
 }
 
-function extractUserIdFromActionForm(
-  html: string,
-  email: string,
-): string | null {
+function extractUserIdFromActionForm(html: string, email: string): string | null {
   const emailPattern = email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const rowMatch = html.match(
-    new RegExp(
-      `<tr>[\\s\\S]*?${emailPattern}[\\s\\S]*?<input type="hidden" name="userId" value="([^"]+)"[\\s\\S]*?</tr>`,
-      "m",
-    ),
+    new RegExp(`<tr>[\\s\\S]*?${emailPattern}[\\s\\S]*?<input type="hidden" name="userId" value="([^"]+)"[\\s\\S]*?</tr>`, "m"),
   );
   return rowMatch ? rowMatch[1] : null;
 }
@@ -136,10 +133,7 @@ type SearchSnapshotShape = {
   }>;
 };
 
-async function runSearch(
-  organizerId: string,
-  poolSize: number,
-): Promise<string> {
+async function runSearch(organizerId: string, poolSize: number): Promise<string> {
   const result = await submitSearch(
     {
       organizerId,
@@ -161,7 +155,6 @@ async function runSearch(
       },
       clock: { now: getTestClock() },
       matchingPoolSize: poolSize,
-      matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       searchResultRepository: createPostgresSearchResultRepository(),
     },
@@ -201,23 +194,8 @@ function matchedUserIds(snapshot: SearchSnapshotShape): string[] {
   return snapshot.slots.flatMap((s) => s.matches.map((m) => m.userId));
 }
 
-const COMPLETE_PROFILE: ProfileInputs = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-  isActive: true,
-};
-
-const SUSPENDED_PROFILE: ProfileInputs = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-  isActive: false,
-};
-
 describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () => {
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -328,10 +306,7 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       expect(getResponse.status).toBe(200);
       const htmlBefore = await getResponse.text();
 
-      const targetUserId = extractUserIdFromActionForm(
-        htmlBefore,
-        TARGET_USER.email,
-      );
+      const targetUserId = extractUserIdFromActionForm(htmlBefore, TARGET_USER.email);
       expect(targetUserId).not.toBeNull();
 
       const csrfToken = extractCsrfToken(htmlBefore);
@@ -440,12 +415,6 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       await grantDiscoverabilityConsent(ORGANIZER.id);
       await grantDiscoverabilityConsent(TARGET_USER.id);
 
-      setSearchEligibilityProfileInputsForTests({
-        [ORGANIZER.id]: COMPLETE_PROFILE,
-        [TARGET_USER.id]: COMPLETE_PROFILE,
-        [suspendedUserId]: SUSPENDED_PROFILE,
-      });
-
       const searchId = await runSearch(ORGANIZER.id, 2);
       const snapshot = await loadSnapshot(searchId);
       const matches = matchedUserIds(snapshot);
@@ -500,10 +469,7 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       expect(getResponse.status).toBe(200);
       const htmlBefore = await getResponse.text();
 
-      const targetUserIdFromForm = extractUserIdFromActionForm(
-        htmlBefore,
-        targetEmail,
-      );
+      const targetUserIdFromForm = extractUserIdFromActionForm(htmlBefore, targetEmail);
       expect(targetUserIdFromForm).not.toBeNull();
 
       const csrfToken = extractCsrfToken(htmlBefore);
@@ -586,9 +552,7 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       );
       await grantDiscoverabilityConsent(reinstatedUserId);
 
-      const adminCookie = await sealSessionCookie({
-        sessionId: adminSessionId,
-      });
+      const adminCookie = await sealSessionCookie({ sessionId: adminSessionId });
       const { GET, POST } = createAdminUsersHandlers();
 
       const getResponse = await GET(
@@ -599,10 +563,7 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       expect(getResponse.status).toBe(200);
       const htmlBefore = await getResponse.text();
 
-      const targetUserIdFromForm = extractUserIdFromActionForm(
-        htmlBefore,
-        reinstatedEmail,
-      );
+      const targetUserIdFromForm = extractUserIdFromActionForm(htmlBefore, reinstatedEmail);
       expect(targetUserIdFromForm).not.toBeNull();
 
       const csrfToken = extractCsrfToken(htmlBefore);
@@ -622,11 +583,6 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
         }),
       );
       expect(reinstateResponse.status).toBe(303);
-
-      setSearchEligibilityProfileInputsForTests({
-        [ORGANIZER.id]: COMPLETE_PROFILE,
-        [reinstatedUserId]: COMPLETE_PROFILE,
-      });
 
       const { POST: requestPost } = createMagicLinkRequestHandlers({
         clock: { now: () => new Date(FIXTURE_DATE) },

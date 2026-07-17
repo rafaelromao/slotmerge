@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, inject, it } from "vitest";
 
-import {
-  type ProfileInputs,
-  setSearchEligibilityProfileInputsForTests,
-} from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
-import { createMatchingDependencies } from "../../src/matching";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
 import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
 import { grantDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
@@ -32,13 +27,6 @@ const DURATION_MINUTES = 60;
 const MINIMUM_MATCHING_USERS = 2;
 
 const STALE_IMPORTED_AT = new Date("2026-07-10T12:00:00.000Z");
-
-const COMPLETE_PROFILE: ProfileInputs = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-  isActive: true,
-};
 
 async function insertMatchUserWithStaleCalendar(): Promise<string> {
   const db = getTestDb();
@@ -101,7 +89,6 @@ async function runSearch(): Promise<string> {
       },
       clock: { now: getTestClock() },
       matchingPoolSize: 5,
-      matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       searchResultRepository: createPostgresSearchResultRepository(),
     },
@@ -154,7 +141,6 @@ function matchedUserIds(snapshot: SearchSnapshotShape): string[] {
 
 describe("E2E: stale-data markers appear on affected Slots", () => {
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
     setImportedBusyIntervalRepositoryForTests(null);
   });
 
@@ -172,17 +158,10 @@ describe("E2E: stale-data markers appear on affected Slots", () => {
         await setupTest();
         await insertMatchUserWithStaleCalendar();
 
-        setSearchEligibilityProfileInputsForTests({
-          [MATCH_USER_ID]: COMPLETE_PROFILE,
-          [SECONDARY_ELIGIBLE_USER.id]: COMPLETE_PROFILE,
-        });
-
         await grantDiscoverabilityConsent(MATCH_USER_ID);
         await grantDiscoverabilityConsent(SECONDARY_ELIGIBLE_USER.id);
 
-        setImportedBusyIntervalRepositoryForTests(
-          createPostgresImportedBusyIntervalRepository(),
-        );
+        setImportedBusyIntervalRepositoryForTests(createPostgresImportedBusyIntervalRepository());
 
         const searchId = await runSearch();
         const snapshot = await loadSnapshot(searchId);
@@ -196,10 +175,7 @@ describe("E2E: stale-data markers appear on affected Slots", () => {
           slotHasStaleMatch(slot as Slot),
         );
         expect(staleSlot).toBeDefined();
-        expect(
-          staleSlot?.matches.find((m) => m.userId === MATCH_USER_ID)
-            ?.calendarFreshness,
-        ).toBe("stale");
+        expect(staleSlot?.matches.find((m) => m.userId === MATCH_USER_ID)?.calendarFreshness).toBe("stale");
       },
     );
   });
@@ -207,59 +183,49 @@ describe("E2E: stale-data markers appear on affected Slots", () => {
   describe.runIf(HAS_TEST_DB)(
     "AC2: Stale marker is associated with the stale Calendar Connection",
     () => {
-      it("the stale match's userId belongs to the user who owns the stale Calendar Connection", async () => {
-        const db = getTestDb();
-        expect(db).not.toBeNull();
-        if (!db) {
-          return;
-        }
+      it(
+        "the stale match's userId belongs to the user who owns the stale Calendar Connection",
+        async () => {
+          const db = getTestDb();
+          expect(db).not.toBeNull();
+          if (!db) {
+            return;
+          }
 
-        await setupTest();
-        await insertMatchUserWithStaleCalendar();
+          await setupTest();
+          await insertMatchUserWithStaleCalendar();
 
-        setSearchEligibilityProfileInputsForTests({
-          [MATCH_USER_ID]: COMPLETE_PROFILE,
-          [SECONDARY_ELIGIBLE_USER.id]: COMPLETE_PROFILE,
-        });
+          await grantDiscoverabilityConsent(MATCH_USER_ID);
+          await grantDiscoverabilityConsent(SECONDARY_ELIGIBLE_USER.id);
 
-        await grantDiscoverabilityConsent(MATCH_USER_ID);
-        await grantDiscoverabilityConsent(SECONDARY_ELIGIBLE_USER.id);
+          setImportedBusyIntervalRepositoryForTests(createPostgresImportedBusyIntervalRepository());
 
-        setImportedBusyIntervalRepositoryForTests(
-          createPostgresImportedBusyIntervalRepository(),
-        );
+          const searchId = await runSearch();
+          const snapshot = await loadSnapshot(searchId);
 
-        const searchId = await runSearch();
-        const snapshot = await loadSnapshot(searchId);
+          expect(snapshot.slots.length).toBeGreaterThan(0);
 
-        expect(snapshot.slots.length).toBeGreaterThan(0);
+          const staleMatch = snapshot.slots
+            .flatMap((slot) => slot.matches)
+            .find((m) => m.calendarFreshness === "stale");
 
-        const staleMatch = snapshot.slots
-          .flatMap((slot) => slot.matches)
-          .find((m) => m.calendarFreshness === "stale");
+          expect(staleMatch).toBeDefined();
+          expect(staleMatch!.userId).toBe(MATCH_USER_ID);
 
-        expect(staleMatch).toBeDefined();
-        expect(staleMatch!.userId).toBe(MATCH_USER_ID);
+          const importedIntervalResult = await db.execute<{ connection_id: string }>(
+            `SELECT connection_id FROM imported_busy_intervals WHERE user_id = '${MATCH_USER_ID}' LIMIT 1`,
+          );
+          const connectionId = importedIntervalResult.rows[0]?.connection_id;
+          expect(connectionId).toBeDefined();
 
-        const importedIntervalResult = await db.execute<{
-          connection_id: string;
-        }>(
-          `SELECT connection_id FROM imported_busy_intervals WHERE user_id = '${MATCH_USER_ID}' LIMIT 1`,
-        );
-        const connectionId = importedIntervalResult.rows[0]?.connection_id;
-        expect(connectionId).toBeDefined();
-
-        const connectionResult = await db.execute<{
-          id: string;
-          user_id: string;
-          status: string;
-        }>(
-          `SELECT id, user_id, status FROM calendar_connections WHERE id = '${connectionId}' AND user_id = '${MATCH_USER_ID}' AND status = 'connected'`,
-        );
-        expect(connectionResult.rows[0]?.id).toBe(connectionId);
-        expect(connectionResult.rows[0]?.user_id).toBe(MATCH_USER_ID);
-        expect(connectionResult.rows[0]?.status).toBe("connected");
-      });
+          const connectionResult = await db.execute<{ id: string; user_id: string; status: string }>(
+            `SELECT id, user_id, status FROM calendar_connections WHERE id = '${connectionId}' AND user_id = '${MATCH_USER_ID}' AND status = 'connected'`,
+          );
+          expect(connectionResult.rows[0]?.id).toBe(connectionId);
+          expect(connectionResult.rows[0]?.user_id).toBe(MATCH_USER_ID);
+          expect(connectionResult.rows[0]?.status).toBe("connected");
+        },
+      );
     },
   );
 });

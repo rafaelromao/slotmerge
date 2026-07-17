@@ -18,19 +18,20 @@ import {
   setSessionRepositoryForTests,
 } from "../../src/auth/session";
 import { encryptCalendarToken } from "../../src/calendar/token-encryption";
+import { getProfileByUserId } from "../../src/profile/repository";
+import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
+import {
+  createDefaultSearchSnapshotAssemblerDeps,
+  SearchSnapshotAssembler,
+} from "../../src/search/search-snapshot-assembler";
 import {
   buildMockGoogleCalendarAdapter,
   type MockGoogleCalendarAdapter,
 } from "../google-calendar-adapter";
 import {
-  createMatchingDependencies,
-  findEligibleMatches,
-} from "../../src/matching";
-import {
   discoverabilityConsents,
   calendarConnections,
 } from "../../src/db/schema";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { handleSyncCalendarConnectionJob } from "../../src/worker/sync";
 import {
   CALENDAR_CONNECTION_FIXTURES,
@@ -39,7 +40,6 @@ import {
   USER_FIXTURES,
 } from "../fixtures/seeds";
 import { getTestClock, getTestDb } from "../helpers/setup";
-import { systemRandomSource } from "../../src/system/random";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
@@ -55,13 +55,6 @@ const SLOT_START = new Date("2026-07-13T15:00:00.000Z");
 const RANGE_START = new Date("2026-07-13T00:00:00.000Z");
 const RANGE_END = new Date("2026-07-14T00:00:00.000Z");
 const DURATION_MINUTES = 60;
-
-const COMPLETE_ELIGIBILITY = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-  isActive: true,
-} as const;
 
 function aliceSession() {
   return {
@@ -80,9 +73,7 @@ function aliceSession() {
   };
 }
 
-function buildDisconnectFetch(
-  adapter: MockGoogleCalendarAdapter,
-): typeof fetch {
+function buildDisconnectFetch(adapter: MockGoogleCalendarAdapter): typeof fetch {
   return (input, init) => {
     const url =
       typeof input === "string"
@@ -185,7 +176,6 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
 
   afterEach(() => {
     setSessionRepositoryForTests(null);
-    setSearchEligibilityProfileInputsForTests(null);
     vi.unstubAllGlobals();
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
@@ -229,17 +219,7 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
           Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
       });
 
-      setSearchEligibilityProfileInputsForTests({
-        [ALICE_ID]: COMPLETE_ELIGIBILITY,
-      });
-
-      await handleSyncCalendarConnectionJob(
-        { connectionId: CONNECTION_ID },
-        {
-          clock: { now: getTestClock() },
-          randomSource: systemRandomSource(),
-        },
-      );
+      await handleSyncCalendarConnectionJob({ connectionId: CONNECTION_ID }, { clock: { now: getTestClock() }, randomSource: { next: () => 0 } });
       const freeBusyQueriesAfterFirstSync = adapter.freeBusyQueries.length;
       expect(freeBusyQueriesAfterFirstSync).toBe(1);
 
@@ -256,13 +236,7 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
       expect(row.accessTokenExpiresAt).toBeNull();
       expect(row.status).toBe("disconnected");
 
-      await handleSyncCalendarConnectionJob(
-        { connectionId: CONNECTION_ID },
-        {
-          clock: { now: getTestClock() },
-          randomSource: systemRandomSource(),
-        },
-      );
+      await handleSyncCalendarConnectionJob({ connectionId: CONNECTION_ID }, { clock: { now: getTestClock() }, randomSource: { next: () => 0 } });
       expect(adapter.freeBusyQueries.length).toBe(
         freeBusyQueriesAfterFirstSync,
       );
@@ -270,30 +244,58 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
       const listResponse = await getConnectionView();
       expect(listResponse.status).toBe(200);
       const listBody = (await listResponse.json()) as {
-        connections: Array<{
-          id: string;
-          status: string;
-          healthStatus: string;
-        }>;
+        connections: Array<{ id: string; status: string; healthStatus: string }>;
       };
       const listed = listBody.connections.find((c) => c.id === CONNECTION_ID);
       expect(listed).toBeDefined();
       expect(listed?.status).toBe("disconnected");
       expect(listed?.healthStatus).toBe("disconnected");
 
-      const matches = await findEligibleMatches(
-        {
-          organizerId: ORGANIZER_ID,
-          selectedTopicIds: [SELECTED_TOPIC_ID],
-          candidateUserIds: [ALICE_ID],
-          durationMinutes: DURATION_MINUTES,
-          rangeStart: RANGE_START,
-          rangeEnd: RANGE_END,
-          slotStart: SLOT_START,
-        },
-        createMatchingDependencies(),
-      );
+      const matches = await runMatchingViaAssembler();
       expect(matches).toContain(ALICE_ID);
     },
   );
 });
+
+async function runMatchingViaAssembler(): Promise<string[]> {
+  const assembler = new SearchSnapshotAssembler(
+    createDefaultSearchSnapshotAssemblerDeps({
+      discoverableUserRepository: createPostgresDiscoverableUserRepository(),
+      topicRepository: {
+        listActive() {
+          return Promise.resolve(
+            TOPIC_FIXTURES.filter((t) => t.status === "active").map((t) => ({
+              id: t.id,
+              name: t.name,
+              status: "active" as const,
+            })),
+          );
+        },
+      },
+      profileRepository: {
+        findByUserId(uid) {
+          return getProfileByUserId(uid);
+        },
+      },
+    }),
+  );
+  const snapshot = await assembler.assemble({
+    organizerId: ORGANIZER_ID,
+    selectedTopicIds: [SELECTED_TOPIC_ID],
+    durationMinutes: DURATION_MINUTES,
+    dateRangeStart: RANGE_START,
+    dateRangeEnd: RANGE_END,
+    organizerTimezone: "UTC",
+    minimumMatchingUsers: 1,
+    now: getTestClock()(),
+  });
+  const slotKey = SLOT_START.toISOString();
+  const matched = new Set<string>();
+  for (const slot of snapshot.slots) {
+    if (slot.startUtc !== slotKey) continue;
+    for (const match of slot.matches) {
+      matched.add(match.userId);
+    }
+  }
+  return Array.from(matched);
+}

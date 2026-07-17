@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, inject, it } from "vitest";
 
-import {
-  type ProfileInputs,
-  setSearchEligibilityProfileInputsForTests,
-} from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
-import { createMatchingDependencies } from "../../src/matching";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
 import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
 import { getSearchRepository } from "../../src/search/repository";
@@ -31,22 +26,8 @@ const SUBSET_A_EMAIL = "subset-a@example.com";
 const SUBSET_B_EMAIL = "subset-b@example.com";
 const NEITHER_EMAIL = "neither@example.com";
 
-const COMPLETE_PROFILE: ProfileInputs = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-};
-
 const TOPIC_A_NAME = "Product strategy";
 const TOPIC_B_NAME = "AI engineering";
-
-const ELIGIBILITY_INPUTS: Record<string, ProfileInputs> = {
-  [USER_FIXTURES[0].id]: COMPLETE_PROFILE,
-  [USER_FIXTURES[1].id]: COMPLETE_PROFILE,
-  [SUBSET_A_ID]: COMPLETE_PROFILE,
-  [SUBSET_B_ID]: COMPLETE_PROFILE,
-  [NEITHER_ID]: COMPLETE_PROFILE,
-};
 
 async function insertDiscoverableUser(input: {
   id: string;
@@ -137,7 +118,6 @@ async function runSearchWithSelectedTopics(): Promise<string> {
       },
       clock: { now: getTestClock() },
       matchingPoolSize: 2,
-      matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       searchResultRepository: createPostgresSearchResultRepository(),
     },
@@ -263,7 +243,6 @@ function assertSnapshotMatches(
 
 describe("E2E: Search matches only Users with all selected active Topics", () => {
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -276,7 +255,6 @@ describe("E2E: Search matches only Users with all selected active Topics", () =>
       }
 
       await setupTest();
-      setSearchEligibilityProfileInputsForTests(ELIGIBILITY_INPUTS);
       await seedNegativeCaseUsers();
 
       const searchId = await runSearchWithSelectedTopics();

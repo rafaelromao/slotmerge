@@ -1,12 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  inject,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, inject, it, vi } from "vitest";
 
 import { POST as POST_CALLBACK } from "../../app/me/calendar-connections/callback/route";
 import { GET as GET_CONNECTIONS } from "../../app/me/calendar-connections/route";
@@ -40,11 +32,12 @@ import {
 } from "../../src/calendar/repository";
 import { calendarConnections } from "../../src/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { getProfileByUserId } from "../../src/profile/repository";
+import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
 import {
-  findEligibleMatches,
-  createMatchingDependencies,
-} from "../../src/matching";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
+  createDefaultSearchSnapshotAssemblerDeps,
+  SearchSnapshotAssembler,
+} from "../../src/search/search-snapshot-assembler";
 import {
   buildMockGoogleCalendarAdapter,
   type MockGoogleCalendarAdapter,
@@ -128,15 +121,18 @@ async function patchContributingCalendars(
 ): Promise<Response> {
   const cookie = await sealSessionCookie({ sessionId: SESSION.id });
   return PATCH_CONNECTION(
-    new Request(`http://localhost/me/calendar-connections/${connectionId}`, {
-      method: "PATCH",
-      headers: {
-        cookie,
-        "x-csrf-token": SESSION.csrfToken,
-        "content-type": "application/json",
+    new Request(
+      `http://localhost/me/calendar-connections/${connectionId}`,
+      {
+        method: "PATCH",
+        headers: {
+          cookie,
+          "x-csrf-token": SESSION.csrfToken,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ contributingCalendarIds: calendarIds }),
       },
-      body: JSON.stringify({ contributingCalendarIds: calendarIds }),
-    }),
+    ),
     { params: Promise.resolve({ id: connectionId }) },
   );
 }
@@ -204,9 +200,7 @@ function wireTestRepositories(): void {
       if ("accessTokenEncrypted" in patch)
         sets.push(sql`access_token_encrypted = ${patch.accessTokenEncrypted}`);
       if ("refreshTokenEncrypted" in patch)
-        sets.push(
-          sql`refresh_token_encrypted = ${patch.refreshTokenEncrypted}`,
-        );
+        sets.push(sql`refresh_token_encrypted = ${patch.refreshTokenEncrypted}`);
       if ("accessTokenExpiresAt" in patch)
         sets.push(sql`access_token_expires_at = ${patch.accessTokenExpiresAt}`);
       if ("lastErrorCode" in patch)
@@ -223,15 +217,17 @@ function wireTestRepositories(): void {
         );
       sets.push(sql`updated_at = NOW()`);
 
-      const setSql = sets.reduce((acc, curr, i) =>
-        i === 0 ? curr : sql`${acc}, ${curr}`,
+      const setSql = sets.reduce(
+        (acc, curr, i) =>
+          i === 0 ? curr : sql`${acc}, ${curr}`,
       );
 
       const result = await db.execute(
         sql`UPDATE calendar_connections SET ${setSql} WHERE id = ${id} AND provider = 'google' RETURNING *`,
       );
-      const updated = (result.rows[0] ??
-        null) as GoogleCalendarConnectionRecord | null;
+      const updated = (result.rows[0] ?? null) as
+        | GoogleCalendarConnectionRecord
+        | null;
       return updated;
     },
   };
@@ -265,9 +261,7 @@ function wireTestRepositories(): void {
       if ("accessTokenEncrypted" in patch)
         sets.push(sql`access_token_encrypted = ${patch.accessTokenEncrypted}`);
       if ("refreshTokenEncrypted" in patch)
-        sets.push(
-          sql`refresh_token_encrypted = ${patch.refreshTokenEncrypted}`,
-        );
+        sets.push(sql`refresh_token_encrypted = ${patch.refreshTokenEncrypted}`);
       if ("accessTokenExpiresAt" in patch)
         sets.push(sql`access_token_expires_at = ${patch.accessTokenExpiresAt}`);
       if ("lastErrorCode" in patch)
@@ -284,15 +278,17 @@ function wireTestRepositories(): void {
         );
       sets.push(sql`updated_at = NOW()`);
 
-      const setSql = sets.reduce((acc, curr, i) =>
-        i === 0 ? curr : sql`${acc}, ${curr}`,
+      const setSql = sets.reduce(
+        (acc, curr, i) =>
+          i === 0 ? curr : sql`${acc}, ${curr}`,
       );
 
       const result = await db.execute(
         sql`UPDATE calendar_connections SET ${setSql} WHERE id = ${id} AND provider = 'microsoft' RETURNING *`,
       );
-      const updated = (result.rows[0] ??
-        null) as MicrosoftCalendarConnectionRecord | null;
+      const updated = (result.rows[0] ?? null) as
+        | MicrosoftCalendarConnectionRecord
+        | null;
       return updated;
     },
   };
@@ -306,19 +302,13 @@ function googleAdapterFetchWithUrlRewrite(
 ): typeof fetch {
   const inner = adapter.getFetchImpl();
   return (input, init) => {
-    if (
-      typeof input === "string" &&
-      input.startsWith("https://calendar.googleapis.com/")
-    ) {
+    if (typeof input === "string" && input.startsWith("https://calendar.googleapis.com/")) {
       return inner(
         `https://www.googleapis.com/${input.slice("https://calendar.googleapis.com/".length)}`,
         init,
       );
     }
-    if (
-      input instanceof URL &&
-      input.toString().startsWith("https://calendar.googleapis.com/")
-    ) {
+    if (input instanceof URL && input.toString().startsWith("https://calendar.googleapis.com/")) {
       const rewritten = new URL(input.toString());
       rewritten.host = "www.googleapis.com";
       return inner(rewritten, init);
@@ -356,8 +346,12 @@ async function runSyncForGoogleConnection(params: {
     accessToken: params.accessToken,
     contributingCalendarIds: params.contributingCalendarIds,
     userId: params.userId,
-    timeMin: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    timeMax: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    timeMin: new Date(
+      now.getTime() - 1 * 24 * 60 * 60 * 1000,
+    ).toISOString(),
+    timeMax: new Date(
+      now.getTime() + 7 * 24 * 60 * 60 * 1000,
+    ).toISOString(),
     fetchImpl,
     busyIntervalRepository: createPostgresImportedBusyIntervalRepository(),
     recordFailure: () => Promise.resolve(undefined),
@@ -365,9 +359,7 @@ async function runSyncForGoogleConnection(params: {
   });
 }
 
-async function seedPendingGoogleConnection(
-  connectionId: string,
-): Promise<void> {
+async function seedPendingGoogleConnection(connectionId: string): Promise<void> {
   await getRequiredTestDb().execute(
     `INSERT INTO calendar_connections
       (id, user_id, provider, provider_account_key, account_identifier, scopes, status, contributing_calendar_ids, created_at, updated_at)
@@ -376,9 +368,7 @@ async function seedPendingGoogleConnection(
   );
 }
 
-async function seedPendingMicrosoftConnection(
-  connectionId: string,
-): Promise<void> {
+async function seedPendingMicrosoftConnection(connectionId: string): Promise<void> {
   await getRequiredTestDb().execute(
     `INSERT INTO calendar_connections
       (id, user_id, provider, provider_account_key, account_identifier, scopes, status, contributing_calendar_ids, created_at, updated_at)
@@ -445,7 +435,6 @@ describe("E2E: choose contributing calendars per connection", () => {
     setSessionRepositoryForTests(null);
     setImportedBusyIntervalRepositoryForTests(null);
     clearInMemoryImportedBusyIntervalStore();
-    setSearchEligibilityProfileInputsForTests(null);
     setGoogleCalendarConnectionRepositoryForTests(null);
     setMicrosoftCalendarConnectionRepositoryForTests(null);
     vi.unstubAllGlobals();
@@ -635,9 +624,7 @@ describe("E2E: choose contributing calendars per connection", () => {
         refreshToken: "google-refresh-token-sync",
       });
       const primaryBusyStart = new Date(Date.now() + 2 * 60 * 60 * 1000);
-      const primaryBusyEnd = new Date(
-        primaryBusyStart.getTime() + 60 * 60 * 1000,
-      );
+      const primaryBusyEnd = new Date(primaryBusyStart.getTime() + 60 * 60 * 1000);
       adapter.setFreeBusyResponse("primary", [
         {
           start: primaryBusyStart,
@@ -705,10 +692,13 @@ describe("E2E: choose contributing calendars per connection", () => {
         "primary",
         "work",
       ]);
-      expect(adapter.freeBusyQueries[0].calendarIds).not.toContain("personal");
+      expect(adapter.freeBusyQueries[0].calendarIds).not.toContain(
+        "personal",
+      );
 
-      const intervals =
-        await fetchBusyIntervalsForConnection(GOOGLE_CONNECTION_ID);
+      const intervals = await fetchBusyIntervalsForConnection(
+        GOOGLE_CONNECTION_ID,
+      );
       const calendarIds = Array.from(
         new Set(intervals.map((row) => row.provider_calendar_id)),
       );
@@ -731,9 +721,7 @@ describe("E2E: choose contributing calendars per connection", () => {
         refreshToken: "google-refresh-token-match",
       });
 
-      const syncBusyStart = new Date(
-        getTestClock()().getTime() + 2 * 60 * 60 * 1000,
-      );
+      const syncBusyStart = new Date(getTestClock()().getTime() + 2 * 60 * 60 * 1000);
       const syncBusyEnd = new Date(syncBusyStart.getTime() + 60 * 60 * 1000);
       adapter.setFreeBusyResponse("primary", [
         {
@@ -793,44 +781,21 @@ describe("E2E: choose contributing calendars per connection", () => {
       setImportedBusyIntervalRepositoryForTests(
         createPostgresImportedBusyIntervalRepository(),
       );
-      setSearchEligibilityProfileInputsForTests({
-        [ALICE.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
       const slotStart = syncBusyStart;
       const slotEnd = syncBusyEnd;
-      const matchedWithBoth = await findEligibleMatches(
-        {
-          organizerId: ORGANIZER.id,
-          selectedTopicIds: [SELECTED_TOPIC.id],
-          candidateUserIds: [ALICE.id],
-          durationMinutes: 60,
-          rangeStart: new Date(slotStart.getTime() - 60 * 60 * 1000),
-          rangeEnd: new Date(slotEnd.getTime() + 60 * 60 * 1000),
-          slotStart,
-        },
-        createMatchingDependencies(),
+const matchedWithBoth = await runMatchingForSlot(
+        slotStart,
+        new Date(slotStart.getTime() - 60 * 60 * 1000),
+        new Date(slotEnd.getTime() + 60 * 60 * 1000),
       );
       expect(matchedWithBoth).not.toContain(ALICE.id);
 
       const slotStartAfter = new Date(slotEnd.getTime() + 24 * 60 * 60 * 1000);
       const slotEndAfter = new Date(slotStartAfter.getTime() + 60 * 60 * 1000);
-      const matchedWhenFree = await findEligibleMatches(
-        {
-          organizerId: ORGANIZER.id,
-          selectedTopicIds: [SELECTED_TOPIC.id],
-          candidateUserIds: [ALICE.id],
-          durationMinutes: 60,
-          rangeStart: new Date(slotStartAfter.getTime() - 60 * 60 * 1000),
-          rangeEnd: new Date(slotEndAfter.getTime() + 60 * 60 * 1000),
-          slotStart: slotStartAfter,
-        },
-        createMatchingDependencies(),
+      const matchedWhenFree = await runMatchingForSlot(
+        slotStartAfter,
+        new Date(slotStartAfter.getTime() - 60 * 60 * 1000),
+        new Date(slotStartAfter.getTime() + 2 * 60 * 60 * 1000),
       );
       expect(matchedWhenFree).toContain(ALICE.id);
 
@@ -857,26 +822,69 @@ describe("E2E: choose contributing calendars per connection", () => {
         createPostgresImportedBusyIntervalRepository(),
       );
 
-      const intervalsAfter =
-        await fetchBusyIntervalsForConnection(GOOGLE_CONNECTION_ID);
+      const intervalsAfter = await fetchBusyIntervalsForConnection(
+        GOOGLE_CONNECTION_ID,
+      );
       const calendarIdsAfter = Array.from(
         new Set(intervalsAfter.map((row) => row.provider_calendar_id)),
       );
       expect(calendarIdsAfter.sort()).toEqual(["primary"]);
 
-      const matchedAfterPrimaryOnly = await findEligibleMatches(
-        {
-          organizerId: ORGANIZER.id,
-          selectedTopicIds: [SELECTED_TOPIC.id],
-          candidateUserIds: [ALICE.id],
-          durationMinutes: 60,
-          rangeStart: new Date(slotStartAfter.getTime() - 60 * 60 * 1000),
-          rangeEnd: new Date(slotEndAfter.getTime() + 60 * 60 * 1000),
-          slotStart: slotStartAfter,
-        },
-        createMatchingDependencies(),
+      const matchedAfterPrimaryOnly = await runMatchingForSlot(
+        slotStartAfter,
+        new Date(slotStartAfter.getTime() - 60 * 60 * 1000),
+        new Date(slotEndAfter.getTime() + 60 * 60 * 1000),
       );
       expect(matchedAfterPrimaryOnly).toContain(ALICE.id);
     },
   );
 });
+
+async function runMatchingForSlot(
+  slotStart: Date,
+  rangeStart: Date,
+  rangeEnd: Date,
+): Promise<string[]> {
+  const assembler = new SearchSnapshotAssembler(
+    createDefaultSearchSnapshotAssemblerDeps({
+      discoverableUserRepository: createPostgresDiscoverableUserRepository(),
+      topicRepository: {
+        listActive() {
+          return Promise.resolve([
+            {
+              id: SELECTED_TOPIC.id,
+              name: SELECTED_TOPIC.name,
+              status: "active" as const,
+            },
+          ]);
+        },
+      },
+      profileRepository: {
+        findByUserId(uid) {
+          return getProfileByUserId(uid);
+        },
+      },
+    }),
+  );
+  const snapshot = await assembler.assemble({
+    organizerId: ORGANIZER.id,
+    selectedTopicIds: [SELECTED_TOPIC.id],
+    durationMinutes: 60,
+    dateRangeStart: rangeStart,
+    dateRangeEnd: rangeEnd,
+    organizerTimezone: "UTC",
+    minimumMatchingUsers: 1,
+    now: getTestClock()(),
+  });
+  const slotKey = slotStart.toISOString();
+  const matched = new Set<string>();
+  for (const slot of snapshot.slots) {
+    if (slot.startUtc !== slotKey) continue;
+    for (const match of slot.matches) {
+      if (match.userId === ALICE.id) {
+        matched.add(match.userId);
+      }
+    }
+  }
+  return Array.from(matched);
+}

@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
-import { createMatchingDependencies } from "../../src/matching";
 import { getDiscoverableUserRepository } from "../../src/search/discoverable-user-repository";
 import {
   getNextWeekStart,
@@ -53,7 +52,6 @@ async function submitDefaultSearch(clock: Clock) {
       profileRepository: new DbBackedProfileRepository(),
       clock,
       matchingPoolSize: 5,
-      matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: getDiscoverableUserRepository(),
       searchResultRepository: getSearchResultRepository(),
     },

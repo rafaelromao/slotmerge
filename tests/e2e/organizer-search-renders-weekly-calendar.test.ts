@@ -10,20 +10,16 @@ import {
 
 import { GET } from "../../app/api/searches/[id]/route";
 import { sealSessionCookie } from "../../src/auth/session";
-import {
-  availabilityWindows,
-  discoverabilityConsents,
-  sessions,
-  users,
-  userTopics,
-} from "../../src/db/schema";
-import { createMatchingDependencies } from "../../src/matching";
+import { availabilityWindows, discoverabilityConsents, sessions, users, userTopics } from "../../src/db/schema";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
 import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
 import { getProfileByUserId } from "../../src/profile/repository";
-import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
+import {
+  FIXTURE_DATE,
+  TOPIC_FIXTURES,
+  USER_FIXTURES,
+} from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
@@ -59,7 +55,8 @@ describe("E2E: run a Search and render weekly calendar result", () => {
     if (TEST_DB_URL) {
       process.env.DATABASE_URL = TEST_DB_URL;
     }
-    process.env.SESSION_SECRET = "test-session-secret-70-characters-long-xxx";
+    process.env.SESSION_SECRET =
+      "test-session-secret-70-characters-long-xxx";
   });
 
   afterAll(() => {
@@ -70,7 +67,6 @@ describe("E2E: run a Search and render weekly calendar result", () => {
   });
 
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   async function insertSession(
@@ -164,7 +160,6 @@ describe("E2E: run a Search and render weekly calendar result", () => {
         },
         clock: { now: getTestClock() },
         matchingPoolSize: 10,
-        matchingDependencies: createMatchingDependencies(),
         discoverableUserRepository: createPostgresDiscoverableUserRepository(),
         searchResultRepository: createPostgresSearchResultRepository(),
       },
@@ -214,42 +209,13 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       }
       const now = new Date(FIXTURE_DATE);
 
-      await insertSession(
-        db,
-        ORGANIZER_SESSION_ID,
-        ORGANIZER.id,
-        "csrf-token",
-        now,
-      );
+      await insertSession(db, ORGANIZER_SESSION_ID, ORGANIZER.id, "csrf-token", now);
       await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
-      setSearchEligibilityProfileInputsForTests({
-        [REGULAR_USER.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [ADMIN.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [SECOND_MATCH_USER_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
       const searchId = await runSearchAsOrganizer();
 
-      const cookie = await sealSessionCookie({
-        sessionId: ORGANIZER_SESSION_ID,
-      });
+      const cookie = await sealSessionCookie({ sessionId: ORGANIZER_SESSION_ID });
       const body = await fetchSnapshotApi(searchId, cookie);
 
       expect(body.id).toBe(searchId);
@@ -286,37 +252,10 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       }
       const now = new Date(FIXTURE_DATE);
 
-      await insertSession(
-        db,
-        ORGANIZER_SESSION_2_ID,
-        ORGANIZER.id,
-        "csrf-token-2",
-        now,
-      );
+      await insertSession(db, ORGANIZER_SESSION_2_ID, ORGANIZER.id, "csrf-token-2", now);
       await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
-      setSearchEligibilityProfileInputsForTests({
-        [REGULAR_USER.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [ADMIN.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [SECOND_MATCH_USER_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
       const searchId = await runSearchAsOrganizer();
 
       const cookie = await sealSessionCookie({
@@ -333,9 +272,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       expect(response.status).toBe(200);
 
       const body = (await response.json()) as {
-        snapshot: {
-          slots: Array<{ startUtc: unknown; matchCount: unknown }>;
-        } | null;
+        snapshot: { slots: Array<{ startUtc: unknown; matchCount: unknown }> } | null;
       };
 
       expect(body.snapshot).not.toBeNull();
@@ -346,7 +283,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
         expect(typeof slot.startUtc).toBe("string");
         expect((slot.startUtc as string).length).toBeGreaterThan(0);
         expect(typeof slot.matchCount).toBe("number");
-        expect(slot.matchCount as number).toBeGreaterThanOrEqual(0);
+        expect((slot.matchCount as number)).toBeGreaterThanOrEqual(0);
       }
     },
   );
@@ -362,49 +299,14 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       }
       const now = new Date(FIXTURE_DATE);
 
-      await insertSession(
-        db,
-        ORGANIZER_SESSION_3_ID,
-        ORGANIZER.id,
-        "csrf-token-3",
-        now,
-      );
-      await insertSession(
-        db,
-        USER_SESSION_ID,
-        REGULAR_USER.id,
-        "csrf-user-token",
-        now,
-      );
+      await insertSession(db, ORGANIZER_SESSION_3_ID, ORGANIZER.id, "csrf-token-3", now);
+      await insertSession(db, USER_SESSION_ID, REGULAR_USER.id, "csrf-user-token", now);
       await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
-      setSearchEligibilityProfileInputsForTests({
-        [REGULAR_USER.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [ADMIN.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [SECOND_MATCH_USER_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
       const searchId = await runSearchAsOrganizer();
 
-      const userCookie = await sealSessionCookie({
-        sessionId: USER_SESSION_ID,
-      });
+      const userCookie = await sealSessionCookie({ sessionId: USER_SESSION_ID });
       const userResponse = await GET(
         new Request(`http://localhost/api/searches/${searchId}`, {
           headers: { cookie: userCookie },
@@ -419,73 +321,41 @@ describe("E2E: run a Search and render weekly calendar result", () => {
     },
   );
 
-  it.runIf(HAS_TEST_DB)("Admin can access the search results API", async () => {
-    await setupTest();
+  it.runIf(HAS_TEST_DB)(
+    "Admin can access the search results API",
+    async () => {
+      await setupTest();
 
-    const db = getTestDb();
-    if (!db) {
-      throw new Error("test db not initialized");
-    }
-    const now = new Date(FIXTURE_DATE);
+      const db = getTestDb();
+      if (!db) {
+        throw new Error("test db not initialized");
+      }
+      const now = new Date(FIXTURE_DATE);
 
-    await insertSession(
-      db,
-      ORGANIZER_SESSION_4_ID,
-      ORGANIZER.id,
-      "csrf-token-4",
-      now,
-    );
-    await insertSession(
-      db,
-      ADMIN_SESSION_ID,
-      ADMIN.id,
-      "csrf-admin-token",
-      now,
-    );
-    await seedSecondMatchUser();
-    await grantDiscoverabilityConsent(REGULAR_USER.id);
-    await grantDiscoverabilityConsent(ADMIN.id);
-    setSearchEligibilityProfileInputsForTests({
-      [REGULAR_USER.id]: {
-        hasDisplayName: true,
-        hasTopicOrProposal: true,
-        hasAvailabilitySource: true,
-        isActive: true,
-      },
-      [ADMIN.id]: {
-        hasDisplayName: true,
-        hasTopicOrProposal: true,
-        hasAvailabilitySource: true,
-        isActive: true,
-      },
-      [SECOND_MATCH_USER_ID]: {
-        hasDisplayName: true,
-        hasTopicOrProposal: true,
-        hasAvailabilitySource: true,
-        isActive: true,
-      },
-    });
+      await insertSession(db, ORGANIZER_SESSION_4_ID, ORGANIZER.id, "csrf-token-4", now);
+      await insertSession(db, ADMIN_SESSION_ID, ADMIN.id, "csrf-admin-token", now);
+      await seedSecondMatchUser();
+      await grantDiscoverabilityConsent(REGULAR_USER.id);
+      await grantDiscoverabilityConsent(ADMIN.id);
+      const searchId = await runSearchAsOrganizer();
 
-    const searchId = await runSearchAsOrganizer();
+      const adminCookie = await sealSessionCookie({ sessionId: ADMIN_SESSION_ID });
+      const adminResponse = await GET(
+        new Request(`http://localhost/api/searches/${searchId}`, {
+          headers: { cookie: adminCookie },
+        }),
+        { params: Promise.resolve({ id: searchId }) },
+      );
 
-    const adminCookie = await sealSessionCookie({
-      sessionId: ADMIN_SESSION_ID,
-    });
-    const adminResponse = await GET(
-      new Request(`http://localhost/api/searches/${searchId}`, {
-        headers: { cookie: adminCookie },
-      }),
-      { params: Promise.resolve({ id: searchId }) },
-    );
+      expect(adminResponse.status).toBe(200);
 
-    expect(adminResponse.status).toBe(200);
+      const adminBody = (await adminResponse.json()) as {
+        id: string;
+        snapshot: unknown;
+      };
 
-    const adminBody = (await adminResponse.json()) as {
-      id: string;
-      snapshot: unknown;
-    };
-
-    expect(adminBody.id).toBe(searchId);
-    expect(adminBody.snapshot).not.toBeNull();
-  });
+      expect(adminBody.id).toBe(searchId);
+      expect(adminBody.snapshot).not.toBeNull();
+    },
+  );
 });

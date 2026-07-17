@@ -49,12 +49,21 @@ const reinstateSubmissionSchema = z.object({
   userId: z.string().min(1),
 });
 
+let cachedUserRepository: AdminUserRepository | null = null;
+
+function getUserRepository(): AdminUserRepository {
+  if (!cachedUserRepository) {
+    cachedUserRepository = createPostgresAdminUserRepository();
+  }
+  return cachedUserRepository;
+}
+
 export function createAdminUsersHandlers({
   getSession = getSessionFromRequest,
-  userRepository = createPostgresAdminUserRepository(),
+  userRepository,
   clock = () => new Date(),
 }: AdminUsersDependencies = {}) {
-  const repository = userRepository;
+  const resolveRepository = () => userRepository ?? getUserRepository();
   return {
     GET: async (request: Request): Promise<Response> => {
       const session = await getSession(request);
@@ -62,7 +71,7 @@ export function createAdminUsersHandlers({
         return adminAccessDeniedResponse(session);
       }
 
-      const users = await repository.listUsers();
+      const users = await resolveRepository().listUsers();
       return htmlResponse(
         renderAdminShell({
           title: "Users",
@@ -83,7 +92,7 @@ export function createAdminUsersHandlers({
       const csrfToken = formData.get("_csrf");
       if (typeof csrfToken !== "string" || csrfToken !== session.csrfToken) {
         return createPostErrorResponse(
-          repository,
+          resolveRepository(),
           session,
           "Invalid CSRF token.",
           403,
@@ -96,7 +105,7 @@ export function createAdminUsersHandlers({
       });
       if (!actionResult.success) {
         return createPostErrorResponse(
-          repository,
+          resolveRepository(),
           session,
           "Invalid action.",
           400,
@@ -113,13 +122,14 @@ export function createAdminUsersHandlers({
         });
         if (!submission.success) {
           return createPostErrorResponse(
-            repository,
+            resolveRepository(),
             session,
             "Enter a valid role.",
             400,
           );
         }
 
+        const repository = resolveRepository();
         const result = await repository.changeRole({
           userId: submission.data.userId,
           actingAdminId: session.user.id,
@@ -143,13 +153,14 @@ export function createAdminUsersHandlers({
         });
         if (!submission.success) {
           return createPostErrorResponse(
-            repository,
+            resolveRepository(),
             session,
             "Missing user ID.",
             400,
           );
         }
 
+        const repository = resolveRepository();
         const result = await repository.suspend({
           userId: submission.data.userId,
           actingAdminId: session.user.id,
@@ -168,13 +179,14 @@ export function createAdminUsersHandlers({
       });
       if (!submission.success) {
         return createPostErrorResponse(
-          repository,
+          resolveRepository(),
           session,
           "Missing user ID.",
           400,
         );
       }
 
+      const repository = resolveRepository();
       const result = await repository.reinstate({
         userId: submission.data.userId,
         actingAdminId: session.user.id,

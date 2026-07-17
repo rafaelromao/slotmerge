@@ -39,7 +39,8 @@ export function createAdminTopicsHandlers({
   topicRepository,
   clock = () => new Date(),
 }: AdminTopicsDependencies = {}) {
-  const repository = topicRepository ?? getTopicCatalogueRepository();
+  const resolveRepository = () =>
+    topicRepository ?? getTopicCatalogueRepository();
   return {
     GET: async (request: Request): Promise<Response> => {
       const session = await getSession(request);
@@ -47,7 +48,7 @@ export function createAdminTopicsHandlers({
         return adminAccessDeniedResponse(session);
       }
 
-      const topicsList = await repository.listActiveAdminTopics();
+      const topicsList = await resolveRepository().listActiveAdminTopics();
       return htmlResponse(
         renderAdminShell({
           title: "Topics",
@@ -72,7 +73,7 @@ export function createAdminTopicsHandlers({
           renderAdminShell({
             title: "Topics",
             body: renderTopicsBody({
-              topicRows: await repository.listActiveAdminTopics(),
+              topicRows: await resolveRepository().listActiveAdminTopics(),
               csrfToken: session.csrfToken,
             }),
             alert: { message: "Invalid CSRF token." },
@@ -91,7 +92,7 @@ export function createAdminTopicsHandlers({
           renderAdminShell({
             title: "Topics",
             body: renderTopicsBody({
-              topicRows: await repository.listActiveAdminTopics(),
+              topicRows: await resolveRepository().listActiveAdminTopics(),
               csrfToken: session.csrfToken,
             }),
             alert: { message: "Invalid action." },
@@ -106,7 +107,7 @@ export function createAdminTopicsHandlers({
           renderAdminShell({
             title: "Topics",
             body: renderTopicsBody({
-              topicRows: await repository.listActiveAdminTopics(),
+              topicRows: await resolveRepository().listActiveAdminTopics(),
               csrfToken: session.csrfToken,
             }),
             alert: { message: "Missing topic ID." },
@@ -115,6 +116,7 @@ export function createAdminTopicsHandlers({
         );
       }
 
+      const repository = resolveRepository();
       const result = await repository.retire({ id, now: clock() });
       if (!result.ok) {
         return htmlResponse(

@@ -28,18 +28,30 @@ export type AdminStatusDependencies = {
   clock?: () => Date;
 };
 
+let cachedOperationalStatusRepository: OperationalStatusRepository | null =
+  null;
+
+function getOperationalStatusRepository(): OperationalStatusRepository {
+  if (!cachedOperationalStatusRepository) {
+    cachedOperationalStatusRepository =
+      createPostgresOperationalStatusRepository();
+  }
+  return cachedOperationalStatusRepository;
+}
+
 export function createAdminStatusHandlers({
   getSession = getSessionFromRequest,
-  statusRepository = createPostgresOperationalStatusRepository(),
+  statusRepository,
   clock = () => new Date(),
 }: AdminStatusDependencies = {}) {
-  const repository = statusRepository;
   return {
     GET: async (request: Request): Promise<Response> => {
       const session = await getSession(request);
       if (!isAdminSession(session)) {
         return adminAccessDeniedResponse(session);
       }
+
+      const repository = statusRepository ?? getOperationalStatusRepository();
 
       const now = clock();
       const since = new Date(

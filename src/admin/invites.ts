@@ -42,14 +42,23 @@ const inviteSubmissionSchema = z.object({
 
 const inviteLifetimeDays = 30;
 
+let cachedInviteRepository: InviteRepository | null = null;
+
+function getInviteRepository(): InviteRepository {
+  if (!cachedInviteRepository) {
+    cachedInviteRepository = createPostgresInviteRepository();
+  }
+  return cachedInviteRepository;
+}
+
 export function createAdminInvitesHandlers({
   getSession = getSessionFromRequest,
-  inviteRepository = createPostgresInviteRepository(),
+  inviteRepository,
   magicLinkTokenIssuer,
   emailDeliveryService,
   clock = () => new Date(),
 }: AdminInvitesDependencies = {}) {
-  const repository = inviteRepository;
+  const resolveRepository = () => inviteRepository ?? getInviteRepository();
   return {
     GET: async (request: Request): Promise<Response> => {
       const session = await getSession(request);
@@ -57,6 +66,7 @@ export function createAdminInvitesHandlers({
         return adminAccessDeniedResponse(session);
       }
 
+      const repository = resolveRepository();
       const invites = await repository.listInvites();
       return htmlResponse(
         renderAdminShell({
@@ -81,7 +91,7 @@ export function createAdminInvitesHandlers({
           renderAdminShell({
             title: "Invite users",
             body: renderAdminInvitesBody({
-              inviteRows: await repository.listInvites(),
+              inviteRows: await resolveRepository().listInvites(),
               csrfToken: session.csrfToken,
             }),
             alert: { message: "Invalid CSRF token." },
@@ -100,7 +110,7 @@ export function createAdminInvitesHandlers({
           renderAdminShell({
             title: "Invite users",
             body: renderAdminInvitesBody({
-              inviteRows: await repository.listInvites(),
+              inviteRows: await resolveRepository().listInvites(),
               csrfToken: session.csrfToken,
             }),
             alert: {
@@ -112,7 +122,7 @@ export function createAdminInvitesHandlers({
       }
 
       const now = clock();
-      const result = await repository.createInvite({
+      const result = await resolveRepository().createInvite({
         email: normalizeEmail(submission.data.email),
         role: submission.data.role,
         invitedByAdminId: session.user.id,
@@ -125,7 +135,7 @@ export function createAdminInvitesHandlers({
           renderAdminShell({
             title: "Invite users",
             body: renderAdminInvitesBody({
-              inviteRows: await repository.listInvites(),
+              inviteRows: await resolveRepository().listInvites(),
               csrfToken: session.csrfToken,
             }),
             alert: { message: "An invite already exists for that email." },
@@ -165,7 +175,7 @@ export function createAdminInvitesHandlers({
           renderAdminShell({
             title: "Invite users",
             body: renderAdminInvitesBody({
-              inviteRows: await repository.listInvites(),
+              inviteRows: await resolveRepository().listInvites(),
               csrfToken: session.csrfToken,
             }),
             alert: {

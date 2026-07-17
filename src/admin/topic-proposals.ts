@@ -31,12 +31,22 @@ const actionSchema = z.object({
   _csrf: z.string(),
 });
 
+let cachedTopicProposalRepository: TopicProposalAdminRepository | null = null;
+
+function getTopicProposalRepository(): TopicProposalAdminRepository {
+  if (!cachedTopicProposalRepository) {
+    cachedTopicProposalRepository = createPostgresTopicProposalRepository();
+  }
+  return cachedTopicProposalRepository;
+}
+
 export function createAdminTopicProposalsHandlers({
   getSession = getSessionFromRequest,
-  topicProposalRepository = createPostgresTopicProposalRepository(),
+  topicProposalRepository,
   clock = () => new Date(),
 }: AdminTopicProposalsDependencies = {}) {
-  const repository = topicProposalRepository;
+  const resolveRepository = () =>
+    topicProposalRepository ?? getTopicProposalRepository();
   return {
     GET: async (request: Request): Promise<Response> => {
       const session = await getSession(request);
@@ -44,7 +54,7 @@ export function createAdminTopicProposalsHandlers({
         return adminAccessDeniedResponse(session);
       }
 
-      const proposals = await repository.listPending();
+      const proposals = await resolveRepository().listPending();
       return htmlResponse(
         renderAdminShell({
           title: "Topic Proposals",
@@ -69,7 +79,7 @@ export function createAdminTopicProposalsHandlers({
           renderAdminShell({
             title: "Topic Proposals",
             body: renderTopicProposalsBody({
-              proposalRows: await repository.listPending(),
+              proposalRows: await resolveRepository().listPending(),
               csrfToken: session.csrfToken,
             }),
             alert: { message: "Invalid CSRF token." },
@@ -88,7 +98,7 @@ export function createAdminTopicProposalsHandlers({
           renderAdminShell({
             title: "Topic Proposals",
             body: renderTopicProposalsBody({
-              proposalRows: await repository.listPending(),
+              proposalRows: await resolveRepository().listPending(),
               csrfToken: session.csrfToken,
             }),
             alert: { message: "Invalid action." },
@@ -103,7 +113,7 @@ export function createAdminTopicProposalsHandlers({
           renderAdminShell({
             title: "Topic Proposals",
             body: renderTopicProposalsBody({
-              proposalRows: await repository.listPending(),
+              proposalRows: await resolveRepository().listPending(),
               csrfToken: session.csrfToken,
             }),
             alert: { message: "Missing proposal ID." },
@@ -113,6 +123,7 @@ export function createAdminTopicProposalsHandlers({
       }
 
       const now = clock();
+      const repository = resolveRepository();
 
       if (actionResult.data.action === "approve") {
         const result = await repository.approve({ id, now });

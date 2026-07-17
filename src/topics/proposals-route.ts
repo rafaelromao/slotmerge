@@ -29,10 +29,22 @@ export type TopicProposalRouteRepository = {
   }>;
 };
 
+let cachedTopicProposalRouteRepository: TopicProposalRouteRepository | null =
+  null;
+
+export function getTopicProposalRouteRepository(): TopicProposalRouteRepository {
+  if (!cachedTopicProposalRouteRepository) {
+    cachedTopicProposalRouteRepository = createTopicProposalRouteRepository();
+  }
+  return cachedTopicProposalRouteRepository;
+}
+
 export function createTopicProposalsHandlers({
   getSession = getSessionFromRequest,
-  repository = createTopicProposalRouteRepository(),
+  repository,
 }: TopicProposalsDependencies = {}) {
+  const resolveRepository = () =>
+    repository ?? getTopicProposalRouteRepository();
   return {
     async POST(request: Request): Promise<Response> {
       const session = await getSession(request);
@@ -57,7 +69,7 @@ export function createTopicProposalsHandlers({
       const result = await createTopicProposal(
         session.user.id,
         candidateName,
-        repository,
+        resolveRepository(),
       );
 
       if (!result.ok) {

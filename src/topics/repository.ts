@@ -44,11 +44,14 @@ export type TopicCatalogueRepository = {
 };
 
 let repositoryOverride: TopicCatalogueRepository | null = null;
+let cachedDatabaseTopicCatalogueRepository: TopicCatalogueRepository | null =
+  null;
 
 export function setTopicCatalogueRepositoryForTests(
   repository: TopicCatalogueRepository | null,
 ) {
   repositoryOverride = repository;
+  cachedDatabaseTopicCatalogueRepository = null;
 }
 
 export function getTopicCatalogueRepository(): TopicCatalogueRepository {
@@ -56,7 +59,12 @@ export function getTopicCatalogueRepository(): TopicCatalogueRepository {
     return repositoryOverride;
   }
 
-  return databaseTopicCatalogueRepository;
+  if (!cachedDatabaseTopicCatalogueRepository) {
+    cachedDatabaseTopicCatalogueRepository =
+      createPostgresTopicCatalogueRepository();
+  }
+
+  return cachedDatabaseTopicCatalogueRepository;
 }
 
 export async function listActiveTopics(): Promise<TopicCatalogueEntry[]> {
@@ -241,6 +249,3 @@ export function createPostgresTopicCatalogueRepository(
     },
   };
 }
-
-const databaseTopicCatalogueRepository =
-  createPostgresTopicCatalogueRepository();

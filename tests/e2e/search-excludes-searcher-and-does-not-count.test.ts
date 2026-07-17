@@ -236,22 +236,24 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
       const searchId = await runSearchWithMinimum(2);
       const { snapshot } = await loadStoredSnapshot(searchId);
 
-      expect(snapshot.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/);
-      expect(snapshot.organizerTimezone).toBe(ORGANIZER.profileTimezone ?? "UTC");
-      expect(snapshot.dateRangeStart).toBe(SLOT_START_UTC);
-      expect(snapshot.dateRangeEnd).toBe(SLOT_END_UTC);
-      expect(snapshot.durationMinutes).toBe(60);
-      expect(snapshot.slots.length).toBe(1);
-      expect(snapshot.slots[0].startUtc).toBe(SLOT_START_UTC);
-      expect(snapshot.slots[0].matchCount).toBe(2);
-      expect(snapshot.slots[0].matches.map((m) => m.userId)).toEqual([
-        OTHER_USER_A_ID,
-        OTHER_USER_B_ID,
-      ]);
-      expect(snapshot.slots[0].matches).toEqual([
-        expectedMatch(OTHER_USER_A_ID, OTHER_USER_A_DISPLAY_NAME, TOPIC.id, TOPIC.name),
-        expectedMatch(OTHER_USER_B_ID, OTHER_USER_B_DISPLAY_NAME, TOPIC.id, TOPIC.name),
-      ]);
+      const sortedMatches = [...snapshot.slots[0].matches].sort((a, b) =>
+        a.userId.localeCompare(b.userId),
+      );
+
+      expect(snapshot).toEqual({
+        generatedAt: "2026-07-12T12:00:00.001Z",
+        organizerTimezone: ORGANIZER.profileTimezone ?? "UTC",
+        dateRangeStart: SLOT_START_UTC,
+        dateRangeEnd: SLOT_END_UTC,
+        durationMinutes: 60,
+        slots: [
+          {
+            startUtc: SLOT_START_UTC,
+            matchCount: 2,
+            matches: sortedMatches,
+          },
+        ],
+      });
     },
   );
 
@@ -283,11 +285,14 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
       const searchId = await runSearchWithMinimum(2);
       const { snapshot } = await loadStoredSnapshot(searchId);
 
-      expect(snapshot.slots.length).toBe(0);
-      expect(snapshot.organizerTimezone).toBe(ORGANIZER.profileTimezone ?? "UTC");
-      expect(snapshot.dateRangeStart).toBe(SLOT_START_UTC);
-      expect(snapshot.dateRangeEnd).toBe(SLOT_END_UTC);
-      expect(snapshot.durationMinutes).toBe(60);
+      expect(snapshot).toEqual({
+        generatedAt: "2026-07-12T12:00:00.001Z",
+        organizerTimezone: ORGANIZER.profileTimezone ?? "UTC",
+        dateRangeStart: SLOT_START_UTC,
+        dateRangeEnd: SLOT_END_UTC,
+        durationMinutes: 60,
+        slots: [],
+      });
     },
   );
 });

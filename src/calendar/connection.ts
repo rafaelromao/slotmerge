@@ -6,7 +6,7 @@ import type {
   CalendarProvider as CalendarProviderId,
 } from "../db/schema";
 import type { CalendarProvider } from "./provider";
-import { encryptCalendarToken } from "./token-encryption";
+import { decryptCalendarToken, encryptCalendarToken } from "./token-encryption";
 
 export type CalendarConnectionRecord = {
   id: string;
@@ -100,6 +100,47 @@ export function presentCalendarConnection(
     lastSyncAt: connection.lastSyncAt ?? null,
     contributingCalendarIds: connection.contributingCalendarIds,
   };
+}
+
+export async function revokeCalendarConnection({
+  provider,
+  repository,
+  connectionId,
+  fetchImpl,
+  tokenEncryptionKey,
+}: {
+  provider: CalendarProvider;
+  repository: CalendarConnectionRepository;
+  connectionId: string;
+  fetchImpl: typeof fetch;
+  tokenEncryptionKey: string;
+}): Promise<CalendarConnectionRecord> {
+  const connection = await repository.findById(connectionId);
+  if (!connection || connection.provider !== provider.id) {
+    throw new Error("Calendar connection not found.");
+  }
+
+  if (connection.refreshTokenEncrypted) {
+    await provider.revoke({
+      refreshToken: decryptCalendarToken({
+        ciphertext: connection.refreshTokenEncrypted,
+        key: tokenEncryptionKey,
+      }),
+      fetchImpl,
+    });
+  }
+
+  const updated = await repository.updateById(connectionId, {
+    status: "disconnected",
+    refreshTokenEncrypted: null,
+    accessTokenEncrypted: null,
+    accessTokenExpiresAt: null,
+  });
+  if (!updated) {
+    throw new Error("Calendar connection could not be disconnected.");
+  }
+
+  return updated;
 }
 
 export type CompleteCalendarConnectionResult =

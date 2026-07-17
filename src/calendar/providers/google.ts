@@ -13,9 +13,23 @@ export const googleCalendarProvider: CalendarProvider = {
   authorizationScopes: getGoogleFreeBusyScope(),
   buildAuthorizationUrl: buildGoogleCalendarAuthorizationUrl,
   completeAuthorization: completeGoogleAuthorization,
-  revoke: () => Promise.reject(new Error("Google revoke is not implemented.")),
+  revoke: revokeGoogleAuthorization,
   fetchFreeBusy: fetchGoogleFreeBusy,
 };
+
+async function revokeGoogleAuthorization({
+  refreshToken,
+  fetchImpl,
+}: Parameters<CalendarProvider["revoke"]>[0]): Promise<void> {
+  const response = await fetchImpl("https://oauth2.googleapis.com/revoke", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ token: refreshToken }),
+  });
+  if (!response.ok) {
+    throw new Error("Google token revocation failed.");
+  }
+}
 
 async function completeGoogleAuthorization({
   baseUrl,

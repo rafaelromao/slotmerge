@@ -7,6 +7,8 @@ import type { CalendarProvider, CalendarProviderCompletion } from "../provider";
 
 const MICROSOFT_TOKEN_ENDPOINT =
   "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
+const MICROSOFT_LOGOUT_ENDPOINT =
+  "https://login.microsoftonline.com/organizations/oauth2/v2.0/logout";
 const MICROSOFT_GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0";
 
 export const microsoftCalendarProvider: CalendarProvider = {
@@ -15,10 +17,24 @@ export const microsoftCalendarProvider: CalendarProvider = {
   authorizationScopes: getMicrosoftCalendarScopes(),
   buildAuthorizationUrl: buildMicrosoftCalendarAuthorizationUrl,
   completeAuthorization: completeMicrosoftAuthorization,
-  revoke: () =>
-    Promise.reject(new Error("Microsoft revoke is not implemented.")),
+  revoke: revokeMicrosoftAuthorization,
   fetchFreeBusy: fetchMicrosoftFreeBusy,
 };
+
+async function revokeMicrosoftAuthorization({
+  refreshToken,
+  fetchImpl,
+}: Parameters<CalendarProvider["revoke"]>[0]): Promise<void> {
+  try {
+    await fetchImpl(MICROSOFT_LOGOUT_ENDPOINT, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token: refreshToken }),
+    });
+  } catch {
+    return;
+  }
+}
 
 async function completeMicrosoftAuthorization({
   baseUrl,

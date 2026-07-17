@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   completeCalendarConnection,
+  revokeCalendarConnection,
   sealCalendarConnectionState,
   startCalendarConnection,
   type CalendarConnectionRecord,
@@ -13,11 +14,7 @@ import {
   decryptCalendarToken,
   encryptCalendarToken,
 } from "../src/calendar/token-encryption";
-import {
-  type GoogleCalendarConnectionRecord,
-  revokeGoogleCalendarConnection,
-  startGoogleCalendarConnection,
-} from "../src/calendar/google-calendar-connections";
+import { startGoogleCalendarConnection } from "../src/calendar/google-calendar-connections";
 
 describe("Calendar Connection lifecycle", () => {
   it("resolves protocol-correct providers from one registry", () => {
@@ -443,7 +440,7 @@ describe("Google calendar connection callback", () => {
   });
 
   it("revokes the stored refresh token and clears encrypted tokens on disconnect", async () => {
-    const stored: GoogleCalendarConnectionRecord = {
+    const stored: CalendarConnectionRecord = {
       id: "connection-1",
       userId: "user-1",
       provider: "google",
@@ -484,9 +481,8 @@ describe("Google calendar connection callback", () => {
       return Promise.resolve(new Response(null, { status: 200 }));
     });
 
-    const result = await revokeGoogleCalendarConnection({
-      connectionId: stored.id,
-      fetchImpl: fetchMock,
+    const result = await revokeCalendarConnection({
+      provider: getCalendarProvider("google"),
       repository: {
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([]),
@@ -501,6 +497,8 @@ describe("Google calendar connection callback", () => {
           return Promise.resolve({ ...stored });
         },
       },
+      connectionId: stored.id,
+      fetchImpl: fetchMock,
       tokenEncryptionKey,
     });
 

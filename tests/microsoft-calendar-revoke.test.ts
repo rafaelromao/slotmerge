@@ -2,14 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import { encryptCalendarToken } from "../src/calendar/token-encryption";
 import {
-  revokeMicrosoftCalendarConnection,
-  type MicrosoftCalendarConnectionRecord,
-} from "../src/calendar/microsoft-calendar-connections";
+  revokeCalendarConnection,
+  type CalendarConnectionRecord,
+} from "../src/calendar/connection";
+import { getCalendarProvider } from "../src/calendar/providers";
 
-describe("revokeMicrosoftCalendarConnection", () => {
+describe("revokeCalendarConnection with Microsoft", () => {
   it("calls the Microsoft logout endpoint, sets status to disconnected, and clears encrypted tokens", async () => {
     const tokenEncryptionKey = "0123456789abcdef0123456789abcdef";
-    const stored: MicrosoftCalendarConnectionRecord = {
+    const stored: CalendarConnectionRecord = {
       id: "connection-1",
       userId: "user-1",
       provider: "microsoft",
@@ -45,9 +46,8 @@ describe("revokeMicrosoftCalendarConnection", () => {
       return Promise.resolve(new Response(null, { status: 200 }));
     });
 
-    const result = await revokeMicrosoftCalendarConnection({
-      connectionId: stored.id,
-      fetchImpl: fetchMock,
+    const result = await revokeCalendarConnection({
+      provider: getCalendarProvider("microsoft"),
       repository: {
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([]),
@@ -62,6 +62,8 @@ describe("revokeMicrosoftCalendarConnection", () => {
           return Promise.resolve({ ...stored });
         },
       },
+      connectionId: stored.id,
+      fetchImpl: fetchMock,
       tokenEncryptionKey,
     });
 
@@ -76,7 +78,7 @@ describe("revokeMicrosoftCalendarConnection", () => {
 
   it("tolerates a missing refresh token and still marks the connection disconnected", async () => {
     const tokenEncryptionKey = "0123456789abcdef0123456789abcdef";
-    const stored: MicrosoftCalendarConnectionRecord = {
+    const stored: CalendarConnectionRecord = {
       id: "connection-1",
       userId: "user-1",
       provider: "microsoft",
@@ -96,7 +98,8 @@ describe("revokeMicrosoftCalendarConnection", () => {
       Promise.resolve(new Response(null, { status: 200 })),
     );
 
-    const result = await revokeMicrosoftCalendarConnection({
+    const result = await revokeCalendarConnection({
+      provider: getCalendarProvider("microsoft"),
       connectionId: stored.id,
       fetchImpl: fetchMock,
       repository: {
@@ -122,7 +125,7 @@ describe("revokeMicrosoftCalendarConnection", () => {
 
   it("tolerates a logout HTTP failure and still marks the connection disconnected", async () => {
     const tokenEncryptionKey = "0123456789abcdef0123456789abcdef";
-    const stored: MicrosoftCalendarConnectionRecord = {
+    const stored: CalendarConnectionRecord = {
       id: "connection-1",
       userId: "user-1",
       provider: "microsoft",
@@ -145,7 +148,8 @@ describe("revokeMicrosoftCalendarConnection", () => {
       Promise.resolve(new Response(null, { status: 400 })),
     );
 
-    const result = await revokeMicrosoftCalendarConnection({
+    const result = await revokeCalendarConnection({
+      provider: getCalendarProvider("microsoft"),
       connectionId: stored.id,
       fetchImpl: fetchMock,
       repository: {

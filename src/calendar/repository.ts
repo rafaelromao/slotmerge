@@ -27,21 +27,23 @@ export function setCalendarConnectionRepositoryForTests(
 }
 
 export function getCalendarConnectionRepository(): CalendarConnectionRepository {
-  return repositoryOverride ?? databaseCalendarConnectionRepository;
+  if (repositoryOverride) return repositoryOverride;
+  if (googleRepositoryOverride || microsoftRepositoryOverride) {
+    return legacyCalendarConnectionRepository;
+  }
+  return databaseCalendarConnectionRepository;
 }
 
 export function setGoogleCalendarConnectionRepositoryForTests(
   repository: GoogleCalendarConnectionRepository | null,
 ): void {
   googleRepositoryOverride = repository;
-  repositoryOverride = repository as CalendarConnectionRepository | null;
 }
 
 export function setMicrosoftCalendarConnectionRepositoryForTests(
   repository: MicrosoftCalendarConnectionRepository | null,
 ): void {
   microsoftRepositoryOverride = repository;
-  repositoryOverride = repository as CalendarConnectionRepository | null;
 }
 
 export function getGoogleCalendarConnectionRepository(): GoogleCalendarConnectionRepository {
@@ -53,6 +55,33 @@ export function getMicrosoftCalendarConnectionRepository(): MicrosoftCalendarCon
     microsoftRepositoryOverride ?? databaseMicrosoftCalendarConnectionRepository
   );
 }
+
+const legacyCalendarConnectionRepository: CalendarConnectionRepository = {
+  createPending: (record) =>
+    record.provider === "google"
+      ? getGoogleCalendarConnectionRepository().createPending(record)
+      : getMicrosoftCalendarConnectionRepository().createPending(record),
+  listByUserId: async (userId) => {
+    const [googleRecords, microsoftRecords] = await Promise.all([
+      getGoogleCalendarConnectionRepository().listByUserId(userId),
+      getMicrosoftCalendarConnectionRepository().listByUserId(userId),
+    ]);
+    return [...googleRecords, ...microsoftRecords];
+  },
+  findById: async (id) => {
+    const googleRecord =
+      await getGoogleCalendarConnectionRepository().findById(id);
+    if (googleRecord) return googleRecord;
+    return getMicrosoftCalendarConnectionRepository().findById(id);
+  },
+  updateById: async (id, patch) => {
+    const googleRecord =
+      await getGoogleCalendarConnectionRepository().findById(id);
+    return googleRecord
+      ? getGoogleCalendarConnectionRepository().updateById(id, patch)
+      : getMicrosoftCalendarConnectionRepository().updateById(id, patch);
+  },
+};
 
 export async function findCalendarConnectionRecordById(
   id: string,

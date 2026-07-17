@@ -35,33 +35,6 @@ const COMPLETE_PROFILE: ProfileInputs = {
   isActive: true,
 };
 
-function expectedMatch(
-  userId: string,
-  displayName: string,
-  topicId: string,
-  topicName: string,
-): {
-  userId: string;
-  displayName: string;
-  avatarUrl: null;
-  shortBio: null;
-  topics: Array<{ id: string; name: string }>;
-  topicProfile: Array<{ id: string; name: string }>;
-  availabilityIndicator: "available";
-  calendarFreshness: "none";
-} {
-  return {
-    userId,
-    displayName,
-    avatarUrl: null,
-    shortBio: null,
-    topics: [{ id: topicId, name: topicName }],
-    topicProfile: [{ id: topicId, name: topicName }],
-    availabilityIndicator: "available",
-    calendarFreshness: "none",
-  };
-}
-
 async function insertDiscoverableUser(input: {
   id: string;
   email: string;

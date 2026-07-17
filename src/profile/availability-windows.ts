@@ -7,6 +7,7 @@ import {
   type CreateWeeklyAvailabilityWindow,
   type WeeklyAvailabilityWindowUpdate,
 } from "../db/schema";
+import { localDateTimeToUtc } from "../time/local-time";
 
 export type {
   WeeklyAvailabilityWindow,
@@ -187,37 +188,6 @@ function parseTime(time: string): { hours: number; minutes: number } {
   return { hours, minutes };
 }
 
-function toUtcDateForTimezone(
-  year: number,
-  month: number,
-  day: number,
-  hours: number,
-  minutes: number,
-  timeZone: string,
-): Date {
-  const targetDate = new Date(year, month, day, hours, minutes);
-
-  const noonUtcOnTargetDate = new Date(Date.UTC(year, month, day, 12, 0, 0));
-
-  const tzFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
-  const noonInTz = Number(
-    tzFormatter
-      .formatToParts(noonUtcOnTargetDate)
-      .find((p) => p.type === "hour")!.value,
-  );
-
-  const hourOffset = 12 - noonInTz;
-  const offsetMs = hourOffset * 60 * 60 * 1000;
-
-  return new Date(targetDate.getTime() + offsetMs);
-}
-
 export function expandWeeklyWindowToUtcRange(
   window: WeeklyWindowDescriptor,
   timeZone: string,
@@ -245,21 +215,25 @@ export function expandWeeklyWindowToUtcRange(
       const month = current.getUTCMonth();
       const day = current.getUTCDate();
 
-      const startUtc = toUtcDateForTimezone(
-        year,
-        month,
-        day,
-        startHours,
-        startMinutes,
+      const startUtc = localDateTimeToUtc(
+        {
+          year,
+          month: month + 1,
+          day,
+          hour: startHours,
+          minute: startMinutes,
+        },
         timeZone,
       );
 
-      const endUtc = toUtcDateForTimezone(
-        year,
-        month,
-        day,
-        endHours,
-        endMinutes,
+      const endUtc = localDateTimeToUtc(
+        {
+          year,
+          month: month + 1,
+          day,
+          hour: endHours,
+          minute: endMinutes,
+        },
         timeZone,
       );
 

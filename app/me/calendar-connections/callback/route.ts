@@ -91,7 +91,10 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   return Response.json({
-    connection: presentCalendarConnection(result.connection),
+    connection: presentCalendarConnection({
+      provider: getCalendarProvider(result.connection.provider),
+      connection: result.connection,
+    }),
   });
 }
 

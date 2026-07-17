@@ -4,6 +4,7 @@ import {
   type CalendarConnectionRecord,
 } from "../../../src/calendar/connection";
 import { buildCalendarConnectionHealthFields } from "../../../src/calendar/calendar-connection-health";
+import { getCalendarProvider } from "../../../src/calendar/providers";
 import { getCalendarConnectionRepository } from "../../../src/calendar/repository";
 
 export async function GET(request: Request): Promise<Response> {
@@ -20,7 +21,10 @@ export async function GET(request: Request): Promise<Response> {
   const now = new Date();
 
   const views = connections.map((conn: CalendarConnectionRecord) => {
-    const view = presentCalendarConnection(conn);
+    const view = presentCalendarConnection({
+      provider: getCalendarProvider(conn.provider),
+      connection: conn,
+    });
     const health = buildCalendarConnectionHealthFields(conn, now);
     return { ...view, ...health };
   });

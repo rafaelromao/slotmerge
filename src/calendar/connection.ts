@@ -84,9 +84,17 @@ export async function sealCalendarConnectionState({
   );
 }
 
-export function presentCalendarConnection(
-  connection: CalendarConnectionRecord,
-): CalendarConnectionView {
+export function presentCalendarConnection({
+  provider,
+  connection,
+}: {
+  provider: CalendarProvider;
+  connection: CalendarConnectionRecord;
+}): CalendarConnectionView {
+  if (connection.provider !== provider.id) {
+    throw new Error("Calendar connection provider does not match.");
+  }
+
   return {
     id: connection.id,
     provider: connection.provider,

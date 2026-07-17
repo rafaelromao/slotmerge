@@ -45,7 +45,10 @@ export async function POST(request: Request): Promise<Response> {
 
   return Response.json({
     authorizationUrl: connection.authorizationUrl,
-    connection: presentCalendarConnection(connection.connection),
+    connection: presentCalendarConnection({
+      provider,
+      connection: connection.connection,
+    }),
   });
 }
 

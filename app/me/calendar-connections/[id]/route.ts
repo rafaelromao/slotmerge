@@ -72,7 +72,10 @@ export async function PATCH(
       );
     }
     return Response.json({
-      connection: presentCalendarConnection(updated),
+      connection: presentCalendarConnection({
+        provider: getCalendarProvider(updated.provider),
+        connection: updated,
+      }),
     });
   }
 
@@ -96,7 +99,10 @@ export async function PATCH(
     });
 
     return Response.json({
-      connection: presentCalendarConnection(connection),
+      connection: presentCalendarConnection({
+        provider: getCalendarProvider(connection.provider),
+        connection,
+      }),
     });
   }
 

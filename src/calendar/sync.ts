@@ -10,7 +10,6 @@ import {
   FreeBusyServerError,
 } from "./freebusy/types";
 import type { CalendarProvider } from "./provider";
-import { getCalendarProvider } from "./providers";
 
 export type SyncCalendarConnectionParams = {
   connectionId: string;
@@ -124,5 +123,3 @@ export class ServerError extends Error {
     this.retryAfterMs = retryAfterMs;
   }
 }
-
-export { getCalendarProvider };

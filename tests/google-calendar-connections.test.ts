@@ -8,13 +8,15 @@ import {
   type CalendarConnectionRecord,
   type CalendarConnectionRepository,
 } from "../src/calendar/connection";
-import { getCalendarProvider } from "../src/calendar/providers";
+import {
+  getCalendarProvider,
+  googleCalendarProvider,
+} from "../src/calendar/providers";
 import type { CalendarProvider } from "../src/calendar/provider";
 import {
   decryptCalendarToken,
   encryptCalendarToken,
 } from "../src/calendar/token-encryption";
-import { startGoogleCalendarConnection } from "../src/calendar/google-calendar-connections";
 
 describe("Calendar Connection lifecycle", () => {
   it("resolves protocol-correct providers from one registry", () => {
@@ -40,7 +42,9 @@ describe("Calendar Connection lifecycle", () => {
         codeChallenge: "challenge",
         state: "state",
       }),
-    ).toContain("login.microsoftonline.com/organizations/oauth2/v2.0/authorize");
+    ).toContain(
+      "login.microsoftonline.com/organizations/oauth2/v2.0/authorize",
+    );
   });
 
   it("completes a connection through a provider and encrypts its tokens", async () => {
@@ -62,7 +66,8 @@ describe("Calendar Connection lifecycle", () => {
     const repository: CalendarConnectionRepository = {
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([stored]),
-      findById: (id) => Promise.resolve(id === stored.id ? { ...stored } : null),
+      findById: (id) =>
+        Promise.resolve(id === stored.id ? { ...stored } : null),
       updateById: (id, patch) => {
         if (id !== stored.id) return Promise.resolve(null);
         Object.assign(stored, patch);
@@ -299,7 +304,8 @@ describe("Google calendar connection callback", () => {
   it("creates a pending connection and returns a freebusy-only consent URL", async () => {
     const created: Array<unknown> = [];
 
-    const result = await startGoogleCalendarConnection({
+    const result = await startCalendarConnection({
+      provider: googleCalendarProvider,
       baseUrl: "https://slotmerge.example",
       clientId: "google-client-id",
       csrfToken: "csrf-token-1",

@@ -24,6 +24,8 @@ describe("topic catalogue repository", () => {
       listSelectedTopicIds: () => Promise.resolve([]),
       listAssociations: () => Promise.resolve([]),
       saveAssociations: () => Promise.resolve(),
+      listActiveAdminTopics: () => Promise.resolve([]),
+      retire: () => Promise.resolve({ ok: true }),
     });
 
     await expect(listActiveTopics()).resolves.toEqual([

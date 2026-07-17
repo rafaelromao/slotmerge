@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import {
@@ -14,6 +14,18 @@ export type TopicCatalogueEntry = {
   status: TopicStatus;
 };
 
+export type AdminTopicListItem = {
+  id: string;
+  name: string;
+  status: TopicStatus;
+  retiredAt: Date | null;
+  createdAt: Date;
+};
+
+export type RetireResult =
+  | { ok: true }
+  | { ok: false; reason: "not_found" | "already_retired" };
+
 export type TopicAssociation = {
   topicId: string;
   status: TopicAssociationStatus;
@@ -27,6 +39,8 @@ export type TopicCatalogueRepository = {
     userId: string,
     associations: TopicAssociation[],
   ): Promise<void>;
+  listActiveAdminTopics(): Promise<AdminTopicListItem[]>;
+  retire(input: { id: string; now: Date }): Promise<RetireResult>;
 };
 
 let repositoryOverride: TopicCatalogueRepository | null = null;
@@ -146,46 +160,83 @@ export async function saveUserTopicSelection(
   });
 }
 
-const databaseTopicCatalogueRepository: TopicCatalogueRepository = {
-  listCatalogue: async () => getDb().select().from(topics).orderBy(topics.name),
-  listSelectedTopicIds: async (userId) =>
-    (
-      await getDb()
-        .select({ topicId: userTopics.topicId })
+export function createPostgresTopicCatalogueRepository(
+  db = getDb(),
+): TopicCatalogueRepository {
+  return {
+    listCatalogue: async () => db.select().from(topics).orderBy(topics.name),
+    listSelectedTopicIds: async (userId) =>
+      (
+        await db
+          .select({ topicId: userTopics.topicId })
+          .from(userTopics)
+          .where(
+            and(eq(userTopics.userId, userId), eq(userTopics.status, "active")),
+          )
+          .orderBy(userTopics.createdAt)
+      ).map((row) => row.topicId),
+    listAssociations: async (userId) =>
+      db
+        .select({ topicId: userTopics.topicId, status: userTopics.status })
         .from(userTopics)
-        .where(
-          and(eq(userTopics.userId, userId), eq(userTopics.status, "active")),
+        .where(eq(userTopics.userId, userId))
+        .orderBy(userTopics.createdAt),
+    saveAssociations: async (userId, associations) => {
+      if (associations.length === 0) {
+        return;
+      }
+
+      await db
+        .insert(userTopics)
+        .values(
+          associations.map((association) => ({
+            userId,
+            topicId: association.topicId,
+            status: association.status,
+          })),
         )
-        .orderBy(userTopics.createdAt)
-    ).map((row) => row.topicId),
-  listAssociations: async (userId) =>
-    getDb()
-      .select({ topicId: userTopics.topicId, status: userTopics.status })
-      .from(userTopics)
-      .where(eq(userTopics.userId, userId))
-      .orderBy(userTopics.createdAt),
-  saveAssociations: async (userId, associations) => {
-    const db = getDb();
+        .onConflictDoUpdate({
+          target: [userTopics.userId, userTopics.topicId],
+          set: {
+            status: sql`excluded.status`,
+            updatedAt: sql`now()`,
+          },
+        });
+    },
+    listActiveAdminTopics: async () =>
+      db
+        .select({
+          id: topics.id,
+          name: topics.name,
+          status: topics.status,
+          retiredAt: topics.retiredAt,
+          createdAt: topics.createdAt,
+        })
+        .from(topics)
+        .orderBy(asc(topics.name)),
+    retire: async ({ id, now }) => {
+      const [topic] = await db
+        .select({ status: topics.status })
+        .from(topics)
+        .where(eq(topics.id, id))
+        .limit(1);
 
-    if (associations.length === 0) {
-      return;
-    }
+      if (!topic) {
+        return { ok: false, reason: "not_found" };
+      }
 
-    await db
-      .insert(userTopics)
-      .values(
-        associations.map((association) => ({
-          userId,
-          topicId: association.topicId,
-          status: association.status,
-        })),
-      )
-      .onConflictDoUpdate({
-        target: [userTopics.userId, userTopics.topicId],
-        set: {
-          status: sql`excluded.status`,
-          updatedAt: sql`now()`,
-        },
-      });
-  },
-};
+      if (topic.status === "retired") {
+        return { ok: false, reason: "already_retired" };
+      }
+
+      await db
+        .update(topics)
+        .set({ status: "retired", retiredAt: now, updatedAt: now })
+        .where(eq(topics.id, id));
+
+      return { ok: true };
+    },
+  };
+}
+
+const databaseTopicCatalogueRepository = createPostgresTopicCatalogueRepository();

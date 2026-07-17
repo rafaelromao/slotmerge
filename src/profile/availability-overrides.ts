@@ -6,6 +6,7 @@ import {
   type AvailabilityOverride,
   type CreateAvailabilityOverride,
 } from "../db/schema";
+import { localDateTimeToUtc } from "../time/local-time";
 
 export type { AvailabilityOverride, CreateAvailabilityOverride };
 
@@ -129,37 +130,6 @@ function parseTime(time: string): { hours: number; minutes: number } {
   return { hours, minutes };
 }
 
-function toUtcDateForTimezone(
-  year: number,
-  month: number,
-  day: number,
-  hours: number,
-  minutes: number,
-  timeZone: string,
-): Date {
-  const targetDate = new Date(year, month, day, hours, minutes);
-
-  const noonUtcOnTargetDate = new Date(Date.UTC(year, month, day, 12, 0, 0));
-
-  const tzFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
-  const noonInTz = Number(
-    tzFormatter
-      .formatToParts(noonUtcOnTargetDate)
-      .find((p) => p.type === "hour")!.value,
-  );
-
-  const hourOffset = 12 - noonInTz;
-  const offsetMs = hourOffset * 60 * 60 * 1000;
-
-  return new Date(targetDate.getTime() + offsetMs);
-}
-
 export function expandOverrideToUtcRange(
   override: AvailabilityOverrideDescriptor,
   timeZone: string,
@@ -171,21 +141,25 @@ export function expandOverrideToUtcRange(
   );
   const { hours: endHours, minutes: endMinutes } = parseTime(override.endTime);
 
-  const startUtc = toUtcDateForTimezone(
-    year,
-    month - 1,
-    day,
-    startHours,
-    startMinutes,
+  const startUtc = localDateTimeToUtc(
+    {
+      year,
+      month,
+      day,
+      hour: startHours,
+      minute: startMinutes,
+    },
     timeZone,
   );
 
-  const endUtc = toUtcDateForTimezone(
-    year,
-    month - 1,
-    day,
-    endHours,
-    endMinutes,
+  const endUtc = localDateTimeToUtc(
+    {
+      year,
+      month,
+      day,
+      hour: endHours,
+      minute: endMinutes,
+    },
     timeZone,
   );
 

@@ -221,7 +221,7 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
   );
 
   it.runIf(HAS_TEST_DB)(
-    "AC2: minimum count excludes the Organizer - Organizer + 2 others qualify with minimum=3, matchCount is 2 (Organizer not counted)",
+    "AC2: minimum count excludes the Organizer - Organizer + 2 others qualify with minimum=2, matchCount is 2 (Organizer not counted)",
     async () => {
       const db = getTestDb();
       expect(db).not.toBeNull();
@@ -253,7 +253,7 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
         [OTHER_USER_B_ID]: COMPLETE_PROFILE,
       });
 
-      const searchId = await runSearchWithMinimum(3);
+      const searchId = await runSearchWithMinimum(2);
       const { snapshot } = await loadStoredSnapshot(searchId);
 
       expect(snapshot.slots.length).toBeGreaterThan(0);

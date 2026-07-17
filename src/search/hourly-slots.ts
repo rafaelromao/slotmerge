@@ -51,27 +51,17 @@ function floorToHourInTimezone(date: Date, timezone: string): Date {
 
   let hour = get("hour");
   const minute = get("minute");
-  let day = get("day");
+  const day = get("day");
   const month = get("month");
   const year = get("year");
 
   if (minute > 0) {
-    hour = (hour - 1 + 24) % 24;
-    if (hour === 23) {
-      day -= 1;
+    hour = hour - 1;
+    if (hour < 0) {
+      hour = 23;
     }
   }
 
-  const utcHour = date.getUTCHours();
-  const utcMinute = date.getUTCMinutes();
-  const tzHour = get("hour");
-  const tzMinute = get("minute");
-
-  let offsetMinutes = (tzHour - utcHour) * 60 + (tzMinute - utcMinute);
-  if (tzMinute < utcMinute) {
-    offsetMinutes -= 60;
-  }
-  const offsetMs = offsetMinutes * 60000;
-
-  return new Date(Date.UTC(year, month - 1, day, hour, 0, 0, 0) - offsetMs);
+  const flooredLocal = new Date(year, month - 1, day, hour, 0, 0, 0);
+  return new Date(flooredLocal.getTime());
 }

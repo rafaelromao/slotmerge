@@ -89,7 +89,7 @@ describe("E2E: Slot start times align to an hourly grid", () => {
       await db.insert(availabilityWindows).values({
         id: "00000000-0000-0000-0000-000000000220",
         userId: MATCH_USER_ID,
-        dayOfWeek: 0,
+        dayOfWeek: 1,
         startTime: "00:00",
         endTime: "23:59",
         profileTimezone: "UTC",
@@ -123,7 +123,7 @@ describe("E2E: Slot start times align to an hourly grid", () => {
       await db.insert(availabilityWindows).values({
         id: "00000000-0000-0000-0000-000000000221",
         userId: MATCH_USER_2_ID,
-        dayOfWeek: 0,
+        dayOfWeek: 1,
         startTime: "00:00",
         endTime: "23:59",
         profileTimezone: "UTC",
@@ -234,7 +234,7 @@ describe("E2E: Slot start times align to an hourly grid", () => {
       await db.insert(availabilityWindows).values({
         id: "00000000-0000-0000-0000-000000000220",
         userId: MATCH_USER_ID,
-        dayOfWeek: 0,
+        dayOfWeek: 1,
         startTime: "00:00",
         endTime: "23:59",
         profileTimezone: "UTC",
@@ -268,7 +268,7 @@ describe("E2E: Slot start times align to an hourly grid", () => {
       await db.insert(availabilityWindows).values({
         id: "00000000-0000-0000-0000-000000000221",
         userId: MATCH_USER_2_ID,
-        dayOfWeek: 0,
+        dayOfWeek: 1,
         startTime: "00:00",
         endTime: "23:59",
         profileTimezone: "UTC",
@@ -291,7 +291,7 @@ describe("E2E: Slot start times align to an hourly grid", () => {
         },
       });
 
-      const organizerTimezone = "Asia/Calcutta";
+      const organizerTimezone = "America/Los_Angeles";
 
       const result = await submitSearch(
         {

@@ -306,7 +306,6 @@ async function persistAndRunSearch(
   const assemblerDependencies =
     deps.assemblerDependencies ??
     createDefaultSearchSnapshotAssemblerDeps({
-      clock: deps.clock,
       discoverableUserRepository: deps.discoverableUserRepository,
       topicRepository: deps.topicRepository,
       profileRepository: deps.profileRepository,
@@ -317,6 +316,7 @@ async function persistAndRunSearch(
     {
       assemblerDependencies,
       searchResultRepository: deps.searchResultRepository,
+      clock: deps.clock,
     },
   );
 
@@ -340,6 +340,8 @@ export async function submitSearch(
     };
   }
 
+  const generatedAt = deps.clock.now();
+
   const searchRecord: SearchRecord = {
     organizerId: input.organizerId,
     selectedTopicIds: input.selectedTopicIds,
@@ -348,7 +350,7 @@ export async function submitSearch(
     dateRangeStart: input.dateRangeStart,
     dateRangeEnd: input.dateRangeEnd,
     organizerTimezone: input.organizerTimezone,
-    generatedAt: deps.clock.now(),
+    generatedAt,
   };
 
   const stored = await persistAndRunSearch({
@@ -400,6 +402,8 @@ export async function rerunSearch(
     throw err;
   }
 
+  const generatedAt = deps.clock.now();
+
   const searchRecord: SearchRecord = {
     organizerId: existing.organizerId,
     selectedTopicIds: existing.selectedTopicIds,
@@ -408,7 +412,7 @@ export async function rerunSearch(
     dateRangeStart: existing.dateRangeStart,
     dateRangeEnd: existing.dateRangeEnd,
     organizerTimezone: existing.organizerTimezone,
-    generatedAt: deps.clock.now(),
+    generatedAt,
   };
 
   const stored = await persistAndRunSearch({

@@ -793,9 +793,9 @@ const matchedWithBoth = await runMatchingForSlot(
       const slotStartAfter = new Date(slotEnd.getTime() + 24 * 60 * 60 * 1000);
       const slotEndAfter = new Date(slotStartAfter.getTime() + 60 * 60 * 1000);
       const matchedWhenFree = await runMatchingForSlot(
-        slotStart,
-        new Date(slotStart.getTime() - 60 * 60 * 1000),
-        new Date(slotEnd.getTime() + 60 * 60 * 1000),
+        slotStartAfter,
+        new Date(slotStartAfter.getTime() - 60 * 60 * 1000),
+        new Date(slotStartAfter.getTime() + 2 * 60 * 60 * 1000),
       );
       expect(matchedWhenFree).toContain(ALICE.id);
 
@@ -847,7 +847,6 @@ async function runMatchingForSlot(
 ): Promise<string[]> {
   const assembler = new SearchSnapshotAssembler(
     createDefaultSearchSnapshotAssemblerDeps({
-      clock: { now: getTestClock() },
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       topicRepository: {
         listActive() {
@@ -875,6 +874,7 @@ async function runMatchingForSlot(
     dateRangeEnd: rangeEnd,
     organizerTimezone: "UTC",
     minimumMatchingUsers: 1,
+    now: getTestClock()(),
   });
   const slotKey = slotStart.toISOString();
   const matched = new Set<string>();

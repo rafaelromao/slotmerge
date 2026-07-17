@@ -279,7 +279,6 @@ async function runMatchingViaAssembler(
 ): Promise<string[]> {
   const assembler = new SearchSnapshotAssembler(
     createDefaultSearchSnapshotAssemblerDeps({
-      clock: { now: getTestClock() },
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       topicRepository: {
         listActive() {
@@ -307,6 +306,7 @@ async function runMatchingViaAssembler(
     dateRangeEnd: new Date("2026-07-14T00:00:00.000Z"),
     organizerTimezone: "UTC",
     minimumMatchingUsers: 1,
+    now: getTestClock()(),
   });
   const matched = new Set<string>();
   for (const slot of snapshot.slots) {

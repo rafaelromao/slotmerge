@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import type { Clock } from "./search-input";
 import type { ActiveTopicsRepository } from "./search-input";
 import type { DiscoverableUserRepository } from "./discoverable-user-repository";
 import type { UserProfile } from "../profile/repository";
@@ -15,11 +14,7 @@ import {
   type SearchSnapshotAssemblerInput,
 } from "./search-snapshot-assembler";
 
-function pinnedClock(iso: string): Clock {
-  return {
-    now: () => new Date(iso),
-  };
-}
+const PINNED_NOW = new Date("2026-07-12T12:00:00.000Z");
 
 const emptyTopics: ActiveTopicsRepository = {
   listActive() {
@@ -37,7 +32,6 @@ function buildAssemblerDeps(
   overrides: Partial<SearchSnapshotAssemblerDeps> = {},
 ): SearchSnapshotAssemblerDeps {
   return {
-    clock: pinnedClock("2026-07-12T12:00:00.000Z"),
     discoverableUserRepository: emptyDiscoverable,
     topicRepository: emptyTopics,
     profileRepository: {
@@ -50,12 +44,13 @@ function buildAssemblerDeps(
     },
     loadUserAvailabilityData() {
       return Promise.resolve({
-        profileTimezone: "UTC",
-        bufferMinutes: 0,
         windows: [] as WeeklyAvailabilityWindow[],
         overrides: [] as AvailabilityOverride[],
         busyIntervals: [] as ImportedBusyIntervalRecord[],
       });
+    },
+    loadCalendarConnectionLastSyncAt() {
+      return Promise.resolve(null);
     },
     getDiscoverabilityConsent() {
       return Promise.resolve(null);
@@ -81,6 +76,7 @@ const baseInput: SearchSnapshotAssemblerInput = {
   dateRangeEnd: new Date("2026-07-13T17:00:00.000Z"),
   organizerTimezone: "UTC",
   minimumMatchingUsers: 2,
+  now: PINNED_NOW,
 };
 
 describe("SearchSnapshotAssembler.assemble (tracer)", () => {
@@ -90,7 +86,7 @@ describe("SearchSnapshotAssembler.assemble (tracer)", () => {
     const snapshot = await assembler.assemble(baseInput);
 
     expect(snapshot).toEqual({
-      generatedAt: "2026-07-12T12:00:00.000Z",
+      generatedAt: PINNED_NOW.toISOString(),
       organizerTimezone: "UTC",
       dateRangeStart: "2026-07-13T16:00:00.000Z",
       dateRangeEnd: "2026-07-13T17:00:00.000Z",
@@ -99,21 +95,15 @@ describe("SearchSnapshotAssembler.assemble (tracer)", () => {
     });
   });
 
-  it("captures generatedAt from the injected Clock exactly once per assemble call", async () => {
-    let calls = 0;
-    const clock: Clock = {
-      now: () => {
-        calls += 1;
-        return new Date("2026-07-12T12:00:00.000Z");
-      },
-    };
-    const assembler = new SearchSnapshotAssembler(
-      buildAssemblerDeps({ clock }),
-    );
+  it("uses the provided now for generatedAt and freshness without reading the wall clock", async () => {
+    const assembler = new SearchSnapshotAssembler(buildAssemblerDeps());
 
-    await assembler.assemble(baseInput);
+    const snapshot = await assembler.assemble({
+      ...baseInput,
+      now: new Date("2026-07-12T15:00:00.000Z"),
+    });
 
-    expect(calls).toBe(1);
+    expect(snapshot.generatedAt).toBe("2026-07-12T15:00:00.000Z");
   });
 });
 
@@ -790,20 +780,12 @@ describe("SearchSnapshotAssembler.assemble (calendar freshness)", () => {
     });
   }
 
-  it("captures clock.now() once and reuses it for generatedAt and freshness", async () => {
-    let calls = 0;
+  it("uses the supplied `now` for both generatedAt and calendar freshness", async () => {
     const fixedNow = new Date("2026-07-13T15:30:00.000Z");
-    const clock: Clock = {
-      now: () => {
-        calls += 1;
-        return fixedNow;
-      },
-    };
 
     const capturedNows: Date[] = [];
     const assembler = new SearchSnapshotAssembler(
       buildAssemblerDeps({
-        clock,
         discoverableUserRepository: {
           listDiscoverableUserIds() {
             return Promise.resolve([candidateId]);
@@ -828,8 +810,6 @@ describe("SearchSnapshotAssembler.assemble (calendar freshness)", () => {
         },
         loadUserAvailabilityData() {
           return Promise.resolve({
-            profileTimezone: "UTC",
-            bufferMinutes: 0,
             windows: [
               {
                 id: "window-1",
@@ -882,9 +862,9 @@ describe("SearchSnapshotAssembler.assemble (calendar freshness)", () => {
       dateRangeStart: slotStart,
       dateRangeEnd: slotEnd,
       minimumMatchingUsers: 1,
+      now: fixedNow,
     });
 
-    expect(calls).toBe(1);
     expect(snapshot.generatedAt).toBe("2026-07-13T15:30:00.000Z");
     expect(capturedNows.length).toBe(1);
     expect(capturedNows[0].getTime()).toBe(fixedNow.getTime());

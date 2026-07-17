@@ -131,7 +131,6 @@ describe("E2E: Admin approves a pending Topic Proposal", () => {
 
       const assembler = new SearchSnapshotAssembler(
         createDefaultSearchSnapshotAssemblerDeps({
-          clock: { now: getTestClock() },
           discoverableUserRepository: createPostgresDiscoverableUserRepository(),
           topicRepository: {
             listActive() {
@@ -159,6 +158,7 @@ describe("E2E: Admin approves a pending Topic Proposal", () => {
         dateRangeEnd: new Date("2026-07-14T00:00:00Z"),
         organizerTimezone: "UTC",
         minimumMatchingUsers: 1,
+        now: getTestClock()(),
       });
       const matches = snapshot.slots.flatMap((s) =>
         s.matches.map((m) => m.userId),

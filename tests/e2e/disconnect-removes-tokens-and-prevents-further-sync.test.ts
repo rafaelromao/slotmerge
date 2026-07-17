@@ -262,7 +262,6 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
 async function runMatchingViaAssembler(): Promise<string[]> {
   const assembler = new SearchSnapshotAssembler(
     createDefaultSearchSnapshotAssemblerDeps({
-      clock: { now: getTestClock() },
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       topicRepository: {
         listActive() {
@@ -290,6 +289,7 @@ async function runMatchingViaAssembler(): Promise<string[]> {
     dateRangeEnd: RANGE_END,
     organizerTimezone: "UTC",
     minimumMatchingUsers: 1,
+    now: getTestClock()(),
   });
   const slotKey = SLOT_START.toISOString();
   const matched = new Set<string>();

@@ -32,7 +32,6 @@ const DURATION_MINUTES = 60;
 async function runMatchingForAlice(): Promise<string[]> {
   const assembler = new SearchSnapshotAssembler(
     createDefaultSearchSnapshotAssemblerDeps({
-      clock: { now: getTestClock() },
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       topicRepository: {
         listActive() {
@@ -60,6 +59,7 @@ async function runMatchingForAlice(): Promise<string[]> {
     dateRangeEnd: RANGE_END,
     organizerTimezone: "UTC",
     minimumMatchingUsers: 1,
+    now: getTestClock()(),
   });
   const slotKey = SLOT_START.toISOString();
   const matched = new Set<string>();

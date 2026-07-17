@@ -97,7 +97,6 @@ class InMemoryDiscoverableUserRepository implements DiscoverableUserRepository {
 }
 
 const mockAssemblerDeps: SearchSnapshotAssemblerDeps = {
-  clock: pinnedClock("2026-07-08T15:00:00.000Z"),
   discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
   topicRepository: new InMemoryActiveTopicsRepository(),
   profileRepository: new InMemoryProfileRepository(null),
@@ -106,12 +105,13 @@ const mockAssemblerDeps: SearchSnapshotAssemblerDeps = {
   },
   loadUserAvailabilityData() {
     return Promise.resolve({
-      profileTimezone: "UTC",
-      bufferMinutes: 0,
       windows: [] as WeeklyAvailabilityWindow[],
       overrides: [] as AvailabilityOverride[],
       busyIntervals: [] as ImportedBusyIntervalRecord[],
     });
+  },
+  loadCalendarConnectionLastSyncAt() {
+    return Promise.resolve(null);
   },
   getDiscoverabilityConsent() {
     return Promise.resolve(null as DiscoverabilityConsentRecord | null);

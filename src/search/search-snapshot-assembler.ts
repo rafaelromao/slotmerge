@@ -1,6 +1,5 @@
-import { eq } from "drizzle-orm";
+import { eq, max } from "drizzle-orm";
 
-import type { Clock } from "./search-input";
 import type { ActiveTopicsRepository } from "./search-input";
 import type { DiscoverableUserRepository } from "./discoverable-user-repository";
 import type {
@@ -18,14 +17,13 @@ import type {
   CalendarFreshness,
   TopicDetail,
 } from "../db/schema";
-import { topicProposals } from "../db/schema";
+import { calendarConnections, topicProposals } from "../db/schema";
 import { getDb } from "../db/client";
 import { getDiscoverabilityConsent } from "../profile/discoverability-consent";
 import { getTopicCatalogueRepository } from "../topics/repository";
 import { listWeeklyAvailabilityWindowsByUserId } from "../profile/availability-windows";
 import { listAvailabilityOverridesByUserId } from "../profile/availability-overrides";
-import { getImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals";
-import { getProfileByUserId } from "../profile/repository";
+import { createPostgresImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals.repository";
 
 import type { Interval } from "../matching/effective-availability";
 import { computeEffectiveAvailability } from "../matching/effective-availability";
@@ -40,18 +38,16 @@ export type SearchSnapshotAssemblerInput = {
   dateRangeEnd: Date;
   organizerTimezone: string;
   minimumMatchingUsers: number;
+  now: Date;
 };
 
 export type UserAvailabilityData = {
-  profileTimezone: string;
-  bufferMinutes: number;
   windows: WeeklyAvailabilityWindow[];
   overrides: AvailabilityOverride[];
   busyIntervals: ImportedBusyIntervalRecord[];
 };
 
 export type SearchSnapshotAssemblerDeps = {
-  clock: Clock;
   discoverableUserRepository: DiscoverableUserRepository;
   topicRepository: ActiveTopicsRepository;
   profileRepository: {
@@ -62,6 +58,7 @@ export type SearchSnapshotAssemblerDeps = {
     userId: string,
     range: { rangeStart: Date; rangeEnd: Date },
   ): Promise<UserAvailabilityData>;
+  loadCalendarConnectionLastSyncAt(userId: string): Promise<Date | null>;
   getDiscoverabilityConsent(
     userId: string,
   ): Promise<DiscoverabilityConsentRecord | null>;
@@ -100,8 +97,6 @@ export class SearchSnapshotAssembler {
   constructor(private readonly deps: SearchSnapshotAssemblerDeps) {}
 
   async assemble(input: SearchSnapshotAssemblerInput): Promise<SearchSnapshot> {
-    const now = this.deps.clock.now();
-
     const activeTopics = await this.deps.topicRepository.listActive();
     const topicMap = new Map(activeTopics.map((t) => [t.id, t]));
 
@@ -119,7 +114,7 @@ export class SearchSnapshotAssembler {
     const prepared = await Promise.all(
       discoverableUserIds
         .filter((userId) => userId !== input.organizerId)
-        .map((userId) => this.prepareMatch(userId, input, now, topicMap)),
+        .map((userId) => this.prepareMatch(userId, input, topicMap)),
     );
 
     const eligible = prepared.filter((c) => c !== null);
@@ -152,9 +147,8 @@ export class SearchSnapshotAssembler {
         });
       }
     }
-
     return {
-      generatedAt: now.toISOString(),
+      generatedAt: input.now.toISOString(),
       organizerTimezone: input.organizerTimezone,
       dateRangeStart: input.dateRangeStart.toISOString(),
       dateRangeEnd: input.dateRangeEnd.toISOString(),
@@ -166,10 +160,9 @@ export class SearchSnapshotAssembler {
   private async prepareMatch(
     userId: string,
     input: SearchSnapshotAssemblerInput,
-    now: Date,
     topicMap: Map<string, { id: string; name: string; status: "active" }>,
   ): Promise<MatchPreparation | null> {
-    const [profile, consent, hasTopicProposal, availabilityData] =
+    const [profile, consent, hasTopicProposal, availabilityData, lastSyncAt] =
       await Promise.all([
         this.deps.profileRepository.findByUserId(userId),
         this.deps.getDiscoverabilityConsent(userId),
@@ -178,6 +171,7 @@ export class SearchSnapshotAssembler {
           rangeStart: input.dateRangeStart,
           rangeEnd: input.dateRangeEnd,
         }),
+        this.deps.loadCalendarConnectionLastSyncAt(userId),
       ]);
 
     const selectedTopicIds = await this.deps.listSelectedTopicIds(userId);
@@ -187,6 +181,7 @@ export class SearchSnapshotAssembler {
       hasTopicOrProposal: selectedTopicIds.length > 0 || hasTopicProposal,
       hasAvailabilitySource:
         availabilityData.windows.length > 0 ||
+        availabilityData.overrides.length > 0 ||
         availabilityData.busyIntervals.length > 0,
       isActive: profile?.status === "active",
     };
@@ -205,8 +200,8 @@ export class SearchSnapshotAssembler {
 
     const effectiveAvailability = this.deps.computeEffectiveAvailability({
       userId,
-      profileTimezone: availabilityData.profileTimezone,
-      bufferMinutes: availabilityData.bufferMinutes,
+      profileTimezone: profile?.profileTimezone ?? "UTC",
+      bufferMinutes: profile?.bufferMinutes ?? 0,
       windows: availabilityData.windows,
       overrides: availabilityData.overrides,
       busyIntervals: availabilityData.busyIntervals,
@@ -229,16 +224,9 @@ export class SearchSnapshotAssembler {
       availabilityBySlot.set(slotStart.toISOString(), indicator);
     }
 
-    const lastSyncAt = availabilityData.busyIntervals.reduce<Date | null>(
-      (latest, interval) => {
-        if (!latest) return interval.importedAt;
-        return interval.importedAt > latest ? interval.importedAt : latest;
-      },
-      null,
-    );
     const calendarFreshness = this.deps.deriveCalendarFreshness(
       lastSyncAt,
-      now,
+      input.now,
     );
 
     const matchedTopics: TopicDetail[] = selectedTopicIds
@@ -301,38 +289,29 @@ export function isEligibleForSearch(
 export function createDefaultSearchSnapshotAssemblerDeps(
   deps: Pick<
     SearchSnapshotAssemblerDeps,
-    | "clock"
-    | "discoverableUserRepository"
-    | "topicRepository"
-    | "profileRepository"
+    "discoverableUserRepository" | "topicRepository" | "profileRepository"
   >,
 ): SearchSnapshotAssemblerDeps {
   return {
-    clock: deps.clock,
     discoverableUserRepository: deps.discoverableUserRepository,
     topicRepository: deps.topicRepository,
     profileRepository: deps.profileRepository,
     listSelectedTopicIds: (userId) =>
       getTopicCatalogueRepository().listSelectedTopicIds(userId),
     loadUserAvailabilityData: async (userId, range) => {
-      const [profile, windows, overrides, busyIntervals] = await Promise.all([
-        getProfileByUserId(userId),
+      const [windows, overrides, busyIntervals] = await Promise.all([
         listWeeklyAvailabilityWindowsByUserId(userId),
         listAvailabilityOverridesByUserId(userId),
-        getImportedBusyIntervalRepository().findByUserIdAndDateRange(
+        createPostgresImportedBusyIntervalRepository().findByUserIdAndDateRange(
           userId,
           range.rangeStart,
           range.rangeEnd,
         ),
       ]);
-      return {
-        profileTimezone: profile?.profileTimezone ?? "UTC",
-        bufferMinutes: profile?.bufferMinutes ?? 0,
-        windows,
-        overrides,
-        busyIntervals,
-      };
+      return { windows, overrides, busyIntervals };
     },
+    loadCalendarConnectionLastSyncAt: (userId) =>
+      findLatestCalendarConnectionSyncAt(userId),
     getDiscoverabilityConsent: (userId) => getDiscoverabilityConsent(userId),
     hasTopicProposal: (userId) => hasAnyTopicProposal(userId),
     computeEffectiveAvailability: (inputs) =>
@@ -349,4 +328,15 @@ async function hasAnyTopicProposal(userId: string): Promise<boolean> {
     .where(eq(topicProposals.proposedByUserId, userId))
     .limit(1);
   return rows.length > 0;
+}
+
+async function findLatestCalendarConnectionSyncAt(
+  userId: string,
+): Promise<Date | null> {
+  const rows = await getDb()
+    .select({ lastSyncAt: max(calendarConnections.lastSyncAt) })
+    .from(calendarConnections)
+    .where(eq(calendarConnections.userId, userId));
+  const value = rows[0]?.lastSyncAt;
+  return value ?? null;
 }

@@ -57,25 +57,25 @@ describe("createPostgresTopicProposalRepository", () => {
     const proposalWhere = vi.fn().mockReturnValue({ limit: proposalLimit });
     const proposalFrom = vi.fn().mockReturnValue({ where: proposalWhere });
     const select = vi.fn().mockReturnValue({ from: proposalFrom });
-    const tx = {
-      insert: vi.fn().mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([{ id: "topic-1" }]),
-        }),
-      }),
-      update: vi.fn().mockReturnValue({
-        set: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue(undefined),
-        }),
-      }),
-    };
 
+    const txInsert = vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([{ id: "topic-1" }]),
+      }),
+    });
+    const txUpdateSet = vi.fn().mockReturnValue({
+      where: vi.fn().mockResolvedValue(undefined),
+    });
+    const txUpdate = vi.fn().mockReturnValue({ set: txUpdateSet });
+    const tx = { insert: txInsert, update: txUpdate };
+
+    type Tx = typeof tx;
     const db = {
       select,
       transaction: vi
         .fn()
-        .mockImplementation(async (handler: (tx: typeof tx) => Promise<unknown>) =>
-          handler(tx),
+        .mockImplementation(
+          async (handler: (tx: Tx) => Promise<unknown>) => handler(tx),
         ),
     };
 
@@ -88,8 +88,8 @@ describe("createPostgresTopicProposalRepository", () => {
     const result = await repo.approve({ id: "proposal-1", now });
 
     expect(result).toEqual({ ok: true, topicId: "topic-1" });
-    expect(tx.update).toHaveBeenCalledTimes(1);
-    expect(tx.update.mock.results[0].value.set).toHaveBeenCalledWith({
+    expect(txUpdate).toHaveBeenCalledTimes(1);
+    expect(txUpdateSet).toHaveBeenCalledWith({
       status: "approved",
       updatedAt: now,
     });

@@ -5,10 +5,9 @@ import { runSearch } from "./run-search";
 import type { MatchingDependencies } from "../matching/find-eligible-matches";
 import type { DiscoverableUserRepository } from "./discoverable-user-repository";
 import type { SearchResultRepository } from "./search-result-repository";
+import type { Clock } from "../system/clock";
 
-export type Clock = {
-  now(): Date;
-};
+export type { Clock };
 
 export type ActiveTopic = {
   id: string;

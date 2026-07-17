@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, inject, it } from "vitest";
 
-import {
-  type ProfileInputs,
-  setSearchEligibilityProfileInputsForTests,
-} from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
-import { createMatchingDependencies } from "../../src/matching";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
 import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
 import { grantDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
@@ -24,20 +19,6 @@ const DURATION_MINUTES = 60;
 
 const SUSPENDED_USER_ID = "00000000-0000-0000-0000-0000000000f1";
 const REVOKED_USER_ID = "00000000-0000-0000-0000-000000000101";
-
-const COMPLETE_PROFILE: ProfileInputs = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-  isActive: true,
-};
-
-const ELIGIBILITY_INPUTS: Record<string, ProfileInputs> = {
-  [POSITIVE_CONTROL.id]: COMPLETE_PROFILE,
-  [USER_FIXTURES[1].id]: COMPLETE_PROFILE,
-  [SUSPENDED_USER_ID]: COMPLETE_PROFILE,
-  [REVOKED_USER_ID]: COMPLETE_PROFILE,
-};
 
 type FixtureUserInput = {
   id: string;
@@ -89,7 +70,6 @@ async function runSearch(): Promise<string> {
       },
       clock: { now: getTestClock() },
       matchingPoolSize: 2,
-      matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       searchResultRepository: createPostgresSearchResultRepository(),
     },
@@ -139,7 +119,6 @@ function matchedUserIds(snapshot: SearchSnapshotShape): string[] {
 
 describe("E2E: Match only considers active discoverable Users", () => {
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -153,7 +132,6 @@ describe("E2E: Match only considers active discoverable Users", () => {
 
       await setupTest();
       await grantDiscoverabilityConsent(POSITIVE_CONTROL.id);
-      setSearchEligibilityProfileInputsForTests(ELIGIBILITY_INPUTS);
       await insertFixtureUser({
         id: SUSPENDED_USER_ID,
         email: "suspended@example.com",
@@ -183,7 +161,6 @@ describe("E2E: Match only considers active discoverable Users", () => {
 
       await setupTest();
       await grantDiscoverabilityConsent(POSITIVE_CONTROL.id);
-      setSearchEligibilityProfileInputsForTests(ELIGIBILITY_INPUTS);
       await insertFixtureUser({
         id: REVOKED_USER_ID,
         email: "revoked@example.com",

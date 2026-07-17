@@ -9,11 +9,7 @@ import {
   userTopics,
   users,
 } from "../../src/db/schema";
-import { createMatchingDependencies } from "../../src/matching";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
-import {
-  setSearchEligibilityProfileInputsForTests,
-} from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
 import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
 import { getProfileByUserId } from "../../src/profile/repository";
@@ -68,7 +64,6 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
   });
 
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   async function seedSecondMatchUser(): Promise<void> {
@@ -162,7 +157,6 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
         },
         clock: { now: getTestClock() },
         matchingPoolSize: 10,
-        matchingDependencies: createMatchingDependencies(),
         discoverableUserRepository: createPostgresDiscoverableUserRepository(),
         searchResultRepository: createPostgresSearchResultRepository(),
       },
@@ -293,21 +287,6 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
       );
       await grantDiscoverabilityConsent(MATCH_USER_1.id);
       await seedSecondMatchUser();
-      setSearchEligibilityProfileInputsForTests({
-        [MATCH_USER_1.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [MATCH_USER_2_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
       const searchId = await runSearch();
 
       const cookie = await sealSessionCookie({
@@ -340,21 +319,6 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
       );
       await grantDiscoverabilityConsent(MATCH_USER_1.id);
       await seedSecondMatchUser();
-      setSearchEligibilityProfileInputsForTests({
-        [MATCH_USER_1.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [MATCH_USER_2_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
       const searchId = await runSearch();
 
       const persistedJson = await loadPersistedSnapshotJson(searchId);

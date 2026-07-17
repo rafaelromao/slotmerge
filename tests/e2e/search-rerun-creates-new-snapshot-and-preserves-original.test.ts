@@ -15,10 +15,8 @@ import {
   userTopics,
   users,
 } from "../../src/db/schema";
-import { createMatchingDependencies } from "../../src/matching";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { getDiscoverableUserRepository } from "../../src/search/discoverable-user-repository";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { getSearchRepository } from "../../src/search/repository";
 import { rerunSearch, submitSearch } from "../../src/search/search-input";
 import { getSearchResultRepository } from "../../src/search/search-result-repository";
@@ -80,14 +78,6 @@ async function seedMatchableUser(
     createdAt: now,
     updatedAt: now,
   });
-  setSearchEligibilityProfileInputsForTests({
-    [MATCH_USER_ID]: {
-      hasDisplayName: true,
-      hasTopicOrProposal: true,
-      hasAvailabilitySource: true,
-      isActive: true,
-    },
-  });
 }
 type SubmitDeps = Parameters<typeof submitSearch>[0];
 
@@ -106,7 +96,6 @@ function buildSubmitDeps(): SubmitDeps {
     profileRepository: { findByUserId: getProfileByUserId },
     clock: { now: getTestClock() },
     matchingPoolSize: 5,
-    matchingDependencies: createMatchingDependencies(),
     discoverableUserRepository: getDiscoverableUserRepository(),
     searchResultRepository: getSearchResultRepository(),
   };
@@ -114,7 +103,6 @@ function buildSubmitDeps(): SubmitDeps {
 
 function buildRerunDeps(): Parameters<typeof rerunSearch>[1] {
   return {
-    matchingDependencies: createMatchingDependencies(),
     discoverableUserRepository: getDiscoverableUserRepository(),
     clock: { now: getTestClock() },
     searchResultRepository: getSearchResultRepository(),
@@ -149,7 +137,6 @@ describe(
     });
 
     afterEach(() => {
-      setSearchEligibilityProfileInputsForTests(null);
     });
 
     it.runIf(HAS_TEST_DB)(

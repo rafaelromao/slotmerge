@@ -18,16 +18,20 @@ import {
   setSessionRepositoryForTests,
 } from "../../src/auth/session";
 import { encryptCalendarToken } from "../../src/calendar/token-encryption";
+import { getProfileByUserId } from "../../src/profile/repository";
+import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
+import {
+  createDefaultSearchSnapshotAssemblerDeps,
+  SearchSnapshotAssembler,
+} from "../../src/search/search-snapshot-assembler";
 import {
   buildMockGoogleCalendarAdapter,
   type MockGoogleCalendarAdapter,
 } from "../google-calendar-adapter";
-import { createMatchingDependencies, findEligibleMatches } from "../../src/matching";
 import {
   discoverabilityConsents,
   calendarConnections,
 } from "../../src/db/schema";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { handleSyncCalendarConnectionJob, setClockForTests } from "../../src/worker/sync";
 import {
   CALENDAR_CONNECTION_FIXTURES,
@@ -51,13 +55,6 @@ const SLOT_START = new Date("2026-07-13T15:00:00.000Z");
 const RANGE_START = new Date("2026-07-13T00:00:00.000Z");
 const RANGE_END = new Date("2026-07-14T00:00:00.000Z");
 const DURATION_MINUTES = 60;
-
-const COMPLETE_ELIGIBILITY = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-  isActive: true,
-} as const;
 
 function aliceSession() {
   return {
@@ -180,7 +177,6 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
 
   afterEach(() => {
     setSessionRepositoryForTests(null);
-    setSearchEligibilityProfileInputsForTests(null);
     setClockForTests(null);
     vi.unstubAllGlobals();
     delete process.env.SESSION_SECRET;
@@ -225,10 +221,6 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
           Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
       });
 
-      setSearchEligibilityProfileInputsForTests({
-        [ALICE_ID]: COMPLETE_ELIGIBILITY,
-      });
-
       await handleSyncCalendarConnectionJob({ connectionId: CONNECTION_ID });
       const freeBusyQueriesAfterFirstSync = adapter.freeBusyQueries.length;
       expect(freeBusyQueriesAfterFirstSync).toBe(1);
@@ -261,19 +253,51 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
       expect(listed?.status).toBe("disconnected");
       expect(listed?.healthStatus).toBe("disconnected");
 
-      const matches = await findEligibleMatches(
-        {
-          organizerId: ORGANIZER_ID,
-          selectedTopicIds: [SELECTED_TOPIC_ID],
-          candidateUserIds: [ALICE_ID],
-          durationMinutes: DURATION_MINUTES,
-          rangeStart: RANGE_START,
-          rangeEnd: RANGE_END,
-          slotStart: SLOT_START,
-        },
-        createMatchingDependencies(),
-      );
+      const matches = await runMatchingViaAssembler();
       expect(matches).toContain(ALICE_ID);
     },
   );
 });
+
+async function runMatchingViaAssembler(): Promise<string[]> {
+  const assembler = new SearchSnapshotAssembler(
+    createDefaultSearchSnapshotAssemblerDeps({
+      clock: { now: getTestClock() },
+      discoverableUserRepository: createPostgresDiscoverableUserRepository(),
+      topicRepository: {
+        listActive() {
+          return Promise.resolve(
+            TOPIC_FIXTURES.filter((t) => t.status === "active").map((t) => ({
+              id: t.id,
+              name: t.name,
+              status: "active" as const,
+            })),
+          );
+        },
+      },
+      profileRepository: {
+        findByUserId(uid) {
+          return getProfileByUserId(uid);
+        },
+      },
+    }),
+  );
+  const snapshot = await assembler.assemble({
+    organizerId: ORGANIZER_ID,
+    selectedTopicIds: [SELECTED_TOPIC_ID],
+    durationMinutes: DURATION_MINUTES,
+    dateRangeStart: RANGE_START,
+    dateRangeEnd: RANGE_END,
+    organizerTimezone: "UTC",
+    minimumMatchingUsers: 1,
+  });
+  const slotKey = SLOT_START.toISOString();
+  const matched = new Set<string>();
+  for (const slot of snapshot.slots) {
+    if (slot.startUtc !== slotKey) continue;
+    for (const match of slot.matches) {
+      matched.add(match.userId);
+    }
+  }
+  return Array.from(matched);
+}

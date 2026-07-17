@@ -7,12 +7,8 @@ import {
   userTopics,
   users,
 } from "../../src/db/schema";
-import { createMatchingDependencies } from "../../src/matching";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { getDiscoverableUserRepository } from "../../src/search/discoverable-user-repository";
-import {
-  setSearchEligibilityProfileInputsForTests,
-} from "../../src/search/eligibility";
 import { getSearchRepository } from "../../src/search/repository";
 import { submitSearch } from "../../src/search/search-input";
 import {
@@ -54,7 +50,6 @@ function buildSubmitDeps(clock: { now: () => Date }): SubmitDeps {
     profileRepository: { findByUserId: getProfileByUserId },
     clock,
     matchingPoolSize: 5,
-    matchingDependencies: createMatchingDependencies(),
     discoverableUserRepository: getDiscoverableUserRepository(),
     searchResultRepository: getSearchResultRepository(),
   };
@@ -107,14 +102,6 @@ async function seedMatchUser(): Promise<void> {
     createdAt: now,
     updatedAt: now,
   });
-  setSearchEligibilityProfileInputsForTests({
-    [MATCH_USER_ID]: {
-      hasDisplayName: true,
-      hasTopicOrProposal: true,
-      hasAvailabilitySource: true,
-      isActive: true,
-    },
-  });
 }
 
 async function loadSnapshotJson(
@@ -138,7 +125,6 @@ describe.runIf(HAS_TEST_DB)(
   "E2E: saved Search Results show staleness indicator when underlying data changed",
   () => {
     afterEach(() => {
-      setSearchEligibilityProfileInputsForTests(null);
     });
 
     it(

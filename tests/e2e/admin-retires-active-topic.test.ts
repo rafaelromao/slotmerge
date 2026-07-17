@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { afterEach, describe, expect, inject, it } from "vitest";
+import { describe, expect, inject, it } from "vitest";
 
 import { createAdminTopicsHandlers } from "../../src/admin/topics";
 import { sealSessionCookie } from "../../src/auth/session";
@@ -13,15 +13,7 @@ import {
   listActiveTopics,
   saveUserTopicSelection,
 } from "../../src/topics/repository";
-import {
-  listWeeklyAvailabilityWindowsByUserId,
-} from "../../src/profile/availability-windows";
-import {
-  listAvailabilityOverridesByUserId,
-} from "../../src/profile/availability-overrides";
-import { getImportedBusyIntervalRepository } from "../../src/calendar/imported-busy-intervals";
 import { getProfileByUserId } from "../../src/profile/repository";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
 import {
   createPostgresDiscoverableUserRepository,
@@ -43,7 +35,6 @@ const SLOT_END_UTC = `${SLOT_DATE}T17:00:00.000Z`;
 
 describe("E2E: Admin retires an active Topic", () => {
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -357,53 +348,6 @@ describe("E2E: Admin retires an active Topic", () => {
         }),
       );
 
-      setSearchEligibilityProfileInputsForTests({
-        [userId]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-        },
-      });
-
-      const matchingDependencies = {
-        listSelectedTopicIds: async (uid: string) => {
-          const result = await db
-            .select({ topicId: userTopics.topicId })
-            .from(userTopics)
-            .where(
-              and(
-                eq(userTopics.userId, uid),
-                eq(userTopics.status, "active"),
-              ),
-            );
-          return result.map((r) => r.topicId);
-        },
-        computeEffectiveAvailability:
-          (await import("../../src/matching/effective-availability"))
-            .computeEffectiveAvailability,
-        getUserAvailabilityData: async (uid: string) => {
-          const [profile, windows, overrides, busyIntervals] =
-            await Promise.all([
-              getProfileByUserId(uid),
-              listWeeklyAvailabilityWindowsByUserId(uid),
-              listAvailabilityOverridesByUserId(uid),
-              getImportedBusyIntervalRepository().findByUserIdAndDateRange(
-                uid,
-                new Date(0),
-                new Date("2100-01-01"),
-              ),
-            ]);
-          return {
-            profileTimezone: profile?.profileTimezone ?? "UTC",
-            bufferMinutes: profile?.bufferMinutes ?? 0,
-            windows,
-            overrides,
-            busyIntervals,
-          };
-        },
-        isUserEligibleForSearch: (uid: string) => Promise.resolve(uid === userId),
-      };
-
       await expect(async () => {
         await submitSearch(
           {
@@ -428,7 +372,6 @@ describe("E2E: Admin retires an active Topic", () => {
             },
             clock: { now: getTestClock() },
             matchingPoolSize: 2,
-            matchingDependencies,
             discoverableUserRepository:
               createPostgresDiscoverableUserRepository(),
             searchResultRepository:

@@ -8,10 +8,8 @@ import {
   userTopics,
   users,
 } from "../../src/db/schema";
-import { createMatchingDependencies } from "../../src/matching";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { getDiscoverableUserRepository } from "../../src/search/discoverable-user-repository";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
 import { getSearchResultRepository } from "../../src/search/search-result-repository";
 import { listActiveTopics } from "../../src/topics/repository";
@@ -66,7 +64,6 @@ async function runSearch(): Promise<string> {
       profileRepository: { findByUserId: getProfileByUserId },
       clock: { now: getTestClock() },
       matchingPoolSize: MINIMUM_MATCHING_USERS,
-      matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: getDiscoverableUserRepository(),
       searchResultRepository: getSearchResultRepository(),
     },
@@ -103,7 +100,6 @@ async function postAvailabilityWindow(): Promise<Response> {
 
 describe("E2E: availability edits apply immediately to next Search", () => {
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -148,15 +144,6 @@ describe("E2E: availability edits apply immediately to next Search", () => {
         csrfToken: CANDIDATE_CSRF,
         expiresAt: new Date("2099-01-01T00:00:00.000Z"),
         createdAt: now,
-      });
-
-      setSearchEligibilityProfileInputsForTests({
-        [CANDIDATE_USER_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
       });
 
       const searchResultRepository = getSearchResultRepository();

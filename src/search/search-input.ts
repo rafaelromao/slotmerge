@@ -2,9 +2,12 @@ import type { UserProfile } from "../profile/repository";
 
 import { getSearchRepository, type SearchRecord } from "./repository";
 import { runSearch } from "./run-search";
-import type { MatchingDependencies } from "../matching/find-eligible-matches";
 import type { DiscoverableUserRepository } from "./discoverable-user-repository";
 import type { SearchResultRepository } from "./search-result-repository";
+import {
+  createDefaultSearchSnapshotAssemblerDeps,
+  type SearchSnapshotAssemblerDeps,
+} from "./search-snapshot-assembler";
 
 export type Clock = {
   now(): Date;
@@ -256,7 +259,7 @@ export function validateSearchInput(
 
 export type SubmitSearchDeps = SearchInputBuilderDeps & {
   matchingPoolSize: number;
-  matchingDependencies: import("../matching/find-eligible-matches").MatchingDependencies;
+  assemblerDependencies?: SearchSnapshotAssemblerDeps;
   discoverableUserRepository: import("./discoverable-user-repository").DiscoverableUserRepository;
   searchResultRepository: import("./search-result-repository").SearchResultRepository;
 };
@@ -276,13 +279,51 @@ export type RerunSearchResult =
   | { ok: false; reason: "not_found" | "topics_invalid" };
 
 export type RerunSearchDeps = {
-  matchingDependencies: MatchingDependencies;
+  assemblerDependencies?: SearchSnapshotAssemblerDeps;
   discoverableUserRepository: DiscoverableUserRepository;
   clock: Clock;
   searchResultRepository: SearchResultRepository;
   topicRepository: ActiveTopicsRepository;
   profileRepository: ProfileRepository;
 };
+
+type PersistAndRunSearchDeps = {
+  searchRecord: SearchRecord;
+  input: SearchInput;
+  discoverableUserRepository: DiscoverableUserRepository;
+  searchResultRepository: SearchResultRepository;
+  topicRepository: ActiveTopicsRepository;
+  profileRepository: ProfileRepository;
+  clock: Clock;
+  assemblerDependencies?: SearchSnapshotAssemblerDeps;
+};
+
+async function persistAndRunSearch(
+  deps: PersistAndRunSearchDeps,
+): Promise<SearchRecord> {
+  const stored = await getSearchRepository().save(deps.searchRecord);
+
+  const assemblerDependencies =
+    deps.assemblerDependencies ??
+    createDefaultSearchSnapshotAssemblerDeps({
+      clock: deps.clock,
+      discoverableUserRepository: deps.discoverableUserRepository,
+      topicRepository: deps.topicRepository,
+      profileRepository: deps.profileRepository,
+    });
+
+  await runSearch(
+    { searchRecord: stored, input: deps.input },
+    {
+      assemblerDependencies,
+      discoverableUserRepository: deps.discoverableUserRepository,
+      clock: deps.clock,
+      searchResultRepository: deps.searchResultRepository,
+    },
+  );
+
+  return stored;
+}
 
 export async function submitSearch(
   deps: SubmitSearchDeps,
@@ -301,7 +342,7 @@ export async function submitSearch(
     };
   }
 
-  const record: SearchRecord = {
+  const searchRecord: SearchRecord = {
     organizerId: input.organizerId,
     selectedTopicIds: input.selectedTopicIds,
     minimumMatchingUsers: input.minimumMatchingUsers,
@@ -312,19 +353,16 @@ export async function submitSearch(
     generatedAt: deps.clock.now(),
   };
 
-  const stored = await getSearchRepository().save(record);
-
-  await runSearch(
-    { searchRecord: stored, input },
-    {
-      matchingDependencies: deps.matchingDependencies,
-      discoverableUserRepository: deps.discoverableUserRepository,
-      clock: deps.clock,
-      searchResultRepository: deps.searchResultRepository,
-      topicRepository: deps.activeTopicsRepository,
-      profileRepository: deps.profileRepository,
-    },
-  );
+  const stored = await persistAndRunSearch({
+    searchRecord,
+    input,
+    discoverableUserRepository: deps.discoverableUserRepository,
+    searchResultRepository: deps.searchResultRepository,
+    topicRepository: deps.activeTopicsRepository,
+    profileRepository: deps.profileRepository,
+    clock: deps.clock,
+    assemblerDependencies: deps.assemblerDependencies,
+  });
 
   return { ok: true, search: stored };
 }
@@ -364,7 +402,7 @@ export async function rerunSearch(
     throw err;
   }
 
-  const record: SearchRecord = {
+  const searchRecord: SearchRecord = {
     organizerId: existing.organizerId,
     selectedTopicIds: existing.selectedTopicIds,
     minimumMatchingUsers: existing.minimumMatchingUsers,
@@ -375,19 +413,16 @@ export async function rerunSearch(
     generatedAt: deps.clock.now(),
   };
 
-  const stored = await getSearchRepository().save(record);
-
-  await runSearch(
-    { searchRecord: stored, input },
-    {
-      matchingDependencies: deps.matchingDependencies,
-      discoverableUserRepository: deps.discoverableUserRepository,
-      clock: deps.clock,
-      searchResultRepository: deps.searchResultRepository,
-      topicRepository: deps.topicRepository,
-      profileRepository: deps.profileRepository,
-    },
-  );
+  const stored = await persistAndRunSearch({
+    searchRecord,
+    input,
+    discoverableUserRepository: deps.discoverableUserRepository,
+    searchResultRepository: deps.searchResultRepository,
+    topicRepository: deps.topicRepository,
+    profileRepository: deps.profileRepository,
+    clock: deps.clock,
+    assemblerDependencies: deps.assemblerDependencies,
+  });
 
   return { ok: true, search: stored };
 }

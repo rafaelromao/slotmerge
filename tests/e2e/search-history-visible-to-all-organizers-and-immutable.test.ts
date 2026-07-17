@@ -18,9 +18,7 @@ import {
   userTopics,
   users,
 } from "../../src/db/schema";
-import { createMatchingDependencies } from "../../src/matching";
 import { getDiscoverableUserRepository } from "../../src/search/discoverable-user-repository";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
 import { getSearchResultRepository } from "../../src/search/search-result-repository";
 import { getProfileByUserId } from "../../src/profile/repository";
@@ -126,14 +124,6 @@ async function seedMatchableUser(
     createdAt: now,
     updatedAt: now,
   });
-  setSearchEligibilityProfileInputsForTests({
-    [MATCH_USER_ID]: {
-      hasDisplayName: true,
-      hasTopicOrProposal: true,
-      hasAvailabilitySource: true,
-      isActive: true,
-    },
-  });
 }
 
 async function submitSearchForOrganizer(
@@ -155,7 +145,6 @@ async function submitSearchForOrganizer(
       profileRepository: { findByUserId: getProfileByUserId },
       clock: { now: getTestClock() },
       matchingPoolSize: 2,
-      matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: getDiscoverableUserRepository(),
       searchResultRepository: getSearchResultRepository(),
     },
@@ -206,7 +195,6 @@ describe("E2E: Search history is visible to all Organizer and Admin and immutabl
   });
 
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(

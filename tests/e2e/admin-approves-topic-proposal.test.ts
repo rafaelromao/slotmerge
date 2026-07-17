@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { afterEach, describe, expect, inject, it } from "vitest";
+import { describe, expect, inject, it } from "vitest";
 
 import { createAdminTopicProposalsHandlers } from "../../src/admin/topic-proposals";
 import { sealSessionCookie } from "../../src/auth/session";
@@ -10,11 +10,12 @@ import {
   topics,
   userTopics,
 } from "../../src/db/schema";
+import { getProfileByUserId } from "../../src/profile/repository";
 import {
-  findEligibleMatches,
-  createMatchingDependencies,
-} from "../../src/matching";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
+  createDefaultSearchSnapshotAssemblerDeps,
+  SearchSnapshotAssembler,
+} from "../../src/search/search-snapshot-assembler";
+import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
 import {
   listActiveTopics,
   saveUserTopicSelection,
@@ -26,7 +27,6 @@ const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
 describe("E2E: Admin approves a pending Topic Proposal", () => {
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -69,15 +69,6 @@ describe("E2E: Admin approves a pending Topic Proposal", () => {
       await db
         .insert(discoverabilityConsents)
         .values({ userId: proposerId, grantedAt: now });
-
-      setSearchEligibilityProfileInputsForTests({
-        [proposerId]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
 
       const adminCookie = await sealSessionCookie({
         sessionId: adminSessionId,
@@ -138,16 +129,39 @@ describe("E2E: Admin approves a pending Topic Proposal", () => {
       expect(attached).toBeDefined();
       expect(attached.status).toBe("active");
 
-      const matches = await findEligibleMatches(
-        {
-          organizerId: USER_FIXTURES[1].id,
-          selectedTopicIds: [approvedTopic.id],
-          candidateUserIds: [proposerId],
-          durationMinutes: 60,
-          rangeStart: new Date("2026-07-13T00:00:00Z"),
-          rangeEnd: new Date("2026-07-14T00:00:00Z"),
-        },
-        createMatchingDependencies(),
+      const assembler = new SearchSnapshotAssembler(
+        createDefaultSearchSnapshotAssemblerDeps({
+          discoverableUserRepository: createPostgresDiscoverableUserRepository(),
+          topicRepository: {
+            listActive() {
+              return listActiveTopics().then((topics) =>
+                topics.map(({ id, name }) => ({
+                  id,
+                  name,
+                  status: "active" as const,
+                })),
+              );
+            },
+          },
+          profileRepository: {
+            findByUserId(uid) {
+              return getProfileByUserId(uid);
+            },
+          },
+        }),
+      );
+      const snapshot = await assembler.assemble({
+        organizerId: USER_FIXTURES[1].id,
+        selectedTopicIds: [approvedTopic.id],
+        durationMinutes: 60,
+        dateRangeStart: new Date("2026-07-13T00:00:00Z"),
+        dateRangeEnd: new Date("2026-07-14T00:00:00Z"),
+        organizerTimezone: "UTC",
+        minimumMatchingUsers: 1,
+        now: getTestClock()(),
+      });
+      const matches = snapshot.slots.flatMap((s) =>
+        s.matches.map((m) => m.userId),
       );
       expect(matches).toContain(proposerId);
     },

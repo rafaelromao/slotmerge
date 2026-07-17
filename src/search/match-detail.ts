@@ -1,4 +1,4 @@
-import type { Interval } from "../matching/find-eligible-matches";
+import type { Interval } from "../matching/effective-availability";
 import type { AvailabilityIndicator, CalendarFreshness } from "../db/schema";
 
 export const CALENDAR_STALENESS_THRESHOLD_MS = 24 * 60 * 60 * 1000;

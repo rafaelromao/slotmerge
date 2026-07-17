@@ -11,11 +11,7 @@ import {
 import { GET } from "../../app/api/searches/[id]/route";
 import { sealSessionCookie } from "../../src/auth/session";
 import { availabilityWindows, discoverabilityConsents, sessions, users, userTopics } from "../../src/db/schema";
-import { createMatchingDependencies } from "../../src/matching";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
-import {
-  setSearchEligibilityProfileInputsForTests,
-} from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
 import { createPostgresSearchResultRepository } from "../../src/search/drizzle-search-result-repository";
 import { getProfileByUserId } from "../../src/profile/repository";
@@ -71,7 +67,6 @@ describe("E2E: run a Search and render weekly calendar result", () => {
   });
 
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   async function insertSession(
@@ -165,7 +160,6 @@ describe("E2E: run a Search and render weekly calendar result", () => {
         },
         clock: { now: getTestClock() },
         matchingPoolSize: 10,
-        matchingDependencies: createMatchingDependencies(),
         discoverableUserRepository: createPostgresDiscoverableUserRepository(),
         searchResultRepository: createPostgresSearchResultRepository(),
       },
@@ -219,27 +213,6 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
-      setSearchEligibilityProfileInputsForTests({
-        [REGULAR_USER.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [ADMIN.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [SECOND_MATCH_USER_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
       const searchId = await runSearchAsOrganizer();
 
       const cookie = await sealSessionCookie({ sessionId: ORGANIZER_SESSION_ID });
@@ -283,27 +256,6 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
-      setSearchEligibilityProfileInputsForTests({
-        [REGULAR_USER.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [ADMIN.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [SECOND_MATCH_USER_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
       const searchId = await runSearchAsOrganizer();
 
       const cookie = await sealSessionCookie({
@@ -352,27 +304,6 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
-      setSearchEligibilityProfileInputsForTests({
-        [REGULAR_USER.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [ADMIN.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [SECOND_MATCH_USER_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
       const searchId = await runSearchAsOrganizer();
 
       const userCookie = await sealSessionCookie({ sessionId: USER_SESSION_ID });
@@ -406,27 +337,6 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       await seedSecondMatchUser();
       await grantDiscoverabilityConsent(REGULAR_USER.id);
       await grantDiscoverabilityConsent(ADMIN.id);
-      setSearchEligibilityProfileInputsForTests({
-        [REGULAR_USER.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [ADMIN.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [SECOND_MATCH_USER_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
       const searchId = await runSearchAsOrganizer();
 
       const adminCookie = await sealSessionCookie({ sessionId: ADMIN_SESSION_ID });

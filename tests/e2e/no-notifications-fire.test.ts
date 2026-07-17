@@ -89,8 +89,6 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
         );
 
         const { submitSearch } = await import("../../src/search/search-input");
-        const { createMatchingDependencies } =
-          await import("../../src/matching");
         const { createPostgresDiscoverableUserRepository } =
           await import("../../src/search/drizzle-discoverable-user-repository");
         const { createPostgresSearchResultRepository } =
@@ -99,8 +97,6 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
           await import("../../src/topics/repository");
         const { getProfileByUserId } =
           await import("../../src/profile/repository");
-        const { setSearchEligibilityProfileInputsForTests } =
-          await import("../../src/search/eligibility");
 
         const db = getTestDb()!;
         const now = getTestClock()();
@@ -112,19 +108,6 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
         await db.insert(discoverabilityConsents).values({
           userId: USER_FIXTURES[1].id,
           grantedAt: now,
-        });
-
-        setSearchEligibilityProfileInputsForTests({
-          [USER_FIXTURES[0].id]: {
-            hasDisplayName: true,
-            hasTopicOrProposal: true,
-            hasAvailabilitySource: true,
-          },
-          [USER_FIXTURES[1].id]: {
-            hasDisplayName: true,
-            hasTopicOrProposal: true,
-            hasAvailabilitySource: true,
-          },
         });
 
         const result = await submitSearch(
@@ -150,7 +133,6 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
             },
             clock: { now: getTestClock() },
             matchingPoolSize: 2,
-            matchingDependencies: createMatchingDependencies(),
             discoverableUserRepository:
               createPostgresDiscoverableUserRepository(),
             searchResultRepository: createPostgresSearchResultRepository(),

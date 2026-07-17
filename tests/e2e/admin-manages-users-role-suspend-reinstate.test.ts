@@ -10,12 +10,7 @@ import {
 } from "../../src/db/schema";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
-import {
-  type ProfileInputs,
-  setSearchEligibilityProfileInputsForTests,
-} from "../../src/search/eligibility";
 import { submitSearch } from "../../src/search/search-input";
-import { createMatchingDependencies } from "../../src/matching";
 import {
   createPostgresDiscoverableUserRepository,
 } from "../../src/search/drizzle-discoverable-user-repository";
@@ -160,7 +155,6 @@ async function runSearch(organizerId: string, poolSize: number): Promise<string>
       },
       clock: { now: getTestClock() },
       matchingPoolSize: poolSize,
-      matchingDependencies: createMatchingDependencies(),
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),
       searchResultRepository: createPostgresSearchResultRepository(),
     },
@@ -200,23 +194,8 @@ function matchedUserIds(snapshot: SearchSnapshotShape): string[] {
   return snapshot.slots.flatMap((s) => s.matches.map((m) => m.userId));
 }
 
-const COMPLETE_PROFILE: ProfileInputs = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-  isActive: true,
-};
-
-const SUSPENDED_PROFILE: ProfileInputs = {
-  hasDisplayName: true,
-  hasTopicOrProposal: true,
-  hasAvailabilitySource: true,
-  isActive: false,
-};
-
 describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () => {
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -436,12 +415,6 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       await grantDiscoverabilityConsent(ORGANIZER.id);
       await grantDiscoverabilityConsent(TARGET_USER.id);
 
-      setSearchEligibilityProfileInputsForTests({
-        [ORGANIZER.id]: COMPLETE_PROFILE,
-        [TARGET_USER.id]: COMPLETE_PROFILE,
-        [suspendedUserId]: SUSPENDED_PROFILE,
-      });
-
       const searchId = await runSearch(ORGANIZER.id, 2);
       const snapshot = await loadSnapshot(searchId);
       const matches = matchedUserIds(snapshot);
@@ -610,11 +583,6 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
         }),
       );
       expect(reinstateResponse.status).toBe(303);
-
-      setSearchEligibilityProfileInputsForTests({
-        [ORGANIZER.id]: COMPLETE_PROFILE,
-        [reinstatedUserId]: COMPLETE_PROFILE,
-      });
 
       const { POST: requestPost } = createMagicLinkRequestHandlers({
         clock: () => new Date(FIXTURE_DATE),

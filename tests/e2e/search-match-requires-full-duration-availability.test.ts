@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, inject, it } from "vitest";
 
-import { createMatchingDependencies } from "../../src/matching";
 import { getProfileByUserId } from "../../src/profile/repository";
 import {
   availabilityWindows,
@@ -9,7 +8,6 @@ import {
   userTopics,
 } from "../../src/db/schema";
 import { getDiscoverableUserRepository } from "../../src/search/discoverable-user-repository";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
 import { getSearchResultRepository } from "../../src/search/search-result-repository";
 import { submitSearch } from "../../src/search/search-input";
 import { listActiveTopics } from "../../src/topics/repository";
@@ -27,7 +25,6 @@ const DURATION_MINUTES = 60;
 
 describe("E2E: Match requires full-duration Availability", () => {
   afterEach(() => {
-    setSearchEligibilityProfileInputsForTests(null);
   });
 
   it.runIf(HAS_TEST_DB)(
@@ -109,21 +106,6 @@ describe("E2E: Match requires full-duration Availability", () => {
         },
       ]);
 
-      setSearchEligibilityProfileInputsForTests({
-        [FULL_DURATION_USER_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-        [PARTIAL_OVERLAP_USER_ID]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
       const searchResultRepository = getSearchResultRepository();
       const result = await submitSearch(
         {
@@ -140,7 +122,6 @@ describe("E2E: Match requires full-duration Availability", () => {
           profileRepository: { findByUserId: getProfileByUserId },
           clock: { now: getTestClock() },
           matchingPoolSize: 2,
-          matchingDependencies: createMatchingDependencies(),
           discoverableUserRepository: getDiscoverableUserRepository(),
           searchResultRepository,
         },

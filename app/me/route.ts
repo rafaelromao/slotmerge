@@ -14,7 +14,7 @@ import {
 import {
   isEligibleForSearch,
   type ProfileInputs,
-} from "../../src/search/eligibility";
+} from "../../src/search/search-snapshot-assembler";
 import { type TopicProposalStatus } from "../../src/db/schema";
 
 const supportedTimeZones = new Set(Intl.supportedValuesOf("timeZone"));

@@ -30,11 +30,12 @@ import type { CalendarConnectionRecord } from "../../src/calendar/connection";
 import { setCalendarConnectionRepositoryForTests } from "../../src/calendar/repository";
 import { calendarConnections } from "../../src/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { getProfileByUserId } from "../../src/profile/repository";
+import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
 import {
-  findEligibleMatches,
-  createMatchingDependencies,
-} from "../../src/matching";
-import { setSearchEligibilityProfileInputsForTests } from "../../src/search/eligibility";
+  createDefaultSearchSnapshotAssemblerDeps,
+  SearchSnapshotAssembler,
+} from "../../src/search/search-snapshot-assembler";
 import {
   buildMockGoogleCalendarAdapter,
   type MockGoogleCalendarAdapter,
@@ -368,7 +369,6 @@ describe("E2E: choose contributing calendars per connection", () => {
     setSessionRepositoryForTests(null);
     setImportedBusyIntervalRepositoryForTests(null);
     clearInMemoryImportedBusyIntervalStore();
-    setSearchEligibilityProfileInputsForTests(null);
     setCalendarConnectionRepositoryForTests(null);
     vi.unstubAllGlobals();
     await clearTestConnection(GOOGLE_CONNECTION_ID);
@@ -715,44 +715,21 @@ describe("E2E: choose contributing calendars per connection", () => {
       setImportedBusyIntervalRepositoryForTests(
         createPostgresImportedBusyIntervalRepository(),
       );
-      setSearchEligibilityProfileInputsForTests({
-        [ALICE.id]: {
-          hasDisplayName: true,
-          hasTopicOrProposal: true,
-          hasAvailabilitySource: true,
-          isActive: true,
-        },
-      });
-
       const slotStart = syncBusyStart;
       const slotEnd = syncBusyEnd;
-      const matchedWithBoth = await findEligibleMatches(
-        {
-          organizerId: ORGANIZER.id,
-          selectedTopicIds: [SELECTED_TOPIC.id],
-          candidateUserIds: [ALICE.id],
-          durationMinutes: 60,
-          rangeStart: new Date(slotStart.getTime() - 60 * 60 * 1000),
-          rangeEnd: new Date(slotEnd.getTime() + 60 * 60 * 1000),
-          slotStart,
-        },
-        createMatchingDependencies(),
+const matchedWithBoth = await runMatchingForSlot(
+        slotStart,
+        new Date(slotStart.getTime() - 60 * 60 * 1000),
+        new Date(slotEnd.getTime() + 60 * 60 * 1000),
       );
       expect(matchedWithBoth).not.toContain(ALICE.id);
 
       const slotStartAfter = new Date(slotEnd.getTime() + 24 * 60 * 60 * 1000);
       const slotEndAfter = new Date(slotStartAfter.getTime() + 60 * 60 * 1000);
-      const matchedWhenFree = await findEligibleMatches(
-        {
-          organizerId: ORGANIZER.id,
-          selectedTopicIds: [SELECTED_TOPIC.id],
-          candidateUserIds: [ALICE.id],
-          durationMinutes: 60,
-          rangeStart: new Date(slotStartAfter.getTime() - 60 * 60 * 1000),
-          rangeEnd: new Date(slotEndAfter.getTime() + 60 * 60 * 1000),
-          slotStart: slotStartAfter,
-        },
-        createMatchingDependencies(),
+      const matchedWhenFree = await runMatchingForSlot(
+        slotStartAfter,
+        new Date(slotStartAfter.getTime() - 60 * 60 * 1000),
+        new Date(slotStartAfter.getTime() + 2 * 60 * 60 * 1000),
       );
       expect(matchedWhenFree).toContain(ALICE.id);
 
@@ -786,19 +763,61 @@ describe("E2E: choose contributing calendars per connection", () => {
       );
       expect(calendarIdsAfter.sort()).toEqual(["primary"]);
 
-      const matchedAfterPrimaryOnly = await findEligibleMatches(
-        {
-          organizerId: ORGANIZER.id,
-          selectedTopicIds: [SELECTED_TOPIC.id],
-          candidateUserIds: [ALICE.id],
-          durationMinutes: 60,
-          rangeStart: new Date(slotStartAfter.getTime() - 60 * 60 * 1000),
-          rangeEnd: new Date(slotEndAfter.getTime() + 60 * 60 * 1000),
-          slotStart: slotStartAfter,
-        },
-        createMatchingDependencies(),
+      const matchedAfterPrimaryOnly = await runMatchingForSlot(
+        slotStartAfter,
+        new Date(slotStartAfter.getTime() - 60 * 60 * 1000),
+        new Date(slotEndAfter.getTime() + 60 * 60 * 1000),
       );
       expect(matchedAfterPrimaryOnly).toContain(ALICE.id);
     },
   );
 });
+
+async function runMatchingForSlot(
+  slotStart: Date,
+  rangeStart: Date,
+  rangeEnd: Date,
+): Promise<string[]> {
+  const assembler = new SearchSnapshotAssembler(
+    createDefaultSearchSnapshotAssemblerDeps({
+      discoverableUserRepository: createPostgresDiscoverableUserRepository(),
+      topicRepository: {
+        listActive() {
+          return Promise.resolve([
+            {
+              id: SELECTED_TOPIC.id,
+              name: SELECTED_TOPIC.name,
+              status: "active" as const,
+            },
+          ]);
+        },
+      },
+      profileRepository: {
+        findByUserId(uid) {
+          return getProfileByUserId(uid);
+        },
+      },
+    }),
+  );
+  const snapshot = await assembler.assemble({
+    organizerId: ORGANIZER.id,
+    selectedTopicIds: [SELECTED_TOPIC.id],
+    durationMinutes: 60,
+    dateRangeStart: rangeStart,
+    dateRangeEnd: rangeEnd,
+    organizerTimezone: "UTC",
+    minimumMatchingUsers: 1,
+    now: getTestClock()(),
+  });
+  const slotKey = slotStart.toISOString();
+  const matched = new Set<string>();
+  for (const slot of snapshot.slots) {
+    if (slot.startUtc !== slotKey) continue;
+    for (const match of slot.matches) {
+      if (match.userId === ALICE.id) {
+        matched.add(match.userId);
+      }
+    }
+  }
+  return Array.from(matched);
+}

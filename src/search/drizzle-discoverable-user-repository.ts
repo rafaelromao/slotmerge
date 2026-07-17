@@ -34,10 +34,7 @@ export function createPostgresDiscoverableUserRepository(): DiscoverableUserRepo
           discoverabilityConsents,
           eq(discoverabilityConsents.userId, users.id),
         )
-        .innerJoin(
-          availabilityWindows,
-          eq(availabilityWindows.userId, users.id),
-        )
+        .leftJoin(availabilityWindows, eq(availabilityWindows.userId, users.id))
         .where(inArray(userTopics.topicId, selectedTopicIds))
         .groupBy(userTopics.userId)
         .orderBy(desc(sql`count(*)`));

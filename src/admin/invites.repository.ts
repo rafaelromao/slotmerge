@@ -75,6 +75,8 @@ export function createPostgresInviteRepository(db = getDb()): InviteRepository {
             invitedByAdminId: input.invitedByAdminId,
             expiresAt: input.expiresAt,
             magicLinkGeneration: 0,
+            createdAt: input.now,
+            updatedAt: input.now,
           })
           .returning({
             id: invites.id,

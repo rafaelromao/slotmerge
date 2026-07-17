@@ -1,9 +1,9 @@
-import { and, eq } from "drizzle-orm";
-
-import { getDb } from "../db/client";
-import { topicProposals, topics } from "../db/schema";
 import { getSessionFromRequest, type Session } from "../auth/session";
 import { createTopicProposal, findSimilarTopics } from "./proposals";
+import {
+  createPostgresTopicProposalRepository,
+  type TopicProposalUserRepository,
+} from "./proposals.repository";
 
 export type TopicProposalsDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
@@ -31,7 +31,7 @@ export type TopicProposalRouteRepository = {
 
 export function createTopicProposalsHandlers({
   getSession = getSessionFromRequest,
-  repository = databaseTopicProposalRouteRepository,
+  repository = createTopicProposalRouteRepository(),
 }: TopicProposalsDependencies = {}) {
   return {
     async POST(request: Request): Promise<Response> {
@@ -89,60 +89,19 @@ export function createTopicProposalsHandlers({
   };
 }
 
-const databaseTopicProposalRouteRepository: TopicProposalRouteRepository = {
-  async findSimilarTopics(candidateName) {
-    const matches = await findSimilarTopics(candidateName, {
-      listActiveTopics: async () => {
-        const rows = await getDb()
-          .select({ id: topics.id, name: topics.name, status: topics.status })
-          .from(topics)
-          .where(eq(topics.status, "active"));
-        return rows;
-      },
-      listPendingProposals: async () => {
-        const rows = await getDb()
-          .select({
-            id: topicProposals.id,
-            candidateName: topicProposals.candidateName,
-            status: topicProposals.status,
-          })
-          .from(topicProposals)
-          .where(eq(topicProposals.status, "pending"));
-        return rows;
-      },
-    });
-    return matches;
-  },
-
-  async findPendingByUserAndName(userId, candidateName) {
-    const [row] = await getDb()
-      .select({ id: topicProposals.id })
-      .from(topicProposals)
-      .where(
-        and(
-          eq(topicProposals.proposedByUserId, userId),
-          eq(topicProposals.candidateName, candidateName),
-          eq(topicProposals.status, "pending"),
-        ),
-      )
-      .limit(1);
-    return row ?? null;
-  },
-
-  async insertProposal(userId, candidateName) {
-    const [row] = await getDb()
-      .insert(topicProposals)
-      .values({
-        proposedByUserId: userId,
-        candidateName,
-        status: "pending",
-      })
-      .returning({
-        id: topicProposals.id,
-        candidateName: topicProposals.candidateName,
-        status: topicProposals.status,
-        createdAt: topicProposals.createdAt,
+export function createTopicProposalRouteRepository(
+  userRepository: TopicProposalUserRepository = createPostgresTopicProposalRepository(),
+): TopicProposalRouteRepository {
+  return {
+    async findSimilarTopics(candidateName) {
+      return findSimilarTopics(candidateName, {
+        listActiveTopics: () => userRepository.listActiveTopics(),
+        listPendingProposals: () => userRepository.listPendingForSimilarity(),
       });
-    return row;
-  },
-};
+    },
+    findPendingByUserAndName: (userId, candidateName) =>
+      userRepository.findPendingByUserAndName(userId, candidateName),
+    insertProposal: (userId, candidateName) =>
+      userRepository.insertProposal(userId, candidateName),
+  };
+}

@@ -271,8 +271,8 @@ function renderUserRow(u: UserListItem, csrfToken: string): string {
     <tr>
       <td>${escapeHtml(u.email)}</td>
       <td>${escapeHtml(u.displayName ?? "—")}</td>
-      <td>${escapeHtml(labelRole(u.role))}</td>
-      <td>${escapeHtml(labelStatus(u.status))}</td>
+      <td>${escapeHtml(labelUserRole(u.role))}</td>
+      <td>${escapeHtml(labelUserStatus(u.status))}</td>
       <td>
         <form method="post" style="display:inline">
           <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}" />
@@ -304,7 +304,7 @@ function renderUserRow(u: UserListItem, csrfToken: string): string {
     </tr>`;
 }
 
-function labelRole(role: UserRole): string {
+function labelUserRole(role: UserRole): string {
   return role === "user"
     ? "User"
     : role === "organizer"
@@ -312,6 +312,6 @@ function labelRole(role: UserRole): string {
       : "Admin";
 }
 
-function labelStatus(status: UserStatus): string {
+function labelUserStatus(status: UserStatus): string {
   return status === "active" ? "Active" : "Suspended";
 }

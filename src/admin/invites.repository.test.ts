@@ -80,6 +80,8 @@ describe("createPostgresInviteRepository", () => {
       invitedByAdminId: "admin-1",
       expiresAt,
       magicLinkGeneration: 0,
+      createdAt: now,
+      updatedAt: now,
     });
     expect(result).toEqual({
       ok: true,

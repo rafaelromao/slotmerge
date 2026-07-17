@@ -6,6 +6,7 @@ import {
   topics,
   users,
   type TopicProposalStatus,
+  type TopicStatus,
 } from "../db/schema";
 
 export type TopicProposalListItem = {
@@ -37,13 +38,6 @@ export type ApproveResult =
 export type RejectResult =
   { ok: true } | { ok: false; reason: "already_processed" };
 
-export type TopicProposalReadRepository = {
-  listPending(): Promise<TopicProposalListItem[]>;
-  listUserProposals(userId: string): Promise<UserTopicProposal[]>;
-  listActiveTopics(): Promise<{ id: string; name: string }[]>;
-  listPendingForSimilarity(): Promise<TopicProposalUserInput[]>;
-};
-
 export type TopicProposalAdminRepository = {
   listPending(): Promise<TopicProposalListItem[]>;
   approve(input: { id: string; now: Date }): Promise<ApproveResult>;
@@ -51,7 +45,9 @@ export type TopicProposalAdminRepository = {
 };
 
 export type TopicProposalUserRepository = {
-  listActiveTopics(): Promise<{ id: string; name: string }[]>;
+  listActiveTopics(): Promise<
+    { id: string; name: string; status: TopicStatus }[]
+  >;
   listPendingForSimilarity(): Promise<TopicProposalUserInput[]>;
   listUserProposals(userId: string): Promise<UserTopicProposal[]>;
   findPendingByUserAndName(
@@ -199,7 +195,7 @@ export function createPostgresTopicProposalRepository(
 
     async listActiveTopics() {
       const rows = await db
-        .select({ id: topics.id, name: topics.name })
+        .select({ id: topics.id, name: topics.name, status: topics.status })
         .from(topics)
         .where(eq(topics.status, "active"));
       return rows;
@@ -215,12 +211,7 @@ export function createPostgresTopicProposalRepository(
         })
         .from(topicProposals)
         .where(eq(topicProposals.status, "pending"));
-      return rows.map((row) => ({
-        id: row.id,
-        candidateName: row.candidateName,
-        status: row.status,
-        createdAt: row.createdAt,
-      }));
+      return rows;
     },
   };
 }

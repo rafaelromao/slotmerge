@@ -1,24 +1,30 @@
-import Iron from "@hapi/iron";
-
 import { getSessionSecret } from "../../../../src/auth/session";
 import {
-  completeGoogleCalendarConnection,
-  presentGoogleCalendarConnection,
-} from "../../../../src/calendar/google-calendar-connections";
-import {
-  completeMicrosoftCalendarConnection,
-  presentMicrosoftCalendarConnection,
-} from "../../../../src/calendar/microsoft-calendar-connections";
-import {
-  findCalendarConnectionById,
-  getGoogleCalendarConnectionRepository,
-  getMicrosoftCalendarConnectionRepository,
-} from "../../../../src/calendar/repository";
+  completeCalendarConnection,
+  presentCalendarConnection,
+  unsealCalendarConnectionState,
+} from "../../../../src/calendar/connection";
+import { getCalendarProvider } from "../../../../src/calendar/providers";
+import { getCalendarConnectionRepository } from "../../../../src/calendar/repository";
+import type { CalendarProvider as CalendarProviderId } from "../../../../src/db/schema";
 
-type CallbackState = {
-  connectionId: string;
-  csrfToken: string;
-  codeVerifier: string;
+type OAuthConfiguration = {
+  clientId: string | undefined;
+  clientSecret: string | undefined;
+  missingError: string;
+};
+
+type OAuthDeniedOutcome = {
+  error: string;
+  status?: "unsupported";
+};
+
+const deniedOutcomes: Record<CalendarProviderId, OAuthDeniedOutcome> = {
+  google: { error: "oauth_denied" },
+  microsoft: {
+    error: "unsupported_microsoft_account",
+    status: "unsupported",
+  },
 };
 
 export async function POST(request: Request): Promise<Response> {
@@ -26,114 +32,96 @@ export async function POST(request: Request): Promise<Response> {
   const error = formData.get("error");
   const code = formData.get("code");
   const state = formData.get("state");
+  const repository = getCalendarConnectionRepository();
 
   if (typeof error === "string" && error) {
-    if (await isMicrosoftProvider(state)) {
-      return Response.json(
-        { error: "unsupported_microsoft_account" },
-        { status: 400 },
-      );
+    const connection = await findConnectionFromState(state);
+    const outcome = connection
+      ? deniedOutcomes[connection.provider]
+      : { error: "oauth_denied" };
+    if (connection && outcome.status) {
+      await repository.updateById(connection.id, { status: outcome.status });
     }
-
-    return Response.json({ error: "oauth_denied" }, { status: 400 });
+    return Response.json({ error: outcome.error }, { status: 400 });
   }
 
   if (typeof code !== "string" || typeof state !== "string") {
     return Response.json({ error: "invalid_oauth_callback" }, { status: 400 });
   }
 
-  if (await isMicrosoftProvider(state)) {
-    const clientId = process.env.MICROSOFT_OAUTH_CLIENT_ID;
-    const clientSecret = process.env.MICROSOFT_OAUTH_CLIENT_SECRET;
-    const tokenEncryptionKey = process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
-
-    if (!clientId || !clientSecret || !tokenEncryptionKey) {
-      return Response.json(
-        { error: "microsoft_oauth_not_configured" },
-        { status: 500 },
-      );
-    }
-
-    try {
-      const connection = await completeMicrosoftCalendarConnection({
-        baseUrl: new URL(request.url).origin,
-        clientId,
-        clientSecret,
-        code,
-        fetchImpl: fetch,
-        repository: getMicrosoftCalendarConnectionRepository(),
-        sessionSecret: getSessionSecret(),
-        state,
-        tokenEncryptionKey,
-      });
-
-      return Response.json({
-        connection: presentMicrosoftCalendarConnection(connection),
-      });
-    } catch (err) {
-      if (
-        err instanceof Error &&
-        err.message === "unsupported_microsoft_account"
-      ) {
-        return Response.json(
-          { error: "unsupported_microsoft_account" },
-          { status: 400 },
-        );
-      }
-      throw err;
-    }
+  const payload = await unsealCalendarConnectionState({
+    state,
+    secret: getSessionSecret(),
+  });
+  const connection = await repository.findById(payload.connectionId);
+  if (!connection) {
+    throw new Error("Calendar connection not found.");
   }
 
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const provider = getCalendarProvider(connection.provider);
+  const configuration = getOAuthConfiguration(provider.id);
   const tokenEncryptionKey = process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
 
-  if (!clientId || !clientSecret || !tokenEncryptionKey) {
+  if (
+    !configuration.clientId ||
+    !configuration.clientSecret ||
+    !tokenEncryptionKey
+  ) {
     return Response.json(
-      { error: "google_oauth_not_configured" },
+      { error: configuration.missingError },
       { status: 500 },
     );
   }
 
-  const connection = await completeGoogleCalendarConnection({
+  const result = await completeCalendarConnection({
+    provider,
+    repository,
     baseUrl: new URL(request.url).origin,
-    clientId,
-    clientSecret,
+    clientId: configuration.clientId,
+    clientSecret: configuration.clientSecret,
     code,
     fetchImpl: fetch,
-    repository: getGoogleCalendarConnectionRepository(),
     sessionSecret: getSessionSecret(),
     state,
     tokenEncryptionKey,
   });
 
+  if (result.status === "unsupported") {
+    return Response.json({ error: result.reason }, { status: 400 });
+  }
+
   return Response.json({
-    connection: presentGoogleCalendarConnection(connection),
+    connection: presentCalendarConnection(result.connection),
   });
 }
 
-async function isMicrosoftProvider(
-  state: FormDataEntryValue | null,
-): Promise<boolean> {
-  if (typeof state !== "string" || !state) {
-    return false;
-  }
+async function findConnectionFromState(state: FormDataEntryValue | null) {
+  if (typeof state !== "string" || !state) return null;
 
-  let payload: CallbackState;
   try {
-    payload = (await Iron.unseal(
+    const payload = await unsealCalendarConnectionState({
       state,
-      getSessionSecret(),
-      Iron.defaults,
-    )) as CallbackState;
+      secret: getSessionSecret(),
+    });
+    return getCalendarConnectionRepository().findById(payload.connectionId);
   } catch {
-    return false;
+    return null;
   }
+}
 
-  if (!payload.connectionId) {
-    return false;
-  }
-
-  const found = await findCalendarConnectionById(payload.connectionId);
-  return found?.provider === "microsoft";
+function getOAuthConfiguration(
+  provider: CalendarProviderId,
+): OAuthConfiguration {
+  return {
+    google: {
+      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+      missingError: "google_oauth_not_configured",
+    },
+    microsoft: {
+      clientId: process.env.MICROSOFT_OAUTH_CLIENT_ID,
+      clientSecret: process.env.MICROSOFT_OAUTH_CLIENT_SECRET,
+      missingError: "microsoft_oauth_not_configured",
+    },
+  }[provider];
 }

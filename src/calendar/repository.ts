@@ -34,18 +34,18 @@ export function setGoogleCalendarConnectionRepositoryForTests(
   repository: GoogleCalendarConnectionRepository | null,
 ): void {
   googleRepositoryOverride = repository;
+  repositoryOverride = repository as CalendarConnectionRepository | null;
 }
 
 export function setMicrosoftCalendarConnectionRepositoryForTests(
   repository: MicrosoftCalendarConnectionRepository | null,
 ): void {
   microsoftRepositoryOverride = repository;
+  repositoryOverride = repository as CalendarConnectionRepository | null;
 }
 
 export function getGoogleCalendarConnectionRepository(): GoogleCalendarConnectionRepository {
-  return (
-    googleRepositoryOverride ?? databaseGoogleCalendarConnectionRepository
-  );
+  return googleRepositoryOverride ?? databaseGoogleCalendarConnectionRepository;
 }
 
 export function getMicrosoftCalendarConnectionRepository(): MicrosoftCalendarConnectionRepository {
@@ -67,9 +67,8 @@ export async function findCalendarConnectionById(
   | { provider: "microsoft"; record: MicrosoftCalendarConnectionRecord }
   | null
 > {
-  const googleRecord = await getGoogleCalendarConnectionRepository().findById(
-    id,
-  );
+  const googleRecord =
+    await getGoogleCalendarConnectionRepository().findById(id);
   if (googleRecord) {
     return { provider: "google", record: googleRecord };
   }

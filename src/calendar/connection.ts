@@ -6,6 +6,7 @@ import type {
   CalendarProvider as CalendarProviderId,
 } from "../db/schema";
 import type { CalendarProvider } from "./provider";
+import { encryptCalendarToken } from "./token-encryption";
 
 export type CalendarConnectionRecord = {
   id: string;
@@ -56,6 +57,20 @@ type CalendarConnectionState = {
   codeVerifier: string;
 };
 
+export async function unsealCalendarConnectionState({
+  state,
+  secret,
+}: {
+  state: string;
+  secret: string;
+}): Promise<CalendarConnectionState> {
+  return (await Iron.unseal(
+    state,
+    secret,
+    Iron.defaults,
+  )) as CalendarConnectionState;
+}
+
 export async function sealCalendarConnectionState({
   connectionId,
   csrfToken,
@@ -85,6 +100,98 @@ export function presentCalendarConnection(
     lastSyncAt: connection.lastSyncAt ?? null,
     contributingCalendarIds: connection.contributingCalendarIds,
   };
+}
+
+export type CompleteCalendarConnectionResult =
+  | { status: "connected"; connection: CalendarConnectionRecord }
+  | {
+      status: "unsupported";
+      connection: CalendarConnectionRecord;
+      reason: string;
+    };
+
+export async function completeCalendarConnection({
+  provider,
+  repository,
+  baseUrl,
+  clientId,
+  clientSecret,
+  code,
+  fetchImpl,
+  sessionSecret,
+  state,
+  tokenEncryptionKey,
+}: {
+  provider: CalendarProvider;
+  repository: CalendarConnectionRepository;
+  baseUrl: string;
+  clientId: string;
+  clientSecret: string;
+  code: string;
+  fetchImpl: typeof fetch;
+  sessionSecret: string;
+  state: string;
+  tokenEncryptionKey: string;
+}): Promise<CompleteCalendarConnectionResult> {
+  const payload = await unsealCalendarConnectionState({
+    state,
+    secret: sessionSecret,
+  });
+  const connection = await repository.findById(payload.connectionId);
+
+  if (!connection || connection.provider !== provider.id) {
+    throw new Error("Calendar connection not found.");
+  }
+  if (connection.status !== "pending") {
+    throw new Error("Calendar connection is not pending.");
+  }
+
+  const completion = await provider.completeAuthorization({
+    baseUrl,
+    clientId,
+    clientSecret,
+    code,
+    codeVerifier: payload.codeVerifier,
+    fetchImpl,
+  });
+
+  if (completion.kind === "unsupported") {
+    const updated = await repository.updateById(connection.id, {
+      status: "unsupported",
+    });
+    if (!updated) {
+      throw new Error("Calendar connection could not be updated.");
+    }
+    return {
+      status: "unsupported",
+      connection: updated,
+      reason: completion.reason,
+    };
+  }
+
+  const accountIdentifier = `${provider.accountIdPrefix}:${connection.id}`;
+  const updated = await repository.updateById(connection.id, {
+    accountIdentifier,
+    providerAccountKey: accountIdentifier,
+    scopes: completion.scopes,
+    status: "connected",
+    accessTokenEncrypted: encryptCalendarToken({
+      plaintext: completion.accessToken,
+      key: tokenEncryptionKey,
+    }),
+    refreshTokenEncrypted: encryptCalendarToken({
+      plaintext: completion.refreshToken,
+      key: tokenEncryptionKey,
+    }),
+    accessTokenExpiresAt: completion.accessTokenExpiresAt,
+    contributingCalendarIds: completion.contributingCalendarIds,
+  });
+
+  if (!updated) {
+    throw new Error("Calendar connection could not be updated.");
+  }
+
+  return { status: "connected", connection: updated };
 }
 
 export async function startCalendarConnection({

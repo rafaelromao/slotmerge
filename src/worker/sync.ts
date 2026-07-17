@@ -24,14 +24,15 @@ import {
 import { loadRuntimeConfig } from "../config/runtime";
 import { getDb } from "../db/client";
 import { users } from "../db/schema";
-
-let clockOverride: (() => Date) | null = null;
-
-export function setClockForTests(clock: (() => Date) | null): void {
-  clockOverride = clock;
-}
+import type { Clock } from "../system/clock";
+import type { RandomSource } from "../system/random";
 
 export const syncCalendarConnectionTaskName = "sync_calendar_connection";
+
+export type HandleSyncCalendarConnectionJobDeps = {
+  clock: Clock;
+  randomSource: RandomSource;
+};
 
 export async function enqueueSyncCalendarConnectionJob(
   connectionId: string,
@@ -48,7 +49,9 @@ export async function enqueueSyncCalendarConnectionJob(
 
 export async function handleSyncCalendarConnectionJob(
   payload: unknown,
+  deps: HandleSyncCalendarConnectionJobDeps,
 ): Promise<void> {
+  const { clock, randomSource } = deps;
   const job = parseSyncCalendarConnectionPayload(payload);
 
   const found = await findCalendarConnectionById(job.connectionId);
@@ -110,7 +113,7 @@ export async function handleSyncCalendarConnectionJob(
 
   const busyIntervalRepository = createPostgresImportedBusyIntervalRepository();
 
-  const now = new Date();
+  const now = clock.now();
   const timeMax = now.toISOString();
   const timeMin = new Date(
     now.getTime() - ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000,
@@ -137,22 +140,23 @@ export async function handleSyncCalendarConnectionJob(
           },
           { connectionLookup },
         ),
-      clock: clockOverride ?? (() => new Date()),
+      clock: clock.now,
     });
 
-    await updateLastSyncAt(connection.id, connection.provider, new Date());
+    await updateLastSyncAt(connection.id, connection.provider, clock.now());
   } catch (error) {
     if (error instanceof RateLimitError || error instanceof ServerError) {
       // NOTE: Uses constant + jitter backoff (not exponential) per MVP spec trade-off.
       const baseDelayMs =
         error.retryAfterMs ??
         getExponentialBackoffBase(error instanceof RateLimitError);
-      const jitterMs = Math.floor(Math.random() * baseDelayMs);
+      const jitterMs = Math.floor(randomSource.next() * baseDelayMs);
       const delayMs = baseDelayMs + jitterMs;
+      const nextRunAt = new Date(clock.now().getTime() + delayMs);
       await enqueueSyncCalendarConnectionJob(
         connection.id,
         config.databaseUrl,
-        new Date(Date.now() + delayMs),
+        nextRunAt,
       );
       return;
     }

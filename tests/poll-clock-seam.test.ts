@@ -33,21 +33,26 @@ vi.mock("../src/config/runtime", () => ({
 }));
 
 import { enqueueSyncCalendarConnectionJob } from "../src/worker/sync";
+import { handlePollCalendarConnectionsJob } from "../src/worker/poll";
+import type { RandomSource } from "../src/system/random";
 
-describe("clock option in poll worker", () => {
+function constantRandomSource(value: number): RandomSource {
+  return { next: () => value };
+}
+
+describe("clock and randomSource deps in poll worker", () => {
   beforeEach(() => {
     vi.mocked(enqueueSyncCalendarConnectionJob).mockClear();
   });
 
-  it("clock option controls the base time for jitter calculation", async () => {
-    const { handlePollCalendarConnectionsJob } = await import(
-      "../src/worker/poll"
-    );
+  it("injected clock and randomSource control the base time and jitter", async () => {
     const clock = buildTestClock(new Date("2026-01-01T00:00:00.000Z"));
+    const randomSource = constantRandomSource(0);
 
-    vi.spyOn(Math, "random").mockReturnValue(0);
-
-    await handlePollCalendarConnectionsJob({ clock: () => clock.now() });
+    await handlePollCalendarConnectionsJob(undefined, {
+      clock,
+      randomSource,
+    });
 
     expect(enqueueSyncCalendarConnectionJob).toHaveBeenCalledTimes(2);
 
@@ -64,15 +69,15 @@ describe("clock option in poll worker", () => {
   });
 
   it("advanced clock shifts the runAt window forward", async () => {
-    const { handlePollCalendarConnectionsJob } = await import(
-      "../src/worker/poll"
-    );
     const clock = buildTestClock(new Date("2026-01-01T00:00:00.000Z"));
+    const randomSource = constantRandomSource(0);
 
     clock.advance(3600 * 1000);
-    vi.spyOn(Math, "random").mockReturnValue(0);
 
-    await handlePollCalendarConnectionsJob({ clock: () => clock.now() });
+    await handlePollCalendarConnectionsJob(undefined, {
+      clock,
+      randomSource,
+    });
 
     for (const call of vi.mocked(enqueueSyncCalendarConnectionJob).mock.calls) {
       const [, , runAt] = call as [string, string, Date];

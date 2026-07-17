@@ -180,8 +180,6 @@ async function clearTestConnection(connectionId: string): Promise<void> {
 
 describe("E2E: manual refresh updates imported intervals", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(getTestClock()());
     process.env.SESSION_SECRET = SESSION_SECRET;
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
     process.env.GOOGLE_OAUTH_CLIENT_ID = "google-client-id";
@@ -190,7 +188,6 @@ describe("E2E: manual refresh updates imported intervals", () => {
   });
 
   afterEach(async () => {
-    vi.useRealTimers();
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
     delete process.env.GOOGLE_OAUTH_CLIENT_ID;

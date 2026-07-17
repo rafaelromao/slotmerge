@@ -204,7 +204,6 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
   });
 
   beforeEach(async () => {
-    vi.useFakeTimers({ now: new Date("2026-07-12T12:00:00.000Z") });
     process.env.SESSION_SECRET = SESSION_SECRET;
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
     vi.mocked(enqueueSyncCalendarConnectionJob).mockClear();
@@ -223,7 +222,6 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
     setGoogleCalendarConnectionRepositoryForTests(null);
     setMicrosoftCalendarConnectionRepositoryForTests(null);
     vi.unstubAllGlobals();
-    vi.useRealTimers();
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
   });

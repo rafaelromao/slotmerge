@@ -22,14 +22,14 @@ export function generateHourlySlots(
   }
 
   const slots: Date[] = [];
-  let currentIST = floorToHourInTimezone(rangeStart, timezone);
+  let currentSlot = floorToHourInTimezone(rangeStart, timezone);
   const endMs = rangeEnd.getTime();
 
-  while (currentIST.getTime() < endMs) {
-    if (currentIST.getTime() >= rangeStart.getTime()) {
-      slots.push(currentIST);
+  while (currentSlot.getTime() < endMs) {
+    if (currentSlot.getTime() >= rangeStart.getTime()) {
+      slots.push(currentSlot);
     }
-    currentIST = new Date(currentIST.getTime() + 60 * 60 * 1000);
+    currentSlot = new Date(currentSlot.getTime() + 60 * 60 * 1000);
   }
 
   return slots;
@@ -51,7 +51,7 @@ function floorToHourInTimezone(date: Date, timezone: string): Date {
 
   let hour = get("hour");
   const minute = get("minute");
-  const day = get("day");
+  let day = get("day");
   const month = get("month");
   const year = get("year");
 
@@ -59,9 +59,18 @@ function floorToHourInTimezone(date: Date, timezone: string): Date {
     hour = hour - 1;
     if (hour < 0) {
       hour = 23;
+      day -= 1;
     }
   }
 
-  const flooredLocal = new Date(year, month - 1, day, hour, 0, 0, 0);
-  return new Date(flooredLocal.getTime());
+  const naiveUtc = Date.UTC(year, month - 1, day, hour, 0, 0, 0);
+  const utcHour = new Date(naiveUtc).getUTCHours();
+  const utcMinute = new Date(naiveUtc).getUTCMinutes();
+  const tzHour = hour;
+  const tzMinute = 0;
+
+  let offsetMinutes = (tzHour - utcHour) * 60 + (tzMinute - utcMinute);
+  const offsetMs = offsetMinutes * 60000;
+
+  return new Date(naiveUtc - offsetMs);
 }

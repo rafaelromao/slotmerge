@@ -98,7 +98,7 @@ describe("generateHourlySlots", () => {
 
     expect(slots.length).toBeGreaterThan(0);
     for (const slot of slots) {
-      const { hour, minute } = getLocalHourMinute(slot, "America/Los_Angeles");
+      const { minute } = getLocalHourMinute(slot, "America/Los_Angeles");
       expect(minute).toBe(0);
     }
     expect(slots[0].toISOString()).toBe("2026-07-13T16:00:00.000Z");
@@ -126,7 +126,7 @@ describe("generateHourlySlots", () => {
 
     expect(slots.length).toBeGreaterThan(0);
     for (const slot of slots) {
-      const { hour, minute } = getLocalHourMinute(slot, "Asia/Calcutta");
+      const { minute } = getLocalHourMinute(slot, "Asia/Calcutta");
       expect(minute).toBe(0);
     }
   });

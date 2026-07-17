@@ -1,4 +1,3 @@
-import type { Clock } from "./search-input";
 import type { SearchInput } from "./search-input";
 import type { SearchRecord } from "./repository";
 import type {
@@ -16,22 +15,20 @@ import type { SearchResultRepository } from "./search-result-repository";
 export type RunSearchDeps = {
   assemblerDependencies: SearchSnapshotAssemblerDeps;
   searchResultRepository: SearchResultRepository;
-  clock: Clock;
 };
 
 export type RunSearchParams = {
   searchRecord: SearchRecord;
   input: SearchInput;
+  generatedAt: Date;
 };
 
 export async function runSearch(
   params: RunSearchParams,
   deps: RunSearchDeps,
 ): Promise<SearchResultRecord> {
-  const { searchRecord, input } = params;
-  const { searchResultRepository, assemblerDependencies, clock } = deps;
-
-  const now = clock.now();
+  const { searchRecord, input, generatedAt } = params;
+  const { searchResultRepository, assemblerDependencies } = deps;
 
   const assembler = new SearchSnapshotAssembler(assemblerDependencies);
 
@@ -43,13 +40,13 @@ export async function runSearch(
     dateRangeEnd: input.dateRangeEnd,
     organizerTimezone: input.organizerTimezone,
     minimumMatchingUsers: input.minimumMatchingUsers,
-    now,
+    now: generatedAt,
   });
 
   const resultRecord: SearchResultRecord = {
     searchId: searchRecord.id!,
     snapshotJson: snapshot,
-    createdAt: now,
+    createdAt: generatedAt,
   };
 
   return searchResultRepository.save(resultRecord);

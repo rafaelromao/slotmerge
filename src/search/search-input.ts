@@ -290,6 +290,7 @@ export type RerunSearchDeps = {
 type PersistAndRunSearchDeps = {
   searchRecord: SearchRecord;
   input: SearchInput;
+  generatedAt: Date;
   discoverableUserRepository: DiscoverableUserRepository;
   searchResultRepository: SearchResultRepository;
   topicRepository: ActiveTopicsRepository;
@@ -312,11 +313,14 @@ async function persistAndRunSearch(
     });
 
   await runSearch(
-    { searchRecord: stored, input: deps.input },
+    {
+      searchRecord: stored,
+      input: deps.input,
+      generatedAt: deps.generatedAt,
+    },
     {
       assemblerDependencies,
       searchResultRepository: deps.searchResultRepository,
-      clock: deps.clock,
     },
   );
 
@@ -356,6 +360,7 @@ export async function submitSearch(
   const stored = await persistAndRunSearch({
     searchRecord,
     input,
+    generatedAt,
     discoverableUserRepository: deps.discoverableUserRepository,
     searchResultRepository: deps.searchResultRepository,
     topicRepository: deps.activeTopicsRepository,
@@ -418,6 +423,7 @@ export async function rerunSearch(
   const stored = await persistAndRunSearch({
     searchRecord,
     input,
+    generatedAt,
     discoverableUserRepository: deps.discoverableUserRepository,
     searchResultRepository: deps.searchResultRepository,
     topicRepository: deps.topicRepository,

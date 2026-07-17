@@ -25,8 +25,7 @@ import {
   setImportedBusyIntervalRepositoryForTests,
 } from "../../src/calendar/imported-busy-intervals";
 import {
-  setGoogleCalendarConnectionRepositoryForTests,
-  setMicrosoftCalendarConnectionRepositoryForTests,
+  setCalendarConnectionRepositoryForTests,
 } from "../../src/calendar/repository";
 import { USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
@@ -185,8 +184,7 @@ describe("E2E: reconcile Calendar Connection sync keeps busy intervals fresh", (
     delete process.env.GOOGLE_OAUTH_CLIENT_SECRET;
     setImportedBusyIntervalRepositoryForTests(null);
     clearInMemoryImportedBusyIntervalStore();
-    setGoogleCalendarConnectionRepositoryForTests(null);
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
     vi.unstubAllGlobals();
     await clearTestConnection(GOOGLE_CONNECTION_ID);
   });

@@ -5,10 +5,11 @@ import {
   getSessionSecret,
 } from "../../../../../src/auth/session";
 import {
-  startGoogleCalendarConnection,
-  presentGoogleCalendarConnection,
-} from "../../../../../src/calendar/google-calendar-connections";
-import { getGoogleCalendarConnectionRepository } from "../../../../../src/calendar/repository";
+  presentCalendarConnection,
+  startCalendarConnection,
+} from "../../../../../src/calendar/connection";
+import { getCalendarProvider } from "../../../../../src/calendar/providers";
+import { getCalendarConnectionRepository } from "../../../../../src/calendar/repository";
 
 export async function POST(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);
@@ -30,18 +31,24 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const connection = await startGoogleCalendarConnection({
+  const provider = getCalendarProvider("google");
+  const repository = getCalendarConnectionRepository();
+  const connection = await startCalendarConnection({
+    provider,
+    repository,
     baseUrl: new URL(request.url).origin,
     clientId,
     csrfToken: session.csrfToken,
-    repository: getGoogleCalendarConnectionRepository(),
     sessionSecret: getSessionSecret(),
     userId: session.user.id,
   });
 
   return Response.json({
     authorizationUrl: connection.authorizationUrl,
-    connection: presentGoogleCalendarConnection(connection.connection),
+    connection: presentCalendarConnection({
+      provider,
+      connection: connection.connection,
+    }),
   });
 }
 

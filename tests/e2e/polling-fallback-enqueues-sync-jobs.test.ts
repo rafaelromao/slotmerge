@@ -13,17 +13,9 @@ vi.mock("../../src/worker/sync", () => ({
 }));
 
 import {
-  setGoogleCalendarConnectionRepositoryForTests,
-  setMicrosoftCalendarConnectionRepositoryForTests,
+  setCalendarConnectionRepositoryForTests,
 } from "../../src/calendar/repository";
-import {
-  type GoogleCalendarConnectionRecord,
-  type GoogleCalendarConnectionRepository,
-} from "../../src/calendar/google-calendar-connections";
-import {
-  type MicrosoftCalendarConnectionRecord,
-  type MicrosoftCalendarConnectionRepository,
-} from "../../src/calendar/microsoft-calendar-connections";
+import type { CalendarConnectionRecord } from "../../src/calendar/connection";
 import { USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
 import { enqueueSyncCalendarConnectionJob } from "../../src/worker/sync";
@@ -55,14 +47,14 @@ function getRequiredTestDb() {
 function wireTestRepositories(): void {
   const db = getRequiredTestDb();
 
-  const googleRepository: GoogleCalendarConnectionRepository = {
+  setCalendarConnectionRepositoryForTests({
     createPending: (record) => Promise.resolve(record),
-    listByUserId: async () => {
+    listByUserId: async (userId) => {
       const rows = await db
         .select()
         .from(calendarConnections)
-        .where(eq(calendarConnections.provider, "google"));
-      return rows as GoogleCalendarConnectionRecord[];
+        .where(eq(calendarConnections.userId, userId));
+      return rows;
     },
     findById: async (id) => {
       const [row] = await db
@@ -70,8 +62,7 @@ function wireTestRepositories(): void {
         .from(calendarConnections)
         .where(eq(calendarConnections.id, id))
         .limit(1);
-      if (!row || row.provider !== "google") return null;
-      return row as GoogleCalendarConnectionRecord;
+      return (row) ?? null;
     },
     updateById: async (id, patch) => {
       const sets: ReturnType<typeof sql>[] = [];
@@ -84,53 +75,11 @@ function wireTestRepositories(): void {
       );
 
       const result = await db.execute(
-        sql`UPDATE calendar_connections SET ${setSql} WHERE id = ${id} AND provider = 'google' RETURNING *`,
+        sql`UPDATE calendar_connections SET ${setSql} WHERE id = ${id} RETURNING *`,
       );
-      const updated = (result.rows[0] ??
-        null) as GoogleCalendarConnectionRecord | null;
-      return updated;
+      return (result.rows[0] ?? null) as CalendarConnectionRecord | null;
     },
-  };
-
-  const microsoftRepository: MicrosoftCalendarConnectionRepository = {
-    createPending: (record) => Promise.resolve(record),
-    listByUserId: async () => {
-      const rows = await db
-        .select()
-        .from(calendarConnections)
-        .where(eq(calendarConnections.provider, "microsoft"));
-      return rows as MicrosoftCalendarConnectionRecord[];
-    },
-    findById: async (id) => {
-      const [row] = await db
-        .select()
-        .from(calendarConnections)
-        .where(eq(calendarConnections.id, id))
-        .limit(1);
-      if (!row || row.provider !== "microsoft") return null;
-      return row as MicrosoftCalendarConnectionRecord;
-    },
-    updateById: async (id, patch) => {
-      const sets: ReturnType<typeof sql>[] = [];
-      if ("lastSyncAt" in patch)
-        sets.push(sql`last_sync_at = ${patch.lastSyncAt}`);
-      sets.push(sql`updated_at = NOW()`);
-
-      const setSql = sets.reduce((acc, curr, i) =>
-        i === 0 ? curr : sql`${acc}, ${curr}`,
-      );
-
-      const result = await db.execute(
-        sql`UPDATE calendar_connections SET ${setSql} WHERE id = ${id} AND provider = 'microsoft' RETURNING *`,
-      );
-      const updated = (result.rows[0] ??
-        null) as MicrosoftCalendarConnectionRecord | null;
-      return updated;
-    },
-  };
-
-  setGoogleCalendarConnectionRepositoryForTests(googleRepository);
-  setMicrosoftCalendarConnectionRepositoryForTests(microsoftRepository);
+  });
 }
 
 async function seedConnectedGoogleConnection(
@@ -177,8 +126,7 @@ describe("E2E: polling fallback enqueues sync jobs", () => {
     vi.useRealTimers();
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
-    setGoogleCalendarConnectionRepositoryForTests(null);
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
     await clearTestConnection(GOOGLE_CONNECTION_ID);
     await clearTestConnection(MICROSOFT_CONNECTION_ID);
   });

@@ -17,22 +17,18 @@ const FIXED_NOW = new Date("2026-07-12T12:00:00Z").getTime();
 describe("handlePollCalendarConnectionsJob", () => {
   const mockConnections = [
     {
-      record: {
-        id: "conn-1",
-        userId: "user-1",
-        provider: "google" as const,
-        status: "connected" as const,
-        contributingCalendarIds: ["primary"],
-      },
+      id: "conn-1",
+      userId: "user-1",
+      provider: "google" as const,
+      status: "connected" as const,
+      contributingCalendarIds: ["primary"],
     },
     {
-      record: {
-        id: "conn-2",
-        userId: "user-2",
-        provider: "microsoft" as const,
-        status: "connected" as const,
-        contributingCalendarIds: ["user@domain.com"],
-      },
+      id: "conn-2",
+      userId: "user-2",
+      provider: "microsoft" as const,
+      status: "connected" as const,
+      contributingCalendarIds: ["user@domain.com"],
     },
   ];
 

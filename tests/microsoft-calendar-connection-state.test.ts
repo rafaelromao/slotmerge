@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import Iron from "@hapi/iron";
 
-import { sealMicrosoftCalendarConnectionState } from "../src/calendar/microsoft-calendar-connections";
+import { sealCalendarConnectionState } from "../src/calendar/connection";
 
-describe("sealMicrosoftCalendarConnectionState", () => {
+describe("sealCalendarConnectionState", () => {
   it("seals connectionId, csrfToken, and codeVerifier into a token retrievable by Iron", async () => {
-    const sealed = await sealMicrosoftCalendarConnectionState({
+    const sealed = await sealCalendarConnectionState({
       connectionId: "connection-1",
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",

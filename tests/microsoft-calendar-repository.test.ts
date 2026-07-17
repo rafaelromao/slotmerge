@@ -1,19 +1,19 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
-  getMicrosoftCalendarConnectionRepository,
-  setMicrosoftCalendarConnectionRepositoryForTests,
+  getCalendarConnectionRepository,
+  setCalendarConnectionRepositoryForTests,
 } from "../src/calendar/repository";
 
-describe("Microsoft calendar connection repository", () => {
+describe("CalendarConnectionRepository override", () => {
   afterEach(() => {
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
   });
 
   it("returns the in-memory test override when set for tests", async () => {
     const calls: string[] = [];
 
-    setMicrosoftCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => {
         calls.push(`create:${record.id}`);
         return Promise.resolve(record);
@@ -32,7 +32,7 @@ describe("Microsoft calendar connection repository", () => {
       },
     });
 
-    const repository = getMicrosoftCalendarConnectionRepository();
+    const repository = getCalendarConnectionRepository();
 
     await repository.createPending({
       id: "connection-1",

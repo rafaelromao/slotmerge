@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, inject, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  inject,
+  it,
+  vi,
+} from "vitest";
 
 import { POST as POST_CALLBACK } from "../../app/me/calendar-connections/callback/route";
 import { decryptCalendarToken } from "../../src/calendar/token-encryption";
@@ -8,25 +16,13 @@ import {
   setImportedBusyIntervalRepositoryForTests,
 } from "../../src/calendar/imported-busy-intervals";
 import { syncCalendarConnection } from "../../src/calendar/sync";
-import {
-  sealGoogleCalendarConnectionState,
-  type GoogleCalendarConnectionRecord,
-  type GoogleCalendarConnectionRepository,
-} from "../../src/calendar/google-calendar-connections";
-import {
-  type MicrosoftCalendarConnectionRecord,
-  type MicrosoftCalendarConnectionRepository,
-} from "../../src/calendar/microsoft-calendar-connections";
-import {
-  setGoogleCalendarConnectionRepositoryForTests,
-  setMicrosoftCalendarConnectionRepositoryForTests,
-} from "../../src/calendar/repository";
+import { googleCalendarProvider } from "../../src/calendar/providers";
+import { sealCalendarConnectionState } from "../../src/calendar/connection";
+import type { CalendarConnectionRecord } from "../../src/calendar/connection";
+import { setCalendarConnectionRepositoryForTests } from "../../src/calendar/repository";
 import { calendarConnections } from "../../src/db/schema";
 import { eq, sql } from "drizzle-orm";
-import {
-  SESSION_FIXTURES,
-  USER_FIXTURES,
-} from "../fixtures/seeds";
+import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
 import {
   buildMockGoogleCalendarAdapter,
@@ -59,7 +55,9 @@ async function postCallback(form: FormData): Promise<Response> {
   );
 }
 
-async function seedPendingGoogleConnection(connectionId: string): Promise<void> {
+async function seedPendingGoogleConnection(
+  connectionId: string,
+): Promise<void> {
   await getRequiredTestDb().execute(
     `INSERT INTO calendar_connections
       (id, user_id, provider, provider_account_key, account_identifier, scopes, status, contributing_calendar_ids, created_at, updated_at)
@@ -80,14 +78,14 @@ async function clearTestConnection(connectionId: string): Promise<void> {
 function wireTestRepositories(): void {
   const db = getRequiredTestDb();
 
-  const googleRepository: GoogleCalendarConnectionRepository = {
+  setCalendarConnectionRepositoryForTests({
     createPending: (record) => Promise.resolve(record),
-    listByUserId: async () => {
+    listByUserId: async (userId) => {
       const rows = await db
         .select()
         .from(calendarConnections)
-        .where(eq(calendarConnections.provider, "google"));
-      return rows as GoogleCalendarConnectionRecord[];
+        .where(eq(calendarConnections.userId, userId));
+      return rows;
     },
     findById: async (id) => {
       const [row] = await db
@@ -95,8 +93,7 @@ function wireTestRepositories(): void {
         .from(calendarConnections)
         .where(eq(calendarConnections.id, id))
         .limit(1);
-      if (!row || row.provider !== "google") return null;
-      return row as GoogleCalendarConnectionRecord;
+      return row ?? null;
     },
     updateById: async (id, patch) => {
       const sets: ReturnType<typeof sql>[] = [];
@@ -109,7 +106,9 @@ function wireTestRepositories(): void {
       if ("accessTokenEncrypted" in patch)
         sets.push(sql`access_token_encrypted = ${patch.accessTokenEncrypted}`);
       if ("refreshTokenEncrypted" in patch)
-        sets.push(sql`refresh_token_encrypted = ${patch.refreshTokenEncrypted}`);
+        sets.push(
+          sql`refresh_token_encrypted = ${patch.refreshTokenEncrypted}`,
+        );
       if ("accessTokenExpiresAt" in patch)
         sets.push(sql`access_token_expires_at = ${patch.accessTokenExpiresAt}`);
       if ("lastErrorCode" in patch)
@@ -126,84 +125,16 @@ function wireTestRepositories(): void {
         );
       sets.push(sql`updated_at = NOW()`);
 
-      const setSql = sets.reduce(
-        (acc, curr, i) =>
-          i === 0 ? curr : sql`${acc}, ${curr}`,
+      const setSql = sets.reduce((acc, curr, i) =>
+        i === 0 ? curr : sql`${acc}, ${curr}`,
       );
 
       const result = await db.execute(
-        sql`UPDATE calendar_connections SET ${setSql} WHERE id = ${id} AND provider = 'google' RETURNING *`,
+        sql`UPDATE calendar_connections SET ${setSql} WHERE id = ${id} RETURNING *`,
       );
-      const updated = (result.rows[0] ?? null) as
-        | GoogleCalendarConnectionRecord
-        | null;
-      return updated;
+      return (result.rows[0] ?? null) as CalendarConnectionRecord | null;
     },
-  };
-
-  const microsoftRepository: MicrosoftCalendarConnectionRepository = {
-    createPending: (record) => Promise.resolve(record),
-    listByUserId: async () => {
-      const rows = await db
-        .select()
-        .from(calendarConnections)
-        .where(eq(calendarConnections.provider, "microsoft"));
-      return rows as MicrosoftCalendarConnectionRecord[];
-    },
-    findById: async (id) => {
-      const [row] = await db
-        .select()
-        .from(calendarConnections)
-        .where(eq(calendarConnections.id, id))
-        .limit(1);
-      if (!row || row.provider !== "microsoft") return null;
-      return row as MicrosoftCalendarConnectionRecord;
-    },
-    updateById: async (id, patch) => {
-      const sets: ReturnType<typeof sql>[] = [];
-      if ("accountIdentifier" in patch)
-        sets.push(sql`account_identifier = ${patch.accountIdentifier}`);
-      if ("providerAccountKey" in patch)
-        sets.push(sql`provider_account_key = ${patch.providerAccountKey}`);
-      if ("scopes" in patch) sets.push(sql`scopes = ${patch.scopes}`);
-      if ("status" in patch) sets.push(sql`status = ${patch.status}`);
-      if ("accessTokenEncrypted" in patch)
-        sets.push(sql`access_token_encrypted = ${patch.accessTokenEncrypted}`);
-      if ("refreshTokenEncrypted" in patch)
-        sets.push(sql`refresh_token_encrypted = ${patch.refreshTokenEncrypted}`);
-      if ("accessTokenExpiresAt" in patch)
-        sets.push(sql`access_token_expires_at = ${patch.accessTokenExpiresAt}`);
-      if ("lastErrorCode" in patch)
-        sets.push(sql`last_error_code = ${patch.lastErrorCode}`);
-      if ("lastErrorMessage" in patch)
-        sets.push(sql`last_error_message = ${patch.lastErrorMessage}`);
-      if ("lastSyncAt" in patch)
-        sets.push(sql`last_sync_at = ${patch.lastSyncAt}`);
-      if ("contributingCalendarIds" in patch)
-        sets.push(
-          sql`contributing_calendar_ids = ${JSON.stringify(
-            patch.contributingCalendarIds,
-          )}::jsonb`,
-        );
-      sets.push(sql`updated_at = NOW()`);
-
-      const setSql = sets.reduce(
-        (acc, curr, i) =>
-          i === 0 ? curr : sql`${acc}, ${curr}`,
-      );
-
-      const result = await db.execute(
-        sql`UPDATE calendar_connections SET ${setSql} WHERE id = ${id} AND provider = 'microsoft' RETURNING *`,
-      );
-      const updated = (result.rows[0] ?? null) as
-        | MicrosoftCalendarConnectionRecord
-        | null;
-      return updated;
-    },
-  };
-
-  setGoogleCalendarConnectionRepositoryForTests(googleRepository);
-  setMicrosoftCalendarConnectionRepositoryForTests(microsoftRepository);
+  });
 }
 
 function googleAdapterFetchWithUrlRewrite(
@@ -211,13 +142,19 @@ function googleAdapterFetchWithUrlRewrite(
 ): typeof fetch {
   const inner = adapter.getFetchImpl();
   return (input, init) => {
-    if (typeof input === "string" && input.startsWith("https://calendar.googleapis.com/")) {
+    if (
+      typeof input === "string" &&
+      input.startsWith("https://calendar.googleapis.com/")
+    ) {
       return inner(
         `https://www.googleapis.com/${input.slice("https://calendar.googleapis.com/".length)}`,
         init,
       );
     }
-    if (input instanceof URL && input.toString().startsWith("https://calendar.googleapis.com/")) {
+    if (
+      input instanceof URL &&
+      input.toString().startsWith("https://calendar.googleapis.com/")
+    ) {
       const rewritten = new URL(input.toString());
       rewritten.host = "www.googleapis.com";
       return inner(rewritten, init);
@@ -230,7 +167,12 @@ function wireGoogleFetch(adapter: MockGoogleCalendarAdapter): void {
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
       if (url.includes("googleapis.com")) {
         return googleAdapterFetchWithUrlRewrite(adapter)(input, init);
       }
@@ -250,16 +192,12 @@ async function runSyncForGoogleConnection(params: {
   const now = getTestClock()();
   await syncCalendarConnection({
     connectionId: params.connectionId,
-    provider: "google",
+    provider: googleCalendarProvider,
     accessToken: params.accessToken,
     contributingCalendarIds: params.contributingCalendarIds,
     userId: params.userId,
-    timeMin: new Date(
-      now.getTime() - 1 * 24 * 60 * 60 * 1000,
-    ).toISOString(),
-    timeMax: new Date(
-      now.getTime() + 7 * 24 * 60 * 60 * 1000,
-    ).toISOString(),
+    timeMin: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    timeMax: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     fetchImpl,
     busyIntervalRepository: createPostgresImportedBusyIntervalRepository(),
     recordFailure: () => Promise.resolve(undefined),
@@ -267,9 +205,7 @@ async function runSyncForGoogleConnection(params: {
   });
 }
 
-async function fetchBusyIntervalsWithStatus(
-  connectionId: string,
-): Promise<
+async function fetchBusyIntervalsWithStatus(connectionId: string): Promise<
   Array<{
     provider_calendar_id: string;
     start_at: string;
@@ -305,6 +241,7 @@ describe("E2E: persist normalized imported busy intervals for the rolling 90-day
     vi.useRealTimers();
     clearInMemoryImportedBusyIntervalStore();
     setImportedBusyIntervalRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
     if (HAS_TEST_DB) {
       await clearTestConnection(GOOGLE_CONNECTION_ID);
     }
@@ -335,7 +272,7 @@ describe("E2E: persist normalized imported busy intervals for the rolling 90-day
 
       wireGoogleFetch(adapter);
 
-      const sealedState = await sealGoogleCalendarConnectionState({
+      const sealedState = await sealCalendarConnectionState({
         connectionId: GOOGLE_CONNECTION_ID,
         csrfToken: SESSION.csrfToken,
         codeVerifier: "code-verifier-statuses",
@@ -367,7 +304,8 @@ describe("E2E: persist normalized imported busy intervals for the rolling 90-day
         userId: ALICE.id,
       });
 
-      const intervals = await fetchBusyIntervalsWithStatus(GOOGLE_CONNECTION_ID);
+      const intervals =
+        await fetchBusyIntervalsWithStatus(GOOGLE_CONNECTION_ID);
       expect(intervals).toHaveLength(2);
 
       const statuses = intervals.map((i) => i.status).sort();
@@ -390,8 +328,12 @@ describe("E2E: persist normalized imported busy intervals for the rolling 90-day
       const testClock = getTestClock()();
       const inWindowStart = new Date(testClock.getTime() + 2 * 60 * 60 * 1000);
       const inWindowEnd = new Date(inWindowStart.getTime() + 60 * 60 * 1000);
-      const outOfWindowStart = new Date(testClock.getTime() + 100 * 24 * 60 * 60 * 1000);
-      const outOfWindowEnd = new Date(outOfWindowStart.getTime() + 60 * 60 * 1000);
+      const outOfWindowStart = new Date(
+        testClock.getTime() + 100 * 24 * 60 * 60 * 1000,
+      );
+      const outOfWindowEnd = new Date(
+        outOfWindowStart.getTime() + 60 * 60 * 1000,
+      );
 
       adapter.setFreeBusyResponse("primary", [
         { start: inWindowStart, end: inWindowEnd, status: "busy" },
@@ -400,7 +342,7 @@ describe("E2E: persist normalized imported busy intervals for the rolling 90-day
 
       wireGoogleFetch(adapter);
 
-      const sealedState = await sealGoogleCalendarConnectionState({
+      const sealedState = await sealCalendarConnectionState({
         connectionId: GOOGLE_CONNECTION_ID,
         csrfToken: SESSION.csrfToken,
         codeVerifier: "code-verifier-window",
@@ -432,7 +374,8 @@ describe("E2E: persist normalized imported busy intervals for the rolling 90-day
         userId: ALICE.id,
       });
 
-      const intervals = await fetchBusyIntervalsWithStatus(GOOGLE_CONNECTION_ID);
+      const intervals =
+        await fetchBusyIntervalsWithStatus(GOOGLE_CONNECTION_ID);
       expect(intervals).toHaveLength(1);
       const storedStartAt = new Date(intervals[0].start_at).getTime();
       expect(storedStartAt).toBe(inWindowStart.getTime());

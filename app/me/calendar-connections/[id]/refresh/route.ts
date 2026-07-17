@@ -20,16 +20,16 @@ export async function POST(
   }
 
   const { id: connectionId } = await params;
-  const found = await findCalendarConnectionById(connectionId);
+  const connection = await findCalendarConnectionById(connectionId);
 
-  if (!found) {
+  if (!connection) {
     return Response.json(
       { error: "calendar_connection_not_found" },
       { status: 404 },
     );
   }
 
-  if (found.record.userId !== session.user.id) {
+  if (connection.userId !== session.user.id) {
     return Response.json(
       { error: "calendar_connection_not_found" },
       { status: 404 },

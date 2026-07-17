@@ -3,18 +3,11 @@ import { timingSafeEqual } from "node:crypto";
 import { getSessionFromRequest } from "../../../../src/auth/session";
 import { createCalendarActionRequiredEmailTrigger } from "../../../../src/calendar/action-required-email-singleton";
 import {
-  presentGoogleCalendarConnection,
-  revokeGoogleCalendarConnection,
-} from "../../../../src/calendar/google-calendar-connections";
-import {
-  presentMicrosoftCalendarConnection,
-  revokeMicrosoftCalendarConnection,
-} from "../../../../src/calendar/microsoft-calendar-connections";
-import {
-  findCalendarConnectionById,
-  getGoogleCalendarConnectionRepository,
-  getMicrosoftCalendarConnectionRepository,
-} from "../../../../src/calendar/repository";
+  presentCalendarConnection,
+  revokeCalendarConnection,
+} from "../../../../src/calendar/connection";
+import { getCalendarProvider } from "../../../../src/calendar/providers";
+import { getCalendarConnectionRepository } from "../../../../src/calendar/repository";
 import { loadRuntimeConfig } from "../../../../src/config/runtime";
 
 export async function PATCH(
@@ -37,16 +30,10 @@ export async function PATCH(
     return Response.json({ error: "oauth_not_configured" }, { status: 500 });
   }
 
-  const found = await findCalendarConnectionById(expectedId);
+  const repository = getCalendarConnectionRepository();
+  const found = await repository.findById(expectedId);
 
-  if (!found) {
-    return Response.json(
-      { error: "calendar_connection_not_found" },
-      { status: 404 },
-    );
-  }
-
-  if (found.record.userId !== session.user.id) {
+  if (!found || found.userId !== session.user.id) {
     return Response.json(
       { error: "calendar_connection_not_found" },
       { status: 404 },
@@ -75,23 +62,6 @@ export async function PATCH(
       );
     }
 
-    if (found.provider === "google") {
-      const repository = getGoogleCalendarConnectionRepository();
-      const updated = await repository.updateById(expectedId, {
-        contributingCalendarIds: calendarIds,
-      });
-      if (!updated) {
-        return Response.json(
-          { error: "calendar_connection_not_found" },
-          { status: 404 },
-        );
-      }
-      return Response.json({
-        connection: presentGoogleCalendarConnection(updated),
-      });
-    }
-
-    const repository = getMicrosoftCalendarConnectionRepository();
     const updated = await repository.updateById(expectedId, {
       contributingCalendarIds: calendarIds,
     });
@@ -102,43 +72,25 @@ export async function PATCH(
       );
     }
     return Response.json({
-      connection: presentMicrosoftCalendarConnection(updated),
+      connection: presentCalendarConnection({
+        provider: getCalendarProvider(updated.provider),
+        connection: updated,
+      }),
     });
   }
 
-  if (wantsDisconnect || body === null) {
-    if (found.provider === "microsoft") {
-      const connection = await revokeMicrosoftCalendarConnection({
-        connectionId: expectedId,
-        fetchImpl: fetch,
-        repository: getMicrosoftCalendarConnectionRepository(),
-        tokenEncryptionKey,
-      });
-      await safelyTriggerActionRequiredEmail({
-        id: connection.id,
-        userId: connection.userId,
-        provider: "microsoft",
-        user: {
-          email: session.user.email,
-          displayName: session.user.displayName,
-        },
-        occurredAt: new Date(),
-      });
-      return Response.json({
-        connection: presentMicrosoftCalendarConnection(connection),
-      });
-    }
-
-    const connection = await revokeGoogleCalendarConnection({
+  if (wantsDisconnect) {
+    const connection = await revokeCalendarConnection({
+      provider: getCalendarProvider(found.provider),
+      repository,
       connectionId: expectedId,
       fetchImpl: fetch,
-      repository: getGoogleCalendarConnectionRepository(),
       tokenEncryptionKey,
     });
     await safelyTriggerActionRequiredEmail({
       id: connection.id,
       userId: connection.userId,
-      provider: "google",
+      provider: connection.provider,
       user: {
         email: session.user.email,
         displayName: session.user.displayName,
@@ -147,7 +99,10 @@ export async function PATCH(
     });
 
     return Response.json({
-      connection: presentGoogleCalendarConnection(connection),
+      connection: presentCalendarConnection({
+        provider: getCalendarProvider(connection.provider),
+        connection,
+      }),
     });
   }
 
@@ -173,8 +128,7 @@ async function safelyTriggerActionRequiredEmail(args: {
       reason: "token-revoked",
     });
   } catch {
-    // Email enqueue failures are surfaced through the email_events log; the
-    // HTTP revoke response should still succeed.
+    return;
   }
 }
 

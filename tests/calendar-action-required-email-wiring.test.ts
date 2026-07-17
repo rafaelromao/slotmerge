@@ -2,8 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setSessionRepositoryForTests } from "../src/auth/session";
 import {
-  setGoogleCalendarConnectionRepositoryForTests,
-  setMicrosoftCalendarConnectionRepositoryForTests,
+  setCalendarConnectionRepositoryForTests,
 } from "../src/calendar/repository";
 import { setEmailDeliveryServiceForTests } from "../src/calendar/action-required-email-singleton";
 import { setConnectionActionRequiredDispatchLookupForTests } from "../src/calendar/action-required-email.repository";
@@ -30,8 +29,7 @@ describe("PATCH /me/calendar-connections/[id] - action-required email wiring", (
     delete process.env.DATABASE_URL;
     delete process.env.APP_PUBLIC_URL;
     setSessionRepositoryForTests(null);
-    setGoogleCalendarConnectionRepositoryForTests(null);
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
     setEmailDeliveryServiceForTests(null);
     setConnectionActionRequiredDispatchLookupForTests(null);
     vi.unstubAllGlobals();

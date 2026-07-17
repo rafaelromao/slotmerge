@@ -6,7 +6,7 @@ import {
 } from "../../src/calendar/imported-busy-intervals";
 import { createPostgresImportedBusyIntervalRepository } from "../../src/calendar/imported-busy-intervals.repository";
 import {
-  setGoogleCalendarConnectionRepositoryForTests,
+  setCalendarConnectionRepositoryForTests,
 } from "../../src/calendar/repository";
 import { calendarConnections } from "../../src/db/schema";
 import { eq, sql } from "drizzle-orm";
@@ -241,7 +241,7 @@ async function queryImportedBusyIntervals(): Promise<
 function wireTestRepositories(): void {
   const db = getRequiredTestDb();
 
-  const googleRepository = {
+  const repository = {
     createPending: (record: unknown) => Promise.resolve(record),
     listByUserId: async () => {
       const rows = await db
@@ -270,7 +270,7 @@ function wireTestRepositories(): void {
     },
   };
 
-  setGoogleCalendarConnectionRepositoryForTests(googleRepository as unknown as ReturnType<typeof import("../../src/calendar/repository").getGoogleCalendarConnectionRepository>);
+  setCalendarConnectionRepositoryForTests(repository as never);
   setImportedBusyIntervalRepositoryForTests(createPostgresImportedBusyIntervalRepository());
 }
 

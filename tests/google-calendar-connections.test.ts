@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  startCalendarConnection,
+  type CalendarConnectionRecord,
+  type CalendarConnectionRepository,
+} from "../src/calendar/connection";
+import { getCalendarProvider } from "../src/calendar/providers";
+import type { CalendarProvider } from "../src/calendar/provider";
+import {
   decryptCalendarToken,
   encryptCalendarToken,
 } from "../src/calendar/token-encryption";
@@ -11,6 +18,82 @@ import {
   sealGoogleCalendarConnectionState,
   startGoogleCalendarConnection,
 } from "../src/calendar/google-calendar-connections";
+
+describe("Calendar Connection lifecycle", () => {
+  it("resolves protocol-correct providers from one registry", () => {
+    const google = getCalendarProvider("google");
+    const microsoft = getCalendarProvider("microsoft");
+
+    expect(google.id).toBe("google");
+    expect(google.accountIdPrefix).toBe("google");
+    expect(
+      google.buildAuthorizationUrl({
+        baseUrl: "https://slotmerge.example",
+        clientId: "google-client",
+        codeChallenge: "challenge",
+        state: "state",
+      }),
+    ).toContain("accounts.google.com/o/oauth2/v2/auth");
+    expect(microsoft.id).toBe("microsoft");
+    expect(microsoft.accountIdPrefix).toBe("microsoft");
+    expect(
+      microsoft.buildAuthorizationUrl({
+        baseUrl: "https://slotmerge.example",
+        clientId: "microsoft-client",
+        codeChallenge: "challenge",
+        state: "state",
+      }),
+    ).toContain("login.microsoftonline.com/organizations/oauth2/v2.0/authorize");
+  });
+
+  it("starts a pending connection through a provider", async () => {
+    const records: CalendarConnectionRecord[] = [];
+    const repository: CalendarConnectionRepository = {
+      createPending: (record) => {
+        records.push(record);
+        return Promise.resolve(record);
+      },
+      listByUserId: () => Promise.resolve(records),
+      findById: (id) =>
+        Promise.resolve(records.find((record) => record.id === id) ?? null),
+      updateById: () => Promise.resolve(null),
+    };
+    const provider: CalendarProvider = {
+      id: "microsoft",
+      accountIdPrefix: "microsoft",
+      authorizationScopes: "offline_access Calendars.ReadBasic",
+      buildAuthorizationUrl: ({ state }) =>
+        `https://provider.example/authorize?state=${state}`,
+      completeAuthorization: () => {
+        throw new Error("not used");
+      },
+      revoke: () => Promise.resolve(),
+      fetchFreeBusy: () => Promise.resolve([]),
+    };
+
+    const result = await startCalendarConnection({
+      provider,
+      repository,
+      baseUrl: "https://slotmerge.example",
+      clientId: "client-id",
+      csrfToken: "csrf-token",
+      generateId: () => "connection-1",
+      sessionSecret: "0123456789abcdef0123456789abcdef",
+      userId: "user-1",
+    });
+
+    expect(records).toEqual([
+      expect.objectContaining({
+        id: "connection-1",
+        provider: "microsoft",
+        providerAccountKey: "microsoft:connection-1",
+        status: "pending",
+      }),
+    ]);
+    expect(result.authorizationUrl).toContain("provider.example/authorize");
+    expect(result.state).not.toBe("");
+  });
+});
 
 describe("Google calendar connection callback", () => {
   it("creates a pending connection and returns a freebusy-only consent URL", async () => {

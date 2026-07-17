@@ -1,40 +1,63 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { calendarConnections } from "../db/schema";
-import {
-  type GoogleCalendarConnectionRecord,
-  type GoogleCalendarConnectionRepository,
+import type {
+  CalendarConnectionRecord,
+  CalendarConnectionRepository,
+} from "./connection";
+import type {
+  GoogleCalendarConnectionRecord,
+  GoogleCalendarConnectionRepository,
 } from "./google-calendar-connections";
-import {
-  type MicrosoftCalendarConnectionRecord,
-  type MicrosoftCalendarConnectionRepository,
+import type {
+  MicrosoftCalendarConnectionRecord,
+  MicrosoftCalendarConnectionRepository,
 } from "./microsoft-calendar-connections";
 
+let repositoryOverride: CalendarConnectionRepository | null = null;
 let googleRepositoryOverride: GoogleCalendarConnectionRepository | null = null;
 let microsoftRepositoryOverride: MicrosoftCalendarConnectionRepository | null =
   null;
 
+export function setCalendarConnectionRepositoryForTests(
+  repository: CalendarConnectionRepository | null,
+): void {
+  repositoryOverride = repository;
+}
+
+export function getCalendarConnectionRepository(): CalendarConnectionRepository {
+  return repositoryOverride ?? databaseCalendarConnectionRepository;
+}
+
 export function setGoogleCalendarConnectionRepositoryForTests(
   repository: GoogleCalendarConnectionRepository | null,
-) {
+): void {
   googleRepositoryOverride = repository;
 }
 
 export function setMicrosoftCalendarConnectionRepositoryForTests(
   repository: MicrosoftCalendarConnectionRepository | null,
-) {
+): void {
   microsoftRepositoryOverride = repository;
 }
 
 export function getGoogleCalendarConnectionRepository(): GoogleCalendarConnectionRepository {
-  return googleRepositoryOverride ?? databaseGoogleCalendarConnectionRepository;
+  return (
+    googleRepositoryOverride ?? databaseGoogleCalendarConnectionRepository
+  );
 }
 
 export function getMicrosoftCalendarConnectionRepository(): MicrosoftCalendarConnectionRepository {
   return (
     microsoftRepositoryOverride ?? databaseMicrosoftCalendarConnectionRepository
   );
+}
+
+export async function findCalendarConnectionRecordById(
+  id: string,
+): Promise<CalendarConnectionRecord | null> {
+  return getCalendarConnectionRepository().findById(id);
 }
 
 export async function findCalendarConnectionById(
@@ -44,14 +67,15 @@ export async function findCalendarConnectionById(
   | { provider: "microsoft"; record: MicrosoftCalendarConnectionRecord }
   | null
 > {
-  const googleRepository = getGoogleCalendarConnectionRepository();
-  const googleRecord = await googleRepository.findById(id);
+  const googleRecord = await getGoogleCalendarConnectionRepository().findById(
+    id,
+  );
   if (googleRecord) {
     return { provider: "google", record: googleRecord };
   }
 
-  const microsoftRepository = getMicrosoftCalendarConnectionRepository();
-  const microsoftRecord = await microsoftRepository.findById(id);
+  const microsoftRecord =
+    await getMicrosoftCalendarConnectionRepository().findById(id);
   if (microsoftRecord) {
     return { provider: "microsoft", record: microsoftRecord };
   }
@@ -66,23 +90,23 @@ export type ActiveCalendarConnection =
 export async function listActiveConnections(): Promise<
   ActiveCalendarConnection[]
 > {
+  const records = await listActiveCalendarConnectionRecords();
+  return records.map((record) =>
+    record.provider === "google"
+      ? { provider: "google", record }
+      : { provider: "microsoft", record },
+  );
+}
+
+export async function listActiveCalendarConnectionRecords(): Promise<
+  CalendarConnectionRecord[]
+> {
   const rows = await getDb()
     .select(calendarConnectionSelectColumns)
     .from(calendarConnections)
     .where(eq(calendarConnections.status, "connected"));
 
-  return rows.map((row) => {
-    if (row.provider === "google") {
-      return {
-        provider: "google" as const,
-        record: row as GoogleCalendarConnectionRecord,
-      };
-    }
-    return {
-      provider: "microsoft" as const,
-      record: row as MicrosoftCalendarConnectionRecord,
-    };
-  });
+  return rows as CalendarConnectionRecord[];
 }
 
 const calendarConnectionSelectColumns = {
@@ -102,7 +126,7 @@ const calendarConnectionSelectColumns = {
   contributingCalendarIds: calendarConnections.contributingCalendarIds,
 };
 
-export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectionRepository =
+export const databaseCalendarConnectionRepository: CalendarConnectionRepository =
   {
     createPending: async (record) => {
       const [row] = await getDb()
@@ -122,34 +146,24 @@ export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectio
         })
         .returning(calendarConnectionSelectColumns);
 
-      return (row as GoogleCalendarConnectionRecord | undefined) ?? record;
+      return (row as CalendarConnectionRecord | undefined) ?? record;
     },
     listByUserId: async (userId) => {
       const rows = await getDb()
         .select(calendarConnectionSelectColumns)
         .from(calendarConnections)
-        .where(
-          and(
-            eq(calendarConnections.userId, userId),
-            eq(calendarConnections.provider, "google"),
-          ),
-        );
+        .where(eq(calendarConnections.userId, userId));
 
-      return rows as GoogleCalendarConnectionRecord[];
+      return rows as CalendarConnectionRecord[];
     },
     findById: async (id) => {
       const [row] = await getDb()
         .select(calendarConnectionSelectColumns)
         .from(calendarConnections)
-        .where(
-          and(
-            eq(calendarConnections.id, id),
-            eq(calendarConnections.provider, "google"),
-          ),
-        )
+        .where(eq(calendarConnections.id, id))
         .limit(1);
 
-      return (row as GoogleCalendarConnectionRecord | undefined) ?? null;
+      return (row as CalendarConnectionRecord | undefined) ?? null;
     },
     updateById: async (id, patch) => {
       const [row] = await getDb()
@@ -161,69 +175,11 @@ export const databaseGoogleCalendarConnectionRepository: GoogleCalendarConnectio
         .where(eq(calendarConnections.id, id))
         .returning(calendarConnectionSelectColumns);
 
-      return (row as GoogleCalendarConnectionRecord | undefined) ?? null;
+      return (row as CalendarConnectionRecord | undefined) ?? null;
     },
   };
 
-export const databaseMicrosoftCalendarConnectionRepository: MicrosoftCalendarConnectionRepository =
-  {
-    createPending: async (record) => {
-      const [row] = await getDb()
-        .insert(calendarConnections)
-        .values({
-          id: record.id,
-          userId: record.userId,
-          provider: record.provider,
-          providerAccountKey: record.providerAccountKey,
-          accountIdentifier: record.accountIdentifier,
-          scopes: record.scopes,
-          status: record.status,
-          refreshTokenEncrypted: record.refreshTokenEncrypted,
-          accessTokenEncrypted: record.accessTokenEncrypted,
-          accessTokenExpiresAt: record.accessTokenExpiresAt,
-          contributingCalendarIds: record.contributingCalendarIds,
-        })
-        .returning(calendarConnectionSelectColumns);
-
-      return (row as MicrosoftCalendarConnectionRecord | undefined) ?? record;
-    },
-    listByUserId: async (userId) => {
-      const rows = await getDb()
-        .select(calendarConnectionSelectColumns)
-        .from(calendarConnections)
-        .where(
-          and(
-            eq(calendarConnections.userId, userId),
-            eq(calendarConnections.provider, "microsoft"),
-          ),
-        );
-
-      return rows as MicrosoftCalendarConnectionRecord[];
-    },
-    findById: async (id) => {
-      const [row] = await getDb()
-        .select(calendarConnectionSelectColumns)
-        .from(calendarConnections)
-        .where(
-          and(
-            eq(calendarConnections.id, id),
-            eq(calendarConnections.provider, "microsoft"),
-          ),
-        )
-        .limit(1);
-
-      return (row as MicrosoftCalendarConnectionRecord | undefined) ?? null;
-    },
-    updateById: async (id, patch) => {
-      const [row] = await getDb()
-        .update(calendarConnections)
-        .set({
-          ...patch,
-          updatedAt: new Date(),
-        })
-        .where(eq(calendarConnections.id, id))
-        .returning(calendarConnectionSelectColumns);
-
-      return (row as MicrosoftCalendarConnectionRecord | undefined) ?? null;
-    },
-  };
+export const databaseGoogleCalendarConnectionRepository =
+  databaseCalendarConnectionRepository as GoogleCalendarConnectionRepository;
+export const databaseMicrosoftCalendarConnectionRepository =
+  databaseCalendarConnectionRepository as MicrosoftCalendarConnectionRepository;

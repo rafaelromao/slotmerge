@@ -5,10 +5,11 @@ import {
   getSessionSecret,
 } from "../../../../../src/auth/session";
 import {
-  startMicrosoftCalendarConnection,
-  presentMicrosoftCalendarConnection,
-} from "../../../../../src/calendar/microsoft-calendar-connections";
-import { getMicrosoftCalendarConnectionRepository } from "../../../../../src/calendar/repository";
+  presentCalendarConnection,
+  startCalendarConnection,
+} from "../../../../../src/calendar/connection";
+import { getCalendarProvider } from "../../../../../src/calendar/providers";
+import { getCalendarConnectionRepository } from "../../../../../src/calendar/repository";
 
 export async function POST(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);
@@ -30,18 +31,21 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const connection = await startMicrosoftCalendarConnection({
+  const provider = getCalendarProvider("microsoft");
+  const repository = getCalendarConnectionRepository();
+  const connection = await startCalendarConnection({
+    provider,
+    repository,
     baseUrl: new URL(request.url).origin,
     clientId,
     csrfToken: session.csrfToken,
-    repository: getMicrosoftCalendarConnectionRepository(),
     sessionSecret: getSessionSecret(),
     userId: session.user.id,
   });
 
   return Response.json({
     authorizationUrl: connection.authorizationUrl,
-    connection: presentMicrosoftCalendarConnection(connection.connection),
+    connection: presentCalendarConnection(connection.connection),
   });
 }
 

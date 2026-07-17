@@ -2,8 +2,7 @@ import { run } from "graphile-worker";
 
 import { loadRuntimeConfig } from "../config/runtime";
 import { createPollCronItems } from "../calendar/poll";
-import { systemClock } from "../system/clock";
-import { systemRandomSource } from "../system/random";
+import { systemDependencies } from "../system";
 import { handleLocalSmokeJob, localSmokeTaskName } from "./smoke";
 import { emailDeliveryTaskName, handleEmailDeliveryJob } from "./email";
 import {
@@ -24,8 +23,7 @@ const pollCronExpression =
 
 const pollCronItems = createPollCronItems(pollCronExpression);
 
-const clock = systemClock();
-const randomSource = systemRandomSource();
+const { clock, randomSource } = systemDependencies();
 
 await run(
   {

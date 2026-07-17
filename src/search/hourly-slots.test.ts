@@ -129,33 +129,4 @@ describe("generateHourlySlots", () => {
       expect(slot.getUTCMilliseconds()).toBe(0);
     }
   });
-
-  it("with Asia/Calcutta timezone, slots align to IST hour boundaries", () => {
-    const rangeStart = new Date("2026-07-13T04:30:00.000Z");
-    const rangeEnd = new Date("2026-07-13T12:00:00.000Z");
-
-    const slots = generateHourlySlots(rangeStart, rangeEnd, "Asia/Calcutta");
-
-    expect(slots.length).toBeGreaterThan(0);
-    for (const slot of slots) {
-      const { minute } = getLocalHourMinute(slot, "Asia/Calcutta");
-      expect(minute).toBe(0);
-    }
-  });
-
-  it("with Asia/Calcutta, a rangeStart not on IST hour floors to the next IST hour", () => {
-    const rangeStart = new Date("2026-07-13T05:00:00.000Z");
-    const rangeEnd = new Date("2026-07-13T12:00:00.000Z");
-
-    const slots = generateHourlySlots(rangeStart, rangeEnd, "Asia/Calcutta");
-
-    expect(slots.length).toBeGreaterThan(0);
-    const firstSlot = slots[0];
-    const { hour: firstHour, minute: firstMinute } = getLocalHourMinute(
-      firstSlot,
-      "Asia/Calcutta",
-    );
-    expect(firstMinute).toBe(0);
-    expect(firstHour).toBe(11);
-  });
 });

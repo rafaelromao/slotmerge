@@ -264,7 +264,7 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
   );
 
   it.runIf(HAS_TEST_DB)(
-    "AC2 variant: when only Organizer qualifies with minimum=2, no slots are returned",
+    "AC2 variant: Organizer + 1 other with minimum=2, no slots returned - proves Organizer is excluded from minimum count",
     async () => {
       const db = getTestDb();
       expect(db).not.toBeNull();
@@ -274,10 +274,18 @@ describe("E2E: Search excludes the Organizer and the Organizer does not count", 
 
       await setupTest();
 
+      await insertDiscoverableUser({
+        id: OTHER_USER_A_ID,
+        email: OTHER_USER_A_EMAIL,
+        displayName: OTHER_USER_A_DISPLAY_NAME,
+        topicIds: [TOPIC.id],
+      });
+
       await grantDiscoverabilityConsentForUser(ORGANIZER.id);
 
       setSearchEligibilityProfileInputsForTests({
         [ORGANIZER.id]: COMPLETE_PROFILE,
+        [OTHER_USER_A_ID]: COMPLETE_PROFILE,
       });
 
       const searchId = await runSearchWithMinimum(2);

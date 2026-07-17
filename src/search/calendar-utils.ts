@@ -1,4 +1,5 @@
 import type { SearchSnapshot, Slot } from "../db/schema";
+import { startOfWeekInTimezone } from "../time/local-time";
 
 export function getSlotsForWeek(
   snapshot: SearchSnapshot,
@@ -44,47 +45,5 @@ export function getNextWeekStart(
 }
 
 export function alignToMonday(date: Date, timezone: string): Date {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    weekday: "short",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-
-  const weekday = get("weekday");
-  const year = Number(get("year"));
-  const month = Number(get("month"));
-  const day = Number(get("day"));
-  const hour = Number(get("hour"));
-  const minute = Number(get("minute"));
-  const second = Number(get("second"));
-
-  const offsetMs =
-    Date.UTC(year, month - 1, day, hour, minute, second) - date.getTime();
-  const localMidnightAsUtc = Date.UTC(year, month - 1, day, 0, 0, 0) - offsetMs;
-
-  const weekdayIndex =
-    weekday === "Mon"
-      ? 1
-      : weekday === "Tue"
-        ? 2
-        : weekday === "Wed"
-          ? 3
-          : weekday === "Thu"
-            ? 4
-            : weekday === "Fri"
-              ? 5
-              : weekday === "Sat"
-                ? 6
-                : 0;
-  const daysSinceMonday = weekdayIndex === 0 ? 6 : weekdayIndex - 1;
-
-  return new Date(localMidnightAsUtc - daysSinceMonday * 86400000);
+  return startOfWeekInTimezone(date, timezone);
 }

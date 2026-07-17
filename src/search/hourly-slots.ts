@@ -49,28 +49,43 @@ function floorToHourInTimezone(date: Date, timezone: string): Date {
   const get = (type: string) =>
     Number(parts.find((p) => p.type === type)?.value ?? "0");
 
-  let hour = get("hour");
+  const originalHour = get("hour");
   const minute = get("minute");
   let day = get("day");
-  const month = get("month");
-  const year = get("year");
+  let month = get("month");
+  let year = get("year");
 
+  let hour = originalHour;
   if (minute > 0) {
-    hour = hour - 1;
+    hour = originalHour - 1;
     if (hour < 0) {
       hour = 23;
-      day -= 1;
+      day = day - 1;
+      if (day < 1) {
+        month = month - 1;
+        if (month < 1) {
+          month = 12;
+          year = year - 1;
+        }
+        day = new Date(year, month, 0).getDate();
+      }
     }
   }
 
-  const naiveUtc = Date.UTC(year, month - 1, day, hour, 0, 0, 0);
-  const utcHour = new Date(naiveUtc).getUTCHours();
-  const utcMinute = new Date(naiveUtc).getUTCMinutes();
-  const tzHour = hour;
-  const tzMinute = 0;
+  const utcHour = date.getUTCHours();
+  const utcMinute = date.getUTCMinutes();
+  const originalUtcMinutes = utcHour * 60 + utcMinute;
 
-  const offsetMinutes = (tzHour - utcHour) * 60 + (tzMinute - utcMinute);
-  const offsetMs = offsetMinutes * 60000;
+  let flooredUtcMinutes: number;
+  if (minute === 0) {
+    flooredUtcMinutes = originalUtcMinutes;
+  } else if (originalHour === 0) {
+    flooredUtcMinutes = originalUtcMinutes - minute - 60;
+  } else {
+    flooredUtcMinutes = originalUtcMinutes - minute;
+  }
 
-  return new Date(naiveUtc - offsetMs);
+  const baseDate = new Date(date.getTime());
+  baseDate.setUTCHours(0, 0, 0, 0);
+  return new Date(baseDate.getTime() + flooredUtcMinutes * 60000);
 }

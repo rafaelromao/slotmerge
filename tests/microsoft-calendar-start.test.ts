@@ -1,15 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  startMicrosoftCalendarConnection,
-  type MicrosoftCalendarConnectionRecord,
-} from "../src/calendar/microsoft-calendar-connections";
+import { startCalendarConnection } from "../src/calendar/connection";
+import { microsoftCalendarProvider } from "../src/calendar/providers";
 
-describe("startMicrosoftCalendarConnection", () => {
+describe("startCalendarConnection (Microsoft)", () => {
   it("creates a pending Microsoft connection with Calendars.ReadBasic scope and returns a work/school consent URL", async () => {
-    const created: MicrosoftCalendarConnectionRecord[] = [];
+    const created: unknown[] = [];
 
-    const result = await startMicrosoftCalendarConnection({
+    const result = await startCalendarConnection({
+      provider: microsoftCalendarProvider,
       baseUrl: "https://slotmerge.example",
       clientId: "microsoft-client-id",
       csrfToken: "csrf-token-1",

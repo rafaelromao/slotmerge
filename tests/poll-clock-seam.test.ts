@@ -9,18 +9,14 @@ vi.mock("../src/worker/sync", () => ({
 vi.mock("../src/calendar/repository", () => ({
   listActiveConnections: vi.fn().mockResolvedValue([
     {
-      record: {
-        id: "conn-poll-1",
-        provider: "google" as const,
-        status: "connected",
-      },
+      id: "conn-poll-1",
+      provider: "google" as const,
+      status: "connected",
     },
     {
-      record: {
-        id: "conn-poll-2",
-        provider: "microsoft" as const,
-        status: "connected",
-      },
+      id: "conn-poll-2",
+      provider: "microsoft" as const,
+      status: "connected",
     },
   ]),
 }));

@@ -1,8 +1,8 @@
 import type { FreeBusyInterval } from "./types";
 import {
-  GoogleFreeBusyAuthError,
-  GoogleFreeBusyRateLimitError,
-  GoogleFreeBusyServerError,
+  FreeBusyAuthError,
+  FreeBusyRateLimitError,
+  FreeBusyServerError,
 } from "./types";
 
 const GOOGLE_FREE_BUSY_URL =
@@ -31,21 +31,21 @@ export async function fetchGoogleFreeBusy(params: {
   });
 
   if (response.status === 401 || response.status === 403) {
-    throw new GoogleFreeBusyAuthError();
+    throw new FreeBusyAuthError("google");
   }
 
   if (response.status === 429) {
     const retryAfter = parseRetryAfterHeader(
       response.headers.get("retry-after"),
     );
-    throw new GoogleFreeBusyRateLimitError(retryAfter);
+    throw new FreeBusyRateLimitError("google", retryAfter);
   }
 
   if (response.status >= 500) {
     const retryAfter = parseRetryAfterHeader(
       response.headers.get("retry-after"),
     );
-    throw new GoogleFreeBusyServerError(response.status, retryAfter);
+    throw new FreeBusyServerError("google", response.status, retryAfter);
   }
 
   if (!response.ok) {

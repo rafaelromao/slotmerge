@@ -2,18 +2,11 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 import { POST } from "../app/me/calendar-connections/callback/route";
 import { setSessionRepositoryForTests } from "../src/auth/session";
+import { setCalendarConnectionRepositoryForTests } from "../src/calendar/repository";
 import {
-  setGoogleCalendarConnectionRepositoryForTests,
-  setMicrosoftCalendarConnectionRepositoryForTests,
-} from "../src/calendar/repository";
-import {
-  sealGoogleCalendarConnectionState,
-  type GoogleCalendarConnectionRecord,
-} from "../src/calendar/google-calendar-connections";
-import {
-  sealMicrosoftCalendarConnectionState,
-  type MicrosoftCalendarConnectionRecord,
-} from "../src/calendar/microsoft-calendar-connections";
+  sealCalendarConnectionState,
+  type CalendarConnectionRecord,
+} from "../src/calendar/connection";
 
 function createSession() {
   return {
@@ -56,20 +49,12 @@ describe("POST /me/calendar-connections/callback provider dispatch", () => {
     delete process.env.MICROSOFT_OAUTH_CLIENT_ID;
     delete process.env.MICROSOFT_OAUTH_CLIENT_SECRET;
     setSessionRepositoryForTests(null);
-    setGoogleCalendarConnectionRepositoryForTests(null);
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
     vi.unstubAllGlobals();
   });
 
   it("completes a Google connection when the sealed state points at a google connection", async () => {
-    setMicrosoftCalendarConnectionRepositoryForTests({
-      createPending: (record) => Promise.resolve(record),
-      listByUserId: () => Promise.resolve([]),
-      findById: () => Promise.resolve(null),
-      updateById: () => Promise.resolve(null),
-    });
-
-    const stored: GoogleCalendarConnectionRecord = {
+    const stored: CalendarConnectionRecord = {
       id: "google-connection-1",
       userId: "user-1",
       provider: "google",
@@ -85,7 +70,7 @@ describe("POST /me/calendar-connections/callback provider dispatch", () => {
       contributingCalendarIds: [],
     };
 
-    setGoogleCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([]),
       findById: (id) =>
@@ -125,7 +110,7 @@ describe("POST /me/calendar-connections/callback provider dispatch", () => {
       }),
     );
 
-    const sealedState = await sealGoogleCalendarConnectionState({
+    const sealedState = await sealCalendarConnectionState({
       connectionId: stored.id,
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",
@@ -147,14 +132,7 @@ describe("POST /me/calendar-connections/callback provider dispatch", () => {
   });
 
   it("returns 400 with unsupported_microsoft_account when the sealed state resolves to a Microsoft connection but the response errors with access_denied", async () => {
-    setGoogleCalendarConnectionRepositoryForTests({
-      createPending: (record) => Promise.resolve(record),
-      listByUserId: () => Promise.resolve([]),
-      findById: () => Promise.resolve(null),
-      updateById: () => Promise.resolve(null),
-    });
-
-    const stored: MicrosoftCalendarConnectionRecord = {
+    const stored: CalendarConnectionRecord = {
       id: "microsoft-connection-1",
       userId: "user-1",
       provider: "microsoft",
@@ -170,7 +148,7 @@ describe("POST /me/calendar-connections/callback provider dispatch", () => {
       contributingCalendarIds: [],
     };
 
-    setMicrosoftCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([]),
       findById: (id) =>
@@ -178,7 +156,7 @@ describe("POST /me/calendar-connections/callback provider dispatch", () => {
       updateById: () => Promise.resolve(null),
     });
 
-    const sealedState = await sealMicrosoftCalendarConnectionState({
+    const sealedState = await sealCalendarConnectionState({
       connectionId: stored.id,
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",

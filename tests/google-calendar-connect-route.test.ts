@@ -5,7 +5,7 @@ import {
   sealSessionCookie,
   setSessionRepositoryForTests,
 } from "../src/auth/session";
-import { setGoogleCalendarConnectionRepositoryForTests } from "../src/calendar/repository";
+import { setCalendarConnectionRepositoryForTests } from "../src/calendar/repository";
 
 describe("POST /me/calendar-connections/google/connect", () => {
   beforeEach(() => {
@@ -17,7 +17,7 @@ describe("POST /me/calendar-connections/google/connect", () => {
     delete process.env.GOOGLE_OAUTH_CLIENT_ID;
     delete process.env.SESSION_SECRET;
     setSessionRepositoryForTests(null);
-    setGoogleCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
   });
 
   it("creates a pending Google calendar connection and returns a consent URL", async () => {
@@ -44,7 +44,7 @@ describe("POST /me/calendar-connections/google/connect", () => {
             : null,
         ),
     });
-    setGoogleCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => {
         created.push(record);
         return Promise.resolve(record);

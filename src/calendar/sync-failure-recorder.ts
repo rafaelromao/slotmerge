@@ -1,7 +1,4 @@
-import {
-  getGoogleCalendarConnectionRepository,
-  getMicrosoftCalendarConnectionRepository,
-} from "./repository";
+import { getCalendarConnectionRepository } from "./repository";
 import {
   triggerCalendarActionRequiredEmail,
   type CalendarActionRequiredReason,
@@ -95,23 +92,9 @@ async function updateConnectionErrorMetadata(
     input.code === "token_revoked" ||
     input.code === "AUTH_ERROR";
 
-  if (input.provider === "google") {
-    await getGoogleCalendarConnectionRepository().updateById(
-      input.connectionId,
-      {
-        lastErrorCode: input.code,
-        lastErrorMessage: input.message,
-        ...(needsReconnect ? { status: "needs_reconnect" } : {}),
-      },
-    );
-    return;
-  }
-  await getMicrosoftCalendarConnectionRepository().updateById(
-    input.connectionId,
-    {
-      lastErrorCode: input.code,
-      lastErrorMessage: input.message,
-      ...(needsReconnect ? { status: "needs_reconnect" } : {}),
-    },
-  );
+  await getCalendarConnectionRepository().updateById(input.connectionId, {
+    lastErrorCode: input.code,
+    lastErrorMessage: input.message,
+    ...(needsReconnect ? { status: "needs_reconnect" } : {}),
+  });
 }

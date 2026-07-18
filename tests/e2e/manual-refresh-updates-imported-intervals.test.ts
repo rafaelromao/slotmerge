@@ -23,8 +23,7 @@ import {
 } from "../../src/calendar/imported-busy-intervals";
 
 import {
-  setGoogleCalendarConnectionRepositoryForTests,
-  setMicrosoftCalendarConnectionRepositoryForTests,
+  setCalendarConnectionRepositoryForTests,
 } from "../../src/calendar/repository";
 import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
@@ -195,8 +194,7 @@ describe("E2E: manual refresh updates imported intervals", () => {
     setSessionRepositoryForTests(null);
     setImportedBusyIntervalRepositoryForTests(null);
     clearInMemoryImportedBusyIntervalStore();
-    setGoogleCalendarConnectionRepositoryForTests(null);
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
     vi.unstubAllGlobals();
     await clearTestConnection(GOOGLE_CONNECTION_ID);
   });

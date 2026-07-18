@@ -5,7 +5,7 @@ import {
   sealSessionCookie,
   setSessionRepositoryForTests,
 } from "../src/auth/session";
-import { setMicrosoftCalendarConnectionRepositoryForTests } from "../src/calendar/repository";
+import { setCalendarConnectionRepositoryForTests } from "../src/calendar/repository";
 
 describe("POST /me/calendar-connections/microsoft/connect", () => {
   beforeEach(() => {
@@ -17,7 +17,7 @@ describe("POST /me/calendar-connections/microsoft/connect", () => {
     delete process.env.MICROSOFT_OAUTH_CLIENT_ID;
     delete process.env.SESSION_SECRET;
     setSessionRepositoryForTests(null);
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
   });
 
   it("creates a pending Microsoft calendar connection and returns a work/school consent URL", async () => {
@@ -44,7 +44,7 @@ describe("POST /me/calendar-connections/microsoft/connect", () => {
             : null,
         ),
     });
-    setMicrosoftCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => {
         created.push(record);
         return Promise.resolve(record);

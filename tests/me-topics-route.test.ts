@@ -57,8 +57,6 @@ describe("/me/topics route", () => {
       listSelectedTopicIds: () => Promise.resolve(["topic-2"]),
       listAssociations: () => Promise.resolve([]),
       saveAssociations: () => Promise.resolve(),
-      listActiveAdminTopics: () => Promise.resolve([]),
-      retire: () => Promise.resolve({ ok: true }),
     });
 
     const mockMeProposalsRepository: TopicProposalUserRepository = {
@@ -137,8 +135,6 @@ describe("/me/topics route", () => {
           .map((association) => association.topicId);
         return Promise.resolve();
       },
-      listActiveAdminTopics: () => Promise.resolve([]),
-      retire: () => Promise.resolve({ ok: true }),
     };
 
     setTopicCatalogueRepositoryForTests(repository);
@@ -198,8 +194,6 @@ describe("/me/topics route", () => {
       listSelectedTopicIds: () => Promise.resolve([]),
       listAssociations: () => Promise.resolve([]),
       saveAssociations: () => Promise.resolve(),
-      listActiveAdminTopics: () => Promise.resolve([]),
-      retire: () => Promise.resolve({ ok: true }),
     });
 
     const cookie = await sealSessionCookie({ sessionId: "session-1" });

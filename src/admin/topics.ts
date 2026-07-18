@@ -10,22 +10,17 @@ import {
   renderAdminShell,
 } from "./page";
 import {
-  getTopicCatalogueRepository,
+  getTopicAdminRepository,
   setTopicCatalogueRepositoryForTests,
   type AdminTopicListItem,
-  type TopicCatalogueRepository,
+  type TopicAdminRepository,
 } from "../topics/repository";
 
 export type { RetireResult } from "../topics/repository";
 
-export type AdminTopicsRepository = Pick<
-  TopicCatalogueRepository,
-  "listActiveAdminTopics" | "retire"
->;
-
 export type AdminTopicsDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
-  topicRepository?: AdminTopicsRepository;
+  topicRepository?: TopicAdminRepository;
   clock?: () => Date;
 };
 
@@ -39,8 +34,7 @@ export function createAdminTopicsHandlers({
   topicRepository,
   clock = () => new Date(),
 }: AdminTopicsDependencies = {}) {
-  const resolveRepository = () =>
-    topicRepository ?? getTopicCatalogueRepository();
+  const resolveRepository = () => topicRepository ?? getTopicAdminRepository();
   return {
     GET: async (request: Request): Promise<Response> => {
       const session = await getSession(request);

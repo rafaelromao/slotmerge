@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createPostgresTopicCatalogueRepository,
-  getTopicCatalogueRepository,
+  getTopicAdminRepository,
   setTopicCatalogueRepositoryForTests,
 } from "../topics/repository";
 
@@ -109,9 +109,9 @@ describe("topic catalogue admin repository", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  it("getTopicCatalogueRepository exposes the admin ops through the shared interface", () => {
+  it("getTopicAdminRepository exposes the admin ops", () => {
     setTopicCatalogueRepositoryForTests(null);
-    const repository = getTopicCatalogueRepository();
+    const repository = getTopicAdminRepository();
     expect(typeof repository.listActiveAdminTopics).toBe("function");
     expect(typeof repository.retire).toBe("function");
   });

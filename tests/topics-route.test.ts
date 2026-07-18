@@ -41,8 +41,6 @@ describe("GET /topics", () => {
       listSelectedTopicIds: () => Promise.resolve([]),
       listAssociations: () => Promise.resolve([]),
       saveAssociations: () => Promise.resolve(),
-      listActiveAdminTopics: () => Promise.resolve([]),
-      retire: () => Promise.resolve({ ok: true }),
     });
 
     const cookie = await sealSessionCookie({ sessionId: "session-1" });

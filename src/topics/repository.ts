@@ -74,7 +74,7 @@ export function getTopicAdminRepository(): TopicAdminRepository {
       createPostgresTopicCatalogueRepository();
   }
 
-  return cachedDatabaseTopicCatalogueRepository as TopicAdminRepository;
+  return cachedDatabaseTopicCatalogueRepository;
 }
 
 export function createPostgresTopicCatalogueRepository(

@@ -13,7 +13,7 @@ export async function handlePollCalendarConnectionsJob(
   const config = loadRuntimeConfig();
   const activeConnections = await listActiveConnections();
 
-  for (const { record: connection } of activeConnections) {
+  for (const connection of activeConnections) {
     const jitterMs = Math.floor(Math.random() * MAX_JITTER_MS);
     const runAt = new Date(clock().getTime() + jitterMs);
     await enqueueSyncCalendarConnectionJob(

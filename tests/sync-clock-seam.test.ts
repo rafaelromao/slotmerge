@@ -10,7 +10,15 @@ vi.mock("../src/calendar/token-encryption", () => ({
 }));
 
 vi.mock("../src/calendar/repository", () => ({
-  getGoogleCalendarConnectionRepository: vi.fn(() => ({
+  findCalendarConnectionById: vi.fn().mockResolvedValue({
+    id: "conn-test",
+    userId: "user-1",
+    status: "connected",
+    provider: "google",
+    accessTokenEncrypted: "encrypted",
+    contributingCalendarIds: ["primary"],
+  }),
+  getCalendarConnectionRepository: vi.fn(() => ({
     findById: vi.fn().mockResolvedValue({
       id: "conn-test",
       userId: "user-1",
@@ -19,10 +27,6 @@ vi.mock("../src/calendar/repository", () => ({
       accessTokenEncrypted: "encrypted",
       contributingCalendarIds: ["primary"],
     }),
-    updateById: vi.fn().mockResolvedValue(undefined),
-  })),
-  getMicrosoftCalendarConnectionRepository: vi.fn(() => ({
-    findById: vi.fn().mockResolvedValue(null),
     updateById: vi.fn().mockResolvedValue(undefined),
   })),
 }));

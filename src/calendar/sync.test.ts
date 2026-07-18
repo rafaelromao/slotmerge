@@ -2,11 +2,33 @@ import { describe, expect, it, vi } from "vitest";
 
 import { syncCalendarConnection, RateLimitError, ServerError } from "./sync";
 import type { ImportedBusyIntervalRecord } from "./imported-busy-intervals";
+import { googleCalendarProvider, microsoftCalendarProvider } from "./providers";
+import type { CalendarProvider } from "./provider";
 
 const fixedNow = new Date("2026-07-12T12:00:00.000Z");
 
 const FIXED_TIME_MIN = "2026-07-01T00:00:00Z";
 const FIXED_TIME_MAX = "2026-07-02T00:00:00Z";
+
+function providerWithFetch(
+  base: CalendarProvider,
+  fetchImpl: typeof fetch,
+): CalendarProvider {
+  return {
+    ...base,
+    fetchFreeBusy: (input) => base.fetchFreeBusy({ ...input, fetchImpl }),
+  };
+}
+
+const noopBusyRepository = (
+  upsertBatch: (intervals: ImportedBusyIntervalRecord[]) => Promise<void>,
+): Parameters<typeof syncCalendarConnection>[0]["busyIntervalRepository"] => ({
+  upsertBatch,
+  deleteByConnectionId: vi.fn(),
+  deleteByConnectionIdAndCalendarId: vi.fn(),
+  findByUserIdAndDateRange: vi.fn(),
+  deleteExpiredBefore: vi.fn(),
+});
 
 describe("syncCalendarConnection", () => {
   it("early-returns (no-op) when contributingCalendarIds is empty", async () => {
@@ -14,20 +36,14 @@ describe("syncCalendarConnection", () => {
 
     await syncCalendarConnection({
       connectionId: "conn-1",
-      provider: "google",
+      provider: googleCalendarProvider,
       accessToken: "fake-token",
       contributingCalendarIds: [],
       userId: "user-1",
       timeMin: FIXED_TIME_MIN,
       timeMax: FIXED_TIME_MAX,
       fetchImpl: fetch,
-      busyIntervalRepository: {
-        upsertBatch,
-        deleteByConnectionId: vi.fn(),
-        deleteByConnectionIdAndCalendarId: vi.fn(),
-        findByUserIdAndDateRange: vi.fn(),
-        deleteExpiredBefore: vi.fn(),
-      },
+      busyIntervalRepository: noopBusyRepository(upsertBatch),
       recordFailure: vi.fn(),
       clock: () => fixedNow,
     });
@@ -55,20 +71,14 @@ describe("syncCalendarConnection", () => {
 
     await syncCalendarConnection({
       connectionId: "conn-seeded-test",
-      provider: "google",
+      provider: providerWithFetch(googleCalendarProvider, mockFetch),
       accessToken: "ya1.aFakeToken",
       contributingCalendarIds: ["primary"],
       userId: "user-1",
       timeMin: FIXED_TIME_MIN,
       timeMax: FIXED_TIME_MAX,
       fetchImpl: mockFetch,
-      busyIntervalRepository: {
-        upsertBatch,
-        deleteByConnectionId: vi.fn(),
-        deleteByConnectionIdAndCalendarId: vi.fn(),
-        findByUserIdAndDateRange: vi.fn(),
-        deleteExpiredBefore: vi.fn(),
-      },
+      busyIntervalRepository: noopBusyRepository(upsertBatch),
       recordFailure: vi.fn(),
       clock: () => fixedNow,
     });
@@ -112,20 +122,14 @@ describe("syncCalendarConnection", () => {
 
     await syncCalendarConnection({
       connectionId: "conn-ms",
-      provider: "microsoft",
+      provider: providerWithFetch(microsoftCalendarProvider, mockFetch),
       accessToken: "ey.aFakeToken",
       contributingCalendarIds: ["user@domain.com"],
       userId: "user-2",
       timeMin: FIXED_TIME_MIN,
       timeMax: FIXED_TIME_MAX,
       fetchImpl: mockFetch,
-      busyIntervalRepository: {
-        upsertBatch,
-        deleteByConnectionId: vi.fn(),
-        deleteByConnectionIdAndCalendarId: vi.fn(),
-        findByUserIdAndDateRange: vi.fn(),
-        deleteExpiredBefore: vi.fn(),
-      },
+      busyIntervalRepository: noopBusyRepository(upsertBatch),
       recordFailure: vi.fn(),
       clock: () => fixedNow,
     });
@@ -138,7 +142,7 @@ describe("syncCalendarConnection", () => {
     expect(intervals[0]?.status).toBe("busy");
   });
 
-  it("calls recordFailure with AUTH_ERROR on 401", async () => {
+  it("calls recordFailure with AUTH_ERROR on 401 for Google", async () => {
     const upsertBatch = vi.fn();
     const recordFailure = vi.fn();
 
@@ -148,20 +152,14 @@ describe("syncCalendarConnection", () => {
 
     await syncCalendarConnection({
       connectionId: "conn-auth",
-      provider: "google",
+      provider: providerWithFetch(googleCalendarProvider, mockFetch),
       accessToken: "bad-token",
       contributingCalendarIds: ["primary"],
       userId: "user-1",
       timeMin: FIXED_TIME_MIN,
       timeMax: FIXED_TIME_MAX,
       fetchImpl: mockFetch,
-      busyIntervalRepository: {
-        upsertBatch,
-        deleteByConnectionId: vi.fn(),
-        deleteByConnectionIdAndCalendarId: vi.fn(),
-        findByUserIdAndDateRange: vi.fn(),
-        deleteExpiredBefore: vi.fn(),
-      },
+      busyIntervalRepository: noopBusyRepository(upsertBatch),
       recordFailure,
       clock: () => fixedNow,
     });
@@ -170,6 +168,35 @@ describe("syncCalendarConnection", () => {
     expect(recordFailure).toHaveBeenCalledWith({
       code: "AUTH_ERROR",
       message: "Google authentication failed",
+    });
+  });
+
+  it("calls recordFailure with AUTH_ERROR on 401 for Microsoft", async () => {
+    const upsertBatch = vi.fn();
+    const recordFailure = vi.fn();
+
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 401 }));
+
+    await syncCalendarConnection({
+      connectionId: "conn-auth-ms",
+      provider: providerWithFetch(microsoftCalendarProvider, mockFetch),
+      accessToken: "bad-token",
+      contributingCalendarIds: ["user@domain.com"],
+      userId: "user-1",
+      timeMin: FIXED_TIME_MIN,
+      timeMax: FIXED_TIME_MAX,
+      fetchImpl: mockFetch,
+      busyIntervalRepository: noopBusyRepository(upsertBatch),
+      recordFailure,
+      clock: () => fixedNow,
+    });
+
+    expect(upsertBatch).not.toHaveBeenCalled();
+    expect(recordFailure).toHaveBeenCalledWith({
+      code: "AUTH_ERROR",
+      message: "Microsoft authentication failed",
     });
   });
 
@@ -187,20 +214,14 @@ describe("syncCalendarConnection", () => {
     await expect(
       syncCalendarConnection({
         connectionId: "conn-rate",
-        provider: "google",
+        provider: providerWithFetch(googleCalendarProvider, mockFetch),
         accessToken: "ya1.aFakeToken",
         contributingCalendarIds: ["primary"],
         userId: "user-1",
         timeMin: FIXED_TIME_MIN,
         timeMax: FIXED_TIME_MAX,
         fetchImpl: mockFetch,
-        busyIntervalRepository: {
-          upsertBatch,
-          deleteByConnectionId: vi.fn(),
-          deleteByConnectionIdAndCalendarId: vi.fn(),
-          findByUserIdAndDateRange: vi.fn(),
-          deleteExpiredBefore: vi.fn(),
-        },
+        busyIntervalRepository: noopBusyRepository(upsertBatch),
         recordFailure,
         clock: () => fixedNow,
       }),
@@ -221,20 +242,14 @@ describe("syncCalendarConnection", () => {
     await expect(
       syncCalendarConnection({
         connectionId: "conn-rate",
-        provider: "google",
+        provider: providerWithFetch(googleCalendarProvider, mockFetch),
         accessToken: "ya1.aFakeToken",
         contributingCalendarIds: ["primary"],
         userId: "user-1",
         timeMin: FIXED_TIME_MIN,
         timeMax: FIXED_TIME_MAX,
         fetchImpl: mockFetch,
-        busyIntervalRepository: {
-          upsertBatch,
-          deleteByConnectionId: vi.fn(),
-          deleteByConnectionIdAndCalendarId: vi.fn(),
-          findByUserIdAndDateRange: vi.fn(),
-          deleteExpiredBefore: vi.fn(),
-        },
+        busyIntervalRepository: noopBusyRepository(upsertBatch),
         recordFailure,
         clock: () => fixedNow,
       }),
@@ -254,20 +269,14 @@ describe("syncCalendarConnection", () => {
     await expect(
       syncCalendarConnection({
         connectionId: "conn-server",
-        provider: "google",
+        provider: providerWithFetch(googleCalendarProvider, mockFetch),
         accessToken: "ya1.aFakeToken",
         contributingCalendarIds: ["primary"],
         userId: "user-1",
         timeMin: FIXED_TIME_MIN,
         timeMax: FIXED_TIME_MAX,
         fetchImpl: mockFetch,
-        busyIntervalRepository: {
-          upsertBatch,
-          deleteByConnectionId: vi.fn(),
-          deleteByConnectionIdAndCalendarId: vi.fn(),
-          findByUserIdAndDateRange: vi.fn(),
-          deleteExpiredBefore: vi.fn(),
-        },
+        busyIntervalRepository: noopBusyRepository(upsertBatch),
         recordFailure,
         clock: () => fixedNow,
       }),
@@ -284,20 +293,14 @@ describe("syncCalendarConnection", () => {
 
     await syncCalendarConnection({
       connectionId: "conn-error",
-      provider: "google",
+      provider: providerWithFetch(googleCalendarProvider, mockFetch),
       accessToken: "ya1.aFakeToken",
       contributingCalendarIds: ["primary"],
       userId: "user-1",
       timeMin: FIXED_TIME_MIN,
       timeMax: FIXED_TIME_MAX,
       fetchImpl: mockFetch,
-      busyIntervalRepository: {
-        upsertBatch,
-        deleteByConnectionId: vi.fn(),
-        deleteByConnectionIdAndCalendarId: vi.fn(),
-        findByUserIdAndDateRange: vi.fn(),
-        deleteExpiredBefore: vi.fn(),
-      },
+      busyIntervalRepository: noopBusyRepository(upsertBatch),
       recordFailure,
       clock: () => fixedNow,
     });

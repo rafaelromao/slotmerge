@@ -7,10 +7,9 @@ import {
   setSessionRepositoryForTests,
 } from "../src/auth/session";
 import { encryptCalendarToken } from "../src/calendar/token-encryption";
-import type { GoogleCalendarConnectionRecord } from "../src/calendar/google-calendar-connections";
+import type { CalendarConnectionRecord } from "../src/calendar/connection";
 import {
-  setGoogleCalendarConnectionRepositoryForTests,
-  setMicrosoftCalendarConnectionRepositoryForTests,
+  setCalendarConnectionRepositoryForTests,
 } from "../src/calendar/repository";
 
 describe("calendar connection management routes", () => {
@@ -24,8 +23,7 @@ describe("calendar connection management routes", () => {
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
     setSessionRepositoryForTests(null);
-    setGoogleCalendarConnectionRepositoryForTests(null);
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
     vi.unstubAllGlobals();
   });
 
@@ -51,7 +49,7 @@ describe("calendar connection management routes", () => {
             : null,
         ),
     });
-    const connection: GoogleCalendarConnectionRecord = {
+    const connection: CalendarConnectionRecord = {
       id: "connection-1",
       userId: "user-1",
       provider: "google",
@@ -67,15 +65,9 @@ describe("calendar connection management routes", () => {
       contributingCalendarIds: [],
     };
 
-    setGoogleCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([connection]),
-      findById: () => Promise.resolve(null),
-      updateById: () => Promise.resolve(null),
-    });
-    setMicrosoftCalendarConnectionRepositoryForTests({
-      createPending: (record) => Promise.resolve(record),
-      listByUserId: () => Promise.resolve([]),
       findById: () => Promise.resolve(null),
       updateById: () => Promise.resolve(null),
     });
@@ -111,7 +103,7 @@ describe("calendar connection management routes", () => {
 
   it("revokes the stored refresh token on disconnect and leaves metadata queryable", async () => {
     const tokenEncryptionKey = "0123456789abcdef0123456789abcdef";
-    const stored: GoogleCalendarConnectionRecord = {
+    const stored: CalendarConnectionRecord = {
       id: "connection-1",
       userId: "user-1",
       provider: "google",
@@ -154,7 +146,7 @@ describe("calendar connection management routes", () => {
             : null,
         ),
     });
-    setGoogleCalendarConnectionRepositoryForTests({
+    setCalendarConnectionRepositoryForTests({
       createPending: (record) => Promise.resolve(record),
       listByUserId: () => Promise.resolve([stored]),
       findById: (id) =>
@@ -167,12 +159,6 @@ describe("calendar connection management routes", () => {
         Object.assign(stored, patch);
         return Promise.resolve({ ...stored });
       },
-    });
-    setMicrosoftCalendarConnectionRepositoryForTests({
-      createPending: (record) => Promise.resolve(record),
-      listByUserId: () => Promise.resolve([]),
-      findById: () => Promise.resolve(null),
-      updateById: () => Promise.resolve(null),
     });
     vi.stubGlobal(
       "fetch",

@@ -1,9 +1,9 @@
 import type { BusyIntervalStatus } from "../../db/schema";
 import type { FreeBusyInterval } from "./types";
 import {
-  MicrosoftFreeBusyAuthError,
-  MicrosoftFreeBusyRateLimitError,
-  MicrosoftFreeBusyServerError,
+  FreeBusyAuthError,
+  FreeBusyRateLimitError,
+  FreeBusyServerError,
 } from "./types";
 
 const MICROSOFT_GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0";
@@ -34,21 +34,21 @@ export async function fetchMicrosoftFreeBusy(params: {
   );
 
   if (response.status === 401 || response.status === 403) {
-    throw new MicrosoftFreeBusyAuthError();
+    throw new FreeBusyAuthError("microsoft");
   }
 
   if (response.status === 429) {
     const retryAfter = parseRetryAfterHeader(
       response.headers.get("retry-after"),
     );
-    throw new MicrosoftFreeBusyRateLimitError(retryAfter);
+    throw new FreeBusyRateLimitError("microsoft", retryAfter);
   }
 
   if (response.status >= 500) {
     const retryAfter = parseRetryAfterHeader(
       response.headers.get("retry-after"),
     );
-    throw new MicrosoftFreeBusyServerError(response.status, retryAfter);
+    throw new FreeBusyServerError("microsoft", response.status, retryAfter);
   }
 
   if (!response.ok) {

@@ -1,8 +1,10 @@
 import { getSessionFromRequest } from "../../../../../src/auth/session";
-import { decryptCalendarToken } from "../../../../../src/calendar/token-encryption";
+import {
+  listProviderCalendarsForProvider,
+  getCalendarProvider,
+} from "../../../../../src/calendar/providers";
 import { findCalendarConnectionById } from "../../../../../src/calendar/repository";
-
-const MICROSOFT_GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0";
+import { decryptCalendarToken } from "../../../../../src/calendar/token-encryption";
 
 export async function GET(
   request: Request,
@@ -16,16 +18,16 @@ export async function GET(
 
   const { id: expectedId } = await params;
 
-  const found = await findCalendarConnectionById(expectedId);
+  const connection = await findCalendarConnectionById(expectedId);
 
-  if (!found) {
+  if (!connection) {
     return Response.json(
       { error: "calendar_connection_not_found" },
       { status: 404 },
     );
   }
 
-  if (found.record.userId !== session.user.id) {
+  if (connection.userId !== session.user.id) {
     return Response.json(
       { error: "calendar_connection_not_found" },
       { status: 404 },
@@ -37,81 +39,25 @@ export async function GET(
     return Response.json({ error: "oauth_not_configured" }, { status: 500 });
   }
 
-  if (found.provider === "google") {
-    decryptCalendarToken({
-      ciphertext: found.record.accessTokenEncrypted ?? "",
-      key: tokenEncryptionKey,
-    });
-
-    const primaryIncluded =
-      found.record.contributingCalendarIds.includes("primary");
-
-    return Response.json({
-      calendars: [
-        {
-          id: "primary",
-          name: "Primary Calendar",
-          isPrimary: true,
-          isIncluded: primaryIncluded,
-        },
-      ],
-    });
-  }
-
   const accessToken = decryptCalendarToken({
-    ciphertext: found.record.accessTokenEncrypted ?? "",
+    ciphertext: connection.accessTokenEncrypted ?? "",
     key: tokenEncryptionKey,
   });
 
-  const calendarsResult = await fetchMicrosoftCalendars(accessToken);
+  const provider = getCalendarProvider(connection.provider);
+  const providerCalendars = await listProviderCalendarsForProvider(
+    provider,
+    accessToken,
+    fetch,
+  );
 
-  if (!calendarsResult.ok) {
-    return Response.json(
-      { error: "failed_to_fetch_calendars" },
-      { status: 502 },
-    );
-  }
-
-  const calendars = calendarsResult.calendars;
-  const includedIds = new Set(found.record.contributingCalendarIds);
-  const calendarsWithStatus = calendars.map((cal) => ({
+  const includedIds = new Set(connection.contributingCalendarIds);
+  const calendars = providerCalendars.map((cal) => ({
     id: cal.id,
     name: cal.name,
-    isPrimary: cal.isPrimaryCalendar,
+    isPrimary: cal.isPrimary,
     isIncluded: includedIds.has(cal.id),
   }));
 
-  return Response.json({
-    calendars: calendarsWithStatus,
-  });
-}
-
-type MicrosoftCalendar = {
-  id: string;
-  name: string;
-  isPrimaryCalendar: boolean;
-};
-
-async function fetchMicrosoftCalendars(
-  accessToken: string,
-): Promise<{ ok: true; calendars: MicrosoftCalendar[] } | { ok: false }> {
-  const response = await fetch(
-    `${MICROSOFT_GRAPH_ENDPOINT}/me/calendars?$select=id,name,isPrimaryCalendar`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-    },
-  );
-
-  if (!response.ok) {
-    return { ok: false };
-  }
-
-  const data = (await response.json()) as {
-    value?: MicrosoftCalendar[];
-  };
-
-  return { ok: true, calendars: data.value ?? [] };
+  return Response.json({ calendars });
 }

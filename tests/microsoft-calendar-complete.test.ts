@@ -2,14 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import { decryptCalendarToken } from "../src/calendar/token-encryption";
 import {
-  completeMicrosoftCalendarConnection,
-  type MicrosoftCalendarConnectionRecord,
-  sealMicrosoftCalendarConnectionState,
-} from "../src/calendar/microsoft-calendar-connections";
+  completeCalendarConnection,
+  sealCalendarConnectionState,
+  type CalendarConnectionRecord,
+} from "../src/calendar/connection";
+import { getCalendarProvider } from "../src/calendar/providers";
 
 describe("completeMicrosoftCalendarConnection", () => {
   it("exchanges the code with PKCE, encrypts tokens, and flips the connection to connected", async () => {
-    const stored: MicrosoftCalendarConnectionRecord = {
+    const stored: CalendarConnectionRecord = {
       id: "connection-1",
       userId: "user-1",
       provider: "microsoft",
@@ -86,19 +87,15 @@ describe("completeMicrosoftCalendarConnection", () => {
 
     const sessionSecret = "0123456789abcdef0123456789abcdef";
     const tokenEncryptionKey = "0123456789abcdef0123456789abcdef";
-    const state = await sealMicrosoftCalendarConnectionState({
+    const state = await sealCalendarConnectionState({
       connectionId: stored.id,
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",
       secret: sessionSecret,
     });
 
-    const result = await completeMicrosoftCalendarConnection({
-      baseUrl: "https://slotmerge.example",
-      clientId: "microsoft-client-id",
-      clientSecret: "microsoft-client-secret",
-      code: "auth-code-123",
-      fetchImpl: fetchMock,
+    const completed = await completeCalendarConnection({
+      provider: getCalendarProvider("microsoft"),
       repository: {
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([]),
@@ -113,12 +110,19 @@ describe("completeMicrosoftCalendarConnection", () => {
           return Promise.resolve({ ...stored });
         },
       },
+      baseUrl: "https://slotmerge.example",
+      clientId: "microsoft-client-id",
+      clientSecret: "microsoft-client-secret",
+      code: "auth-code-123",
+      fetchImpl: fetchMock,
       sessionSecret,
       state,
       tokenEncryptionKey,
     });
 
-    expect(result.status).toBe("connected");
+    expect(completed.status).toBe("connected");
+    if (completed.status !== "connected") throw new Error("expected connected");
+    const result = completed.connection;
     expect(result.provider).toBe("microsoft");
     expect(result.accountIdentifier).toBe("microsoft:connection-1");
     expect(result.providerAccountKey).toBe("microsoft:connection-1");
@@ -138,5 +142,68 @@ describe("completeMicrosoftCalendarConnection", () => {
       }),
     ).toBe("access-token-123");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("persists Microsoft personal accounts as unsupported", async () => {
+    const stored: CalendarConnectionRecord = {
+      id: "connection-1",
+      userId: "user-1",
+      provider: "microsoft",
+      accountIdentifier: "microsoft:connection-1",
+      providerAccountKey: "microsoft:connection-1",
+      scopes: "offline_access Calendars.ReadBasic",
+      status: "pending",
+      refreshTokenEncrypted: null,
+      accessTokenEncrypted: null,
+      accessTokenExpiresAt: null,
+      lastErrorCode: null,
+      lastErrorMessage: null,
+      contributingCalendarIds: [],
+    };
+    const sessionSecret = "0123456789abcdef0123456789abcdef";
+    const state = await sealCalendarConnectionState({
+      connectionId: stored.id,
+      csrfToken: "csrf-token",
+      codeVerifier: "code-verifier",
+      secret: sessionSecret,
+    });
+
+    const result = await completeCalendarConnection({
+      provider: getCalendarProvider("microsoft"),
+      repository: {
+        createPending: (record) => Promise.resolve(record),
+        listByUserId: () => Promise.resolve([stored]),
+        findById: () => Promise.resolve({ ...stored }),
+        updateById: (id, patch) => {
+          if (id !== stored.id) return Promise.resolve(null);
+          Object.assign(stored, patch);
+          return Promise.resolve({ ...stored });
+        },
+      },
+      baseUrl: "https://slotmerge.example",
+      clientId: "microsoft-client-id",
+      clientSecret: "microsoft-client-secret",
+      code: "auth-code",
+      fetchImpl: vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: "access_denied",
+              error_description: "Personal Microsoft accounts are unsupported",
+            }),
+            { status: 400, headers: { "content-type": "application/json" } },
+          ),
+        ),
+      ),
+      sessionSecret,
+      state,
+      tokenEncryptionKey: "0123456789abcdef0123456789abcdef",
+    });
+
+    expect(result).toMatchObject({
+      status: "unsupported",
+      reason: "unsupported_microsoft_account",
+      connection: { status: "unsupported" },
+    });
   });
 });

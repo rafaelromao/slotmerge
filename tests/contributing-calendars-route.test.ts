@@ -7,11 +7,9 @@ import {
   setSessionRepositoryForTests,
 } from "../src/auth/session";
 import { encryptCalendarToken } from "../src/calendar/token-encryption";
-import type { GoogleCalendarConnectionRecord } from "../src/calendar/google-calendar-connections";
-import type { MicrosoftCalendarConnectionRecord } from "../src/calendar/microsoft-calendar-connections";
+import type { CalendarConnectionRecord } from "../src/calendar/connection";
 import {
-  setGoogleCalendarConnectionRepositoryForTests,
-  setMicrosoftCalendarConnectionRepositoryForTests,
+  setCalendarConnectionRepositoryForTests,
 } from "../src/calendar/repository";
 
 describe("contributing calendars selection", () => {
@@ -25,14 +23,13 @@ describe("contributing calendars selection", () => {
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
     setSessionRepositoryForTests(null);
-    setGoogleCalendarConnectionRepositoryForTests(null);
-    setMicrosoftCalendarConnectionRepositoryForTests(null);
+    setCalendarConnectionRepositoryForTests(null);
     vi.unstubAllGlobals();
   });
 
   describe("GET /me/calendar-connections/{id}/calendars", () => {
     it("returns the primary calendar for Google", async () => {
-      const connection: GoogleCalendarConnectionRecord = {
+      const connection: CalendarConnectionRecord = {
         id: "google-connection-1",
         userId: "user-1",
         provider: "google",
@@ -75,17 +72,11 @@ describe("contributing calendars selection", () => {
               : null,
           ),
       });
-      setGoogleCalendarConnectionRepositoryForTests({
+      setCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([connection]),
         findById: (id) =>
           Promise.resolve(id === connection.id ? { ...connection } : null),
-        updateById: () => Promise.resolve(null),
-      });
-      setMicrosoftCalendarConnectionRepositoryForTests({
-        createPending: (record) => Promise.resolve(record),
-        listByUserId: () => Promise.resolve([]),
-        findById: () => Promise.resolve(null),
         updateById: () => Promise.resolve(null),
       });
 
@@ -114,7 +105,7 @@ describe("contributing calendars selection", () => {
     });
 
     it("returns calendars from Microsoft Graph with normalized isPrimary field", async () => {
-      const connection: MicrosoftCalendarConnectionRecord = {
+      const connection: CalendarConnectionRecord = {
         id: "microsoft-connection-1",
         userId: "user-1",
         provider: "microsoft",
@@ -154,13 +145,7 @@ describe("contributing calendars selection", () => {
               : null,
           ),
       });
-      setGoogleCalendarConnectionRepositoryForTests({
-        createPending: (record) => Promise.resolve(record),
-        listByUserId: () => Promise.resolve([]),
-        findById: () => Promise.resolve(null),
-        updateById: () => Promise.resolve(null),
-      });
-      setMicrosoftCalendarConnectionRepositoryForTests({
+      setCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([connection]),
         findById: (id) =>
@@ -254,13 +239,7 @@ describe("contributing calendars selection", () => {
             csrfToken: "csrf-token-1",
           }),
       });
-      setGoogleCalendarConnectionRepositoryForTests({
-        createPending: (record) => Promise.resolve(record),
-        listByUserId: () => Promise.resolve([]),
-        findById: () => Promise.resolve(null),
-        updateById: () => Promise.resolve(null),
-      });
-      setMicrosoftCalendarConnectionRepositoryForTests({
+      setCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([]),
         findById: () => Promise.resolve(null),
@@ -284,7 +263,7 @@ describe("contributing calendars selection", () => {
 
   describe("PATCH /me/calendar-connections/{id} with contributingCalendarIds", () => {
     it("updates contributing calendar IDs for Google", async () => {
-      const stored: GoogleCalendarConnectionRecord = {
+      const stored: CalendarConnectionRecord = {
         id: "google-connection-1",
         userId: "user-1",
         provider: "google",
@@ -321,7 +300,7 @@ describe("contributing calendars selection", () => {
               : null,
           ),
       });
-      setGoogleCalendarConnectionRepositoryForTests({
+      setCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([stored]),
         findById: (id) =>
@@ -333,12 +312,6 @@ describe("contributing calendars selection", () => {
           Object.assign(stored, patch);
           return Promise.resolve({ ...stored });
         },
-      });
-      setMicrosoftCalendarConnectionRepositoryForTests({
-        createPending: (record) => Promise.resolve(record),
-        listByUserId: () => Promise.resolve([]),
-        findById: () => Promise.resolve(null),
-        updateById: () => Promise.resolve(null),
       });
 
       const cookie = await sealSessionCookie({ sessionId: "session-1" });
@@ -362,7 +335,7 @@ describe("contributing calendars selection", () => {
 
       expect(response.status).toBe(200);
       const body = (await response.json()) as {
-        connection: GoogleCalendarConnectionRecord;
+        connection: CalendarConnectionRecord;
       };
       expect(body.connection.contributingCalendarIds).toEqual([
         "primary",
@@ -371,7 +344,7 @@ describe("contributing calendars selection", () => {
     });
 
     it("updates contributing calendar IDs for Microsoft", async () => {
-      const stored: MicrosoftCalendarConnectionRecord = {
+      const stored: CalendarConnectionRecord = {
         id: "microsoft-connection-1",
         userId: "user-1",
         provider: "microsoft",
@@ -411,13 +384,7 @@ describe("contributing calendars selection", () => {
               : null,
           ),
       });
-      setGoogleCalendarConnectionRepositoryForTests({
-        createPending: (record) => Promise.resolve(record),
-        listByUserId: () => Promise.resolve([]),
-        findById: () => Promise.resolve(null),
-        updateById: () => Promise.resolve(null),
-      });
-      setMicrosoftCalendarConnectionRepositoryForTests({
+      setCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([stored]),
         findById: (id) =>
@@ -452,7 +419,7 @@ describe("contributing calendars selection", () => {
 
       expect(response.status).toBe(200);
       const body = (await response.json()) as {
-        connection: MicrosoftCalendarConnectionRecord;
+        connection: CalendarConnectionRecord;
       };
       expect(body.connection.contributingCalendarIds).toEqual([
         "calendar-1",
@@ -461,7 +428,7 @@ describe("contributing calendars selection", () => {
     });
 
     it("returns 400 for invalid contributingCalendarIds payload", async () => {
-      const stored: GoogleCalendarConnectionRecord = {
+      const stored: CalendarConnectionRecord = {
         id: "google-connection-1",
         userId: "user-1",
         provider: "google",
@@ -498,17 +465,11 @@ describe("contributing calendars selection", () => {
               : null,
           ),
       });
-      setGoogleCalendarConnectionRepositoryForTests({
+      setCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([stored]),
         findById: (id) =>
           Promise.resolve(id === stored.id ? { ...stored } : null),
-        updateById: () => Promise.resolve(null),
-      });
-      setMicrosoftCalendarConnectionRepositoryForTests({
-        createPending: (record) => Promise.resolve(record),
-        listByUserId: () => Promise.resolve([]),
-        findById: () => Promise.resolve(null),
         updateById: () => Promise.resolve(null),
       });
 
@@ -554,13 +515,7 @@ describe("contributing calendars selection", () => {
               : null,
           ),
       });
-      setGoogleCalendarConnectionRepositoryForTests({
-        createPending: (record) => Promise.resolve(record),
-        listByUserId: () => Promise.resolve([]),
-        findById: () => Promise.resolve(null),
-        updateById: () => Promise.resolve(null),
-      });
-      setMicrosoftCalendarConnectionRepositoryForTests({
+      setCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([]),
         findById: () => Promise.resolve(null),
@@ -585,7 +540,7 @@ describe("contributing calendars selection", () => {
     });
 
     it("disconnects on null body (backward compat)", async () => {
-      const stored: GoogleCalendarConnectionRecord = {
+      const stored: CalendarConnectionRecord = {
         id: "google-connection-1",
         userId: "user-1",
         provider: "google",
@@ -628,7 +583,7 @@ describe("contributing calendars selection", () => {
               : null,
           ),
       });
-      setGoogleCalendarConnectionRepositoryForTests({
+      setCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([stored]),
         findById: (id) =>
@@ -640,12 +595,6 @@ describe("contributing calendars selection", () => {
           Object.assign(stored, patch);
           return Promise.resolve({ ...stored });
         },
-      });
-      setMicrosoftCalendarConnectionRepositoryForTests({
-        createPending: (record) => Promise.resolve(record),
-        listByUserId: () => Promise.resolve([]),
-        findById: () => Promise.resolve(null),
-        updateById: () => Promise.resolve(null),
       });
       vi.stubGlobal(
         "fetch",
@@ -678,13 +627,13 @@ describe("contributing calendars selection", () => {
 
       expect(response.status).toBe(200);
       const body = (await response.json()) as {
-        connection: GoogleCalendarConnectionRecord;
+        connection: CalendarConnectionRecord;
       };
       expect(body.connection.status).toBe("disconnected");
     });
 
     it("does not disconnect on empty object body", async () => {
-      const stored: GoogleCalendarConnectionRecord = {
+      const stored: CalendarConnectionRecord = {
         id: "google-connection-1",
         userId: "user-1",
         provider: "google",
@@ -727,17 +676,11 @@ describe("contributing calendars selection", () => {
               : null,
           ),
       });
-      setGoogleCalendarConnectionRepositoryForTests({
+      setCalendarConnectionRepositoryForTests({
         createPending: (record) => Promise.resolve(record),
         listByUserId: () => Promise.resolve([stored]),
         findById: (id) =>
           Promise.resolve(id === stored.id ? { ...stored } : null),
-        updateById: () => Promise.resolve(null),
-      });
-      setMicrosoftCalendarConnectionRepositoryForTests({
-        createPending: (record) => Promise.resolve(record),
-        listByUserId: () => Promise.resolve([]),
-        findById: () => Promise.resolve(null),
         updateById: () => Promise.resolve(null),
       });
 

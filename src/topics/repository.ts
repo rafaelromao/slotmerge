@@ -110,6 +110,7 @@ export function createPostgresTopicCatalogueRepository(
             userId,
             topicId: association.topicId,
             status: association.status,
+            createdAt: now,
             updatedAt: now,
           })),
         )

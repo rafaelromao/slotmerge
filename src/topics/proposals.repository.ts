@@ -119,6 +119,8 @@ export function createPostgresTopicProposalRepository(
           .values({
             name: proposal.candidateName,
             status: "active",
+            createdAt: now,
+            updatedAt: now,
           })
           .returning({ id: topics.id });
 

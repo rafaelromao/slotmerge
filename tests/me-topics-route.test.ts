@@ -11,7 +11,7 @@ import {
 } from "../src/topics/repository";
 import {
   setMeTopicProposalsRepositoryForTests,
-  type MeTopicProposalsRepository,
+  type TopicProposalUserRepository,
 } from "../src/topics/me-topic-proposals-route";
 
 describe("/me/topics route", () => {
@@ -59,8 +59,13 @@ describe("/me/topics route", () => {
       saveAssociations: () => Promise.resolve(),
     });
 
-    const mockMeProposalsRepository: MeTopicProposalsRepository = {
-      listUserTopicProposals: () => Promise.resolve([]),
+    const mockMeProposalsRepository: TopicProposalUserRepository = {
+      listActiveTopics: () => Promise.resolve([]),
+      listPendingForSimilarity: () => Promise.resolve([]),
+      listUserProposals: () => Promise.resolve([]),
+      findPendingByUserAndName: () => Promise.resolve(null),
+      insertProposal: () =>
+        Promise.reject(new Error("insertProposal should not be called")),
     };
     setMeTopicProposalsRepositoryForTests(mockMeProposalsRepository);
 
@@ -123,7 +128,7 @@ describe("/me/topics route", () => {
         ]),
       listSelectedTopicIds: () => Promise.resolve([]),
       listAssociations: () => Promise.resolve([]),
-      saveAssociations: (_userId, associations) => {
+      saveAssociations: ({ associations }) => {
         savedAssociations = associations;
         savedTopicIds = associations
           .filter((association) => association.status === "active")

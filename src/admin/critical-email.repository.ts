@@ -1,7 +1,8 @@
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
-import { emailEvents, users } from "../db/schema";
+import { users } from "../db/schema";
+import { createPostgresEmailDedupLookup } from "../email/dedup.repository";
 import {
   createKindDedupReference,
   type AdminCriticalDispatchLookup,
@@ -29,24 +30,15 @@ export function createPostgresAdminDirectory(db = getDb()): AdminDirectory {
 export function createPostgresAdminCriticalDispatchLookup(
   db = getDb(),
 ): AdminCriticalDispatchLookup {
+  const lookup = createPostgresEmailDedupLookup(db);
+
   return {
     async findMostRecentKindDispatch(kind, since) {
-      const reference = createKindDedupReference(kind);
-
-      const rows = await db
-        .select({ createdAt: emailEvents.createdAt })
-        .from(emailEvents)
-        .where(
-          and(
-            eq(emailEvents.type, "admin-critical"),
-            eq(emailEvents.payloadReference, reference),
-            gte(emailEvents.createdAt, since),
-          ),
-        )
-        .orderBy(desc(emailEvents.createdAt))
-        .limit(1);
-
-      return rows[0]?.createdAt ?? null;
+      return lookup.findMostRecent({
+        type: "admin-critical",
+        payloadReference: createKindDedupReference(kind),
+        since,
+      });
     },
   };
 }

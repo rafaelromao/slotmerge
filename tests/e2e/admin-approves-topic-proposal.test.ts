@@ -114,7 +114,11 @@ describe("E2E: Admin approves a pending Topic Proposal", () => {
       const activeCatalogue = await listActiveTopics();
       expect(activeCatalogue.some((t) => t.id === approvedTopic.id)).toBe(true);
 
-      await saveUserTopicSelection(proposerId, [approvedTopic.id]);
+      await saveUserTopicSelection({
+        userId: proposerId,
+        topicIds: [approvedTopic.id],
+        now: new Date(),
+      });
 
       const [attached] = await db
         .select()

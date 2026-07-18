@@ -97,6 +97,7 @@ export type TopicProposalDbRepository = {
   insertProposal(
     userId: string,
     candidateName: string,
+    now: Date,
   ): Promise<{
     id: string;
     candidateName: string;
@@ -108,6 +109,7 @@ export type TopicProposalDbRepository = {
 export async function createTopicProposal(
   userId: string,
   candidateName: string,
+  now: Date,
   repository: TopicProposalDbRepository,
 ): Promise<CreateTopicProposalResult> {
   const normalizedName = normalizeTopicName(candidateName);
@@ -135,7 +137,7 @@ export async function createTopicProposal(
     };
   }
 
-  const proposal = await repository.insertProposal(userId, candidateName);
+  const proposal = await repository.insertProposal(userId, candidateName, now);
 
   return { ok: true, proposal };
 }

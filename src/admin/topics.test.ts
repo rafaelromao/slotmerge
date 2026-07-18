@@ -26,7 +26,7 @@ describe("admin topics", () => {
         csrfToken: "csrf-token-1",
       }),
       topicRepository: {
-        listActive: vi.fn().mockResolvedValue([mockActiveTopic]),
+        listActiveAdminTopics: vi.fn().mockResolvedValue([mockActiveTopic]),
         retire: vi.fn(),
       },
     });
@@ -58,7 +58,7 @@ describe("admin topics", () => {
         csrfToken: "csrf-token-1",
       }),
       topicRepository: {
-        listActive: vi.fn().mockResolvedValue([]),
+        listActiveAdminTopics: vi.fn().mockResolvedValue([]),
         retire: vi.fn(),
       },
     });
@@ -87,7 +87,7 @@ describe("admin topics", () => {
         csrfToken: "csrf-token-1",
       }),
       topicRepository: {
-        listActive: vi.fn().mockResolvedValue([mockActiveTopic]),
+        listActiveAdminTopics: vi.fn().mockResolvedValue([mockActiveTopic]),
         retire,
       },
     });
@@ -110,7 +110,11 @@ describe("admin topics", () => {
     expect(response.headers.get("location")).toBe(
       "http://localhost/admin/topics",
     );
-    expect(retire).toHaveBeenCalledWith("topic-1");
+    expect(retire).toHaveBeenCalledWith({
+      id: "topic-1",
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      now: expect.any(Date),
+    });
   });
 
   it("shows error when topic not found", async () => {
@@ -133,7 +137,7 @@ describe("admin topics", () => {
         csrfToken: "csrf-token-1",
       }),
       topicRepository: {
-        listActive: vi.fn().mockResolvedValue([mockActiveTopic]),
+        listActiveAdminTopics: vi.fn().mockResolvedValue([mockActiveTopic]),
         retire,
       },
     });
@@ -177,7 +181,7 @@ describe("admin topics", () => {
         csrfToken: "csrf-token-1",
       }),
       topicRepository: {
-        listActive: vi.fn().mockResolvedValue([mockActiveTopic]),
+        listActiveAdminTopics: vi.fn().mockResolvedValue([mockActiveTopic]),
         retire,
       },
     });
@@ -218,7 +222,7 @@ describe("admin topics", () => {
         csrfToken: "csrf-token-1",
       }),
       topicRepository: {
-        listActive: vi.fn().mockResolvedValue([mockActiveTopic]),
+        listActiveAdminTopics: vi.fn().mockResolvedValue([mockActiveTopic]),
         retire,
       },
     });
@@ -256,7 +260,7 @@ describe("admin topics", () => {
         csrfToken: "csrf-token-1",
       }),
       topicRepository: {
-        listActive: vi.fn().mockResolvedValue([]),
+        listActiveAdminTopics: vi.fn().mockResolvedValue([]),
         retire: vi.fn(),
       },
     });
@@ -276,7 +280,7 @@ describe("admin topics", () => {
     const { GET, POST } = createAdminTopicsHandlers({
       getSession: vi.fn().mockResolvedValue(null),
       topicRepository: {
-        listActive: vi.fn().mockResolvedValue([]),
+        listActiveAdminTopics: vi.fn().mockResolvedValue([]),
         retire: vi.fn(),
       },
     });

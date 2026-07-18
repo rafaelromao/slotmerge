@@ -137,11 +137,7 @@ export async function createTopicProposal(
     };
   }
 
-  const proposal = await repository.insertProposal(
-    userId,
-    candidateName,
-    now,
-  );
+  const proposal = await repository.insertProposal(userId, candidateName, now);
 
   return { ok: true, proposal };
 }

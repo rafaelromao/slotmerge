@@ -4,7 +4,10 @@ import {
   type TopicProposalUserRepository,
 } from "./proposals.repository";
 
-export type { TopicProposalUserRepository, UserTopicProposal } from "./proposals.repository";
+export type {
+  TopicProposalUserRepository,
+  UserTopicProposal,
+} from "./proposals.repository";
 
 export type MeTopicProposalsDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;

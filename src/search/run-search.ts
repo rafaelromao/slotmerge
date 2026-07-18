@@ -1,5 +1,4 @@
 import type { SearchInput } from "./search-input";
-import type { Clock } from "../system/clock";
 import type { SearchRecord } from "./repository";
 import type {
   SearchResultRecord,

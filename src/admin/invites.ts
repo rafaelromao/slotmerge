@@ -6,7 +6,6 @@ import { createMagicLinkTokenIssuer } from "../auth/magic-link";
 import { loadRuntimeConfig } from "../config/runtime";
 import { getDb } from "../db/client";
 import type { Clock } from "../system/clock";
-import type { RandomSource } from "../system/random";
 import {
   invites,
   type InviteRole,
@@ -50,7 +49,6 @@ export type AdminInvitesDependencies = {
   magicLinkTokenIssuer?: ReturnType<typeof createMagicLinkTokenIssuer>;
   emailDeliveryService?: ReturnType<typeof createEmailDeliveryService>;
   clock: Clock;
-  randomSource: RandomSource;
 };
 
 const inviteSubmissionSchema = z.object({
@@ -66,7 +64,6 @@ export function createAdminInvitesHandlers({
   magicLinkTokenIssuer,
   emailDeliveryService,
   clock,
-  randomSource: _randomSource,
 }: AdminInvitesDependencies) {
   return {
     GET: async (request: Request): Promise<Response> => {

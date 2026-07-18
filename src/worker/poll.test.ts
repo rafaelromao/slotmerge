@@ -55,9 +55,7 @@ function constantRandomSource(value: number): RandomSource {
 
 describe("handlePollCalendarConnectionsJob", () => {
   beforeEach(() => {
-    vi.mocked(listActiveConnections).mockResolvedValue(
-      mockConnections as never,
-    );
+    vi.mocked(listActiveConnections).mockResolvedValue(mockConnections);
     vi.mocked(enqueueSyncCalendarConnectionJob).mockClear();
   });
 
@@ -98,7 +96,7 @@ describe("handlePollCalendarConnectionsJob", () => {
   it("runAt is within 0-5 minute jitter range", async () => {
     vi.mocked(listActiveConnections).mockResolvedValue([
       mockConnections[0],
-    ] as never);
+    ]);
 
     const clock: TestClock = buildTestClock(FIXED_NOW);
     const randomSource = constantRandomSource(0.5);

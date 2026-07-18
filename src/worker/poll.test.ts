@@ -18,22 +18,34 @@ const FIXED_NOW = new Date("2026-07-12T12:00:00Z");
 
 const mockConnections = [
   {
-    record: {
-      id: "conn-1",
-      userId: "user-1",
-      provider: "google" as const,
-      status: "connected" as const,
-      contributingCalendarIds: ["primary"],
-    },
+    id: "conn-1",
+    userId: "user-1",
+    provider: "google" as const,
+    status: "connected" as const,
+    contributingCalendarIds: ["primary"],
+    providerAccountKey: null,
+    accountIdentifier: null,
+    scopes: null,
+    refreshTokenEncrypted: null,
+    accessTokenEncrypted: null,
+    accessTokenExpiresAt: null,
+    lastErrorCode: null,
+    lastErrorMessage: null,
   },
   {
-    record: {
-      id: "conn-2",
-      userId: "user-2",
-      provider: "microsoft" as const,
-      status: "connected" as const,
-      contributingCalendarIds: ["user@domain.com"],
-    },
+    id: "conn-2",
+    userId: "user-2",
+    provider: "microsoft" as const,
+    status: "connected" as const,
+    contributingCalendarIds: ["user@domain.com"],
+    providerAccountKey: null,
+    accountIdentifier: null,
+    scopes: null,
+    refreshTokenEncrypted: null,
+    accessTokenEncrypted: null,
+    accessTokenExpiresAt: null,
+    lastErrorCode: null,
+    lastErrorMessage: null,
   },
 ];
 

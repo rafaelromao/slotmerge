@@ -8,6 +8,7 @@ import {
   findCalendarConnectionById,
   getCalendarConnectionRepository,
 } from "../calendar/repository";
+import { getCalendarProvider } from "../calendar/providers";
 import {
   syncCalendarConnection,
   RateLimitError,
@@ -120,7 +121,7 @@ export async function handleSyncCalendarConnectionJob(
   try {
     await syncCalendarConnection({
       connectionId: connection.id,
-      provider: connection.provider,
+      provider: getCalendarProvider(connection.provider),
       accessToken,
       contributingCalendarIds: connection.contributingCalendarIds,
       userId: connection.userId,

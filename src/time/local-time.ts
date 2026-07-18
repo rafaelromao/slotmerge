@@ -304,10 +304,19 @@ export function startOfWeekInTimezone(date: Date, timeZone: string): Date {
   const targetDay = parts.day - mondayIndex;
   if (targetDay < 1) {
     const mondayUtc = localDateTimeToUtc(
-      { year: parts.year, month: parts.month, day: 1, hour: 0, minute: 0, second: 0 },
+      {
+        year: parts.year,
+        month: parts.month,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
+      },
       timeZone,
     );
-    const adjusted = new Date(mondayUtc.getTime() - mondayIndex * 24 * 60 * 60 * 1000);
+    const adjusted = new Date(
+      mondayUtc.getTime() - mondayIndex * 24 * 60 * 60 * 1000,
+    );
     return adjusted;
   }
   return localDateTimeToUtc(

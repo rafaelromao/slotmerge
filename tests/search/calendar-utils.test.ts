@@ -167,7 +167,9 @@ describe("calendar-utils", () => {
       const result = getPreviousWeekStart(currentWeekStart, today);
 
       expect(result).not.toBeNull();
-      expect(result!.getTime()).toBe(new Date("2026-07-06T00:00:00Z").getTime());
+      expect(result!.getTime()).toBe(
+        new Date("2026-07-06T00:00:00Z").getTime(),
+      );
     });
 
     it("returns previous week when current week is within 90 days", () => {
@@ -177,7 +179,9 @@ describe("calendar-utils", () => {
       const result = getPreviousWeekStart(currentWeekStart, today);
 
       expect(result).not.toBeNull();
-      expect(result!.getTime()).toBe(new Date("2026-04-24T00:00:00Z").getTime());
+      expect(result!.getTime()).toBe(
+        new Date("2026-04-24T00:00:00Z").getTime(),
+      );
     });
 
     it("returns null when previous week would be before 90-day window", () => {
@@ -196,7 +200,9 @@ describe("calendar-utils", () => {
       const result = getPreviousWeekStart(currentWeekStart, today);
 
       expect(result).not.toBeNull();
-      expect(result!.getTime()).toBe(new Date("2026-04-14T00:00:00Z").getTime());
+      expect(result!.getTime()).toBe(
+        new Date("2026-04-14T00:00:00Z").getTime(),
+      );
     });
   });
 
@@ -208,7 +214,9 @@ describe("calendar-utils", () => {
       const result = getNextWeekStart(currentWeekStart, snapshotDateRangeEnd);
 
       expect(result).not.toBeNull();
-      expect(result!.getTime()).toBe(new Date("2026-07-13T00:00:00Z").getTime());
+      expect(result!.getTime()).toBe(
+        new Date("2026-07-13T00:00:00Z").getTime(),
+      );
     });
 
     it("returns null when next week would be at or after date range end", () => {

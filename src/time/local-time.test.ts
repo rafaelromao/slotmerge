@@ -12,7 +12,7 @@ describe("isValidTimeZone", () => {
   it("accepts canonical IANA zones including half-hour offsets", () => {
     expect(isValidTimeZone("UTC")).toBe(true);
     expect(isValidTimeZone("America/New_York")).toBe(true);
-    expect(isValidTimeZone("Asia/Kathmandu")).toBe(true);
+    expect(isValidTimeZone("Asia/Katmandu")).toBe(true);
     expect(isValidTimeZone("Pacific/Chatham")).toBe(true);
     expect(isValidTimeZone("Australia/Lord_Howe")).toBe(true);
   });
@@ -26,6 +26,11 @@ describe("isValidTimeZone", () => {
   it("returns false for values that Intl cannot resolve", () => {
     const zone = "Definitely/Not/A_Real_Zone";
     expect(isValidTimeZone(zone)).toBe(false);
+  });
+
+  it("rejects non-canonical alias forms", () => {
+    expect(isValidTimeZone("US/Eastern")).toBe(false);
+    expect(isValidTimeZone("Etc/UTC")).toBe(false);
   });
 });
 
@@ -78,10 +83,10 @@ describe("localDateTimeToUtc", () => {
     expect(utc.toISOString()).toBe("2026-01-06T14:00:00.000Z");
   });
 
-  it("applies the half-hour offset for Asia/Kathmandu", () => {
+  it("applies the half-hour offset for Asia/Katmandu", () => {
     const utc = localDateTimeToUtc(
       { year: 2026, month: 7, day: 6, hour: 9, minute: 0 },
-      "Asia/Kathmandu",
+      "Asia/Katmandu",
     );
     expect(utc.toISOString()).toBe("2026-07-06T03:15:00.000Z");
   });
@@ -185,10 +190,10 @@ describe("localDateTimeToUtc", () => {
   it("round-trip back through Intl reproduces the local fields in non-DST zones", () => {
     const utc = localDateTimeToUtc(
       { year: 2026, month: 7, day: 6, hour: 9, minute: 0 },
-      "Asia/Kathmandu",
+      "Asia/Katmandu",
     );
     const fmt = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Kathmandu",
+      timeZone: "Asia/Katmandu",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -242,12 +247,12 @@ describe("localDateTimeToUtc host-clock independence", () => {
     const local = { year: 2026, month: 7, day: 6, hour: 9, minute: 0 };
 
     process.env.TZ = "UTC";
-    const utcAnswer = localDateTimeToUtc(local, "Asia/Kathmandu").toISOString();
+    const utcAnswer = localDateTimeToUtc(local, "Asia/Katmandu").toISOString();
 
     process.env.TZ = "Asia/Tokyo";
     const tokyoAnswer = localDateTimeToUtc(
       local,
-      "Asia/Kathmandu",
+      "Asia/Katmandu",
     ).toISOString();
 
     expect(tokyoAnswer).toBe(utcAnswer);
@@ -289,7 +294,7 @@ describe("getLocalDateParts", () => {
   it("shifts the calendar day across the date line for half-hour zones", () => {
     const parts = getLocalDateParts(
       new Date("2026-07-06T20:30:00.000Z"),
-      "Asia/Kathmandu",
+      "Asia/Katmandu",
     );
     expect(parts.year).toBe(2026);
     expect(parts.month).toBe(7);
@@ -322,13 +327,22 @@ describe("startOfWeekInTimezone", () => {
     expect(utc.toISOString()).toBe("2026-07-06T00:00:00.000Z");
   });
 
-  it("returns the same Monday 00:00 UTC for a Monday input in Asia/Kathmandu", () => {
+  it("returns the same Monday 00:00 UTC for a Monday input in Asia/Katmandu", () => {
     const utc = startOfWeekInTimezone(
       new Date("2026-07-06T05:00:00.000Z"),
-      "Asia/Kathmandu",
+      "Asia/Katmandu",
     );
-    expect(getLocalDayHour(utc, "Asia/Kathmandu").dayIndex).toBe(0);
-    expect(getLocalDayHour(utc, "Asia/Kathmandu").hour).toBe(0);
+    expect(getLocalDayHour(utc, "Asia/Katmandu").dayIndex).toBe(0);
+    expect(getLocalDayHour(utc, "Asia/Katmandu").hour).toBe(0);
+  });
+
+  it("crosses month boundary correctly when finding prior Monday", () => {
+    const wedJuly1Utc = new Date("2026-07-01T18:15:00.000Z");
+    const utc = startOfWeekInTimezone(wedJuly1Utc, "UTC");
+    const dh = getLocalDayHour(utc, "UTC");
+    expect(dh.dayIndex).toBe(0);
+    expect(dh.hour).toBe(0);
+    expect(utc.toISOString()).toBe("2026-06-29T00:00:00.000Z");
   });
 
   it("throws RangeError for an invalid timeZone", () => {
@@ -357,7 +371,7 @@ describe("getLocalDayHour", () => {
   it("shifts dayIndex when local time crosses midnight", () => {
     const dh = getLocalDayHour(
       new Date("2026-07-05T23:30:00.000Z"),
-      "Asia/Kathmandu",
+      "Asia/Katmandu",
     );
     expect(dh.dayIndex).toBeGreaterThanOrEqual(0);
     expect(dh.dayIndex).toBeLessThanOrEqual(6);

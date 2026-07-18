@@ -68,7 +68,7 @@ export function isValidTimeZone(value: string): boolean {
     const resolved = new Intl.DateTimeFormat("en-US", {
       timeZone: value,
     }).resolvedOptions().timeZone;
-    return resolved.length > 0;
+    return resolved === value;
   } catch {
     return false;
   }
@@ -301,11 +301,20 @@ export function startOfWeekInTimezone(date: Date, timeZone: string): Date {
   }
   const parts = getLocalDateParts(date, timeZone);
   const mondayIndex = parts.weekday === 0 ? 6 : parts.weekday - 1;
+  const targetDay = parts.day - mondayIndex;
+  if (targetDay < 1) {
+    const mondayUtc = localDateTimeToUtc(
+      { year: parts.year, month: parts.month, day: 1, hour: 0, minute: 0, second: 0 },
+      timeZone,
+    );
+    const adjusted = new Date(mondayUtc.getTime() - mondayIndex * 24 * 60 * 60 * 1000);
+    return adjusted;
+  }
   return localDateTimeToUtc(
     {
       year: parts.year,
       month: parts.month,
-      day: parts.day - mondayIndex,
+      day: targetDay,
       hour: 0,
       minute: 0,
       second: 0,

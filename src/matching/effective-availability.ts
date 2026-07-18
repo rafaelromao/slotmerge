@@ -96,7 +96,21 @@ function expandWindowsInTimezone(
         }
       }
 
-      cursorUtc = new Date(utcOnLocalDay.getTime() + 24 * 60 * 60 * 1000);
+      const nextDayParts = getLocalDateParts(
+        new Date(utcOnLocalDay.getTime() + 24 * 60 * 60 * 1000),
+        window.profileTimezone,
+      );
+      cursorUtc = localDateTimeToUtc(
+        {
+          year: nextDayParts.year,
+          month: nextDayParts.month,
+          day: nextDayParts.day,
+          hour: 0,
+          minute: 0,
+          second: 0,
+        },
+        window.profileTimezone,
+      );
     }
   }
 

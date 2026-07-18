@@ -8,6 +8,7 @@ import {
 export type TopicProposalsDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
   repository?: TopicProposalRouteRepository;
+  clock?: () => Date;
 };
 
 export type TopicProposalRouteRepository = {
@@ -21,6 +22,7 @@ export type TopicProposalRouteRepository = {
   insertProposal(
     userId: string,
     candidateName: string,
+    now: Date,
   ): Promise<{
     id: string;
     candidateName: string;
@@ -42,6 +44,7 @@ export function getTopicProposalRouteRepository(): TopicProposalRouteRepository 
 export function createTopicProposalsHandlers({
   getSession = getSessionFromRequest,
   repository,
+  clock = () => new Date(),
 }: TopicProposalsDependencies = {}) {
   const resolveRepository = () =>
     repository ?? getTopicProposalRouteRepository();
@@ -69,6 +72,7 @@ export function createTopicProposalsHandlers({
       const result = await createTopicProposal(
         session.user.id,
         candidateName,
+        clock(),
         resolveRepository(),
       );
 
@@ -113,7 +117,7 @@ export function createTopicProposalRouteRepository(
     },
     findPendingByUserAndName: (userId, candidateName) =>
       userRepository.findPendingByUserAndName(userId, candidateName),
-    insertProposal: (userId, candidateName) =>
-      userRepository.insertProposal(userId, candidateName),
+    insertProposal: (userId, candidateName, now) =>
+      userRepository.insertProposal(userId, candidateName, now),
   };
 }

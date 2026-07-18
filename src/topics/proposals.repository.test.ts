@@ -163,12 +163,13 @@ describe("createPostgresTopicProposalRepository", () => {
   });
 
   it("insertProposal persists the proposal and returns the row", async () => {
+    const now = new Date("2026-05-01T00:00:00.000Z");
     const returning = vi.fn().mockResolvedValue([
       {
         id: "proposal-1",
         candidateName: "Sailing",
         status: "pending",
-        createdAt: new Date("2026-05-01T00:00:00.000Z"),
+        createdAt: now,
       },
     ]);
     const values = vi.fn().mockReturnValue({ returning });
@@ -181,12 +182,14 @@ describe("createPostgresTopicProposalRepository", () => {
       >[0],
     );
 
-    const result = await repo.insertProposal("user-1", "Sailing");
+    const result = await repo.insertProposal("user-1", "Sailing", now);
 
     expect(values).toHaveBeenCalledWith({
       proposedByUserId: "user-1",
       candidateName: "Sailing",
       status: "pending",
+      createdAt: now,
+      updatedAt: now,
     });
     expect(result.id).toBe("proposal-1");
   });

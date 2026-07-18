@@ -11,7 +11,7 @@ import {
 } from "../src/topics/repository";
 import {
   setMeTopicProposalsRepositoryForTests,
-  type MeTopicProposalsRepository,
+  type TopicProposalUserRepository,
 } from "../src/topics/me-topic-proposals-route";
 
 describe("/me/topics route", () => {
@@ -61,8 +61,13 @@ describe("/me/topics route", () => {
       retire: () => Promise.resolve({ ok: true }),
     });
 
-    const mockMeProposalsRepository: MeTopicProposalsRepository = {
-      listUserTopicProposals: () => Promise.resolve([]),
+    const mockMeProposalsRepository: TopicProposalUserRepository = {
+      listActiveTopics: () => Promise.resolve([]),
+      listPendingForSimilarity: () => Promise.resolve([]),
+      listUserProposals: () => Promise.resolve([]),
+      findPendingByUserAndName: () => Promise.resolve(null),
+      insertProposal: () =>
+        Promise.reject(new Error("insertProposal should not be called")),
     };
     setMeTopicProposalsRepositoryForTests(mockMeProposalsRepository);
 

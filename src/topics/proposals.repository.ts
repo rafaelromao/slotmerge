@@ -57,6 +57,7 @@ export type TopicProposalUserRepository = {
   insertProposal(
     userId: string,
     candidateName: string,
+    now: Date,
   ): Promise<TopicProposalUserInput>;
 };
 
@@ -166,13 +167,15 @@ export function createPostgresTopicProposalRepository(
       return row ?? null;
     },
 
-    async insertProposal(userId, candidateName) {
+    async insertProposal(userId, candidateName, now) {
       const [row] = await db
         .insert(topicProposals)
         .values({
           proposedByUserId: userId,
           candidateName,
           status: "pending",
+          createdAt: now,
+          updatedAt: now,
         })
         .returning({
           id: topicProposals.id,

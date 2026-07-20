@@ -10,6 +10,7 @@ describe("admin operational status", () => {
         summarizeEmailDelivery: vi.fn(),
         summarizeCalendarConnections: vi.fn(),
       },
+      clock: { now: () => new Date("2026-01-02T00:00:00Z") },
     });
 
     const response = await GET(new Request("http://localhost/admin/status"));
@@ -39,6 +40,7 @@ describe("admin operational status", () => {
         summarizeEmailDelivery: vi.fn(),
         summarizeCalendarConnections: vi.fn(),
       },
+      clock: { now: () => new Date("2026-01-02T00:00:00Z") },
     });
 
     const response = await GET(new Request("http://localhost/admin/status"));
@@ -75,7 +77,7 @@ describe("admin operational status", () => {
           tokensNeedingRefresh: [],
         }),
       },
-      clock: () => new Date("2026-01-02T00:00:00Z"),
+      clock: { now: () => new Date("2026-01-02T00:00:00Z") },
     });
 
     const response = await GET(new Request("http://localhost/admin/status"));
@@ -140,7 +142,7 @@ describe("admin operational status", () => {
           tokensNeedingRefresh: [],
         }),
       },
-      clock: () => new Date("2026-01-02T00:00:00Z"),
+      clock: { now: () => new Date("2026-01-02T00:00:00Z") },
     });
 
     const response = await GET(new Request("http://localhost/admin/status"));
@@ -198,7 +200,7 @@ describe("admin operational status", () => {
           tokensNeedingRefresh: [],
         }),
       },
-      clock: () => new Date("2026-01-02T00:00:00Z"),
+      clock: { now: () => new Date("2026-01-02T00:00:00Z") },
     });
 
     const response = await GET(new Request("http://localhost/admin/status"));
@@ -269,7 +271,7 @@ describe("admin operational status", () => {
           ],
         }),
       },
-      clock: () => now,
+      clock: { now: () => now },
     });
 
     const response = await GET(new Request("http://localhost/admin/status"));

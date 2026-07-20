@@ -1,4 +1,5 @@
 import { getSessionFromRequest, type Session } from "../auth/session";
+import type { Clock } from "../system/clock";
 import {
   adminAccessDeniedResponse,
   escapeHtml,
@@ -25,7 +26,7 @@ const EMAIL_WINDOW_HOURS = 24;
 export type AdminStatusDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
   statusRepository?: OperationalStatusRepository;
-  clock?: () => Date;
+  clock: Clock;
 };
 
 let cachedOperationalStatusRepository: OperationalStatusRepository | null =
@@ -42,8 +43,8 @@ function getOperationalStatusRepository(): OperationalStatusRepository {
 export function createAdminStatusHandlers({
   getSession = getSessionFromRequest,
   statusRepository,
-  clock = () => new Date(),
-}: AdminStatusDependencies = {}) {
+  clock,
+}: AdminStatusDependencies) {
   return {
     GET: async (request: Request): Promise<Response> => {
       const session = await getSession(request);
@@ -53,7 +54,7 @@ export function createAdminStatusHandlers({
 
       const repository = statusRepository ?? getOperationalStatusRepository();
 
-      const now = clock();
+      const now = clock.now();
       const since = new Date(
         now.getTime() - EMAIL_WINDOW_HOURS * 60 * 60 * 1000,
       );

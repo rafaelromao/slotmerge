@@ -3,6 +3,8 @@ import {
   isOrganizerOrAdminSession,
   type Session,
 } from "../auth/session";
+import type { Clock } from "../system/clock";
+import { systemClock } from "../system/clock";
 import {
   getSearchRepository,
   type SearchHistoryItem,
@@ -17,12 +19,14 @@ export type SearchHistoryDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
   searchRepository?: SearchRepository;
   searchResultRepository?: SearchResultRepository;
+  clock?: Clock;
 };
 
 export function createSearchHistoryHandlers({
   getSession = getSessionFromRequest,
   searchRepository = getSearchRepository(),
   searchResultRepository = getSearchResultRepository(),
+  clock = systemClock(),
 }: SearchHistoryDependencies = {}) {
   return {
     async getHistory(request: Request): Promise<Response> {
@@ -33,7 +37,7 @@ export function createSearchHistoryHandlers({
       }
 
       const history: SearchHistoryItem[] =
-        await searchRepository.listSearchHistory();
+        await searchRepository.listSearchHistory(clock);
 
       return Response.json({
         history: history.map((item) => ({

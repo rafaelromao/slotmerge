@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { searches, searchResults } from "../db/schema";
+import type { Clock } from "../system/clock";
 
 import type { SearchRecord, SearchRepository } from "./repository";
 import { deriveSearchSnapshotStaleness } from "./match-detail";
@@ -47,7 +48,7 @@ export function createPostgresSearchRepository(): SearchRepository {
         .orderBy(desc(searches.generatedAt));
       return rows.map(toRecord);
     },
-    async listSearchHistory(options?: { clock?: { now: () => Date } }) {
+    async listSearchHistory(clock: Clock) {
       const rows = await getDb()
         .select({
           id: searches.id,
@@ -65,7 +66,7 @@ export function createPostgresSearchRepository(): SearchRepository {
         .leftJoin(searchResults, eq(searches.id, searchResults.searchId))
         .orderBy(desc(searches.generatedAt));
 
-      const now = (options?.clock ? options.clock.now : () => new Date())();
+      const now = clock.now();
 
       return rows
         .filter(

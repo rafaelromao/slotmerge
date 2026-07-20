@@ -282,7 +282,7 @@ describe(
         );
         expect(mutatedMatch?.displayName).toBe(MUTATED_DISPLAY_NAME);
 
-        const history = await getSearchRepository().listSearchHistory();
+        const history = await getSearchRepository().listSearchHistory({ now: () => new Date("2026-07-15T00:00:00Z") });
         expect(history.length).toBe(2);
         const historyById = new Map(history.map((item) => [item.id, item]));
         const originalHistoryItem = historyById.get(originalSearchId);

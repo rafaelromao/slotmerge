@@ -25,13 +25,13 @@ export type SearchHistoryItem = {
   stale: boolean;
 };
 
+import type { Clock } from "../system/clock";
+
 export type SearchRepository = {
   save(record: SearchRecord): Promise<SearchRecord>;
   findById(id: string): Promise<SearchRecord | null>;
   listByOrganizer(organizerId: string): Promise<SearchRecord[]>;
-  listSearchHistory(options?: {
-    clock?: { now: () => Date };
-  }): Promise<SearchHistoryItem[]>;
+  listSearchHistory(clock: Clock): Promise<SearchHistoryItem[]>;
   listAll(): Promise<SearchRecord[]>;
 };
 

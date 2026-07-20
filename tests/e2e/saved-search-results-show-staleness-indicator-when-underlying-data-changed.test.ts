@@ -191,9 +191,9 @@ describe.runIf(HAS_TEST_DB)(
 
         testClock.advance(25 * 60 * 60 * 1000);
 
-        const history = await getSearchRepository().listSearchHistory({
-          clock: { now: () => testClock.now() },
-        });
+        const history = await getSearchRepository().listSearchHistory(
+          { now: () => testClock.now() },
+        );
         expect(history.length).toBeGreaterThan(0);
         const historyItem = history.find((item) => item.id === searchId);
         expect(historyItem).toBeDefined();

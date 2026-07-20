@@ -4,6 +4,7 @@ import {
   getMicrosoftCalendarScopes,
 } from "../microsoft-oauth";
 import type { CalendarProvider, CalendarProviderCompletion } from "../provider";
+import { systemClock } from "../../system/clock";
 
 const MICROSOFT_TOKEN_ENDPOINT =
   "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
@@ -106,7 +107,7 @@ async function completeMicrosoftAuthorization({
     accessToken: payload.access_token,
     refreshToken: payload.refresh_token,
     accessTokenExpiresAt: payload.expires_in
-      ? new Date(Date.now() + payload.expires_in * 1000)
+      ? new Date(systemClock().now().getTime() + payload.expires_in * 1000)
       : null,
     scopes: payload.scope ?? getMicrosoftCalendarScopes(),
     contributingCalendarIds: [primaryCalendarId],

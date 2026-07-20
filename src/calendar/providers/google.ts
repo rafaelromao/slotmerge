@@ -4,6 +4,7 @@ import {
   getGoogleFreeBusyScope,
 } from "../google-oauth";
 import type { CalendarProvider, CalendarProviderCompletion } from "../provider";
+import { systemClock } from "../../system/clock";
 
 const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 
@@ -77,7 +78,7 @@ async function completeGoogleAuthorization({
     accessToken: payload.access_token,
     refreshToken: payload.refresh_token,
     accessTokenExpiresAt: payload.expires_in
-      ? new Date(Date.now() + payload.expires_in * 1000)
+      ? new Date(systemClock().now().getTime() + payload.expires_in * 1000)
       : null,
     scopes: payload.scope ?? getGoogleFreeBusyScope(),
     contributingCalendarIds: ["primary"],

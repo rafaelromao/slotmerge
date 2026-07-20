@@ -3,6 +3,7 @@ import { and, eq, gt } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { sessions, users, type UserRole, type UserStatus } from "../db/schema";
+import { systemClock } from "../system/clock";
 
 export type SessionUser = {
   id: string;
@@ -22,7 +23,7 @@ export type Session = {
 };
 
 export type SessionRepository = {
-  findById(sessionId: string): Promise<Session | null>;
+  findById(sessionId: string, now: Date): Promise<Session | null>;
   delete?(sessionId: string): Promise<void>;
 };
 
@@ -73,7 +74,10 @@ export async function getSessionFromRequest(
       Iron.defaults,
     )) as { sessionId: string };
 
-    const session = await getSessionRepository().findById(payload.sessionId);
+    const session = await getSessionRepository().findById(
+      payload.sessionId,
+      systemClock().now(),
+    );
     return session;
   } catch {
     return null;
@@ -118,7 +122,7 @@ const databaseSessionRepository: SessionRepository = {
     await getDb().delete(sessions).where(eq(sessions.id, sessionId));
   },
 
-  findById: async (sessionId) => {
+  findById: async (sessionId, now) => {
     const [row] = await getDb()
       .select({
         user: {
@@ -140,7 +144,7 @@ const databaseSessionRepository: SessionRepository = {
         and(
           eq(sessions.id, sessionId),
           eq(users.status, "active"),
-          gt(sessions.expiresAt, new Date()),
+          gt(sessions.expiresAt, now),
         ),
       )
       .limit(1);

@@ -1,20 +1,10 @@
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  inject,
-  it,
-} from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { getTestDb, setupTest } from "../helpers/setup";
 import { createMagicLinkRequestHandlers } from "../../src/auth/magic-link-request";
 import { createMagicLinkVerifyHandlers } from "../../src/auth/magic-link-verify";
 import { verifyMagicLinkToken } from "../../src/auth/magic-link";
-import type {
-  EmailDeliveryService,
-  EmailType,
-} from "../../src/email/service";
+import type { EmailDeliveryService, EmailType } from "../../src/email/service";
 import { buildTestClock } from "../test-clock";
 
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
@@ -132,7 +122,7 @@ describe("E2E: magic link is rejected after expiration", () => {
 
       const emailService = createRecordingEmailService();
       const { POST: postRequest } = createMagicLinkRequestHandlers({
-        clock: () => clock.now(),
+        clock: clock,
         magicLinkSecret: MAGIC_LINK_SECRET,
         emailDeliveryService: emailService,
       });
@@ -151,15 +141,13 @@ describe("E2E: magic link is rejected after expiration", () => {
       const magicLinkToken = extractMagicLinkToken(sent.payload);
 
       expect(() =>
-        verifyMagicLinkToken(magicLinkToken, MAGIC_LINK_SECRET, () =>
-          clock.now(),
-        ),
+        verifyMagicLinkToken(magicLinkToken, MAGIC_LINK_SECRET, clock),
       ).not.toThrow();
 
       clock.advance(60 * 60 * 1000 + 1);
 
       const { POST: postVerify } = createMagicLinkVerifyHandlers({
-        clock: () => clock.now(),
+        clock: clock,
         magicLinkSecret: MAGIC_LINK_SECRET,
       });
 

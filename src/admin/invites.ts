@@ -66,7 +66,6 @@ export function createAdminInvitesHandlers({
   magicLinkTokenIssuer,
   emailDeliveryService,
   clock,
-  randomSource: _randomSource,
 }: AdminInvitesDependencies) {
   return {
     GET: async (request: Request): Promise<Response> => {

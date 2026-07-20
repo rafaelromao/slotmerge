@@ -1,11 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+// @vitest-environment happy-dom
+import { fireEvent, render } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SlotDetailsDrawer } from "../app/components/SlotDetailsDrawer";
 import type { SearchSnapshot, Slot } from "../src/db/schema";
 
 describe("SlotDetailsDrawer", () => {
   const slot: Slot = {
-    startUtc: "2026-07-15T10:00:00Z",
+    startUtc: "2026-07-15T10:00:00.000Z",
     matchCount: 2,
     matches: [
       {
@@ -38,115 +41,157 @@ describe("SlotDetailsDrawer", () => {
   };
 
   const snapshot: SearchSnapshot = {
-    generatedAt: "2026-07-13T00:00:00Z",
+    generatedAt: "2026-07-13T00:00:00.000Z",
     organizerTimezone: "America/New_York",
-    dateRangeStart: "2026-07-13T00:00:00Z",
-    dateRangeEnd: "2026-07-19T23:59:59Z",
+    dateRangeStart: "2026-07-13T00:00:00.000Z",
+    dateRangeEnd: "2026-07-19T23:59:59.000Z",
     durationMinutes: 60,
     slots: [slot],
   };
 
+  afterEach(() => {
+    document.body.style.overflow = "";
+  });
+
   it("renders with data-testid on overlay", () => {
-    const onClose = vi.fn();
-    const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
-    const json = JSON.stringify(drawer);
-    expect(json).toContain("slot-details-drawer-overlay");
+    const html = renderToString(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(html).toContain('data-testid="slot-details-drawer-overlay"');
   });
 
   it("renders with data-testid on drawer", () => {
-    const onClose = vi.fn();
-    const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
-    const json = JSON.stringify(drawer);
-    expect(json).toContain("slot-details-drawer");
+    const html = renderToString(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(html).toContain('data-testid="slot-details-drawer"');
   });
 
   it("renders slot time (contains year 2026)", () => {
-    const onClose = vi.fn();
-    const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
-    const json = JSON.stringify(drawer);
-    expect(json).toContain("2026");
+    const html = renderToString(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(html).toContain("2026");
   });
 
   it("renders match count pluralized", () => {
-    const onClose = vi.fn();
-    const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
-    const json = JSON.stringify(drawer);
-    expect(json).toContain("2");
-    expect(json).toContain("matching");
-    expect(json).toContain("Users");
+    const html = renderToString(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(html).toContain("2");
+    expect(html).toContain("matching");
+    expect(html).toContain("Users");
   });
 
   it("renders matched topics from selected slot only", () => {
-    const onClose = vi.fn();
-    const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
-    const json = JSON.stringify(drawer);
-    expect(json).toContain("Compilers");
-    expect(json).toContain("Programming Languages");
+    const html = renderToString(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(html).toContain("Compilers");
+    expect(html).toContain("Programming Languages");
   });
 
   it("renders both participants", () => {
-    const onClose = vi.fn();
-    const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
-    const json = JSON.stringify(drawer);
-    expect(json).toContain("Ada Lovelace");
-    expect(json).toContain("Grace Hopper");
+    const html = renderToString(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(html).toContain("Ada Lovelace");
+    expect(html).toContain("Grace Hopper");
   });
 
   it("renders footer with no-actions message", () => {
-    const onClose = vi.fn();
-    const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
-    const json = JSON.stringify(drawer);
-    expect(json).toContain("No booking actions");
-    expect(json).toContain("No export/share actions");
+    const html = renderToString(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(html).toContain("No booking actions");
+    expect(html).toContain("No export/share actions");
   });
 
   it("has no button, form, or anchor elements (read-only)", () => {
-    const onClose = vi.fn();
-    const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
-    const json = JSON.stringify(drawer);
-    expect(json).not.toContain('"type":"button"');
-    expect(json).not.toContain('"type":"form"');
-    expect(json).not.toContain('"type":"a"');
+    const html = renderToString(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(html).not.toMatch(/<button\b/);
+    expect(html).not.toMatch(/<form\b/);
+    expect(html).not.toMatch(/<a\b/);
   });
 
   it("calls onClose when backdrop is clicked", () => {
     const onClose = vi.fn();
-    const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-    const overlay = drawer.props.children;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-    overlay.props.onClick();
+    const { getByTestId } = render(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={onClose} />,
+    );
+    fireEvent.click(getByTestId("slot-details-drawer-overlay"));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("does not call onClose when dialog body is clicked", () => {
+    const onClose = vi.fn();
+    const { getByTestId } = render(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={onClose} />,
+    );
+    fireEvent.click(getByTestId("slot-details-drawer"));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("calls onClose when Escape is pressed", () => {
+    const onClose = vi.fn();
+    render(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={onClose} />,
+    );
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("renders role=dialog for accessibility", () => {
+    const html = renderToString(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('aria-modal="true"');
+    expect(html).toContain('aria-labelledby="drawer-title"');
+    expect(html).toContain('aria-describedby="drawer-description"');
+  });
+
+  it("makes the dialog focusable so focus can be moved into it on open", () => {
+    const html = renderToString(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(html).toContain('tabindex="-1"');
+  });
+
+  it("locks body scroll while open and restores it on close", () => {
     const onClose = vi.fn();
-    const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
-    const json = JSON.stringify(drawer);
-    expect(json).toContain('"role":"dialog"');
-    expect(json).toContain('"aria-modal":true');
-    expect(json).toContain('"aria-labelledby":"drawer-title"');
+    const { unmount } = render(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={onClose} />,
+    );
+    expect(document.body.style.overflow).toBe("hidden");
+    unmount();
+    expect(document.body.style.overflow).toBe("");
   });
 
   it("renders slot with zero matches gracefully", () => {
     const emptySlot: Slot = {
-      startUtc: "2026-07-15T10:00:00Z",
+      startUtc: "2026-07-15T10:00:00.000Z",
       matchCount: 0,
       matches: [],
     };
-    const onClose = vi.fn();
-    const drawer = SlotDetailsDrawer({ slot: emptySlot, snapshot, onClose });
-    const json = JSON.stringify(drawer);
-    expect(json).toContain("0");
-    expect(json).toContain("matching");
+    const html = renderToString(
+      <SlotDetailsDrawer
+        slot={emptySlot}
+        snapshot={snapshot}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(html).toContain("0");
+    expect(html).toContain("matching");
   });
 
   it("does not expose email addresses in rendered output", () => {
-    const onClose = vi.fn();
-    const drawer = SlotDetailsDrawer({ slot, snapshot, onClose });
-    const json = JSON.stringify(drawer);
-
-    expect(json).not.toMatch(
+    const html = renderToString(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(html).not.toMatch(
       /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
     );
   });

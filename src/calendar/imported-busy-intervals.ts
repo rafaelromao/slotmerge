@@ -53,7 +53,9 @@ export function getImportedBusyIntervalRepository(): ImportedBusyIntervalReposit
 
 const inMemoryImportedBusyIntervalRepository: ImportedBusyIntervalRepository = {
   async upsertBatch(intervals) {
-    const filtered = intervals.filter((i) => isWithinRollingWindow(i.startAt, systemClock()));
+    const filtered = intervals.filter((i) =>
+      isWithinRollingWindow(i.startAt, systemClock()),
+    );
     if (filtered.length === 0) return;
 
     const groups = new Map<string, ImportedBusyIntervalRecord[]>();

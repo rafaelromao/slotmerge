@@ -6,6 +6,7 @@ import {
 import { buildCalendarConnectionHealthFields } from "../../../src/calendar/calendar-connection-health";
 import { getCalendarProvider } from "../../../src/calendar/providers";
 import { getCalendarConnectionRepository } from "../../../src/calendar/repository";
+import { systemClock } from "../../../src/system/clock";
 
 export async function GET(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);
@@ -18,7 +19,7 @@ export async function GET(request: Request): Promise<Response> {
     session.user.id,
   );
 
-  const now = new Date();
+  const now = systemClock().now();
 
   const views = connections.map((conn: CalendarConnectionRecord) => {
     const view = presentCalendarConnection({

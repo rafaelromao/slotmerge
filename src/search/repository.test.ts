@@ -110,7 +110,9 @@ describe("SearchRepository.listSearchHistory", () => {
     repo.setSnapshotId(search1.id!, "snapshot-1");
     repo.setSnapshotId(search2.id!, "snapshot-2");
 
-    const history = await repo.listSearchHistory({ now: () => new Date("2026-07-15T00:00:00Z") });
+    const history = await repo.listSearchHistory({
+      now: () => new Date("2026-07-15T00:00:00Z"),
+    });
     expect(history.length).toBe(2);
     expect(history[0]?.snapshotId).toBe("snapshot-2");
     expect(history[1]?.snapshotId).toBe("snapshot-1");
@@ -133,7 +135,9 @@ describe("SearchRepository.listSearchHistory", () => {
 
     repo.setSnapshotId(search1.id!, "snapshot-1");
 
-    const history = await repo.listSearchHistory({ now: () => new Date("2026-07-15T00:00:00Z") });
+    const history = await repo.listSearchHistory({
+      now: () => new Date("2026-07-15T00:00:00Z"),
+    });
     expect(history.length).toBe(1);
     expect(history[0]?.id).toBe("search-1");
   });
@@ -148,7 +152,9 @@ describe("SearchRepository.listSearchHistory", () => {
     });
     repo.setSnapshotId(oldSearch.id!, "snapshot-old");
 
-    const history = await repo.listSearchHistory({ now: () => new Date("2026-07-15T00:00:00Z") });
+    const history = await repo.listSearchHistory({
+      now: () => new Date("2026-07-15T00:00:00Z"),
+    });
     expect(history.length).toBe(1);
     expect(history[0]?.stale).toBe(true);
   });
@@ -163,14 +169,18 @@ describe("SearchRepository.listSearchHistory", () => {
     });
     repo.setSnapshotId(recentSearch.id!, "snapshot-recent");
 
-    const history = await repo.listSearchHistory({ now: () => new Date("2026-07-15T00:00:00Z") });
+    const history = await repo.listSearchHistory({
+      now: () => new Date("2026-07-15T00:00:00Z"),
+    });
     expect(history.length).toBe(1);
     expect(history[0]?.stale).toBe(false);
   });
 
   it("returns empty list when no searches exist", async () => {
     const repo = new InMemorySearchRepository();
-    const history = await repo.listSearchHistory({ now: () => new Date("2026-07-15T00:00:00Z") });
+    const history = await repo.listSearchHistory({
+      now: () => new Date("2026-07-15T00:00:00Z"),
+    });
     expect(history).toEqual([]);
   });
 });

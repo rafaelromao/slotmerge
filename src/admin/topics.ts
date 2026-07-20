@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { getSessionFromRequest, type Session } from "../auth/session";
 import type { TopicStatus } from "../db/schema";
+import type { Clock } from "../system/clock";
+import { systemClock } from "../system/clock";
 import {
   adminAccessDeniedResponse,
   escapeHtml,
@@ -21,8 +23,10 @@ export type { RetireResult } from "../topics/repository";
 export type AdminTopicsDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
   topicRepository?: TopicAdminRepository;
-  clock?: () => Date;
+  clock?: Clock;
 };
+
+const systemClockBoundary = systemClock();
 
 const actionSchema = z.object({
   action: z.literal("retire"),
@@ -32,7 +36,7 @@ const actionSchema = z.object({
 export function createAdminTopicsHandlers({
   getSession = getSessionFromRequest,
   topicRepository,
-  clock = () => new Date(),
+  clock = systemClockBoundary,
 }: AdminTopicsDependencies = {}) {
   const resolveRepository = () => topicRepository ?? getTopicAdminRepository();
   return {
@@ -111,7 +115,7 @@ export function createAdminTopicsHandlers({
       }
 
       const repository = resolveRepository();
-      const result = await repository.retire({ id, now: clock() });
+      const result = await repository.retire({ id, now: clock.now() });
       if (!result.ok) {
         return htmlResponse(
           renderAdminShell({

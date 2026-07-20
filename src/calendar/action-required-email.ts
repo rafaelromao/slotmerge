@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { EmailDeliveryService, EmailPayload } from "../email/service";
+import type { Clock } from "../system/clock";
 
 export type CalendarActionRequiredReason = "token-revoked" | "sync-failure";
 
@@ -29,7 +30,7 @@ export type TriggerCalendarActionRequiredEmailInput = {
 export type TriggerCalendarActionRequiredEmailDeps = {
   emailDeliveryService: Pick<EmailDeliveryService, "sendEmail">;
   lastDispatchLookup: CalendarActionRequiredDispatchLookup;
-  clock?: () => Date;
+  clock: Clock;
   dedupWindowMs?: number;
 };
 
@@ -79,9 +80,8 @@ export async function triggerCalendarActionRequiredEmail(
   input: TriggerCalendarActionRequiredEmailInput,
   deps: TriggerCalendarActionRequiredEmailDeps,
 ): Promise<TriggerCalendarActionRequiredEmailResult> {
-  const clock = deps.clock ?? (() => new Date());
   const dedupWindowMs = deps.dedupWindowMs ?? defaultDedupWindowMs;
-  const now = clock();
+  const now = deps.clock.now();
 
   const since = new Date(now.getTime() - dedupWindowMs);
   const priorDispatch =

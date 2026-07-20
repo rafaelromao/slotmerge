@@ -2,6 +2,8 @@ import { eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { users, type UserRole, type UserStatus } from "../db/schema";
+import type { Clock } from "../system/clock";
+import { systemClock } from "../system/clock";
 
 export type UserProfile = {
   id: string;
@@ -58,90 +60,102 @@ export async function deleteProfileByUserId(userId: string): Promise<boolean> {
 }
 
 function getProfileRepository(): ProfileRepository {
-  if (repositoryOverride) {
-    return repositoryOverride;
-  }
-
-  return databaseProfileRepository;
+  return repositoryOverride ?? getDefaultProfileRepository();
 }
 
-const databaseProfileRepository: ProfileRepository = {
-  findByUserId: async (userId) => {
-    const [row] = await getDb()
-      .select({
-        id: users.id,
-        email: users.email,
-        displayName: users.displayName,
-        avatarUrl: users.avatarUrl,
-        shortBio: users.shortBio,
-        role: users.role,
-        status: users.status,
-        profileTimezone: users.profileTimezone,
-        bufferMinutes: users.bufferMinutes,
-      })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
+let cachedDefaultProfileRepository: ProfileRepository | null = null;
 
-    return row ?? null;
-  },
-  updateByUserId: async (userId, update) => {
-    const current = await databaseProfileRepository.findByUserId(userId);
+export function createPostgresProfileRepository(
+  clock: Clock,
+): ProfileRepository {
+  return {
+    findByUserId: async (userId) => {
+      const [row] = await getDb()
+        .select({
+          id: users.id,
+          email: users.email,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+          shortBio: users.shortBio,
+          role: users.role,
+          status: users.status,
+          profileTimezone: users.profileTimezone,
+          bufferMinutes: users.bufferMinutes,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
 
-    if (!current) {
-      return null;
-    }
+      return row ?? null;
+    },
+    updateByUserId: async (userId, update) => {
+      const fallback = getDefaultProfileRepository();
 
-    const displayName = update.displayName ?? current.displayName;
+      const current = await fallback.findByUserId(userId);
 
-    if (!displayName || !displayName.trim()) {
-      return null;
-    }
+      if (!current) {
+        return null;
+      }
 
-    const avatarUrl =
-      update.avatarUrl === undefined ? current.avatarUrl : update.avatarUrl;
-    const shortBio =
-      update.shortBio === undefined ? current.shortBio : update.shortBio;
-    const profileTimezone =
-      update.profileTimezone === undefined
-        ? current.profileTimezone
-        : update.profileTimezone;
-    const bufferMinutes =
-      update.bufferMinutes === undefined
-        ? current.bufferMinutes
-        : update.bufferMinutes;
+      const displayName = update.displayName ?? current.displayName;
 
-    const [row] = await getDb()
-      .update(users)
-      .set({
-        displayName: displayName.trim(),
-        avatarUrl,
-        shortBio,
-        profileTimezone,
-        bufferMinutes,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId))
-      .returning({
-        id: users.id,
-        email: users.email,
-        displayName: users.displayName,
-        avatarUrl: users.avatarUrl,
-        shortBio: users.shortBio,
-        role: users.role,
-        status: users.status,
-        profileTimezone: users.profileTimezone,
-        bufferMinutes: users.bufferMinutes,
-      });
+      if (!displayName || !displayName.trim()) {
+        return null;
+      }
 
-    return row ?? null;
-  },
-  deleteByUserId: async (userId) => {
-    const deleted = await getDb()
-      .delete(users)
-      .where(eq(users.id, userId))
-      .returning({ id: users.id });
+      const avatarUrl =
+        update.avatarUrl === undefined ? current.avatarUrl : update.avatarUrl;
+      const shortBio =
+        update.shortBio === undefined ? current.shortBio : update.shortBio;
+      const profileTimezone =
+        update.profileTimezone === undefined
+          ? current.profileTimezone
+          : update.profileTimezone;
+      const bufferMinutes =
+        update.bufferMinutes === undefined
+          ? current.bufferMinutes
+          : update.bufferMinutes;
 
-    return deleted.length > 0;
-  },
-};
+      const [row] = await getDb()
+        .update(users)
+        .set({
+          displayName: displayName.trim(),
+          avatarUrl,
+          shortBio,
+          profileTimezone,
+          bufferMinutes,
+          updatedAt: clock.now(),
+        })
+        .where(eq(users.id, userId))
+        .returning({
+          id: users.id,
+          email: users.email,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+          shortBio: users.shortBio,
+          role: users.role,
+          status: users.status,
+          profileTimezone: users.profileTimezone,
+          bufferMinutes: users.bufferMinutes,
+        });
+
+      return row ?? null;
+    },
+    deleteByUserId: async (userId) => {
+      const deleted = await getDb()
+        .delete(users)
+        .where(eq(users.id, userId))
+        .returning({ id: users.id });
+
+      return deleted.length > 0;
+    },
+  };
+}
+
+function getDefaultProfileRepository(): ProfileRepository {
+  if (!cachedDefaultProfileRepository) {
+    cachedDefaultProfileRepository =
+      createPostgresProfileRepository(systemClock());
+  }
+  return cachedDefaultProfileRepository;
+}

@@ -1,5 +1,7 @@
 import { getSessionFromRequest, type Session } from "../auth/session";
 import type { UserRole, UserStatus } from "../db/schema";
+import type { Clock } from "../system/clock";
+import { systemClock } from "../system/clock";
 import { z } from "zod";
 import {
   adminAccessDeniedResponse,
@@ -25,8 +27,10 @@ export type { AdminUserRepository } from "./users.repository";
 export type AdminUsersDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
   userRepository?: AdminUserRepository;
-  clock?: () => Date;
+  clock?: Clock;
 };
+
+const systemClockBoundary = systemClock();
 
 const userActionSchema = z.object({
   action: z.enum(["change-role", "suspend", "reinstate"]),
@@ -61,7 +65,7 @@ function getUserRepository(): AdminUserRepository {
 export function createAdminUsersHandlers({
   getSession = getSessionFromRequest,
   userRepository,
-  clock = () => new Date(),
+  clock = systemClockBoundary,
 }: AdminUsersDependencies = {}) {
   const resolveRepository = () => userRepository ?? getUserRepository();
   return {
@@ -134,7 +138,7 @@ export function createAdminUsersHandlers({
           userId: submission.data.userId,
           actingAdminId: session.user.id,
           role: submission.data.role,
-          now: clock(),
+          now: clock.now(),
         });
         if (!result.ok) {
           const message =
@@ -164,7 +168,7 @@ export function createAdminUsersHandlers({
         const result = await repository.suspend({
           userId: submission.data.userId,
           actingAdminId: session.user.id,
-          now: clock(),
+          now: clock.now(),
         });
         if (!result.ok) {
           const message = suspendErrorMessage(result.reason);
@@ -190,7 +194,7 @@ export function createAdminUsersHandlers({
       const result = await repository.reinstate({
         userId: submission.data.userId,
         actingAdminId: session.user.id,
-        now: clock(),
+        now: clock.now(),
       });
       if (!result.ok) {
         const message = reinstateErrorMessage(result.reason);

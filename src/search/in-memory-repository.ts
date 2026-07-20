@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import type { Clock } from "../system/clock";
 import type {
   SearchHistoryItem,
   SearchRecord,
@@ -39,14 +40,12 @@ export class InMemorySearchRepository implements SearchRepository {
     );
   }
 
-  async listSearchHistory(options?: {
-    clock?: { now: () => Date };
-  }): Promise<SearchHistoryItem[]> {
+  async listSearchHistory(clock: Clock): Promise<SearchHistoryItem[]> {
     await Promise.resolve();
     const searches = Array.from(this.byId.values()).sort(
       (a, b) => b.generatedAt.getTime() - a.generatedAt.getTime(),
     );
-    const now = (options?.clock ? options.clock.now : () => new Date())();
+    const now = clock.now();
 
     return searches
       .map((s): SearchHistoryItem | null => {

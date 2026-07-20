@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { getSessionFromRequest, type Session } from "../auth/session";
 import type { TopicProposalStatus } from "../db/schema";
+import type { Clock } from "../system/clock";
+import { systemClock } from "../system/clock";
 import {
   adminAccessDeniedResponse,
   escapeHtml,
@@ -23,8 +25,10 @@ export type {
 export type AdminTopicProposalsDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
   topicProposalRepository?: TopicProposalAdminRepository;
-  clock?: () => Date;
+  clock?: Clock;
 };
+
+const systemClockBoundary = systemClock();
 
 const actionSchema = z.object({
   action: z.enum(["approve", "reject"]),
@@ -43,7 +47,7 @@ function getTopicProposalRepository(): TopicProposalAdminRepository {
 export function createAdminTopicProposalsHandlers({
   getSession = getSessionFromRequest,
   topicProposalRepository,
-  clock = () => new Date(),
+  clock = systemClockBoundary,
 }: AdminTopicProposalsDependencies = {}) {
   const resolveRepository = () =>
     topicProposalRepository ?? getTopicProposalRepository();
@@ -122,7 +126,7 @@ export function createAdminTopicProposalsHandlers({
         );
       }
 
-      const now = clock();
+      const now = clock.now();
       const repository = resolveRepository();
 
       if (actionResult.data.action === "approve") {

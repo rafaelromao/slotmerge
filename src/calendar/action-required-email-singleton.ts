@@ -7,7 +7,7 @@ import {
   type EmailDeliveryService,
 } from "../email/service";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
+import { systemDependencies } from "../system";
 import { getConnectionActionRequiredDispatchLookup } from "./action-required-email.repository";
 import {
   triggerCalendarActionRequiredEmail,
@@ -30,8 +30,8 @@ export function getEmailDeliveryService(): EmailDeliveryService {
     return emailDeliveryServiceOverride;
   }
   if (!defaultEmailDeliveryService) {
-    defaultEmailDeliveryService =
-      createDefaultEmailDeliveryService(systemClock());
+    const { clock } = systemDependencies();
+    defaultEmailDeliveryService = createDefaultEmailDeliveryService(clock);
   }
   return defaultEmailDeliveryService;
 }
@@ -75,10 +75,12 @@ export type CalendarActionRequiredEmailTrigger = (
 export function createCalendarActionRequiredEmailTrigger(
   partial: Partial<TriggerCalendarActionRequiredEmailDeps> = {},
 ): CalendarActionRequiredEmailTrigger {
+  const { clock } = systemDependencies();
   return async (input) =>
     triggerCalendarActionRequiredEmail(input, {
       emailDeliveryService: getEmailDeliveryService(),
       lastDispatchLookup: getConnectionActionRequiredDispatchLookup(),
+      clock,
       ...partial,
     });
 }

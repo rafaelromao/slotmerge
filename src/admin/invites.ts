@@ -349,6 +349,8 @@ const databaseInviteRepository: InviteRepository = {
           status: "pending",
           invitedByAdminId,
           expiresAt: getDefaultInviteExpiration(now),
+          createdAt: now,
+          updatedAt: now,
           magicLinkGeneration: 0,
         })
         .returning({

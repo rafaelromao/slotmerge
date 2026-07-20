@@ -32,7 +32,7 @@ describe("calendar action-required email singleton", () => {
     });
 
     const trigger = createCalendarActionRequiredEmailTrigger({
-      clock: () => new Date("2026-01-01T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-01-01T00:00:00.000Z") },
     });
 
     const result = await trigger({

@@ -1,9 +1,11 @@
 import type { BusyIntervalStatus } from "../db/schema";
+import type { Clock } from "../system/clock";
+import { systemClock } from "../system/clock";
 
 export const ROLLING_WINDOW_DAYS = 90;
 
-export function isWithinRollingWindow(startAt: Date): boolean {
-  const now = new Date();
+export function isWithinRollingWindow(startAt: Date, clock: Clock): boolean {
+  const now = clock.now();
   const windowEnd = new Date(
     now.getTime() + ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000,
   );
@@ -51,7 +53,9 @@ export function getImportedBusyIntervalRepository(): ImportedBusyIntervalReposit
 
 const inMemoryImportedBusyIntervalRepository: ImportedBusyIntervalRepository = {
   async upsertBatch(intervals) {
-    const filtered = intervals.filter((i) => isWithinRollingWindow(i.startAt));
+    const filtered = intervals.filter((i) =>
+      isWithinRollingWindow(i.startAt, systemClock()),
+    );
     if (filtered.length === 0) return;
 
     const groups = new Map<string, ImportedBusyIntervalRecord[]>();

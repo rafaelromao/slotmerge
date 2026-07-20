@@ -7,6 +7,7 @@ import {
 } from "../../../src/topics/repository";
 import { createMeTopicProposalsHandlers } from "../../../src/topics/me-topic-proposals-route";
 import { createTopicProposalsHandlers } from "../../../src/topics/proposals-route";
+import { systemDependencies } from "../../../src/system";
 
 export async function GET(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);
@@ -46,16 +47,18 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  return updateTopics(request, () => new Date());
+  const { clock } = systemDependencies();
+  return updateTopics(request, clock);
 }
 
 export async function PUT(request: Request): Promise<Response> {
-  return updateTopics(request, () => new Date());
+  const { clock } = systemDependencies();
+  return updateTopics(request, clock);
 }
 
 async function updateTopics(
   request: Request,
-  clock: () => Date,
+  clock: { now: () => Date },
 ): Promise<Response> {
   const session = await getSessionFromRequest(request);
 
@@ -72,7 +75,7 @@ async function updateTopics(
   await saveUserTopicSelection({
     userId: session.user.id,
     topicIds,
-    now: clock(),
+    now: clock.now(),
   });
 
   if (request.method === "PUT") {

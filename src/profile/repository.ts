@@ -65,7 +65,9 @@ function getProfileRepository(): ProfileRepository {
 
 let cachedDefaultProfileRepository: ProfileRepository | null = null;
 
-export function createPostgresProfileRepository(clock: Clock): ProfileRepository {
+export function createPostgresProfileRepository(
+  clock: Clock,
+): ProfileRepository {
   return {
     findByUserId: async (userId) => {
       const [row] = await getDb()
@@ -152,9 +154,8 @@ export function createPostgresProfileRepository(clock: Clock): ProfileRepository
 
 function getDefaultProfileRepository(): ProfileRepository {
   if (!cachedDefaultProfileRepository) {
-    cachedDefaultProfileRepository = createPostgresProfileRepository(
-      systemClock(),
-    );
+    cachedDefaultProfileRepository =
+      createPostgresProfileRepository(systemClock());
   }
   return cachedDefaultProfileRepository;
 }

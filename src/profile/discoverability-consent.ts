@@ -80,9 +80,8 @@ function getRepository(): DiscoverabilityConsentRepository {
 
 function getDefaultDiscoverabilityConsentRepository(): DiscoverabilityConsentRepository {
   if (!cachedDefaultRepository) {
-    cachedDefaultRepository = createPostgresDiscoverabilityConsentRepository(
-      systemClock(),
-    );
+    cachedDefaultRepository =
+      createPostgresDiscoverabilityConsentRepository(systemClock());
   }
   return cachedDefaultRepository;
 }

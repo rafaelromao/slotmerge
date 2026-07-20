@@ -9,6 +9,7 @@ import {
 import { getCalendarProvider } from "../../../../src/calendar/providers";
 import { getCalendarConnectionRepository } from "../../../../src/calendar/repository";
 import { loadRuntimeConfig } from "../../../../src/config/runtime";
+import { systemClock } from "../../../../src/system/clock";
 
 export async function PATCH(
   request: Request,
@@ -95,7 +96,7 @@ export async function PATCH(
         email: session.user.email,
         displayName: session.user.displayName,
       },
-      occurredAt: new Date(),
+      occurredAt: systemClock().now(),
     });
 
     return Response.json({

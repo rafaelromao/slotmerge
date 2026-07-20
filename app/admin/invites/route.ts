@@ -1,7 +1,6 @@
 import { createAdminInvitesHandlers } from "../../../src/admin/invites";
-import { systemDependencies } from "../../../src/system";
 
-const handlers = createAdminInvitesHandlers(systemDependencies());
+const handlers = createAdminInvitesHandlers();
 
 export const GET = handlers.GET;
 export const POST = handlers.POST;

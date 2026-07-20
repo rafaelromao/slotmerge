@@ -7,6 +7,8 @@ import {
   type CreateWeeklyAvailabilityWindow,
   type WeeklyAvailabilityWindowUpdate,
 } from "../db/schema";
+import type { Clock } from "../system/clock";
+import { systemClock } from "../system/clock";
 
 export type {
   WeeklyAvailabilityWindow,
@@ -46,11 +48,15 @@ export function clearWeeklyAvailabilityWindowOverride() {
 }
 
 function getRepository(): WeeklyAvailabilityWindowRepository {
-  return repositoryOverride ?? databaseWeeklyAvailabilityWindowRepository;
+  return repositoryOverride ?? getDefaultRepository();
 }
 
-const databaseWeeklyAvailabilityWindowRepository: WeeklyAvailabilityWindowRepository =
-  {
+let cachedDefaultRepository: WeeklyAvailabilityWindowRepository | null = null;
+
+export function createPostgresWeeklyAvailabilityWindowRepository(
+  clock: Clock,
+): WeeklyAvailabilityWindowRepository {
+  return {
     add: async (userId, window, profileTimezone) => {
       const [row] = await getDb()
         .insert(availabilityWindows)
@@ -113,7 +119,7 @@ const databaseWeeklyAvailabilityWindowRepository: WeeklyAvailabilityWindowReposi
             startTime: updates.startTime,
           }),
           ...(updates.endTime !== undefined && { endTime: updates.endTime }),
-          updatedAt: new Date(),
+          updatedAt: clock.now(),
         })
         .where(
           and(
@@ -139,6 +145,15 @@ const databaseWeeklyAvailabilityWindowRepository: WeeklyAvailabilityWindowReposi
       return deleted.length > 0;
     },
   };
+}
+
+function getDefaultRepository(): WeeklyAvailabilityWindowRepository {
+  if (!cachedDefaultRepository) {
+    cachedDefaultRepository =
+      createPostgresWeeklyAvailabilityWindowRepository(systemClock());
+  }
+  return cachedDefaultRepository;
+}
 
 export async function addWeeklyAvailabilityWindow(
   userId: string,

@@ -2,6 +2,8 @@ import { eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { discoverabilityConsents } from "../db/schema";
+import type { Clock } from "../system/clock";
+import { systemClock } from "../system/clock";
 
 export type DiscoverabilityConsentRecord = {
   userId: string;
@@ -26,8 +28,10 @@ export function clearDiscoverabilityConsentOverride() {
   repositoryOverride = null;
 }
 
-export const discoverabilityConsentRepository: DiscoverabilityConsentRepository =
-  {
+export function createPostgresDiscoverabilityConsentRepository(
+  clock: Clock,
+): DiscoverabilityConsentRepository {
+  return {
     async findByUserId(userId) {
       const [row] = await getDb()
         .select({
@@ -46,7 +50,7 @@ export const discoverabilityConsentRepository: DiscoverabilityConsentRepository 
         .values({ userId })
         .onConflictDoUpdate({
           target: discoverabilityConsents.userId,
-          set: { grantedAt: new Date() },
+          set: { grantedAt: clock.now() },
         })
         .returning({
           userId: discoverabilityConsents.userId,
@@ -66,9 +70,21 @@ export const discoverabilityConsentRepository: DiscoverabilityConsentRepository 
         .where(eq(discoverabilityConsents.userId, userId));
     },
   };
+}
+
+let cachedDefaultRepository: DiscoverabilityConsentRepository | null = null;
 
 function getRepository(): DiscoverabilityConsentRepository {
-  return repositoryOverride ?? discoverabilityConsentRepository;
+  return repositoryOverride ?? getDefaultDiscoverabilityConsentRepository();
+}
+
+function getDefaultDiscoverabilityConsentRepository(): DiscoverabilityConsentRepository {
+  if (!cachedDefaultRepository) {
+    cachedDefaultRepository = createPostgresDiscoverabilityConsentRepository(
+      systemClock(),
+    );
+  }
+  return cachedDefaultRepository;
 }
 
 export async function getDiscoverabilityConsent(

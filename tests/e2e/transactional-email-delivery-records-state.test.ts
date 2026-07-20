@@ -1,6 +1,15 @@
-import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  inject,
+  it,
+} from "vitest";
 
 import { createAdminInvitesHandlers } from "../../src/admin/invites";
+import { systemDependencies } from "../../src/system";
 import { sealSessionCookie } from "../../src/auth/session";
 import { sessions } from "../../src/db/schema";
 import { createPostgresEmailEventRepository } from "../../src/email/repository";
@@ -144,7 +153,7 @@ describe("E2E: transactional email delivery records state", () => {
 
       const queuedJobs: QueueEmailJobInput[] = [];
       const emailService = createEmailDeliveryService({
-        clock: () => clock.now(),
+        clock: clock,
         eventRepository: createPostgresEmailEventRepository(db),
         queueJob: (job) => {
           queuedJobs.push(job);
@@ -153,6 +162,7 @@ describe("E2E: transactional email delivery records state", () => {
       });
 
       const { POST: postInvite } = createAdminInvitesHandlers({
+        ...systemDependencies(),
         emailDeliveryService: emailService,
       });
 
@@ -186,16 +196,16 @@ describe("E2E: transactional email delivery records state", () => {
       mockAdapter.setSucceedsOnAttempt(3, MOCK_FAILURE_ERROR);
 
       const criticalEmail = {
-        trigger: () => Promise.resolve({ deliveries: [] as ReadonlyArray<unknown> }),
+        trigger: () =>
+          Promise.resolve({ deliveries: [] as ReadonlyArray<unknown> }),
       };
 
-      const attemptClock = () => clock.now();
       const eventRepository = createPostgresEmailEventRepository(db);
 
-      const attemptClockAt1 = attemptClock();
+      const attemptClockAt1 = clock.now();
       await expect(
         processEmailDeliveryJob(queuedJob, {
-          clock: attemptClock,
+          clock,
           eventRepository,
           transport: mockAdapter,
           criticalEmail,
@@ -215,11 +225,11 @@ describe("E2E: transactional email delivery records state", () => {
       );
 
       clock.advance(BACKOFF_STEP_MS);
-      const attemptClockAt2 = attemptClock();
+      const attemptClockAt2 = clock.now();
 
       await expect(
         processEmailDeliveryJob(queuedJob, {
-          clock: attemptClock,
+          clock,
           eventRepository,
           transport: mockAdapter,
           criticalEmail,
@@ -238,10 +248,10 @@ describe("E2E: transactional email delivery records state", () => {
       );
 
       clock.advance(BACKOFF_STEP_MS);
-      const attemptClockAt3 = attemptClock();
+      const attemptClockAt3 = clock.now();
 
       const finalEvent = await processEmailDeliveryJob(queuedJob, {
-        clock: attemptClock,
+        clock,
         eventRepository,
         transport: mockAdapter,
         criticalEmail,
@@ -264,13 +274,9 @@ describe("E2E: transactional email delivery records state", () => {
       expect(toIso(finalRow?.last_attempt_at ?? null)).toBe(
         attemptClockAt3.toISOString(),
       );
-      expect(finalRow?.provider_message_id).toBe(
-        `mock-${finalRow?.id ?? ""}`,
-      );
+      expect(finalRow?.provider_message_id).toBe(`mock-${finalRow?.id ?? ""}`);
 
-      const attempts = await readEmailEventAttempts(
-        finalRow?.id ?? "",
-      );
+      const attempts = await readEmailEventAttempts(finalRow?.id ?? "");
       expect(attempts).toHaveLength(3);
 
       expect(attempts[0]).toMatchObject({
@@ -283,9 +289,7 @@ describe("E2E: transactional email delivery records state", () => {
       expect(toIso(attempts[0].attempted_at)).toBe(
         attemptClockAt1.toISOString(),
       );
-      expect(toIso(attempts[0].failed_at)).toBe(
-        attemptClockAt1.toISOString(),
-      );
+      expect(toIso(attempts[0].failed_at)).toBe(attemptClockAt1.toISOString());
       expect(attempts[0].delivered_at).toBeNull();
 
       expect(attempts[1]).toMatchObject({
@@ -298,9 +302,7 @@ describe("E2E: transactional email delivery records state", () => {
       expect(toIso(attempts[1].attempted_at)).toBe(
         attemptClockAt2.toISOString(),
       );
-      expect(toIso(attempts[1].failed_at)).toBe(
-        attemptClockAt2.toISOString(),
-      );
+      expect(toIso(attempts[1].failed_at)).toBe(attemptClockAt2.toISOString());
       expect(attempts[1].delivered_at).toBeNull();
 
       expect(attempts[2]).toMatchObject({

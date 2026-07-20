@@ -2,10 +2,7 @@ import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
 import { createMagicLinkRequestHandlers } from "../../src/auth/magic-link-request";
-import type {
-  EmailDeliveryService,
-  EmailType,
-} from "../../src/email/service";
+import type { EmailDeliveryService, EmailType } from "../../src/email/service";
 
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
 const HAS_TEST_DB = !!TEST_DB_URL;
@@ -96,10 +93,12 @@ function snapshotHeaders(response: Response): Record<string, string> {
   return headers;
 }
 
-async function submitMagicLinkRequest(email: string): Promise<SubmissionResult> {
+async function submitMagicLinkRequest(
+  email: string,
+): Promise<SubmissionResult> {
   const emailService = createRecordingEmailService();
   const { POST } = createMagicLinkRequestHandlers({
-    clock: getTestClock(),
+    clock: { now: getTestClock() },
     magicLinkSecret: "test-secret",
     emailDeliveryService: emailService,
   });
@@ -140,9 +139,7 @@ describe("E2E: reject sign-in for non-invited email", () => {
       expect(body).toEqual({ error: "not_invited" });
       expect(await countUsersByEmail("unknown@example.com")).toBe(0);
       expect(emailService.sends).toHaveLength(0);
-      expect(
-        await countEmailEventsByRecipient("unknown@example.com"),
-      ).toBe(0);
+      expect(await countEmailEventsByRecipient("unknown@example.com")).toBe(0);
     },
   );
 
@@ -158,9 +155,7 @@ describe("E2E: reject sign-in for non-invited email", () => {
 
       expect(response.status).toBe(400);
       expect(body).toEqual({ error: "not_invited" });
-      expect(
-        await countUsersByEmail("accepted-invite@example.com"),
-      ).toBe(0);
+      expect(await countUsersByEmail("accepted-invite@example.com")).toBe(0);
       expect(emailService.sends).toHaveLength(0);
       expect(
         await countEmailEventsByRecipient("accepted-invite@example.com"),
@@ -187,12 +182,8 @@ describe("E2E: reject sign-in for non-invited email", () => {
       expect(unknown.emailService.sends).toHaveLength(0);
       expect(uninvited.emailService.sends).toHaveLength(0);
       expect(await countUsersByEmail("unknown@example.com")).toBe(0);
-      expect(
-        await countUsersByEmail("accepted-invite@example.com"),
-      ).toBe(0);
-      expect(
-        await countEmailEventsByRecipient("unknown@example.com"),
-      ).toBe(0);
+      expect(await countUsersByEmail("accepted-invite@example.com")).toBe(0);
+      expect(await countEmailEventsByRecipient("unknown@example.com")).toBe(0);
       expect(
         await countEmailEventsByRecipient("accepted-invite@example.com"),
       ).toBe(0);

@@ -4,14 +4,11 @@ import { getSearchRepository, type SearchRecord } from "./repository";
 import { runSearch } from "./run-search";
 import type { DiscoverableUserRepository } from "./discoverable-user-repository";
 import type { SearchResultRepository } from "./search-result-repository";
+import type { Clock } from "../system/clock";
 import {
   createDefaultSearchSnapshotAssemblerDeps,
   type SearchSnapshotAssemblerDeps,
 } from "./search-snapshot-assembler";
-
-export type Clock = {
-  now(): Date;
-};
 
 export type ActiveTopic = {
   id: string;

@@ -10,12 +10,12 @@ import { getSearchResultRepository } from "../../src/search/search-result-reposi
 import {
   submitSearch,
   startOfWeekInTimezone,
-  type Clock,
   type ProfileRepository,
 } from "../../src/search/search-input";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, setupTest } from "../helpers/setup";
+import type { Clock } from "../../src/system/clock";
 
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
 const HAS_TEST_DB = !!TEST_DB_URL;

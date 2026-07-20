@@ -147,9 +147,13 @@ describe("E2E: user sets profile attributes", () => {
 
       await setupTest();
 
-      const response = await patchAs(ALICE_SESSION.id, ALICE_SESSION.csrfToken, {
-        displayName: "Alice Q. User",
-      });
+      const response = await patchAs(
+        ALICE_SESSION.id,
+        ALICE_SESSION.csrfToken,
+        {
+          displayName: "Alice Q. User",
+        },
+      );
 
       expect(response.status).toBe(200);
 
@@ -176,12 +180,16 @@ describe("E2E: user sets profile attributes", () => {
 
       await setupTest();
 
-      const response = await patchAs(ALICE_SESSION.id, ALICE_SESSION.csrfToken, {
-        avatarUrl: "https://example.com/alice.png",
-        shortBio: "Distributed systems engineer",
-        profileTimezone: "Europe/London",
-        bufferMinutes: 45,
-      });
+      const response = await patchAs(
+        ALICE_SESSION.id,
+        ALICE_SESSION.csrfToken,
+        {
+          avatarUrl: "https://example.com/alice.png",
+          shortBio: "Distributed systems engineer",
+          profileTimezone: "Europe/London",
+          bufferMinutes: 45,
+        },
+      );
 
       expect(response.status).toBe(200);
 
@@ -204,9 +212,13 @@ describe("E2E: user sets profile attributes", () => {
 
       await setupTest();
 
-      const response = await patchAs(ALICE_SESSION.id, ALICE_SESSION.csrfToken, {
-        displayName: "   ",
-      });
+      const response = await patchAs(
+        ALICE_SESSION.id,
+        ALICE_SESSION.csrfToken,
+        {
+          displayName: "   ",
+        },
+      );
 
       expect(response.status).toBe(400);
       await expect(response.json()).resolves.toEqual({

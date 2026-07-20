@@ -367,7 +367,7 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       );
 
       const { POST } = createMagicLinkRequestHandlers({
-        clock: () => new Date(FIXTURE_DATE),
+        clock: { now: () => new Date(FIXTURE_DATE) },
         magicLinkSecret: "test-magic-link-secret-80",
       });
 
@@ -585,7 +585,7 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       expect(reinstateResponse.status).toBe(303);
 
       const { POST: requestPost } = createMagicLinkRequestHandlers({
-        clock: () => new Date(FIXTURE_DATE),
+        clock: { now: () => new Date(FIXTURE_DATE) },
         magicLinkSecret: "test-magic-link-secret-80",
       });
 

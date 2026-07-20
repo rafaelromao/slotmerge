@@ -16,12 +16,11 @@ import { POST as MICROSOFT_WEBHOOK } from "../../app/webhooks/microsoft/calendar
 import {
   enqueueSyncCalendarConnectionJob,
   handleSyncCalendarConnectionJob,
-  setClockForTests,
 } from "../../src/worker/sync";
 import {
   CALENDAR_CONNECTION_FIXTURES,
 } from "../fixtures/seeds";
-import { getTestClock, getTestDb } from "../helpers/setup";
+import { getTestClockObject, getTestDb } from "../helpers/setup";
 import { encryptCalendarToken } from "../../src/calendar/token-encryption";
 import { calendarConnections } from "../../src/db/schema";
 import {
@@ -184,6 +183,11 @@ async function readImportedBusyIntervals(
   }));
 }
 
+const testDeps = {
+  clock: getTestClockObject(),
+  randomSource: { next: () => 0 },
+};
+
 describe("E2E: provider webhook updates busy intervals promptly", () => {
   beforeAll(() => {
     if (TEST_DB_URL) {
@@ -198,10 +202,8 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
   });
 
   beforeEach(async () => {
-    vi.useFakeTimers({ now: new Date("2026-07-12T12:00:00.000Z") });
     process.env.SESSION_SECRET = SESSION_SECRET;
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
-    setClockForTests(getTestClock());
     vi.mocked(enqueueSyncCalendarConnectionJob).mockClear();
     setCalendarConnectionRepositoryForTests(null);
 
@@ -214,10 +216,8 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
   });
 
   afterEach(() => {
-    setClockForTests(null);
     setCalendarConnectionRepositoryForTests(null);
     vi.unstubAllGlobals();
-    vi.useRealTimers();
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
   });
@@ -266,7 +266,10 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
           GOOGLE_CONNECTION_ID,
         );
 
-        await handleSyncCalendarConnectionJob({ connectionId: GOOGLE_CONNECTION_ID });
+        await handleSyncCalendarConnectionJob(
+          { connectionId: GOOGLE_CONNECTION_ID },
+          testDeps,
+        );
 
         const connection = await readConnectionRow(GOOGLE_CONNECTION_ID);
         expect(connection.lastSyncAt).not.toBeNull();
@@ -325,9 +328,10 @@ describe("E2E: provider webhook updates busy intervals promptly", () => {
           MICROSOFT_CONNECTION_ID,
         );
 
-        await handleSyncCalendarConnectionJob({
-          connectionId: MICROSOFT_CONNECTION_ID,
-        });
+        await handleSyncCalendarConnectionJob(
+          { connectionId: MICROSOFT_CONNECTION_ID },
+          testDeps,
+        );
 
         const connection = await readConnectionRow(MICROSOFT_CONNECTION_ID);
         expect(connection.lastSyncAt).not.toBeNull();

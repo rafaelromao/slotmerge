@@ -75,7 +75,10 @@ export function buildMockGoogleCalendarAdapter(
   const webhookDeliveries: WebhookDelivery[] = [];
   const requestedScopes = new Set<string>();
   const freeBusyResponses = new Map<string, FreeBusyInterval[]>();
-  let freeBusyErrorResponse: { status: number; retryAfterSeconds?: number } | null = null;
+  let freeBusyErrorResponse: {
+    status: number;
+    retryAfterSeconds?: number;
+  } | null = null;
 
   function buildDeniedConsentCallbackRequest({
     baseUrl,
@@ -172,7 +175,9 @@ export function buildMockGoogleCalendarAdapter(
             "content-type": "application/json",
           };
           if (freeBusyErrorResponse.retryAfterSeconds !== undefined) {
-            headers["retry-after"] = String(freeBusyErrorResponse.retryAfterSeconds);
+            headers["retry-after"] = String(
+              freeBusyErrorResponse.retryAfterSeconds,
+            );
           }
           return Promise.resolve(
             new Response(JSON.stringify({ error: "Server Error" }), {

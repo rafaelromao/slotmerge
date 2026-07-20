@@ -5,7 +5,7 @@ import { createMagicLinkTokenIssuer, verifyMagicLinkToken } from "./magic-link";
 describe("magic link token issuer", () => {
   it("issues a magic-link URL whose expiration matches the invite expiration", () => {
     const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
       baseUrl: "https://slotmerge.example.com",
       secret: "test-magic-link-secret",
     });
@@ -28,7 +28,7 @@ describe("magic link token issuer", () => {
 
   it("embeds the expiration timestamp inside the token payload", () => {
     const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
       baseUrl: "https://slotmerge.example.com",
       secret: "test-magic-link-secret",
     });
@@ -64,7 +64,7 @@ describe("magic link token issuer", () => {
 describe("magic link token verifier", () => {
   it("verifies a valid token and returns its payload", () => {
     const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
       baseUrl: "https://slotmerge.example.com",
       secret: "test-magic-link-secret",
     });
@@ -78,7 +78,7 @@ describe("magic link token verifier", () => {
     const payload = verifyMagicLinkToken(
       token.token,
       "test-magic-link-secret",
-      () => new Date("2026-07-15T00:00:00.000Z"),
+      { now: () => new Date("2026-07-15T00:00:00.000Z") },
     );
 
     expect(payload.inviteId).toBe("invite-1");
@@ -89,7 +89,7 @@ describe("magic link token verifier", () => {
 
   it("throws InvalidToken for a token with wrong secret", () => {
     const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
       baseUrl: "https://slotmerge.example.com",
       secret: "correct-secret",
     });
@@ -101,27 +101,23 @@ describe("magic link token verifier", () => {
     });
 
     expect(() =>
-      verifyMagicLinkToken(
-        token.token,
-        "wrong-secret",
-        () => new Date("2026-07-15T00:00:00.000Z"),
-      ),
+      verifyMagicLinkToken(token.token, "wrong-secret", {
+        now: () => new Date("2026-07-15T00:00:00.000Z"),
+      }),
     ).toThrow("invalid_token");
   });
 
   it("throws InvalidToken for a malformed token", () => {
     expect(() =>
-      verifyMagicLinkToken(
-        "not-a-valid-token",
-        "test-secret",
-        () => new Date(),
-      ),
+      verifyMagicLinkToken("not-a-valid-token", "test-secret", {
+        now: () => new Date(),
+      }),
     ).toThrow("invalid_token");
   });
 
   it("throws TokenExpired for an expired token", () => {
     const issuer = createMagicLinkTokenIssuer({
-      clock: () => new Date("2026-07-12T00:00:00.000Z"),
+      clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
       baseUrl: "https://slotmerge.example.com",
       secret: "test-magic-link-secret",
     });
@@ -133,11 +129,9 @@ describe("magic link token verifier", () => {
     });
 
     expect(() =>
-      verifyMagicLinkToken(
-        token.token,
-        "test-magic-link-secret",
-        () => new Date("2026-07-25T00:00:00.000Z"),
-      ),
+      verifyMagicLinkToken(token.token, "test-magic-link-secret", {
+        now: () => new Date("2026-07-25T00:00:00.000Z"),
+      }),
     ).toThrow("token_expired");
   });
 });

@@ -1,15 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import {
-  createPostgresImportedBusyIntervalRepository,
-} from "../../src/calendar/imported-busy-intervals.repository";
+import { createPostgresImportedBusyIntervalRepository } from "../../src/calendar/imported-busy-intervals.repository";
 import {
   clearInMemoryImportedBusyIntervalStore,
   getImportedBusyIntervalRepository,
 } from "../../src/calendar/imported-busy-intervals";
-import type {
-  ImportedBusyIntervalRecord,
-} from "../../src/calendar/imported-busy-intervals";
+import type { ImportedBusyIntervalRecord } from "../../src/calendar/imported-busy-intervals";
 
 // Anchor `fixedNow` close to the wall clock at file load time so the
 // `isWithinRollingWindow(startAt)` filter in the in-memory repo
@@ -56,7 +52,10 @@ async function isPostgresReachable(): Promise<boolean> {
 
 async function isPostgresSchemaReady(): Promise<boolean> {
   if (!process.env.DATABASE_URL) return false;
-  if (!process.env.DATABASE_URL.includes("test") && !process.env.DATABASE_URL.includes("slotmerge_test")) {
+  if (
+    !process.env.DATABASE_URL.includes("test") &&
+    !process.env.DATABASE_URL.includes("slotmerge_test")
+  ) {
     return false;
   }
   try {
@@ -93,11 +92,23 @@ describe("ImportedBusyIntervalRepository contract", () => {
       const connId = `conn-replace-${Math.random().toString(36).slice(2)}`;
 
       const first: ImportedBusyIntervalRecord[] = [
-        makeInterval({ id: "int-a1", connectionId: connId, startAtDaysFromNow: 1 }),
-        makeInterval({ id: "int-a2", connectionId: connId, startAtDaysFromNow: 2 }),
+        makeInterval({
+          id: "int-a1",
+          connectionId: connId,
+          startAtDaysFromNow: 1,
+        }),
+        makeInterval({
+          id: "int-a2",
+          connectionId: connId,
+          startAtDaysFromNow: 2,
+        }),
       ];
       const second: ImportedBusyIntervalRecord[] = [
-        makeInterval({ id: "int-b1", connectionId: connId, startAtDaysFromNow: 3 }),
+        makeInterval({
+          id: "int-b1",
+          connectionId: connId,
+          startAtDaysFromNow: 3,
+        }),
       ];
 
       await repo.upsertBatch(first);
@@ -119,13 +130,25 @@ describe("ImportedBusyIntervalRepository contract", () => {
       const connB = `conn-b-${Math.random().toString(36).slice(2)}`;
 
       const intervals = [
-        makeInterval({ id: "int-a1", connectionId: connA, startAtDaysFromNow: 1 }),
-        makeInterval({ id: "int-b1", connectionId: connB, startAtDaysFromNow: 2 }),
+        makeInterval({
+          id: "int-a1",
+          connectionId: connA,
+          startAtDaysFromNow: 1,
+        }),
+        makeInterval({
+          id: "int-b1",
+          connectionId: connB,
+          startAtDaysFromNow: 2,
+        }),
       ];
       await repo.upsertBatch(intervals);
 
       await repo.upsertBatch([
-        makeInterval({ id: "int-a2", connectionId: connA, startAtDaysFromNow: 3 }),
+        makeInterval({
+          id: "int-a2",
+          connectionId: connA,
+          startAtDaysFromNow: 3,
+        }),
       ]);
 
       const all = await repo.findByUserIdAndDateRange(
@@ -144,7 +167,11 @@ describe("ImportedBusyIntervalRepository contract", () => {
       const connId = `conn-update-${Math.random().toString(36).slice(2)}`;
 
       await repo.upsertBatch([
-        makeInterval({ id: "int-same", connectionId: connId, startAtDaysFromNow: 1 }),
+        makeInterval({
+          id: "int-same",
+          connectionId: connId,
+          startAtDaysFromNow: 1,
+        }),
       ]);
 
       const found = await repo.findByUserIdAndDateRange(
@@ -167,7 +194,9 @@ describe("ImportedBusyIntervalRepository contract", () => {
       );
 
       expect(afterUpdate).toHaveLength(1);
-      expect(afterUpdate[0]?.endAt.getTime()).toBe(updatedInterval.endAt.getTime());
+      expect(afterUpdate[0]?.endAt.getTime()).toBe(
+        updatedInterval.endAt.getTime(),
+      );
     });
   });
 
@@ -197,11 +226,26 @@ describe("ImportedBusyIntervalRepository contract", () => {
       const userId = "00000000-0000-0000-0000-000000000001";
 
       const first: ImportedBusyIntervalRecord[] = [
-        makeInterval({ id: "00000000-0000-0000-0000-000000000011", connectionId: connId, userId, startAtDaysFromNow: 1 }),
-        makeInterval({ id: "00000000-0000-0000-0000-000000000012", connectionId: connId, userId, startAtDaysFromNow: 2 }),
+        makeInterval({
+          id: "00000000-0000-0000-0000-000000000011",
+          connectionId: connId,
+          userId,
+          startAtDaysFromNow: 1,
+        }),
+        makeInterval({
+          id: "00000000-0000-0000-0000-000000000012",
+          connectionId: connId,
+          userId,
+          startAtDaysFromNow: 2,
+        }),
       ];
       const second: ImportedBusyIntervalRecord[] = [
-        makeInterval({ id: "00000000-0000-0000-0000-000000000013", connectionId: connId, userId, startAtDaysFromNow: 3 }),
+        makeInterval({
+          id: "00000000-0000-0000-0000-000000000013",
+          connectionId: connId,
+          userId,
+          startAtDaysFromNow: 3,
+        }),
       ];
 
       await repo.upsertBatch(first);
@@ -230,13 +274,28 @@ describe("ImportedBusyIntervalRepository contract", () => {
       const userId = "00000000-0000-0000-0000-000000000001";
 
       const intervals = [
-        makeInterval({ id: "00000000-0000-0000-0000-000000000011", connectionId: connA, userId, startAtDaysFromNow: 1 }),
-        makeInterval({ id: "00000000-0000-0000-0000-000000000012", connectionId: connB, userId, startAtDaysFromNow: 2 }),
+        makeInterval({
+          id: "00000000-0000-0000-0000-000000000011",
+          connectionId: connA,
+          userId,
+          startAtDaysFromNow: 1,
+        }),
+        makeInterval({
+          id: "00000000-0000-0000-0000-000000000012",
+          connectionId: connB,
+          userId,
+          startAtDaysFromNow: 2,
+        }),
       ];
       await repo.upsertBatch(intervals);
 
       await repo.upsertBatch([
-        makeInterval({ id: "00000000-0000-0000-0000-000000000013", connectionId: connA, userId, startAtDaysFromNow: 3 }),
+        makeInterval({
+          id: "00000000-0000-0000-0000-000000000013",
+          connectionId: connA,
+          userId,
+          startAtDaysFromNow: 3,
+        }),
       ]);
 
       const all = await repo.findByUserIdAndDateRange(
@@ -247,7 +306,9 @@ describe("ImportedBusyIntervalRepository contract", () => {
 
       const connBIntervals = all.filter((i) => i.connectionId === connB);
       expect(connBIntervals).toHaveLength(1);
-      expect(connBIntervals[0]?.id).toBe("00000000-0000-0000-0000-000000000012");
+      expect(connBIntervals[0]?.id).toBe(
+        "00000000-0000-0000-0000-000000000012",
+      );
     });
 
     it("upsertBatch updates existing intervals with same id within same connectionId", async function () {
@@ -263,7 +324,12 @@ describe("ImportedBusyIntervalRepository contract", () => {
       const intervalId = "00000000-0000-0000-0000-000000000011";
 
       await repo.upsertBatch([
-        makeInterval({ id: intervalId, connectionId: connId, userId, startAtDaysFromNow: 1 }),
+        makeInterval({
+          id: intervalId,
+          connectionId: connId,
+          userId,
+          startAtDaysFromNow: 1,
+        }),
       ]);
 
       const found = await repo.findByUserIdAndDateRange(
@@ -286,7 +352,9 @@ describe("ImportedBusyIntervalRepository contract", () => {
       );
 
       expect(afterUpdate).toHaveLength(1);
-      expect(afterUpdate[0]?.endAt.getTime()).toBe(updatedInterval.endAt.getTime());
+      expect(afterUpdate[0]?.endAt.getTime()).toBe(
+        updatedInterval.endAt.getTime(),
+      );
     });
   });
 });

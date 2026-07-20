@@ -12,6 +12,7 @@ import {
 import { createAdminInvitesHandlers } from "../../src/admin/invites";
 import { createMagicLinkVerifyHandlers } from "../../src/auth/magic-link-verify";
 import { getSessionFromRequest, sealSessionCookie } from "../../src/auth/session";
+import { systemDependencies } from "../../src/system";
 import { invites, sessions } from "../../src/db/schema";
 import type {
   EmailDeliveryService,
@@ -185,9 +186,11 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
 
       const emailService = createRecordingEmailService();
       const { POST: postInvite } = createAdminInvitesHandlers({
+        ...systemDependencies(),
         emailDeliveryService: emailService,
       });
       const { POST: postVerify } = createMagicLinkVerifyHandlers({
+        ...systemDependencies(),
         magicLinkSecret: process.env.MAGIC_LINK_SECRET,
       });
 
@@ -342,6 +345,7 @@ async function runMatchingViaAssembler(
       });
 
       const { GET } = createAdminInvitesHandlers({
+        ...systemDependencies(),
         emailDeliveryService: createRecordingEmailService(),
       });
 

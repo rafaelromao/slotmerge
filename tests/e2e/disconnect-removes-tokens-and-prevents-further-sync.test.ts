@@ -32,7 +32,7 @@ import {
   discoverabilityConsents,
   calendarConnections,
 } from "../../src/db/schema";
-import { handleSyncCalendarConnectionJob, setClockForTests } from "../../src/worker/sync";
+import { handleSyncCalendarConnectionJob } from "../../src/worker/sync";
 import {
   CALENDAR_CONNECTION_FIXTURES,
   SESSION_FIXTURES,
@@ -170,14 +170,12 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
   beforeEach(() => {
     process.env.SESSION_SECRET = SESSION_SECRET;
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
-    setClockForTests(getTestClock());
     adapter = buildMockGoogleCalendarAdapter();
     vi.stubGlobal("fetch", buildDisconnectFetch(adapter));
   });
 
   afterEach(() => {
     setSessionRepositoryForTests(null);
-    setClockForTests(null);
     vi.unstubAllGlobals();
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
@@ -221,7 +219,7 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
           Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
       });
 
-      await handleSyncCalendarConnectionJob({ connectionId: CONNECTION_ID });
+      await handleSyncCalendarConnectionJob({ connectionId: CONNECTION_ID }, { clock: { now: getTestClock() }, randomSource: { next: () => 0 } });
       const freeBusyQueriesAfterFirstSync = adapter.freeBusyQueries.length;
       expect(freeBusyQueriesAfterFirstSync).toBe(1);
 
@@ -238,7 +236,7 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
       expect(row.accessTokenExpiresAt).toBeNull();
       expect(row.status).toBe("disconnected");
 
-      await handleSyncCalendarConnectionJob({ connectionId: CONNECTION_ID });
+      await handleSyncCalendarConnectionJob({ connectionId: CONNECTION_ID }, { clock: { now: getTestClock() }, randomSource: { next: () => 0 } });
       expect(adapter.freeBusyQueries.length).toBe(
         freeBusyQueriesAfterFirstSync,
       );

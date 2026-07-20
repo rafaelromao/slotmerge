@@ -115,15 +115,12 @@ async function clearTestConnection(connectionId: string): Promise<void> {
 
 describe("E2E: polling fallback enqueues sync jobs", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(getTestClock()());
     process.env.SESSION_SECRET = SESSION_SECRET;
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
     vi.mocked(enqueueSyncCalendarConnectionJob).mockClear();
   });
 
   afterEach(async () => {
-    vi.useRealTimers();
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
     setCalendarConnectionRepositoryForTests(null);
@@ -146,9 +143,12 @@ describe("E2E: polling fallback enqueues sync jobs", () => {
       await seedConnectedMicrosoftConnection(MICROSOFT_CONNECTION_ID);
 
       const clock = buildTestClock(getTestClock()());
-      vi.spyOn(Math, "random").mockReturnValue(0.5);
+      const randomSource = { next: () => 0.5 };
 
-      await handlePollCalendarConnectionsJob({ clock: () => clock.now() });
+      await handlePollCalendarConnectionsJob(undefined, {
+        clock,
+        randomSource,
+      });
 
       expect(vi.mocked(enqueueSyncCalendarConnectionJob)).toHaveBeenCalledTimes(
         2,

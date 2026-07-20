@@ -3,8 +3,8 @@ import {
   type OperationalEvent,
   type TriggerAdminCriticalEmailDeps,
 } from "../admin/critical-email";
+import type { Clock } from "../system/clock";
 import type {
-  CreateEmailDeliveryServiceOptions,
   EmailEvent,
   EmailEventRepository,
   EmailTransport,
@@ -20,10 +20,12 @@ export type CriticalEmailTrigger = {
 export type CriticalEmailTriggerDeps = Omit<
   TriggerAdminCriticalEmailDeps,
   "clock"
->;
+> & {
+  clock: Clock;
+};
 
 export type ProcessEmailDeliveryJobOptions = {
-  clock?: NonNullable<CreateEmailDeliveryServiceOptions["clock"]>;
+  clock: Clock;
   eventRepository: Required<
     Pick<EmailEventRepository, "recordAttempt" | "markDelivered" | "markFailed">
   >;
@@ -34,25 +36,25 @@ export type ProcessEmailDeliveryJobOptions = {
 export async function processEmailDeliveryJob(
   job: QueueEmailJobInput,
   {
-    clock = () => new Date(),
+    clock,
     eventRepository,
     transport,
     criticalEmail,
   }: ProcessEmailDeliveryJobOptions,
 ): Promise<EmailEvent> {
-  const attemptedAt = clock();
+  const attemptedAt = clock.now();
   await eventRepository.recordAttempt(job.emailEventId, attemptedAt);
 
   try {
     const transportResult = await transport.send(job);
     return await eventRepository.markDelivered(
       job.emailEventId,
-      clock(),
+      clock.now(),
       transportResult.providerMessageId,
     );
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
-    await eventRepository.markFailed(job.emailEventId, clock(), {
+    await eventRepository.markFailed(job.emailEventId, clock.now(), {
       code: normalizeErrorCode(failure.message),
       message: failure.message,
     });
@@ -60,7 +62,7 @@ export async function processEmailDeliveryJob(
     if (criticalEmail) {
       try {
         await criticalEmail.trigger(
-          buildTransactionalEmailFailureEvent(job, failure, clock()),
+          buildTransactionalEmailFailureEvent(job, failure, clock.now()),
         );
       } catch {
         // The trigger failure must never mask the original transport failure.

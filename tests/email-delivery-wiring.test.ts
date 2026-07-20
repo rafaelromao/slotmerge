@@ -6,6 +6,7 @@ import {
   handleEmailDeliveryJob,
   setEmailTransportForTests,
 } from "../src/worker/email";
+import { buildTestClock } from "./test-clock";
 
 vi.mock("../src/email/repository", () => ({
   createPostgresEmailEventRepository: vi.fn(() => ({
@@ -280,7 +281,7 @@ describe("MockEmailAdapter wiring with processEmailDeliveryJob", () => {
     trigger: vi.fn(),
   };
 
-  const mockClock = () => new Date("2026-01-01T00:00:00.000Z");
+  const mockClock = { now: () => new Date("2026-01-01T00:00:00.000Z") };
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -296,11 +297,11 @@ describe("MockEmailAdapter wiring with processEmailDeliveryJob", () => {
       payloadReference: "ref-1",
       status: "sending",
       attempts: 1,
-      createdAt: mockClock(),
-      updatedAt: mockClock(),
+      createdAt: mockClock.now(),
+      updatedAt: mockClock.now(),
       sentAt: null,
       failedAt: null,
-      lastAttemptAt: mockClock(),
+      lastAttemptAt: mockClock.now(),
       lastErrorCode: null,
       lastErrorMessage: null,
     });
@@ -312,11 +313,11 @@ describe("MockEmailAdapter wiring with processEmailDeliveryJob", () => {
       payloadReference: "ref-1",
       status: "sent",
       attempts: 1,
-      createdAt: mockClock(),
-      updatedAt: mockClock(),
-      sentAt: mockClock(),
+      createdAt: mockClock.now(),
+      updatedAt: mockClock.now(),
+      sentAt: mockClock.now(),
       failedAt: null,
-      lastAttemptAt: mockClock(),
+      lastAttemptAt: mockClock.now(),
       lastErrorCode: null,
       lastErrorMessage: null,
     });
@@ -356,11 +357,11 @@ describe("MockEmailAdapter wiring with processEmailDeliveryJob", () => {
       payloadReference: "ref-2",
       status: "sending",
       attempts: 1,
-      createdAt: mockClock(),
-      updatedAt: mockClock(),
+      createdAt: mockClock.now(),
+      updatedAt: mockClock.now(),
       sentAt: null,
       failedAt: null,
-      lastAttemptAt: mockClock(),
+      lastAttemptAt: mockClock.now(),
       lastErrorCode: null,
       lastErrorMessage: null,
     });
@@ -372,11 +373,11 @@ describe("MockEmailAdapter wiring with processEmailDeliveryJob", () => {
       payloadReference: "ref-2",
       status: "failed",
       attempts: 1,
-      createdAt: mockClock(),
-      updatedAt: mockClock(),
+      createdAt: mockClock.now(),
+      updatedAt: mockClock.now(),
       sentAt: null,
-      failedAt: mockClock(),
-      lastAttemptAt: mockClock(),
+      failedAt: mockClock.now(),
+      lastAttemptAt: mockClock.now(),
       lastErrorCode: "provider-unavailable",
       lastErrorMessage: "provider unavailable",
     });
@@ -408,10 +409,12 @@ describe("MockEmailAdapter wiring with processEmailDeliveryJob", () => {
 
 describe("setEmailTransportForTests seam", () => {
   let adapter: ReturnType<typeof buildMockEmailAdapter>;
+  let clock: ReturnType<typeof buildTestClock>;
 
   beforeEach(() => {
     adapter = buildMockEmailAdapter();
     setEmailTransportForTests(adapter);
+    clock = buildTestClock(new Date("2026-01-01T00:00:00.000Z"));
   });
 
   afterEach(() => {
@@ -420,12 +423,15 @@ describe("setEmailTransportForTests seam", () => {
   });
 
   it("records a send through handleEmailDeliveryJob via the module-level seam", async () => {
-    await handleEmailDeliveryJob({
-      emailEventId: "evt-seam-1",
-      recipient: "user@example.com",
-      type: "invite",
-      payload: { inviteId: "invite-seam-1" },
-    });
+    await handleEmailDeliveryJob(
+      {
+        emailEventId: "evt-seam-1",
+        recipient: "user@example.com",
+        type: "invite",
+        payload: { inviteId: "invite-seam-1" },
+      },
+      { clock },
+    );
 
     expect(adapter.sends).toHaveLength(1);
     const send = adapter.sends[0];
@@ -441,12 +447,15 @@ describe("setEmailTransportForTests seam", () => {
     adapter.setPersistentFailure("provider unavailable");
 
     await expect(
-      handleEmailDeliveryJob({
-        emailEventId: "evt-seam-2",
-        recipient: "user@example.com",
-        type: "magic-link",
-        payload: { token: "token-seam-2" },
-      }),
+      handleEmailDeliveryJob(
+        {
+          emailEventId: "evt-seam-2",
+          recipient: "user@example.com",
+          type: "magic-link",
+          payload: { token: "token-seam-2" },
+        },
+        { clock },
+      ),
     ).rejects.toThrow("provider unavailable");
 
     expect(adapter.sends).toHaveLength(1);

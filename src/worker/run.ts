@@ -2,6 +2,7 @@ import { run } from "graphile-worker";
 
 import { loadRuntimeConfig } from "../config/runtime";
 import { createPollCronItems } from "../calendar/poll";
+import { systemDependencies } from "../system";
 import { handleLocalSmokeJob, localSmokeTaskName } from "./smoke";
 import { emailDeliveryTaskName, handleEmailDeliveryJob } from "./email";
 import {
@@ -22,6 +23,8 @@ const pollCronExpression =
 
 const pollCronItems = createPollCronItems(pollCronExpression);
 
+const { clock, randomSource } = systemDependencies();
+
 await run(
   {
     connectionString: config.databaseUrl,
@@ -30,11 +33,12 @@ await run(
     parsedCronItems: pollCronItems,
   },
   {
-    [emailDeliveryTaskName]: async (payload) => handleEmailDeliveryJob(payload),
+    [emailDeliveryTaskName]: async (payload) =>
+      handleEmailDeliveryJob(payload, { clock }),
     [localSmokeTaskName]: async (payload) => handleLocalSmokeJob(payload),
     [syncCalendarConnectionTaskName]: async (payload) =>
-      handleSyncCalendarConnectionJob(payload),
-    [pollCalendarConnectionsTaskName]: async () =>
-      handlePollCalendarConnectionsJob(),
+      handleSyncCalendarConnectionJob(payload, { clock, randomSource }),
+    [pollCalendarConnectionsTaskName]: async (payload) =>
+      handlePollCalendarConnectionsJob(payload, { clock, randomSource }),
   },
 );

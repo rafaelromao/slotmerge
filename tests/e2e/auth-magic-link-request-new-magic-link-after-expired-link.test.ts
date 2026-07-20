@@ -1,11 +1,4 @@
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  inject,
-  it,
-} from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { eq } from "drizzle-orm";
 import { getTestDb, setupTest } from "../helpers/setup";
@@ -13,10 +6,7 @@ import { invites, users } from "../../src/db/schema";
 import { createMagicLinkRequestHandlers } from "../../src/auth/magic-link-request";
 import { createMagicLinkVerifyHandlers } from "../../src/auth/magic-link-verify";
 import { createMagicLinkResendHandlers } from "../../src/auth/magic-link-resend";
-import type {
-  EmailDeliveryService,
-  EmailType,
-} from "../../src/email/service";
+import type { EmailDeliveryService, EmailType } from "../../src/email/service";
 import { buildTestClock } from "../test-clock";
 
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
@@ -146,7 +136,7 @@ describe("E2E: request a new magic link after an expired link", () => {
 
       const emailService = createRecordingEmailService();
       const { POST: postRequest } = createMagicLinkRequestHandlers({
-        clock: () => clock.now(),
+        clock,
         magicLinkSecret: MAGIC_LINK_SECRET,
         emailDeliveryService: emailService,
       });
@@ -161,12 +151,14 @@ describe("E2E: request a new magic link after an expired link", () => {
 
       expect(requestResponse.status).toBe(200);
       expect(emailService.sends).toHaveLength(1);
-      const originalToken = extractMagicLinkToken(emailService.sends[0].payload);
+      const originalToken = extractMagicLinkToken(
+        emailService.sends[0].payload,
+      );
 
       clock.advance(60 * 60 * 1000 + 1);
 
       const { POST: postVerify } = createMagicLinkVerifyHandlers({
-        clock: () => clock.now(),
+        clock,
         magicLinkSecret: MAGIC_LINK_SECRET,
       });
 
@@ -191,7 +183,7 @@ describe("E2E: request a new magic link after an expired link", () => {
       expect(resendToken).toBe(originalToken);
 
       const { POST: postResend } = createMagicLinkResendHandlers({
-        clock: () => clock.now(),
+        clock,
         magicLinkSecret: MAGIC_LINK_SECRET,
         emailDeliveryService: emailService,
       });

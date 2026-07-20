@@ -106,9 +106,7 @@ export function buildMockEmailAdapter(): MockEmailAdapter {
     failureMode = { kind: "after-attempts", n, error };
   }
 
-  function getSendsByRecipient(
-    recipient: string,
-  ): MockEmailSendRecord[] {
+  function getSendsByRecipient(recipient: string): MockEmailSendRecord[] {
     return sends.filter((s) => s.recipient === recipient);
   }
 

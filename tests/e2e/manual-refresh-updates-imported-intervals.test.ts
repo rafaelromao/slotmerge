@@ -27,6 +27,7 @@ import {
 } from "../../src/calendar/repository";
 import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
+import { systemRandomSource } from "../../src/system/random";
 import {
   buildMockGoogleCalendarAdapter,
   type MockGoogleCalendarAdapter,
@@ -178,8 +179,6 @@ async function clearTestConnection(connectionId: string): Promise<void> {
 
 describe("E2E: manual refresh updates imported intervals", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(getTestClock()());
     process.env.SESSION_SECRET = SESSION_SECRET;
     process.env.CALENDAR_TOKEN_ENCRYPTION_KEY = TOKEN_ENCRYPTION_KEY;
     process.env.GOOGLE_OAUTH_CLIENT_ID = "google-client-id";
@@ -188,7 +187,6 @@ describe("E2E: manual refresh updates imported intervals", () => {
   });
 
   afterEach(async () => {
-    vi.useRealTimers();
     delete process.env.SESSION_SECRET;
     delete process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
     delete process.env.GOOGLE_OAUTH_CLIENT_ID;
@@ -270,7 +268,13 @@ describe("E2E: manual refresh updates imported intervals", () => {
       vi.mocked(enqueueSyncCalendarConnectionJob).mockImplementation(
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         async (connectionId: string, _databaseUrl: string) => {
-          await handleSyncCalendarConnectionJob({ connectionId });
+          await handleSyncCalendarConnectionJob(
+            { connectionId },
+            {
+              clock: { now: getTestClock() },
+              randomSource: systemRandomSource(),
+            },
+          );
         },
       );
 

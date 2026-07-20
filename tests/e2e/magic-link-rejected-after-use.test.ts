@@ -1,3 +1,4 @@
+import { systemDependencies } from "../../src/system";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { createMagicLinkVerifyHandlers } from "../../src/auth/magic-link-verify";
@@ -32,9 +33,7 @@ async function seedPendingInvite(): Promise<void> {
   });
 }
 
-async function countSessionsForUserEmail(
-  email: string,
-): Promise<number> {
+async function countSessionsForUserEmail(email: string): Promise<number> {
   const db = getTestDb();
   if (!db) {
     throw new Error("test db not initialized");
@@ -90,7 +89,7 @@ describe("E2E: magic link is rejected after use", () => {
       await seedPendingInvite();
 
       const issuer = createMagicLinkTokenIssuer({
-        clock: () => new Date("2026-07-12T12:00:00.000Z"),
+        clock: { now: () => new Date("2026-07-12T12:00:00.000Z") },
         baseUrl: "https://slotmerge.example.com",
         secret: process.env.MAGIC_LINK_SECRET ?? "",
       });
@@ -101,6 +100,7 @@ describe("E2E: magic link is rejected after use", () => {
       });
 
       const { POST } = createMagicLinkVerifyHandlers({
+        ...systemDependencies(),
         magicLinkSecret: process.env.MAGIC_LINK_SECRET,
       });
 

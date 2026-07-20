@@ -26,6 +26,7 @@ describe("triggerAdminCriticalEmail", () => {
         },
         emailDeliveryService: { sendEmail },
         lastDispatchLookup: { findMostRecentKindDispatch },
+        clock: { now: () => new Date() },
       },
     );
 
@@ -63,7 +64,7 @@ describe("triggerAdminCriticalEmail", () => {
         lastDispatchLookup: {
           findMostRecentKindDispatch: vi.fn().mockResolvedValue(null),
         },
-        clock: () => new Date("2026-01-01T12:00:00.000Z"),
+        clock: { now: () => new Date("2026-01-01T12:00:00.000Z") },
         dedupWindowMs: 15 * 60 * 1000,
       },
     );
@@ -124,6 +125,7 @@ describe("triggerAdminCriticalEmail", () => {
         lastDispatchLookup: {
           findMostRecentKindDispatch: vi.fn().mockResolvedValue(null),
         },
+        clock: { now: () => new Date() },
       },
     );
 
@@ -158,8 +160,8 @@ describe("triggerAdminCriticalEmail", () => {
         },
         emailDeliveryService: { sendEmail },
         lastDispatchLookup: { findMostRecentKindDispatch },
-        clock: () => now,
         dedupWindowMs: 15 * 60 * 1000,
+        clock: { now: () => now },
       },
     );
 
@@ -194,8 +196,8 @@ describe("triggerAdminCriticalEmail", () => {
         },
         emailDeliveryService: { sendEmail },
         lastDispatchLookup: { findMostRecentKindDispatch },
-        clock: () => now,
         dedupWindowMs: 15 * 60 * 1000,
+        clock: { now: () => now },
       },
     );
 
@@ -225,6 +227,7 @@ describe("triggerAdminCriticalEmail", () => {
         },
         emailDeliveryService: { sendEmail },
         lastDispatchLookup: { findMostRecentKindDispatch },
+        clock: { now: () => new Date() },
       },
     );
 
@@ -269,6 +272,7 @@ describe("triggerAdminCriticalEmail", () => {
         lastDispatchLookup: {
           findMostRecentKindDispatch: vi.fn().mockResolvedValue(null),
         },
+        clock: { now: () => new Date() },
       },
     );
 

@@ -184,7 +184,12 @@ describe("GET /me/availability-overrides", () => {
     );
     await repo.add(
       "user-1",
-      { date: "2026-07-21", startTime: "14:00", endTime: "15:00", type: "block" },
+      {
+        date: "2026-07-21",
+        startTime: "14:00",
+        endTime: "15:00",
+        type: "block",
+      },
       "America/New_York",
     );
     await repo.add(

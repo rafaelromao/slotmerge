@@ -22,7 +22,8 @@ const OBSOLETE_MIGRATION_FILES: ReadonlySet<string> = new Set([
 
 async function createDatabase(dbName: string): Promise<void> {
   const baseUrl =
-    process.env.DATABASE_URL ?? "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
+    process.env.DATABASE_URL ??
+    "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
   const match = baseUrl.match(/^(postgres:\/\/[^:]+:[^@]+@[^:]+:\d+)\//);
   if (!match) {
     throw new Error(
@@ -40,7 +41,8 @@ async function createDatabase(dbName: string): Promise<void> {
 
 async function dropDatabase(dbName: string): Promise<void> {
   const baseUrl =
-    process.env.DATABASE_URL ?? "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
+    process.env.DATABASE_URL ??
+    "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
   const match = baseUrl.match(/^(postgres:\/\/[^:]+:[^@]+@[^:]+:\d+)\//);
   if (!match) {
     return;
@@ -98,7 +100,8 @@ export async function createEphemeralDatabase(): Promise<{
   await createDatabase(dbName);
 
   const baseUrl =
-    process.env.DATABASE_URL ?? "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
+    process.env.DATABASE_URL ??
+    "postgres://slotmerge:slotmerge@localhost:5432/slotmerge";
   const match = baseUrl.match(/^(postgres:\/\/[^:]+:[^@]+@[^:]+:\d+)/);
   if (!match) {
     throw new Error(
@@ -144,9 +147,7 @@ export async function resetDatabase(
   ];
 
   for (const table of tables) {
-    await db.execute(
-      `TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE`,
-    );
+    await db.execute(`TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE`);
   }
 }
 

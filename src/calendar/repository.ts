@@ -2,6 +2,8 @@ import { eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { calendarConnections } from "../db/schema";
+import type { Clock } from "../system/clock";
+import { systemClock } from "../system/clock";
 import type {
   CalendarConnectionRecord,
   CalendarConnectionRepository,
@@ -15,8 +17,18 @@ export function setCalendarConnectionRepositoryForTests(
   repositoryOverride = repository;
 }
 
+let cachedDefaultRepository: CalendarConnectionRepository | null = null;
+
+function getDefaultRepository(): CalendarConnectionRepository {
+  if (!cachedDefaultRepository) {
+    cachedDefaultRepository =
+      createPostgresCalendarConnectionRepository(systemClock());
+  }
+  return cachedDefaultRepository;
+}
+
 export function getCalendarConnectionRepository(): CalendarConnectionRepository {
-  return repositoryOverride ?? databaseCalendarConnectionRepository;
+  return repositoryOverride ?? getDefaultRepository();
 }
 
 export async function findCalendarConnectionById(
@@ -59,8 +71,10 @@ const calendarConnectionSelectColumns = {
   contributingCalendarIds: calendarConnections.contributingCalendarIds,
 };
 
-export const databaseCalendarConnectionRepository: CalendarConnectionRepository =
-  {
+export function createPostgresCalendarConnectionRepository(
+  clock: Clock,
+): CalendarConnectionRepository {
+  return {
     createPending: async (record) => {
       const [row] = await getDb()
         .insert(calendarConnections)
@@ -103,7 +117,7 @@ export const databaseCalendarConnectionRepository: CalendarConnectionRepository 
         .update(calendarConnections)
         .set({
           ...patch,
-          updatedAt: new Date(),
+          updatedAt: clock.now(),
         })
         .where(eq(calendarConnections.id, id))
         .returning(calendarConnectionSelectColumns);
@@ -111,3 +125,4 @@ export const databaseCalendarConnectionRepository: CalendarConnectionRepository 
       return row ?? null;
     },
   };
+}

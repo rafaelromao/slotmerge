@@ -75,6 +75,8 @@
   --shadow-md: 0 4px 12px oklch(0% 0 0 / 0.08);
   --shadow-overlay: -4px 0 24px oklch(0% 0 0 / 0.12);
 
+  --scrim: oklch(0% 0 0 / 0.5);
+
   --z-overlay: 50;
   --z-modal: 100;
 
@@ -224,6 +226,20 @@ button {
   color: var(--text-subtle);
 }
 
+.calendar-fresh {
+  color: var(--success);
+  font-weight: var(--weight-semibold);
+}
+
+.calendar-stale {
+  color: var(--warning);
+  font-weight: var(--weight-semibold);
+}
+
+.calendar-none {
+  color: var(--text-subtle);
+}
+
 .empty-state {
   padding: var(--space-7) var(--space-4);
   text-align: center;
@@ -275,7 +291,7 @@ button {
 .slot-details-drawer-overlay {
   position: fixed;
   inset: 0;
-  background: oklch(0% 0 0 / 0.5);
+  background: var(--scrim);
   z-index: var(--z-overlay);
   display: flex;
   align-items: stretch;
@@ -294,11 +310,42 @@ button {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+  position: relative;
+}
+
+.drawer-close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-xl);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.drawer-close:hover {
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+
+.drawer-close:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
 }
 
 .drawer-header {
   border-bottom: 1px solid var(--border-subtle);
   padding-bottom: var(--space-4);
+  padding-right: var(--space-7);
 }
 
 .drawer-title {
@@ -505,8 +552,8 @@ button {
 .calendar-header,
 .calendar-body {
   display: grid;
-  grid-template-columns: repeat(var(--day-count, 7), minmax(120px, 1fr));
-  min-width: 100%;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
 }
 
 .calendar-header {
@@ -532,7 +579,6 @@ button {
 
 .calendar-body {
   padding: var(--space-2);
-  gap: var(--space-2);
 }
 
 .calendar-day-column {
@@ -544,6 +590,62 @@ button {
   gap: var(--space-2);
   padding: var(--space-2);
   background: var(--surface-base);
+}
+
+.calendar-day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.calendar-day-nav-label {
+  flex: 1;
+  text-align: center;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-day-nav-btn {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-xl);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.calendar-day-nav-btn:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+
+.calendar-day-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.calendar-day-nav-btn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .calendar-day-nav-btn {
+    transition:
+      background var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
 }
 
 .calendar-slot-empty {
@@ -662,9 +764,34 @@ button {
     width: 100%;
     padding: var(--space-4);
   }
+}
 
+@media (min-width: 900px) {
   .calendar-header,
   .calendar-body {
-    grid-template-columns: repeat(var(--day-count, 7), minmax(140px, 1fr));
+    grid-template-columns: repeat(7, calc((100% - var(--space-4)) / 3));
+  }
+}
+
+@media (min-width: 1200px) {
+  .calendar-header,
+  .calendar-body {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .calendar-day-nav {
+    display: none;
+  }
+}
+
+@media (max-width: 899px) {
+  .calendar-header,
+  .calendar-body {
+    grid-template-columns: repeat(7, 100%);
+    scroll-snap-type: x mandatory;
+  }
+
+  .calendar-day-column {
+    scroll-snap-align: start;
   }
 }

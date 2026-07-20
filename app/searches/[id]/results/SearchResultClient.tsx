@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SlotDetailsDrawer } from "../../../components/SlotDetailsDrawer";
 import type { Slot, SearchSnapshot } from "../../../../src/db/schema";
 
@@ -43,10 +43,15 @@ function slotHasStale(slot: Slot): boolean {
   return slot.matches.some((m) => m.calendarFreshness === "stale");
 }
 
-function buildSlotLabel(slot: Slot, dayLabel: string): string {
+function buildSlotLabel(
+  slot: Slot,
+  dayLabel: string,
+  hourFormatter: Intl.DateTimeFormat,
+): string {
   const count = slot.matchCount;
   const matchesWord = count === 1 ? "match" : "matches";
-  const base = `${dayLabel}, ${count} ${matchesWord}`;
+  const hourLabel = hourFormatter.format(new Date(slot.startUtc));
+  const base = `${dayLabel} at ${hourLabel}, ${count} ${matchesWord}`;
   return slotHasStale(slot) ? `${base}, contains stale calendar data` : base;
 }
 
@@ -58,6 +63,8 @@ export function SearchResultClient({
   organizerTimezone: string;
 }) {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [focusedDayIndex, setFocusedDayIndex] = useState(0);
+  const dayColumnRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const formatters = useMemo(() => {
     return {
@@ -78,6 +85,11 @@ export function SearchResultClient({
         minute: "2-digit",
         timeZone: organizerTimezone,
       }),
+      hourFormatter: new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: organizerTimezone,
+      }),
     };
   }, [organizerTimezone]);
 
@@ -86,6 +98,25 @@ export function SearchResultClient({
     [snapshot, formatters],
   );
 
+  useEffect(() => {
+    const column = dayColumnRefs.current[focusedDayIndex];
+    if (column) {
+      column.scrollIntoView({
+        behavior: "smooth",
+        inline: "start",
+        block: "nearest",
+      });
+    }
+  }, [focusedDayIndex]);
+
+  const handlePrevDay = useCallback(() => {
+    setFocusedDayIndex((i) => Math.max(0, i - 1));
+  }, []);
+
+  const handleNextDay = useCallback(() => {
+    setFocusedDayIndex((i) => Math.min(days.length - 1, i + 1));
+  }, [days.length]);
+
   const handleSlotClick = useCallback((slot: Slot) => {
     setSelectedSlot(slot);
   }, []);
@@ -93,6 +124,10 @@ export function SearchResultClient({
   const handleClose = useCallback(() => {
     setSelectedSlot(null);
   }, []);
+
+  const canPrev = focusedDayIndex > 0;
+  const canNext = focusedDayIndex < days.length - 1;
+  const focusedDay = days[focusedDayIndex];
 
   return (
     <main className="search-result-page">
@@ -118,9 +153,34 @@ export function SearchResultClient({
         </span>
       </p>
 
+      <div className="calendar-day-nav" aria-label="Day navigation">
+        <button
+          type="button"
+          className="calendar-day-nav-btn"
+          onClick={handlePrevDay}
+          disabled={!canPrev}
+          aria-label="Previous day"
+          data-testid="day-nav-prev"
+        >
+          <span aria-hidden="true">‹</span>
+        </button>
+        <span className="calendar-day-nav-label" aria-live="polite">
+          {focusedDay ? focusedDay.label : ""}
+        </span>
+        <button
+          type="button"
+          className="calendar-day-nav-btn"
+          onClick={handleNextDay}
+          disabled={!canNext}
+          aria-label="Next day"
+          data-testid="day-nav-next"
+        >
+          <span aria-hidden="true">›</span>
+        </button>
+      </div>
+
       <div
         className="calendar-grid"
-        style={{ "--day-count": days.length } as React.CSSProperties}
         role="grid"
         aria-label={`Weekly search results, ${days.length} day${days.length !== 1 ? "s" : ""}`}
       >
@@ -140,6 +200,9 @@ export function SearchResultClient({
           {days.map((day, dayIdx) => (
             <div
               key={`d-${dayIdx}`}
+              ref={(el) => {
+                dayColumnRefs.current[dayIdx] = el;
+              }}
               className="calendar-day-column"
               role="gridcell"
               aria-label={day.label}
@@ -158,7 +221,11 @@ export function SearchResultClient({
                       className="calendar-slot"
                       data-testid={`slot-${dayIdx}-${slotIdx}`}
                       data-stale={isStale ? "true" : "false"}
-                      aria-label={buildSlotLabel(slot, day.label)}
+                      aria-label={buildSlotLabel(
+                        slot,
+                        day.label,
+                        formatters.hourFormatter,
+                      )}
                       onClick={() => handleSlotClick(slot)}
                     >
                       {slot.matchCount === 0 ? (

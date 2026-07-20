@@ -48,12 +48,27 @@ function getSlotMatchedTopics(matches: Slot["matches"]): string {
   return Array.from(topicNames).join(", ");
 }
 
+function getFocusableElements(root: HTMLElement): HTMLElement[] {
+  const selector = [
+    "a[href]",
+    "button:not([disabled])",
+    "input:not([disabled])",
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(",");
+  return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(
+    (el) => !el.hasAttribute("aria-hidden"),
+  );
+}
+
 export function SlotDetailsDrawer({
   slot,
   snapshot,
   onClose,
 }: SlotDetailsDrawerProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<Element | null>(null);
 
   const formatters = useMemo(() => {
@@ -80,8 +95,34 @@ export function SlotDetailsDrawer({
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         onClose();
+        return;
+      }
+
+      if (e.key !== "Tab" || !dialogRef.current) return;
+
+      const focusables = getFocusableElements(dialogRef.current);
+      if (focusables.length === 0) {
+        e.preventDefault();
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (e.shiftKey) {
+        if (active === first || !dialogRef.current.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (active === last || !dialogRef.current.contains(active)) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     }
+
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
@@ -90,9 +131,9 @@ export function SlotDetailsDrawer({
     previousFocusRef.current = document.activeElement;
     document.body.style.overflow = "hidden";
 
-    const dialogNode = dialogRef.current;
-    if (dialogNode) {
-      dialogNode.focus();
+    const closeButton = closeButtonRef.current;
+    if (closeButton) {
+      closeButton.focus();
     }
 
     return () => {
@@ -136,9 +177,19 @@ export function SlotDetailsDrawer({
         aria-modal="true"
         aria-labelledby={TITLE_ID}
         aria-describedby={DESCRIPTION_ID}
-        tabIndex={-1}
         data-testid="slot-details-drawer"
       >
+        <button
+          ref={closeButtonRef}
+          type="button"
+          className="drawer-close"
+          onClick={onClose}
+          aria-label="Close slot details"
+          data-testid="drawer-close"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+
         <div className="drawer-header">
           <h2 id={TITLE_ID} className="drawer-title">
             {slotTime}

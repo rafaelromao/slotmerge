@@ -107,13 +107,35 @@ describe("SlotDetailsDrawer", () => {
     expect(html).toContain("No export/share actions");
   });
 
-  it("has no button, form, or anchor elements (read-only)", () => {
+  it("renders only the close button and no other interactive elements (no booking, export, or share)", () => {
     const html = renderToString(
       <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
     );
-    expect(html).not.toMatch(/<button\b/);
+    const buttonMatches = html.match(/<button\b/g) ?? [];
+    expect(buttonMatches.length).toBe(1);
+    expect(html).toContain("drawer-close");
     expect(html).not.toMatch(/<form\b/);
     expect(html).not.toMatch(/<a\b/);
+  });
+
+  it("renders a labelled close button as the first focusable element", () => {
+    const html = renderToString(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(html).toContain('aria-label="Close slot details"');
+    const drawerIndex = html.indexOf('data-testid="slot-details-drawer"');
+    const closeIndex = html.indexOf('data-testid="drawer-close"');
+    expect(drawerIndex).toBeGreaterThan(-1);
+    expect(closeIndex).toBeGreaterThan(drawerIndex);
+  });
+
+  it("calls onClose when close button is clicked", () => {
+    const onClose = vi.fn();
+    const { getByTestId } = render(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={onClose} />,
+    );
+    fireEvent.click(getByTestId("drawer-close"));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("calls onClose when backdrop is clicked", () => {
@@ -143,6 +165,43 @@ describe("SlotDetailsDrawer", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it("focuses the close button when the drawer opens", () => {
+    const { getByTestId } = render(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(document.activeElement).toBe(getByTestId("drawer-close"));
+  });
+
+  it("traps Tab focus inside the dialog when the only focusable is the close button", () => {
+    const { getByTestId } = render(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    const close = getByTestId("drawer-close");
+    expect(document.activeElement).toBe(close);
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(close);
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(close);
+  });
+
+  it("restores focus to the previously focused element on close", () => {
+    const trigger = document.createElement("button");
+    trigger.textContent = "Open drawer";
+    document.body.appendChild(trigger);
+    trigger.focus();
+    expect(document.activeElement).toBe(trigger);
+
+    const { unmount } = render(
+      <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
+    );
+    expect(document.activeElement).not.toBe(trigger);
+
+    unmount();
+    expect(document.activeElement).toBe(trigger);
+
+    document.body.removeChild(trigger);
+  });
+
   it("renders role=dialog for accessibility", () => {
     const html = renderToString(
       <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
@@ -153,11 +212,12 @@ describe("SlotDetailsDrawer", () => {
     expect(html).toContain('aria-describedby="drawer-description"');
   });
 
-  it("makes the dialog focusable so focus can be moved into it on open", () => {
+  it("moves focus into the dialog on open by focusing the close button", () => {
     const html = renderToString(
       <SlotDetailsDrawer slot={slot} snapshot={snapshot} onClose={vi.fn()} />,
     );
-    expect(html).toContain('tabindex="-1"');
+    expect(html).toContain('data-testid="drawer-close"');
+    expect(html).toContain('aria-label="Close slot details"');
   });
 
   it("locks body scroll while open and restores it on close", () => {

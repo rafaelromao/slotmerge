@@ -118,8 +118,20 @@ describe("SearchResultClient click-to-open flow", () => {
     );
 
     expect(html).toMatch(
-      /aria-label="[^"]*2 matches[^"]*stale calendar data/,
+      /aria-label="[^"]*at [^"]*2 matches[^"]*stale calendar data/,
     );
+  });
+
+  it("includes the slot start time in the aria-label for screen-reader disambiguation", () => {
+    const html = renderToString(
+      <SearchResultClient
+        snapshot={snapshot}
+        organizerTimezone="America/New_York"
+      />,
+    );
+
+    // startUtc 2026-07-15T10:00:00Z is 06:00 in America/New_York (EDT, UTC-4)
+    expect(html).toMatch(/aria-label="[^"]*at 6:00 AM[^"]*2 matches/);
   });
 
   it("marks the inline stale glyph as aria-hidden so it does not double-announce", () => {
@@ -168,6 +180,35 @@ describe("SearchResultClient click-to-open flow", () => {
 
     expect(html).toContain('role="grid"');
     expect(html).toContain("Weekly search results");
+  });
+
+  it("renders prev/next day navigation buttons for narrow viewports", () => {
+    const html = renderToString(
+      <SearchResultClient
+        snapshot={snapshot}
+        organizerTimezone="America/New_York"
+      />,
+    );
+
+    expect(html).toContain('data-testid="day-nav-prev"');
+    expect(html).toContain('data-testid="day-nav-next"');
+    expect(html).toContain('aria-label="Previous day"');
+    expect(html).toContain('aria-label="Next day"');
+  });
+
+  it("disables the prev day button at the start of the window", () => {
+    const html = renderToString(
+      <SearchResultClient
+        snapshot={snapshot}
+        organizerTimezone="America/New_York"
+      />,
+    );
+
+    expect(html).toMatch(
+      /<button[^>]*data-testid="day-nav-prev"[^>]*>/,
+    );
+    const match = html.match(/<button[^>]*data-testid="day-nav-prev"[^>]*>/);
+    expect(match?.[0]).toContain("disabled");
   });
 
   it("does not expose email addresses in rendered output", () => {

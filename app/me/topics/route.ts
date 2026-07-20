@@ -46,14 +46,17 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  return updateTopics(request);
+  return updateTopics(request, () => new Date());
 }
 
 export async function PUT(request: Request): Promise<Response> {
-  return updateTopics(request);
+  return updateTopics(request, () => new Date());
 }
 
-async function updateTopics(request: Request): Promise<Response> {
+async function updateTopics(
+  request: Request,
+  clock: () => Date,
+): Promise<Response> {
   const session = await getSessionFromRequest(request);
 
   if (!session) {
@@ -66,7 +69,11 @@ async function updateTopics(request: Request): Promise<Response> {
     return Response.json({ error: "invalid_csrf_token" }, { status: 403 });
   }
 
-  await saveUserTopicSelection(session.user.id, topicIds);
+  await saveUserTopicSelection({
+    userId: session.user.id,
+    topicIds,
+    now: clock(),
+  });
 
   if (request.method === "PUT") {
     return Response.json({ ok: true });

@@ -1,7 +1,5 @@
-import { and, desc, eq, gte } from "drizzle-orm";
-
 import { getDb } from "../db/client";
-import { emailEvents } from "../db/schema";
+import { createPostgresEmailDedupLookup } from "../email/dedup.repository";
 import {
   createConnectionActionRequiredDedupReference,
   type CalendarActionRequiredDispatchLookup,
@@ -29,29 +27,19 @@ export function getConnectionActionRequiredDispatchLookup(): CalendarActionRequi
 export function createPostgresConnectionActionRequiredDispatchLookup(
   db = getDb(),
 ): CalendarActionRequiredDispatchLookup {
+  const lookup = createPostgresEmailDedupLookup(db);
+
   return {
     async findMostRecentConnectionDispatch(connectionId, reason, since) {
-      const reference = createConnectionActionRequiredDedupReference(
-        connectionId,
-        reason,
-      );
-
-      const rows = await db
-        .select({ createdAt: emailEvents.createdAt })
-        .from(emailEvents)
-        .where(
-          and(
-            eq(emailEvents.type, "calendar-action-required"),
-            eq(emailEvents.payloadReference, reference),
-            eq(emailEvents.status, "sent"),
-            gte(emailEvents.createdAt, since),
-          ),
-        )
-        .orderBy(desc(emailEvents.createdAt))
-        .limit(1);
-
-      const firstRow = rows[0];
-      return firstRow ? firstRow.createdAt : null;
+      return lookup.findMostRecent({
+        type: "calendar-action-required",
+        payloadReference: createConnectionActionRequiredDedupReference(
+          connectionId,
+          reason,
+        ),
+        since,
+        status: "sent",
+      });
     },
   };
 }

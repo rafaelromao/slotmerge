@@ -21,16 +21,22 @@ export default async function SearchResultPage({
 
   if (!session) {
     return (
-      <main>
-        <p>You must be logged in to view this page.</p>
+      <main className="app-container">
+        <div className="empty-state">
+          <p className="empty-state-title">Sign in required</p>
+          <p>You must be logged in to view this page.</p>
+        </div>
       </main>
     );
   }
 
   if (session.user.role !== "organizer" && session.user.role !== "admin") {
     return (
-      <main>
-        <p>You do not have permission to view this page.</p>
+      <main className="app-container">
+        <div className="empty-state">
+          <p className="empty-state-title">Permission denied</p>
+          <p>You do not have permission to view this page.</p>
+        </div>
       </main>
     );
   }
@@ -40,8 +46,11 @@ export default async function SearchResultPage({
 
   if (!search) {
     return (
-      <main>
-        <p>Search not found.</p>
+      <main className="app-container">
+        <div className="empty-state">
+          <p className="empty-state-title">Search not found</p>
+          <p>Search not found.</p>
+        </div>
       </main>
     );
   }
@@ -51,8 +60,11 @@ export default async function SearchResultPage({
 
   if (!result) {
     return (
-      <main>
-        <p>No snapshot available for this search.</p>
+      <main className="app-container">
+        <div className="empty-state">
+          <p className="empty-state-title">Snapshot unavailable</p>
+          <p>No snapshot available for this search.</p>
+        </div>
       </main>
     );
   }

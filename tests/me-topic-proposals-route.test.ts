@@ -17,7 +17,11 @@ describe("GET /me/topic-proposals", () => {
   };
 
   const mockRepository = {
-    listUserTopicProposals: vi.fn(),
+    listUserProposals: vi.fn(),
+    listActiveTopics: vi.fn(),
+    listPendingForSimilarity: vi.fn(),
+    findPendingByUserAndName: vi.fn(),
+    insertProposal: vi.fn(),
   };
 
   const mockGetSession = vi.fn();
@@ -25,7 +29,7 @@ describe("GET /me/topic-proposals", () => {
   beforeEach(() => {
     mockGetSession.mockReset();
     mockGetSession.mockResolvedValue(mockSession);
-    mockRepository.listUserTopicProposals.mockReset();
+    mockRepository.listUserProposals.mockReset();
   });
 
   async function makeGetRequest() {
@@ -49,7 +53,7 @@ describe("GET /me/topic-proposals", () => {
 
   it("returns list of user's topic proposals", async () => {
     const createdAt = new Date("2024-01-01");
-    mockRepository.listUserTopicProposals.mockResolvedValue([
+    mockRepository.listUserProposals.mockResolvedValue([
       {
         id: "proposal-1",
         candidateName: "Sailing",
@@ -77,7 +81,7 @@ describe("GET /me/topic-proposals", () => {
   });
 
   it("returns empty array when user has no proposals", async () => {
-    mockRepository.listUserTopicProposals.mockResolvedValue([]);
+    mockRepository.listUserProposals.mockResolvedValue([]);
 
     const response = await makeGetRequest();
 

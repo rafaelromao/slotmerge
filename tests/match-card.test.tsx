@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { MatchCard } from "../app/components/MatchCard";
@@ -45,46 +47,64 @@ describe("MatchCard", () => {
   };
 
   it("renders with data-testid match-card", () => {
-    const card = MatchCard({ match: availableMatch });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    expect(card.props["data-testid"]).toBe("match-card");
+    const html = renderToString(MatchCard({ match: availableMatch }));
+    expect(html).toContain('data-testid="match-card"');
   });
 
-  it("renders displayName or Anonymous", () => {
-    const card = MatchCard({ match: availableMatch });
-    const json = JSON.stringify(card);
-    expect(json).toContain("Ada Lovelace");
+  it("renders displayName", () => {
+    const html = renderToString(MatchCard({ match: availableMatch }));
+    expect(html).toContain("Ada Lovelace");
   });
 
   it("renders Anonymous when displayName is null", () => {
-    const card = MatchCard({ match: partialMatch });
-    const json = JSON.stringify(card);
-    expect(json).toContain("Anonymous");
+    const html = renderToString(MatchCard({ match: partialMatch }));
+    expect(html).toContain("Anonymous");
   });
 
   it("renders avatar from avatarUrl", () => {
-    const card = MatchCard({ match: availableMatch });
-    const json = JSON.stringify(card);
-    expect(json).toContain("https://example.com/avatar.png");
+    const html = renderToString(MatchCard({ match: availableMatch }));
+    expect(html).toContain("https://example.com/avatar.png");
+  });
+
+  it("renders inline initials avatar when avatarUrl is null", () => {
+    const html = renderToString(MatchCard({ match: partialMatch }));
+    expect(html).not.toContain('src="https://example.com/avatar.png"');
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).toContain(">AN<");
+  });
+
+  it("renders the avatar image with lazy loading and explicit dimensions", () => {
+    const html = renderToString(MatchCard({ match: availableMatch }));
+    expect(html).toContain('loading="lazy"');
+    expect(html).toContain('width="40"');
+    expect(html).toContain('height="40"');
+    expect(html).toContain("Ada Lovelace&#x27;s avatar");
+  });
+
+  it("uses a generic alt text when displayName is null but avatarUrl is provided", () => {
+    const matchWithAvatarNoName: SlotMatchDetail = {
+      ...partialMatch,
+      displayName: null,
+      avatarUrl: "https://example.com/avatar.png",
+    };
+    const html = renderToString(MatchCard({ match: matchWithAvatarNoName }));
+    expect(html).toContain("Profile avatar");
   });
 
   it("renders shortBio", () => {
-    const card = MatchCard({ match: availableMatch });
-    const json = JSON.stringify(card);
-    expect(json).toContain("Computing pioneer");
+    const html = renderToString(MatchCard({ match: availableMatch }));
+    expect(html).toContain("Computing pioneer");
   });
 
   it("renders empty bio when shortBio is null", () => {
-    const card = MatchCard({ match: partialMatch });
-    const json = JSON.stringify(card);
-    expect(json).not.toContain("Computing pioneer");
+    const html = renderToString(MatchCard({ match: partialMatch }));
+    expect(html).not.toContain("Computing pioneer");
   });
 
   it("renders topics as comma-separated names", () => {
-    const card = MatchCard({ match: availableMatch });
-    const json = JSON.stringify(card);
-    expect(json).toContain("Compilers");
-    expect(json).toContain("Type Theory");
+    const html = renderToString(MatchCard({ match: availableMatch }));
+    expect(html).toContain("Compilers");
+    expect(html).toContain("Type Theory");
   });
 
   it("renders full topicProfile (not just matched topics)", () => {
@@ -102,57 +122,60 @@ describe("MatchCard", () => {
       availabilityIndicator: "available",
       calendarFreshness: "fresh",
     };
-    const card = MatchCard({ match: matchWithDifferentProfile });
-    const json = JSON.stringify(card);
-    expect(json).toContain("Algorithms");
-    expect(json).toContain("Literate Programming");
-    expect(json).toContain("Typesetting");
+    const html = renderToString(MatchCard({ match: matchWithDifferentProfile }));
+    expect(html).toContain("Algorithms");
+    expect(html).toContain("Literate Programming");
+    expect(html).toContain("Typesetting");
   });
 
   it("renders availability text for available indicator", () => {
-    const card = MatchCard({ match: availableMatch });
-    const json = JSON.stringify(card);
-    expect(json).toContain("available in this Search window");
+    const html = renderToString(MatchCard({ match: availableMatch }));
+    expect(html).toContain("available in this Search window");
   });
 
   it("renders availability text for partial indicator", () => {
-    const card = MatchCard({ match: partialMatch });
-    const json = JSON.stringify(card);
-    expect(json).toContain("partially available in this Search window");
+    const html = renderToString(MatchCard({ match: partialMatch }));
+    expect(html).toContain("partially available in this Search window");
   });
 
   it("renders availability text for unavailable indicator", () => {
-    const card = MatchCard({ match: unavailableMatch });
-    const json = JSON.stringify(card);
-    expect(json).toContain("manual only");
+    const html = renderToString(MatchCard({ match: unavailableMatch }));
+    expect(html).toContain("manual only");
   });
 
   it("renders calendar freshness label as fresh", () => {
-    const card = MatchCard({ match: availableMatch });
-    const json = JSON.stringify(card);
-    expect(json).toContain('"label":"fresh"');
-    expect(json).toContain('"className":"calendar-fresh"');
+    const html = renderToString(MatchCard({ match: availableMatch }));
+    expect(html).toContain("calendar-fresh");
+    expect(html).toContain("fresh");
   });
 
   it("renders calendar freshness label as stale", () => {
-    const card = MatchCard({ match: partialMatch });
-    const json = JSON.stringify(card);
-    expect(json).toContain('"label":"stale"');
-    expect(json).toContain('"className":"calendar-stale"');
+    const html = renderToString(MatchCard({ match: partialMatch }));
+    expect(html).toContain("calendar-stale");
+    expect(html).toContain("stale");
   });
 
   it("renders calendar freshness label as no calendar connected", () => {
-    const card = MatchCard({ match: unavailableMatch });
-    const json = JSON.stringify(card);
-    expect(json).toContain("no calendar connected");
-    expect(json).toContain('"className":"calendar-none"');
+    const html = renderToString(MatchCard({ match: unavailableMatch }));
+    expect(html).toContain("calendar-none");
+    expect(html).toContain("no calendar connected");
+  });
+
+  it("uses semantic dl markup for label/value pairs", () => {
+    const html = renderToString(MatchCard({ match: availableMatch }));
+    expect(html).toContain("<dl");
+    expect(html).toContain("<dt");
+    expect(html).toContain("<dd");
+  });
+
+  it("uses an h3 for the match name to provide heading outline in the drawer", () => {
+    const html = renderToString(MatchCard({ match: availableMatch }));
+    expect(html).toMatch(/<h3[^>]*match-card-name/);
   });
 
   it("does not expose email addresses in rendered output", () => {
-    const card = MatchCard({ match: availableMatch });
-    const json = JSON.stringify(card);
-
-    expect(json).not.toMatch(
+    const html = renderToString(MatchCard({ match: availableMatch }));
+    expect(html).not.toMatch(
       /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
     );
   });

@@ -1,23 +1,17 @@
-import { eq } from "drizzle-orm";
-
-import { getDb } from "../db/client";
-import { topicProposals, type TopicProposalStatus } from "../db/schema";
 import { getSessionFromRequest, type Session } from "../auth/session";
+import {
+  createPostgresTopicProposalRepository,
+  type TopicProposalUserRepository,
+} from "./proposals.repository";
 
-export type UserTopicProposal = {
-  id: string;
-  candidateName: string;
-  status: TopicProposalStatus;
-  createdAt: Date;
-};
+export type {
+  TopicProposalUserRepository,
+  UserTopicProposal,
+} from "./proposals.repository";
 
 export type MeTopicProposalsDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
-  repository?: MeTopicProposalsRepository;
-};
-
-export type MeTopicProposalsRepository = {
-  listUserTopicProposals(userId: string): Promise<UserTopicProposal[]>;
+  repository?: TopicProposalUserRepository;
 };
 
 export function createMeTopicProposalsHandlers({
@@ -33,40 +27,24 @@ export function createMeTopicProposalsHandlers({
       }
 
       const repo = repository ?? getMeTopicProposalsRepository();
-      const proposals = await repo.listUserTopicProposals(session.user.id);
+      const proposals = await repo.listUserProposals(session.user.id);
 
       return Response.json({ proposals });
     },
   };
 }
 
-let repositoryOverride: MeTopicProposalsRepository | null = null;
+let repositoryOverride: TopicProposalUserRepository | null = null;
 
 export function setMeTopicProposalsRepositoryForTests(
-  repository: MeTopicProposalsRepository | null,
+  repository: TopicProposalUserRepository | null,
 ) {
   repositoryOverride = repository;
 }
 
-function getMeTopicProposalsRepository(): MeTopicProposalsRepository {
+function getMeTopicProposalsRepository(): TopicProposalUserRepository {
   if (repositoryOverride) {
     return repositoryOverride;
   }
-  return databaseMeTopicProposalsRepository;
+  return createPostgresTopicProposalRepository();
 }
-
-const databaseMeTopicProposalsRepository: MeTopicProposalsRepository = {
-  async listUserTopicProposals(userId) {
-    const rows = await getDb()
-      .select({
-        id: topicProposals.id,
-        candidateName: topicProposals.candidateName,
-        status: topicProposals.status,
-        createdAt: topicProposals.createdAt,
-      })
-      .from(topicProposals)
-      .where(eq(topicProposals.proposedByUserId, userId))
-      .orderBy(topicProposals.createdAt);
-    return rows;
-  },
-};

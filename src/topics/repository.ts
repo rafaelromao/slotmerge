@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import {
@@ -14,6 +14,17 @@ export type TopicCatalogueEntry = {
   status: TopicStatus;
 };
 
+export type AdminTopicListItem = {
+  id: string;
+  name: string;
+  status: TopicStatus;
+  retiredAt: Date | null;
+  createdAt: Date;
+};
+
+export type RetireResult =
+  { ok: true } | { ok: false; reason: "not_found" | "already_retired" };
+
 export type TopicAssociation = {
   topicId: string;
   status: TopicAssociationStatus;
@@ -23,26 +34,129 @@ export type TopicCatalogueRepository = {
   listCatalogue(): Promise<TopicCatalogueEntry[]>;
   listSelectedTopicIds(userId: string): Promise<string[]>;
   listAssociations(userId: string): Promise<TopicAssociation[]>;
-  saveAssociations(
-    userId: string,
-    associations: TopicAssociation[],
-  ): Promise<void>;
+  saveAssociations(input: {
+    userId: string;
+    associations: TopicAssociation[];
+    now: Date;
+  }): Promise<void>;
 };
 
-let repositoryOverride: TopicCatalogueRepository | null = null;
+export type TopicAdminRepository = {
+  listActiveAdminTopics(): Promise<AdminTopicListItem[]>;
+  retire(input: { id: string; now: Date }): Promise<RetireResult>;
+};
+
+export type TopicCatalogueAndAdminRepository = TopicCatalogueRepository &
+  TopicAdminRepository;
+
+let repositoryOverride: TopicCatalogueAndAdminRepository | null = null;
+let cachedDatabaseTopicCatalogueRepository: TopicCatalogueAndAdminRepository | null =
+  null;
 
 export function setTopicCatalogueRepositoryForTests(
   repository: TopicCatalogueRepository | null,
 ) {
-  repositoryOverride = repository;
+  repositoryOverride = repository as TopicCatalogueAndAdminRepository | null;
+  cachedDatabaseTopicCatalogueRepository = null;
 }
 
 export function getTopicCatalogueRepository(): TopicCatalogueRepository {
+  return getTopicAdminRepository() as unknown as TopicCatalogueRepository;
+}
+
+export function getTopicAdminRepository(): TopicAdminRepository {
   if (repositoryOverride) {
     return repositoryOverride;
   }
 
-  return databaseTopicCatalogueRepository;
+  if (!cachedDatabaseTopicCatalogueRepository) {
+    cachedDatabaseTopicCatalogueRepository =
+      createPostgresTopicCatalogueRepository();
+  }
+
+  return cachedDatabaseTopicCatalogueRepository;
+}
+
+export function createPostgresTopicCatalogueRepository(
+  db = getDb(),
+): TopicCatalogueAndAdminRepository {
+  return {
+    listCatalogue: async () => db.select().from(topics).orderBy(topics.name),
+    listSelectedTopicIds: async (userId) =>
+      (
+        await db
+          .select({ topicId: userTopics.topicId })
+          .from(userTopics)
+          .where(
+            and(eq(userTopics.userId, userId), eq(userTopics.status, "active")),
+          )
+          .orderBy(userTopics.createdAt)
+      ).map((row) => row.topicId),
+    listAssociations: async (userId) =>
+      db
+        .select({ topicId: userTopics.topicId, status: userTopics.status })
+        .from(userTopics)
+        .where(eq(userTopics.userId, userId))
+        .orderBy(userTopics.createdAt),
+    saveAssociations: async ({ userId, associations, now }) => {
+      if (associations.length === 0) {
+        return;
+      }
+
+      await db
+        .insert(userTopics)
+        .values(
+          associations.map((association) => ({
+            userId,
+            topicId: association.topicId,
+            status: association.status,
+            createdAt: now,
+            updatedAt: now,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [userTopics.userId, userTopics.topicId],
+          set: {
+            status: sql`excluded.status`,
+            updatedAt: now,
+          },
+        });
+    },
+    listActiveAdminTopics: async () =>
+      db
+        .select({
+          id: topics.id,
+          name: topics.name,
+          status: topics.status,
+          retiredAt: topics.retiredAt,
+          createdAt: topics.createdAt,
+        })
+        .from(topics)
+        .where(eq(topics.status, "active"))
+        .orderBy(desc(topics.createdAt)),
+    retire: async ({ id, now }) => {
+      const [topic] = await db
+        .select({ status: topics.status })
+        .from(topics)
+        .where(eq(topics.id, id))
+        .limit(1);
+
+      if (!topic) {
+        return { ok: false, reason: "not_found" };
+      }
+
+      if (topic.status === "retired") {
+        return { ok: false, reason: "already_retired" };
+      }
+
+      await db
+        .update(topics)
+        .set({ status: "retired", retiredAt: now, updatedAt: now })
+        .where(eq(topics.id, id));
+
+      return { ok: true };
+    },
+  };
 }
 
 export async function listActiveTopics(): Promise<TopicCatalogueEntry[]> {
@@ -60,25 +174,24 @@ export async function getTopicPageState(userId: string | null) {
   return { catalogue, selectedTopicIds };
 }
 
-export async function replaceUserTopics({
-  userId,
-  topicIds,
-}: {
+export async function replaceUserTopics(input: {
   userId: string;
   topicIds: string[];
+  now: Date;
 }): Promise<void> {
   const repository = getTopicCatalogueRepository();
   const catalogue = await repository.listCatalogue();
-  const existingAssociations = await repository.listAssociations(userId);
+  const existingAssociations = await repository.listAssociations(input.userId);
 
-  await repository.saveAssociations(
-    userId,
-    deriveUserTopicAssociations({
+  await repository.saveAssociations({
+    userId: input.userId,
+    associations: deriveUserTopicAssociations({
       catalogue,
       existingAssociations,
-      selectedTopicIds: topicIds,
+      selectedTopicIds: input.topicIds,
     }),
-  );
+    now: input.now,
+  });
 }
 
 export function deriveUserTopicAssociations({
@@ -132,60 +245,18 @@ export function deriveUserTopicAssociations({
   return nextAssociations;
 }
 
-export async function saveUserTopicSelection(
-  userId: string,
-  topicIds: string[],
-): Promise<void> {
+export async function saveUserTopicSelection(input: {
+  userId: string;
+  topicIds: string[];
+  now: Date;
+}): Promise<void> {
   const activeTopicIds = new Set(
     (await listActiveTopics()).map((topic) => topic.id),
   );
 
   await replaceUserTopics({
-    userId,
-    topicIds: topicIds.filter((topicId) => activeTopicIds.has(topicId)),
+    userId: input.userId,
+    topicIds: input.topicIds.filter((topicId) => activeTopicIds.has(topicId)),
+    now: input.now,
   });
 }
-
-const databaseTopicCatalogueRepository: TopicCatalogueRepository = {
-  listCatalogue: async () => getDb().select().from(topics).orderBy(topics.name),
-  listSelectedTopicIds: async (userId) =>
-    (
-      await getDb()
-        .select({ topicId: userTopics.topicId })
-        .from(userTopics)
-        .where(
-          and(eq(userTopics.userId, userId), eq(userTopics.status, "active")),
-        )
-        .orderBy(userTopics.createdAt)
-    ).map((row) => row.topicId),
-  listAssociations: async (userId) =>
-    getDb()
-      .select({ topicId: userTopics.topicId, status: userTopics.status })
-      .from(userTopics)
-      .where(eq(userTopics.userId, userId))
-      .orderBy(userTopics.createdAt),
-  saveAssociations: async (userId, associations) => {
-    const db = getDb();
-
-    if (associations.length === 0) {
-      return;
-    }
-
-    await db
-      .insert(userTopics)
-      .values(
-        associations.map((association) => ({
-          userId,
-          topicId: association.topicId,
-          status: association.status,
-        })),
-      )
-      .onConflictDoUpdate({
-        target: [userTopics.userId, userTopics.topicId],
-        set: {
-          status: sql`excluded.status`,
-          updatedAt: sql`now()`,
-        },
-      });
-  },
-};

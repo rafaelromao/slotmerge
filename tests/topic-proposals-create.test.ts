@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { createTopicProposal } from "../src/topics/proposals";
 
 describe("createTopicProposal", () => {
+  const now = new Date("2026-05-01T00:00:00.000Z");
+
   const mockRepository = {
     findSimilarTopics: vi.fn(),
     insertProposal: vi.fn(),
@@ -23,13 +25,14 @@ describe("createTopicProposal", () => {
       proposedByUserId: "user-1",
       candidateName: "Sailing",
       status: "pending",
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     });
 
     const result = await createTopicProposal(
       "user-1",
       "Sailing",
+      now,
       mockRepository,
     );
 
@@ -42,6 +45,7 @@ describe("createTopicProposal", () => {
     expect(mockRepository.insertProposal).toHaveBeenCalledWith(
       "user-1",
       "Sailing",
+      now,
     );
   });
 
@@ -53,6 +57,7 @@ describe("createTopicProposal", () => {
     const result = await createTopicProposal(
       "user-1",
       "Sailing",
+      now,
       mockRepository,
     );
 
@@ -74,6 +79,7 @@ describe("createTopicProposal", () => {
     const result = await createTopicProposal(
       "user-1",
       "Sailing",
+      now,
       mockRepository,
     );
 
@@ -91,13 +97,14 @@ describe("createTopicProposal", () => {
       proposedByUserId: "user-1",
       candidateName: "Sailing",
       status: "pending",
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     });
 
     const result = await createTopicProposal(
       "user-1",
       "Sailing",
+      now,
       mockRepository,
     );
 
@@ -109,7 +116,7 @@ describe("createTopicProposal", () => {
   });
 
   it("returns error for empty name", async () => {
-    const result = await createTopicProposal("user-1", "", mockRepository);
+    const result = await createTopicProposal("user-1", "", now, mockRepository);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -119,7 +126,12 @@ describe("createTopicProposal", () => {
   });
 
   it("returns error for whitespace-only name", async () => {
-    const result = await createTopicProposal("user-1", "   ", mockRepository);
+    const result = await createTopicProposal(
+      "user-1",
+      "   ",
+      now,
+      mockRepository,
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -137,6 +149,7 @@ describe("createTopicProposal", () => {
     const result = await createTopicProposal(
       "user-1",
       "Sailing",
+      now,
       mockRepository,
     );
 

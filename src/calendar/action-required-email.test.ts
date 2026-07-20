@@ -35,7 +35,7 @@ describe("triggerCalendarActionRequiredEmail", () => {
         lastDispatchLookup: {
           findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(null),
         },
-        clock: () => new Date("2026-01-01T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-01-01T00:00:00.000Z") },
       },
     );
 
@@ -87,7 +87,7 @@ describe("triggerCalendarActionRequiredEmail", () => {
         lastDispatchLookup: {
           findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(null),
         },
-        clock: () => new Date("2026-01-02T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-01-02T00:00:00.000Z") },
       },
     );
 
@@ -135,7 +135,7 @@ describe("triggerCalendarActionRequiredEmail", () => {
       {
         emailDeliveryService: { sendEmail },
         lastDispatchLookup: { findMostRecentConnectionDispatch },
-        clock: () => now,
+        clock: { now: () => now },
         dedupWindowMs: 60 * 60 * 1000,
       },
     );
@@ -176,7 +176,7 @@ describe("triggerCalendarActionRequiredEmail", () => {
       {
         emailDeliveryService: { sendEmail },
         lastDispatchLookup: { findMostRecentConnectionDispatch },
-        clock: () => new Date("2026-01-01T12:00:00.000Z"),
+        clock: { now: () => new Date("2026-01-01T12:00:00.000Z") },
         dedupWindowMs: 30 * 60 * 1000,
       },
     );
@@ -205,6 +205,7 @@ describe("triggerCalendarActionRequiredEmail", () => {
       {
         emailDeliveryService: { sendEmail },
         lastDispatchLookup: { findMostRecentConnectionDispatch },
+        clock: { now: () => new Date("2026-01-01T00:00:00.000Z") },
       },
     );
     await triggerCalendarActionRequiredEmail(
@@ -220,6 +221,7 @@ describe("triggerCalendarActionRequiredEmail", () => {
         reason: "token-revoked",
       },
       {
+        clock: { now: () => new Date("2026-01-01T00:00:00.000Z") },
         emailDeliveryService: { sendEmail },
         lastDispatchLookup: { findMostRecentConnectionDispatch },
       },
@@ -259,6 +261,7 @@ describe("triggerCalendarActionRequiredEmail", () => {
       {
         emailDeliveryService: { sendEmail },
         lastDispatchLookup: { findMostRecentConnectionDispatch },
+        clock: { now: () => new Date("2026-01-01T00:00:00.000Z") },
       },
     );
     await triggerCalendarActionRequiredEmail(
@@ -276,6 +279,7 @@ describe("triggerCalendarActionRequiredEmail", () => {
       {
         emailDeliveryService: { sendEmail },
         lastDispatchLookup: { findMostRecentConnectionDispatch },
+        clock: { now: () => new Date("2026-01-01T00:00:00.000Z") },
       },
     );
 
@@ -302,7 +306,7 @@ describe("triggerCalendarActionRequiredEmail", () => {
         lastDispatchLookup: {
           findMostRecentConnectionDispatch: vi.fn().mockResolvedValue(null),
         },
-        clock: () => new Date("2026-01-01T00:00:00.000Z"),
+        clock: { now: () => new Date("2026-01-01T00:00:00.000Z") },
       },
     );
 

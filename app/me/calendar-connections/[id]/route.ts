@@ -117,7 +117,7 @@ async function safelyTriggerActionRequiredEmail(args: {
   occurredAt: Date;
 }): Promise<void> {
   const trigger = createCalendarActionRequiredEmailTrigger({
-    clock: () => args.occurredAt,
+    clock: { now: () => args.occurredAt },
   });
   try {
     await trigger({

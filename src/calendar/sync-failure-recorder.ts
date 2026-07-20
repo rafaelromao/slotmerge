@@ -7,6 +7,7 @@ import {
 import { getConnectionActionRequiredDispatchLookup } from "./action-required-email.repository";
 import { getEmailDeliveryService } from "./action-required-email-singleton";
 import { loadRuntimeConfig } from "../config/runtime";
+import { systemClock } from "../system/clock";
 
 export type RecordCalendarConnectionSyncFailureInput = {
   connectionId: string;
@@ -73,13 +74,14 @@ const defaultRecordCalendarConnectionSyncFailure: Recorder = async (
         provider: connection.provider,
         user: connection.user,
         baseUrl: loadRuntimeConfig().appPublicUrl,
-        occurredAt: new Date(),
+        occurredAt: systemClock().now(),
       },
       reason: "sync-failure" satisfies CalendarActionRequiredReason,
     },
     {
       emailDeliveryService: getEmailDeliveryService(),
       lastDispatchLookup: getConnectionActionRequiredDispatchLookup(),
+      clock: systemClock(),
     },
   );
 };

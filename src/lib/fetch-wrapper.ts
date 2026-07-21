@@ -78,9 +78,7 @@ export function createProviderFetchImpl(
       originalUrl.startsWith(r.original),
     );
     const isMicrosoftUrl =
-      MICROSOFT_REWRITE_RULES.some((r) =>
-        originalUrl.startsWith(r.original),
-      ) ||
+      MICROSOFT_REWRITE_RULES.some((r) => originalUrl.startsWith(r.original)) ||
       MICROSOFT_GRAPH_REWRITE_RULES.some((r) =>
         originalUrl.startsWith(r.original),
       );

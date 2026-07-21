@@ -8,7 +8,14 @@ type CaptureRequestBody = {
 };
 
 export async function POST(request: Request): Promise<Response> {
-  if (process.env.APP_ENV !== "local" && process.env.APP_ENV !== "test") {
+  if (
+    process.env.APP_ENV !== "local" &&
+    process.env.APP_ENV !== "test"
+  ) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  if (process.env.EMAIL_CAPTURE_ENABLED !== "true") {
     return new Response("Not found", { status: 404 });
   }
 

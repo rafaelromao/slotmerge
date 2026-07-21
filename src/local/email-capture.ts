@@ -23,11 +23,12 @@ export function getLastMagicLinkUrlForRecipient(
   recipient: string,
 ): string | null {
   const emails = getCapturedEmailsForRecipient(recipient);
-  const magicLinkEmail = emails.find((e) => e.type === "magic-link");
-  if (!magicLinkEmail) {
+  const magicLinkEmails = emails.filter((e) => e.type === "magic-link");
+  if (magicLinkEmails.length === 0) {
     return null;
   }
-  const url = magicLinkEmail.payload["magicLinkUrl"];
+  const lastMagicLinkEmail = magicLinkEmails[magicLinkEmails.length - 1];
+  const url = lastMagicLinkEmail.payload["magicLinkUrl"];
   return typeof url === "string" ? url : null;
 }
 

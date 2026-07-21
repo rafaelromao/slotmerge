@@ -1,9 +1,15 @@
 const http = require("http");
+const {
+  buildGoogleTokenResponse,
+  buildGoogleFreeBusyResponse,
+} = require("./google-responses.cjs");
+const {
+  buildMicrosoftTokenResponse,
+  buildMicrosoftCalendarsResponse,
+  buildMicrosoftGetScheduleResponse,
+} = require("./microsoft-responses.cjs");
 
 const PORT = Number(process.env.PROVIDER_MOCK_PORT || 3001);
-const ACCESS_TOKEN = "mock-access-token";
-const REFRESH_TOKEN = "mock-refresh-token";
-const CALENDAR_ID = "primary";
 
 function parseBody(req) {
   return new Promise((resolve, reject) => {
@@ -51,13 +57,7 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req);
 
       if (path === GOOGLE_TOKEN_ENDPOINT) {
-        jsonResponse(res, 200, {
-          access_token: ACCESS_TOKEN,
-          refresh_token: REFRESH_TOKEN,
-          expires_in: 3600,
-          scope: "https://www.googleapis.com/auth/calendar.freebusy",
-          token_type: "Bearer",
-        });
+        jsonResponse(res, 200, buildGoogleTokenResponse());
         return;
       }
 
@@ -68,55 +68,24 @@ const server = http.createServer(async (req, res) => {
 
       if (path === MICROSOFT_TOKEN_ENDPOINT) {
         const scope = body.scope || "";
-        if (scope.includes("Calendars.ReadBasic")) {
-          jsonResponse(res, 200, {
-            access_token: ACCESS_TOKEN,
-            refresh_token: REFRESH_TOKEN,
-            expires_in: 3600,
-            scope: "offline_access Calendars.ReadBasic",
-            token_type: "Bearer",
-          });
-        } else {
-          jsonResponse(res, 400, {
-            error: "invalid_scope",
-            error_description: "Unsupported scope",
-          });
-        }
+        const response = buildMicrosoftTokenResponse(scope);
+        const status = response.error ? 400 : 200;
+        jsonResponse(res, status, response);
         return;
       }
 
       if (path === GOOGLE_FREEBUSY_ENDPOINT) {
-        const data = typeof body === "string" ? JSON.parse(body) : body;
-        const items = data.items || [{ id: CALENDAR_ID }];
-        const calendars = {};
-        for (const item of items) {
-          calendars[item.id] = { busy: [] };
-        }
-        jsonResponse(res, 200, {
-          kind: "calendar#freeBusy",
-          timeMin: data.timeMin,
-          timeMax: data.timeMax,
-          calendars,
-        });
+        jsonResponse(res, 200, buildGoogleFreeBusyResponse(body));
         return;
       }
 
       if (path === MICROSOFT_CALENDARS_ENDPOINT) {
-        jsonResponse(res, 200, {
-          value: [{ id: CALENDAR_ID, isPrimaryCalendar: true }],
-        });
+        jsonResponse(res, 200, buildMicrosoftCalendarsResponse());
         return;
       }
 
       if (path === MICROSOFT_GETSCHEDULE_ENDPOINT) {
-        const data = typeof body === "string" ? JSON.parse(body) : body;
-        const schedules = data.schedules || [];
-        const result = schedules.map((scheduleId) => ({
-          scheduleId,
-          availabilityView: "0",
-          calendarEvents: [],
-        }));
-        jsonResponse(res, 200, { value: result });
+        jsonResponse(res, 200, buildMicrosoftGetScheduleResponse(body));
         return;
       }
 

@@ -20,11 +20,12 @@ async function getMagicLinkUrl(email: string): Promise<string | null> {
   }
   const data = (await response.json()) as CapturedEmailsResponse;
   const emails = data.emails;
-  const magicLinkEmail = emails.find((e) => e.type === "magic-link");
-  if (!magicLinkEmail) {
+  const magicLinkEmails = emails.filter((e) => e.type === "magic-link");
+  if (magicLinkEmails.length === 0) {
     return null;
   }
-  const url = magicLinkEmail.payload["magicLinkUrl"];
+  const lastMagicLinkEmail = magicLinkEmails[magicLinkEmails.length - 1];
+  const url = lastMagicLinkEmail.payload["magicLinkUrl"];
   return typeof url === "string" ? url : null;
 }
 
@@ -102,5 +103,22 @@ test.describe("Setup Home Journey", () => {
 
     const homeLink = page.locator(".nav-link", { hasText: "Home" });
     await expect(homeLink).toBeVisible();
+  });
+
+  test("uninvited email returns not_invited error", async () => {
+    const uninvitedEmail = "stranger@example.com";
+
+    const response = await fetch(
+      `${BASE_URL}/auth/magic-link/request`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `email=${encodeURIComponent(uninvitedEmail)}`,
+      },
+    );
+
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error?: string };
+    expect(body.error).toBe("not_invited");
   });
 });

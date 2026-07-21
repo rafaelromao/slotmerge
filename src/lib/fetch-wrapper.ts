@@ -23,6 +23,11 @@ const GOOGLE_REWRITE_RULES: ProviderRewriteRule[] = [
   },
 ];
 
+const MICROSOFT_GRAPH_CALENDARS_ENDPOINT =
+  "https://graph.microsoft.com/v1.0/me/calendars";
+const MICROSOFT_GRAPH_GETSCHEDULE_ENDPOINT =
+  "https://graph.microsoft.com/v1.0/me/calendar/getSchedule";
+
 const MICROSOFT_REWRITE_RULES: ProviderRewriteRule[] = [
   {
     original: MICROSOFT_TOKEN_ENDPOINT,
@@ -31,6 +36,17 @@ const MICROSOFT_REWRITE_RULES: ProviderRewriteRule[] = [
   {
     original: MICROSOFT_LOGOUT_ENDPOINT,
     replacement: "/microsoft/revoke",
+  },
+];
+
+const MICROSOFT_GRAPH_REWRITE_RULES: ProviderRewriteRule[] = [
+  {
+    original: MICROSOFT_GRAPH_CALENDARS_ENDPOINT,
+    replacement: "/microsoft/calendars",
+  },
+  {
+    original: MICROSOFT_GRAPH_GETSCHEDULE_ENDPOINT,
+    replacement: "/microsoft/getSchedule",
   },
 ];
 
@@ -61,14 +77,26 @@ export function createProviderFetchImpl(
     const isGoogleUrl = GOOGLE_REWRITE_RULES.some((r) =>
       originalUrl.startsWith(r.original),
     );
-    const isMicrosoftUrl = MICROSOFT_REWRITE_RULES.some((r) =>
-      originalUrl.startsWith(r.original),
-    );
+    const isMicrosoftUrl =
+      MICROSOFT_REWRITE_RULES.some((r) =>
+        originalUrl.startsWith(r.original),
+      ) ||
+      MICROSOFT_GRAPH_REWRITE_RULES.some((r) =>
+        originalUrl.startsWith(r.original),
+      );
 
-    if (isGoogleUrl || isMicrosoftUrl) {
-      const rules = isGoogleUrl
-        ? GOOGLE_REWRITE_RULES
-        : MICROSOFT_REWRITE_RULES;
+    if (isGoogleUrl) {
+      const rewrittenPath = rewriteUrl(originalUrl, GOOGLE_REWRITE_RULES);
+      const rewrittenUrl = new URL(rewrittenPath, overrideUrl).toString();
+      return baseFetch(rewrittenUrl, init);
+    }
+
+    if (isMicrosoftUrl) {
+      const rules = MICROSOFT_REWRITE_RULES.some((r) =>
+        originalUrl.startsWith(r.original),
+      )
+        ? MICROSOFT_REWRITE_RULES
+        : MICROSOFT_GRAPH_REWRITE_RULES;
       const rewrittenPath = rewriteUrl(originalUrl, rules);
       const rewrittenUrl = new URL(rewrittenPath, overrideUrl).toString();
       return baseFetch(rewrittenUrl, init);

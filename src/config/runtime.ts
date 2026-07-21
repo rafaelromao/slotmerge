@@ -10,6 +10,7 @@ const envSchema = z.object({
   EMAIL_ADAPTER: z.enum(["mock", "postmark"]).optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  LOCAL_PROVIDER_OVERRIDE_URL: z.string().optional(),
   MAGIC_LINK_SECRET: z.string().optional(),
   MICROSOFT_OAUTH_CLIENT_ID: z.string().optional(),
   MICROSOFT_OAUTH_CLIENT_SECRET: z.string().optional(),
@@ -26,6 +27,7 @@ export type RuntimeConfig = {
   calendarTokenEncryptionKey: string;
   databaseUrl: string;
   emailAdapter: "mock" | "postmark";
+  localProviderOverrideUrl: string | undefined;
   magicLinkSecret: string;
   requirePublicWebhookHttps: boolean;
   sessionSecret: string;
@@ -51,6 +53,7 @@ export function loadRuntimeConfig(
       "local-calendar-token-encryption-key-do-not-use-in-production",
     databaseUrl: parsed.DATABASE_URL,
     emailAdapter: parsed.EMAIL_ADAPTER ?? (isLocal ? "mock" : "postmark"),
+    localProviderOverrideUrl: parsed.LOCAL_PROVIDER_OVERRIDE_URL,
     magicLinkSecret:
       parsed.MAGIC_LINK_SECRET ??
       "local-magic-link-secret-do-not-use-in-production",

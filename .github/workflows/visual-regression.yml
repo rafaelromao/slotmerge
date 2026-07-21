@@ -28,13 +28,14 @@ jobs:
         env:
           APP_ENV: test
           CI: "true"
+          CAPTURE: "true"
           DATABASE_URL: postgres://slotmerge:slotmerge@localhost:5432/slotmerge
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
         with:
           name: playwright-screenshots
-          path: playwright/.artifacts/**/screenshots/**/*.png
+          path: tests/e2e-browser/screenshots/**/*.png
           retention-days: 14
 
       - name: Upload videos

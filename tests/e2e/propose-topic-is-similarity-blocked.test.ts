@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import Iron from "@hapi/iron";
 import {
   afterAll,
   afterEach,
@@ -73,8 +74,16 @@ describe("E2E: propose a new Topic is similarity-blocked", () => {
       expect(response.status).toBe(303);
 
       const location = response.headers.get("Location");
-      expect(location).toContain("error=too_similar");
-      expect(location).toContain("Product%20strategy");
+      expect(location).toContain("feedback=");
+      const feedbackParam = new URL(location!).searchParams.get("feedback");
+      expect(feedbackParam).toBeTruthy();
+      const unsealed = (await Iron.unseal(
+        feedbackParam!,
+        "test-session-secret-80-characters-long",
+        Iron.defaults,
+      )) as { type: string; names?: string[] };
+      expect(unsealed.type).toBe("too_similar");
+      expect(unsealed.names).toContain("Product strategy");
 
       const pageResponse = await getMyTopics(
         new Request(

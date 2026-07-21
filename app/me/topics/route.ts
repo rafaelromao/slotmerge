@@ -1,6 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 
+import Iron from "@hapi/iron";
 import { getSessionFromRequest } from "../../../src/auth/session";
+import { getSessionSecret } from "../../../src/auth/session";
 import {
   getTopicPageState,
   saveUserTopicSelection,
@@ -32,8 +34,10 @@ export async function GET(request: Request): Promise<Response> {
   };
 
   const url = new URL(request.url);
-  const errorParam = url.searchParams.get("error");
-  const proposalError = errorParam ? decodeURIComponent(errorParam) : null;
+  const feedbackParam = url.searchParams.get("feedback");
+  const proposalError = feedbackParam
+    ? await unsealFeedback(feedbackParam)
+    : null;
 
   return htmlResponse(
     renderTopicsPage({
@@ -89,8 +93,9 @@ export async function submitTopicProposal(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);
 
   if (!session) {
+    const sealed = await sealFeedback({ type: "unauthenticated" });
     return Response.redirect(
-      new URL("/me/topics?error=unauthenticated", request.url),
+      new URL(`/me/topics?feedback=${sealed}`, request.url),
       303,
     );
   }
@@ -100,15 +105,17 @@ export async function submitTopicProposal(request: Request): Promise<Response> {
   const csrfToken = formData.get("csrfToken");
 
   if (typeof candidateName !== "string" || typeof csrfToken !== "string") {
+    const sealed = await sealFeedback({ type: "invalid_request" });
     return Response.redirect(
-      new URL("/me/topics?error=invalid_request", request.url),
+      new URL(`/me/topics?feedback=${sealed}`, request.url),
       303,
     );
   }
 
   if (!hasValidCsrfToken(csrfToken, session.csrfToken)) {
+    const sealed = await sealFeedback({ type: "csrf" });
     return Response.redirect(
-      new URL("/me/topics?error=csrf", request.url),
+      new URL(`/me/topics?feedback=${sealed}`, request.url),
       303,
     );
   }
@@ -134,15 +141,16 @@ export async function submitTopicProposal(request: Request): Promise<Response> {
     matches?: { name: string; type: string }[];
   };
 
-  const errorParam =
-    body.error === "too_similar"
-      ? encodeURIComponent(
-          `too_similar:${(body.matches ?? []).map((m) => m.name).join(",")}`,
-        )
-      : encodeURIComponent(body.error);
+  const sealed = await sealFeedback({
+    type: body.error,
+    names:
+      body.error === "too_similar"
+        ? (body.matches ?? []).map((m) => m.name)
+        : undefined,
+  });
 
   return Response.redirect(
-    new URL(`/me/topics?error=${errorParam}`, request.url),
+    new URL(`/me/topics?feedback=${sealed}`, request.url),
     303,
   );
 }
@@ -225,7 +233,8 @@ function renderTopicsPage({
   selectedTopicIds: string[];
   csrfToken: string;
   proposals: ProposalEntry[];
-  proposalError: string | null;
+  proposalError:
+    { type: "too_similar"; names: string[] } | { type: string } | null;
 }): string {
   const topicRows = catalogue
     .map(
@@ -255,11 +264,11 @@ function renderTopicsPage({
   const errorBanner = proposalError
     ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:0.75rem;border-radius:0.375rem;margin-bottom:1rem;">
            ${
-             proposalError.startsWith("too_similar:")
-               ? `Too similar to existing: ${escapeHtml(proposalError.replace("too_similar:", ""))}`
-               : escapeHtml(proposalError.replace(/_/g, " "))
+             proposalError.type === "too_similar" && "names" in proposalError
+               ? `Too similar to existing: ${escapeHtml(proposalError.names.join(", "))}`
+               : escapeHtml(proposalError.type.replace(/_/g, " "))
            }
-         </div>`
+          </div>`
     : "";
 
   return `<!doctype html>
@@ -306,4 +315,29 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+async function unsealFeedback(
+  sealed: string,
+): Promise<{ type: "too_similar"; names: string[] } | { type: string } | null> {
+  try {
+    const payload = (await Iron.unseal(
+      sealed,
+      getSessionSecret(),
+      Iron.defaults,
+    )) as { type: string; names?: string[] };
+    if (payload.type === "too_similar" && payload.names) {
+      return { type: "too_similar", names: payload.names };
+    }
+    return { type: payload.type };
+  } catch {
+    return null;
+  }
+}
+
+async function sealFeedback(payload: {
+  type: string;
+  names?: string[];
+}): Promise<string> {
+  return Iron.seal(payload, getSessionSecret(), Iron.defaults);
 }

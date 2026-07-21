@@ -87,7 +87,7 @@ function makeBusyIntervals() {
   };
 }
 
-const busyIntervals = makeBusyIntervals();
+const busyIntervals = vi.hoisted(() => makeBusyIntervals());
 
 vi.mock("../../src/calendar/freebusy/google", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/calendar/freebusy/google")>();

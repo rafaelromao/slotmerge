@@ -8,7 +8,7 @@ import {
   it,
 } from "vitest";
 
-import { GET } from "../../app/api/searches/[id]/route";
+import { GET } from "../../app/api/v1/searches/[id]/route";
 import { sealSessionCookie } from "../../src/auth/session";
 import { availabilityWindows, discoverabilityConsents, sessions, users, userTopics } from "../../src/db/schema";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
@@ -185,7 +185,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
     cookie: string,
   ): Promise<SnapshotResponseBody> {
     const response = await GET(
-      new Request(`http://localhost/api/searches/${searchId}`, {
+      new Request(`http://localhost/api/v1/searches/${searchId}`, {
         headers: { cookie },
       }),
       { params: Promise.resolve({ id: searchId }) },
@@ -263,7 +263,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
       });
 
       const response = await GET(
-        new Request(`http://localhost/api/searches/${searchId}`, {
+        new Request(`http://localhost/api/v1/searches/${searchId}`, {
           headers: { cookie },
         }),
         { params: Promise.resolve({ id: searchId }) },
@@ -308,7 +308,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
 
       const userCookie = await sealSessionCookie({ sessionId: USER_SESSION_ID });
       const userResponse = await GET(
-        new Request(`http://localhost/api/searches/${searchId}`, {
+        new Request(`http://localhost/api/v1/searches/${searchId}`, {
           headers: { cookie: userCookie },
         }),
         { params: Promise.resolve({ id: searchId }) },
@@ -341,7 +341,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
 
       const adminCookie = await sealSessionCookie({ sessionId: ADMIN_SESSION_ID });
       const adminResponse = await GET(
-        new Request(`http://localhost/api/searches/${searchId}`, {
+        new Request(`http://localhost/api/v1/searches/${searchId}`, {
           headers: { cookie: adminCookie },
         }),
         { params: Promise.resolve({ id: searchId }) },

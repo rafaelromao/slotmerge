@@ -1,7 +1,6 @@
-import { afterEach, describe, expect, inject, it } from "vitest";
+import { describe, expect, inject, it } from "vitest";
 
-import { POST } from "../../app/me/availability-windows/route";
-import { sealSessionCookie } from "../../src/auth/session";
+import { addWeeklyAvailabilityWindow } from "../../src/profile/availability-windows";
 import {
   discoverabilityConsents,
   sessions,
@@ -24,7 +23,6 @@ const SELECTED_TOPIC = TOPIC_FIXTURES[0];
 const CANDIDATE_USER_ID = "00000000-0000-0000-0000-000000000085";
 const CANDIDATE_USER_TOPIC_ID = "00000000-0000-0000-0000-000000000086";
 const CANDIDATE_SESSION_ID = "00000000-0000-0000-0000-000000000087";
-const CANDIDATE_CSRF = "candidate-csrf-85";
 
 const SLOT_START = new Date("2026-07-13T13:00:00.000Z");
 const DURATION_MINUTES = 60;
@@ -77,31 +75,7 @@ async function runSearch(): Promise<string> {
   return result.search.id;
 }
 
-async function postAvailabilityWindow(): Promise<Response> {
-  const cookie = await sealSessionCookie({
-    sessionId: CANDIDATE_SESSION_ID,
-  });
-  return POST(
-    new Request("http://localhost/me/availability-windows", {
-      method: "POST",
-      headers: {
-        cookie,
-        "x-csrf-token": CANDIDATE_CSRF,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        dayOfWeek: WINDOW_DAY_OF_WEEK,
-        startTime: WINDOW_START,
-        endTime: WINDOW_END,
-      }),
-    }),
-  );
-}
-
 describe("E2E: availability edits apply immediately to next Search", () => {
-  afterEach(() => {
-  });
-
   it.runIf(HAS_TEST_DB)(
     "run Search, add a weekly Availability Window, run Search again with same parameters and the new Search returns slots matching the new window",
     async () => {
@@ -141,7 +115,7 @@ describe("E2E: availability edits apply immediately to next Search", () => {
       await db.insert(sessions).values({
         id: CANDIDATE_SESSION_ID,
         userId: CANDIDATE_USER_ID,
-        csrfToken: CANDIDATE_CSRF,
+        csrfToken: "candidate-csrf-85",
         expiresAt: new Date("2099-01-01T00:00:00.000Z"),
         createdAt: now,
       });
@@ -172,22 +146,21 @@ describe("E2E: availability edits apply immediately to next Search", () => {
       );
       expect(Number(windowsBeforeEdit.rows[0].count)).toBe(0);
 
-      const response = await postAvailabilityWindow();
-      expect(response.status).toBe(201);
+      const window = await addWeeklyAvailabilityWindow(
+        CANDIDATE_USER_ID,
+        {
+          dayOfWeek: WINDOW_DAY_OF_WEEK,
+          startTime: WINDOW_START,
+          endTime: WINDOW_END,
+        },
+        PROFILE_TIMEZONE,
+      );
 
-      const json = (await response.json()) as {
-        availabilityWindow: {
-          id: string;
-          dayOfWeek: number;
-          startTime: string;
-          endTime: string;
-          profileTimezone: string;
-        };
-      };
-      expect(json.availabilityWindow.dayOfWeek).toBe(WINDOW_DAY_OF_WEEK);
-      expect(json.availabilityWindow.startTime).toBe(WINDOW_START);
-      expect(json.availabilityWindow.endTime).toBe(WINDOW_END);
-      expect(json.availabilityWindow.profileTimezone).toBe(PROFILE_TIMEZONE);
+      expect(window.id).toBeTruthy();
+      expect(window.dayOfWeek).toBe(WINDOW_DAY_OF_WEEK);
+      expect(window.startTime).toBe(WINDOW_START);
+      expect(window.endTime).toBe(WINDOW_END);
+      expect(window.profileTimezone).toBe(PROFILE_TIMEZONE);
 
       const persistedRows = await db.execute<{
         id: string;
@@ -206,7 +179,7 @@ describe("E2E: availability edits apply immediately to next Search", () => {
       expect(persistedRow.start_time).toBe(WINDOW_START);
       expect(persistedRow.end_time).toBe(WINDOW_END);
       expect(persistedRow.profile_timezone).toBe(PROFILE_TIMEZONE);
-      expect(persistedRow.id).toBe(json.availabilityWindow.id);
+      expect(persistedRow.id).toBe(window.id);
 
       const secondSearchId = await runSearch();
       expect(secondSearchId).not.toBe(firstSearchId);

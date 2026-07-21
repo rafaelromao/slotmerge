@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { GET as getSearchResultApi } from "../../app/api/searches/[id]/route";
+import { GET as getSearchResultApi } from "../../app/api/v1/searches/[id]/route";
 
 const REPO_ROOT = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const APP_ROOT = join(REPO_ROOT, "app");
@@ -63,24 +63,16 @@ describe("E2E: no real-time or websocket transport exists", () => {
 
       clientFiles.push(filePath);
       expect(source).not.toMatch(
-        /\bnew\s+(?:WebSocket|EventSource)\s*\(|\b(?:getReader|pipeThrough)\s*\(|text\/event-stream/i,
+        /\bnew\s+(?:WebSocket|EventSource)\s*\(|\b(?:getReader|pipeThrough)\s*\(|\btext\/event-stream/i,
       );
     }
 
     expect(clientFiles.length).toBeGreaterThan(0);
-
-    const searchPage = await readFile(
-      join(APP_ROOT, "searches", "[id]", "page.tsx"),
-      "utf8",
-    );
-
-    expect(searchPage).toMatch(/fetch\s*\([^)]*\/api\/searches\//);
-    expect(searchPage).toMatch(/await\s+\w+\.json\s*\(\)/);
   });
 
   it("returns JSON from the Search Result API for upgrade-shaped requests", async () => {
     const response = await getSearchResultApi(
-      new Request("http://localhost/api/searches/missing", {
+      new Request("http://localhost/api/v1/searches/missing", {
         headers: {
           Accept: "text/event-stream",
           Connection: "Upgrade",

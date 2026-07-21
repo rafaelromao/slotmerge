@@ -2,7 +2,8 @@ export type ProviderFetchImpl = typeof fetch;
 
 const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const GOOGLE_REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke";
-const GOOGLE_FREEBUSY_ENDPOINT = "https://calendar.googleapis.com/calendar/v3/freeBusy";
+const GOOGLE_FREEBUSY_ENDPOINT =
+  "https://calendar.googleapis.com/calendar/v3/freeBusy";
 const MICROSOFT_TOKEN_ENDPOINT =
   "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
 const MICROSOFT_LOGOUT_ENDPOINT =
@@ -65,7 +66,9 @@ export function createProviderFetchImpl(
     );
 
     if (isGoogleUrl || isMicrosoftUrl) {
-      const rules = isGoogleUrl ? GOOGLE_REWRITE_RULES : MICROSOFT_REWRITE_RULES;
+      const rules = isGoogleUrl
+        ? GOOGLE_REWRITE_RULES
+        : MICROSOFT_REWRITE_RULES;
       const rewrittenPath = rewriteUrl(originalUrl, rules);
       const rewrittenUrl = new URL(rewrittenPath, overrideUrl).toString();
       return baseFetch(rewrittenUrl, init);

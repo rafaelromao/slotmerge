@@ -1,3 +1,34 @@
+import { createRequire } from "node:module";
+
+const require_ = createRequire(import.meta.url);
+
+const responses = require_("./provider-mock/responses.cjs") as {
+  buildGoogleTokenResponse(options?: {
+    accessToken?: string;
+    refreshToken?: string;
+    expiresIn?: number;
+    scope?: string;
+  }): Record<string, unknown>;
+  buildGoogleFreeBusyResponse(
+    input: string | Record<string, unknown> | null,
+    options?: {
+      freeBusyResponses?: Map<
+        string,
+        Array<{
+          status: string;
+          start: Date;
+          end: Date;
+        }>
+      >;
+      defaultCalendarId?: string;
+    },
+  ): Record<string, unknown>;
+  buildGoogleErrorResponse(
+    status: number,
+    retryAfterSeconds?: number,
+  ): { status: number; headers: Record<string, string>; body: string };
+};
+
 export type OAuthCallback = {
   code: string;
   codeVerifier: string;
@@ -138,20 +169,17 @@ export function buildMockGoogleCalendarAdapter(
           requestedScopes.add(callback.scope);
         }
 
+        const payload = responses.buildGoogleTokenResponse({
+          accessToken,
+          refreshToken,
+          expiresIn,
+        });
+
         return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-              expires_in: expiresIn,
-              scope: "https://www.googleapis.com/auth/calendar.freebusy",
-              token_type: "Bearer",
-            }),
-            {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            },
-          ),
+          new Response(JSON.stringify(payload), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
         );
       }
 
@@ -171,67 +199,27 @@ export function buildMockGoogleCalendarAdapter(
         });
 
         if (freeBusyErrorResponse !== null) {
-          const headers: Record<string, string> = {
-            "content-type": "application/json",
-          };
-          if (freeBusyErrorResponse.retryAfterSeconds !== undefined) {
-            headers["retry-after"] = String(
-              freeBusyErrorResponse.retryAfterSeconds,
-            );
-          }
+          const errorResponse = responses.buildGoogleErrorResponse(
+            freeBusyErrorResponse.status,
+            freeBusyErrorResponse.retryAfterSeconds,
+          );
           return Promise.resolve(
-            new Response(JSON.stringify({ error: "Server Error" }), {
-              status: freeBusyErrorResponse.status,
-              headers,
+            new Response(errorResponse.body, {
+              status: errorResponse.status,
+              headers: errorResponse.headers,
             }),
           );
         }
 
-        const busyItems =
-          body.items?.map((item) => {
-            const intervals = freeBusyResponses.get(item.id) ?? [];
-            return {
-              id: item.id,
-              busy: intervals
-                .filter((i) => i.status === "busy")
-                .map((i) => ({
-                  start: i.start.toISOString(),
-                  end: i.end.toISOString(),
-                })),
-              outOfOffice: intervals
-                .filter((i) => i.status === "out-of-office")
-                .map((i) => ({
-                  start: i.start.toISOString(),
-                  end: i.end.toISOString(),
-                })),
-              tentative: intervals
-                .filter(
-                  (i) =>
-                    i.status === "tentative" ||
-                    i.status === "working-elsewhere",
-                )
-                .map((i) => ({
-                  start: i.start.toISOString(),
-                  end: i.end.toISOString(),
-                })),
-            };
-          }) ?? [];
+        const payload = responses.buildGoogleFreeBusyResponse(body, {
+          freeBusyResponses,
+        });
 
         return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              kind: "calendar#freeBusy",
-              timeMin: body.timeMin,
-              timeMax: body.timeMax,
-              calendars: Object.fromEntries(
-                busyItems.map((item) => [item.id, item]),
-              ),
-            }),
-            {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            },
-          ),
+          new Response(JSON.stringify(payload), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
         );
       }
 

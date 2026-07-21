@@ -22,6 +22,8 @@ services:
       APP_ENV: local
       DATABASE_URL: postgres://slotmerge:slotmerge@postgres:5432/slotmerge
       LOCAL_WEB_URL: http://web:3000
+      EMAIL_CAPTURE_ENABLED: "true"
+      FIXTURE_DATE: "2026-07-12T12:00:00.000Z"
     ports:
       - "3000:3000"
     depends_on:
@@ -34,6 +36,8 @@ services:
     environment:
       APP_ENV: local
       DATABASE_URL: postgres://slotmerge:slotmerge@postgres:5432/slotmerge
+      EMAIL_CAPTURE_ENABLED: "true"
+      FIXTURE_DATE: "2026-07-12T12:00:00.000Z"
     depends_on:
       postgres:
         condition: service_healthy

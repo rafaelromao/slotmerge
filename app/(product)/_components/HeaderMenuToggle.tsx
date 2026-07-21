@@ -22,7 +22,7 @@ export function HeaderMenuToggle({
     >
       <summary
         className="avatar-dropdown-trigger"
-        aria-expanded={open}
+        aria-expanded={open ? "true" : "false"}
         aria-haspopup="menu"
         data-testid="avatar-dropdown-trigger"
       >

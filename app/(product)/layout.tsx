@@ -38,9 +38,11 @@ export default async function ProductLayout({
           ) : null}
         </nav>
         <div className="top-bar-right">
-          <span className="setup-chip" data-testid="setup-chip">
-            Setup
-          </span>
+          {!session.user.displayName && (
+            <span className="setup-chip" data-testid="setup-chip">
+              Setup
+            </span>
+          )}
           <span className="calendar-badge" data-testid="calendar-badge">
             Calendar
           </span>

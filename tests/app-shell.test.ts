@@ -36,7 +36,20 @@ describe("Setup Home page component", () => {
   beforeEach(setupTest);
 
   it("renders five setup checklist cards for an authenticated user", async () => {
-    mockServerSession(TEST_USER);
+    vi.mocked(sessionModule.getServerSession).mockResolvedValue({
+      user: {
+        id: TEST_USER.id,
+        email: TEST_USER.email,
+        displayName: null,
+        avatarUrl: null,
+        shortBio: null,
+        role: TEST_USER.role,
+        status: TEST_USER.status,
+        profileTimezone: TEST_USER.profileTimezone ?? null,
+        bufferMinutes: TEST_USER.bufferMinutes,
+      },
+      csrfToken: "test-csrf",
+    });
 
     const { default: ProductLayout } = await import("../app/(product)/layout");
     const { default: Page } = await import("../app/(product)/page");

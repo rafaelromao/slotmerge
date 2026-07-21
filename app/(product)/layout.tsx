@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { eq, count } from "drizzle-orm";
 import { getServerSession } from "../../src/auth/session";
+import { getDb } from "../../src/db/client";
+import {
+  discoverabilityConsents,
+  userTopics,
+  availabilityWindows,
+} from "../../src/db/schema";
 import { HeaderMenuToggle } from "./_components/HeaderMenuToggle";
 
 export default async function ProductLayout({
@@ -17,6 +24,37 @@ export default async function ProductLayout({
       </main>
     );
   }
+
+  const db = getDb();
+  const userId = session.user.id;
+
+  const [discoverabilityRow] = await db
+    .select({ count: count() })
+    .from(discoverabilityConsents)
+    .where(eq(discoverabilityConsents.userId, userId))
+    .limit(1);
+
+  const [topicsRow] = await db
+    .select({ count: count() })
+    .from(userTopics)
+    .where(eq(userTopics.userId, userId))
+    .limit(1);
+
+  const [availabilityRow] = await db
+    .select({ count: count() })
+    .from(availabilityWindows)
+    .where(eq(availabilityWindows.userId, userId))
+    .limit(1);
+
+  const profileComplete = !!session.user.displayName;
+  const discoverabilityComplete = discoverabilityRow.count > 0;
+  const topicsComplete = topicsRow.count > 0;
+  const availabilityComplete = availabilityRow.count > 0;
+  const setupIncomplete =
+    !profileComplete ||
+    !discoverabilityComplete ||
+    !topicsComplete ||
+    !availabilityComplete;
 
   return (
     <div className="product-shell">
@@ -38,7 +76,7 @@ export default async function ProductLayout({
           ) : null}
         </nav>
         <div className="top-bar-right">
-          {!session.user.displayName && (
+          {setupIncomplete && (
             <span className="setup-chip" data-testid="setup-chip">
               Setup
             </span>

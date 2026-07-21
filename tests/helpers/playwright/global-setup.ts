@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { sealSessionCookieValue } from "../../../src/auth/session";
-import { FIXTURE_DATE } from "../../fixtures/seeds";
+import { FIXTURE_DATE, seedAll } from "../../fixtures/seeds";
 import { getDb } from "../../../src/db/client";
 import { users, sessions } from "../../../src/db/schema";
 import { eq } from "drizzle-orm";
@@ -23,11 +23,19 @@ type StorageState = {
   }>;
 };
 
+const SESSION_IDS = [
+  "00000000-0000-0000-0000-000000000060",
+  "00000000-0000-0000-0000-000000000061",
+  "00000000-0000-0000-0000-000000000062",
+] as const;
+
 async function globalSetup() {
   const authDir = join(process.cwd(), "playwright", ".auth");
   await mkdir(authDir, { recursive: true });
 
   const db = getDb();
+
+  await seedAll(db);
 
   const roles = [
     { name: "user", email: "user@example.com" },
@@ -49,11 +57,11 @@ async function globalSetup() {
       .limit(1);
 
     if (!userResult) {
-      console.warn(`User ${role.email} not found, skipping storageState for ${role.name}`);
-      continue;
+      throw new Error(`Fixture user ${role.email} not found after seeding`);
     }
 
-    const sessionId = `00000000-0000-0000-0000-00000000006${roles.indexOf(role) + 1}`;
+    const roleIndex = roles.indexOf(role);
+    const sessionId = SESSION_IDS[roleIndex];
 
     await db.insert(sessions).values({
       id: sessionId,

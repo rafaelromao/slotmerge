@@ -21,6 +21,9 @@ services:
     profiles: ["local", "test"]
     environment:
       PROVIDER_MOCK_PORT: "3001"
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
     ports:
       - "3001:3001"
     healthcheck:
@@ -64,7 +67,7 @@ services:
 
   playwright:
     image: mcr.microsoft.com/playwright:v1.61.1
-    profile: ["local"]
+    profiles: ["local"]
     volumes:
       - playwright-cache:/ms-playwright
 

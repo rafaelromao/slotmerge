@@ -1,5 +1,12 @@
 import Link from "next/link";
+import { eq, count } from "drizzle-orm";
 import { getServerSession } from "../../src/auth/session";
+import { getDb } from "../../src/db/client";
+import {
+  discoverabilityConsents,
+  userTopics,
+  availabilityWindows,
+} from "../../src/db/schema";
 
 export default async function SetupHomePage() {
   const session = await getServerSession();
@@ -12,6 +19,33 @@ export default async function SetupHomePage() {
     );
   }
 
+  const db = getDb();
+  const userId = session.user.id;
+
+  const [discoverabilityRow] = await db
+    .select({ count: count() })
+    .from(discoverabilityConsents)
+    .where(eq(discoverabilityConsents.userId, userId))
+    .limit(1);
+
+  const [topicsRow] = await db
+    .select({ count: count() })
+    .from(userTopics)
+    .where(eq(userTopics.userId, userId))
+    .limit(1);
+
+  const [availabilityRow] = await db
+    .select({ count: count() })
+    .from(availabilityWindows)
+    .where(eq(availabilityWindows.userId, userId))
+    .limit(1);
+
+  const profileStatus = session.user.displayName ? "complete" : "pending";
+  const discoverabilityStatus =
+    discoverabilityRow.count > 0 ? "complete" : "pending";
+  const topicsStatus = topicsRow.count > 0 ? "complete" : "pending";
+  const availabilityStatus = availabilityRow.count > 0 ? "complete" : "pending";
+
   return (
     <div className="setup-checklist">
       <h1>Welcome to SlotMerge</h1>
@@ -22,25 +56,25 @@ export default async function SetupHomePage() {
           title="Profile"
           description="Set your display name, timezone, and preferences"
           href="/me/profile"
-          status={session.user.displayName ? "complete" : "pending"}
+          status={profileStatus}
         />
         <SetupCard
           title="Discoverability"
           description="Control who can find you in searches"
           href="/me/discoverability"
-          status="pending"
+          status={discoverabilityStatus}
         />
         <SetupCard
           title="Topics"
           description="Select topics you're interested in meeting about"
           href="/me/topics"
-          status="pending"
+          status={topicsStatus}
         />
         <SetupCard
           title="Availability"
           description="Set your weekly availability windows"
           href="/me/availability"
-          status="pending"
+          status={availabilityStatus}
         />
         <SetupCard
           title="Calendar Connection"

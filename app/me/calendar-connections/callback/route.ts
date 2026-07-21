@@ -1,4 +1,5 @@
 import { getSessionSecret } from "../../../../src/auth/session";
+import { createProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
 import {
   completeCalendarConnection,
   presentCalendarConnection,
@@ -73,6 +74,14 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  const isLocalOrTest =
+    process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
+  const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
+  const fetchImpl =
+    isLocalOrTest && overrideUrl
+      ? createProviderFetchImpl(fetch, overrideUrl)
+      : fetch;
+
   const result = await completeCalendarConnection({
     provider,
     repository,
@@ -80,7 +89,7 @@ export async function POST(request: Request): Promise<Response> {
     clientId: configuration.clientId,
     clientSecret: configuration.clientSecret,
     code,
-    fetchImpl: fetch,
+    fetchImpl,
     sessionSecret: getSessionSecret(),
     state,
     tokenEncryptionKey,

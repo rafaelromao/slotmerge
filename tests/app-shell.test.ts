@@ -2,10 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
 
 import * as sessionModule from "@/auth/session";
+import * as dbModule from "@/db/client";
 import { setupTest } from "./helpers/setup";
 import { USER_FIXTURES } from "./fixtures/seeds";
 
 vi.mock("@/auth/session");
+vi.mock("@/db/client");
 
 const TEST_USER = USER_FIXTURES[0];
 const TEST_ORGANIZER = USER_FIXTURES[1];
@@ -34,6 +36,17 @@ function mockServerSessionNull() {
 
 describe("Setup Home page component", () => {
   beforeEach(setupTest);
+
+  const mockDb = {
+    select: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue([{ count: 0 }]),
+  };
+
+  beforeEach(() => {
+    vi.mocked(dbModule.getDb).mockReturnValue(mockDb as unknown as ReturnType<typeof dbModule.getDb>);
+  });
 
   it("renders five setup checklist cards for an authenticated user", async () => {
     vi.mocked(sessionModule.getServerSession).mockResolvedValue({

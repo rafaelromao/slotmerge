@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { captureState } from "../../../helpers/playwright/screenshot-helper";
 
 const TEST_USER_EMAIL = "user@example.com";
 const BASE_URL = "http://localhost:3000";
@@ -11,7 +12,9 @@ type CapturedEmailsResponse = {
 };
 
 async function getMagicLinkUrl(email: string): Promise<string | null> {
-  const response = await fetch(`${BASE_URL}/api/local/emails/${encodeURIComponent(email)}`);
+  const response = await fetch(
+    `${BASE_URL}/api/local/emails/${encodeURIComponent(email)}`,
+  );
   if (!response.ok) {
     return null;
   }
@@ -25,7 +28,10 @@ async function getMagicLinkUrl(email: string): Promise<string | null> {
   return typeof url === "string" ? url : null;
 }
 
-async function waitForMagicLink(email: string, timeoutMs = 10000): Promise<string | null> {
+async function waitForMagicLink(
+  email: string,
+  timeoutMs = 10000,
+): Promise<string | null> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const url = await getMagicLinkUrl(email);
@@ -41,13 +47,19 @@ test.describe("Setup Home Journey", () => {
   test("signed-out user completes setup checklist", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByText("Please sign in to continue.")).toBeVisible();
+    await expect(
+      page.getByText("Please sign in to continue."),
+    ).toBeVisible();
+    await captureState(page, "setup-home", "signed-out");
 
-    const magicLinkRequest = await fetch(`${BASE_URL}/auth/magic-link/request`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `email=${encodeURIComponent(TEST_USER_EMAIL)}`,
-    });
+    const magicLinkRequest = await fetch(
+      `${BASE_URL}/auth/magic-link/request`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `email=${encodeURIComponent(TEST_USER_EMAIL)}`,
+      },
+    );
 
     expect(magicLinkRequest.ok).toBeTruthy();
 
@@ -61,6 +73,7 @@ test.describe("Setup Home Journey", () => {
     await page.waitForURL(`${BASE_URL}/`);
 
     await expect(page.getByText("Welcome to SlotMerge")).toBeVisible();
+    await captureState(page, "setup-home", "checklist");
 
     const cards = page.locator(".setup-card");
     await expect(cards).toHaveCount(5);
@@ -74,8 +87,11 @@ test.describe("Setup Home Journey", () => {
     await expect(page.getByTestId("setup-chip")).toBeVisible();
 
     await page.getByTestId("avatar-dropdown-trigger").click();
+    await captureState(page, "setup-home", "avatar-open");
 
-    await expect(page.getByRole("menuitem", { name: "My Profile" })).toBeVisible();
+    await expect(
+      page.getByRole("menuitem", { name: "My Profile" }),
+    ).toBeVisible();
     await expect(page.getByRole("menuitem", { name: "Sign Out" })).toBeVisible();
 
     const searchLink = page.locator(".nav-link", { hasText: "Search" });

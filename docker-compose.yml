@@ -42,5 +42,12 @@ services:
       postgres:
         condition: service_healthy
 
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.61.1
+    profile: ["local"]
+    volumes:
+      - playwright-cache:/ms-playwright
+
 volumes:
   postgres-data:
+  playwright-cache:

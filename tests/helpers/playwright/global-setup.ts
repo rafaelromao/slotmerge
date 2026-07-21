@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { sealSessionCookie } from "../../../src/auth/session";
+import { sealSessionCookieValue } from "../../../src/auth/session";
 import { FIXTURE_DATE } from "../../fixtures/seeds";
 import { getDb } from "../../../src/db/client";
 import { users, sessions } from "../../../src/db/schema";
@@ -63,14 +63,11 @@ async function globalSetup() {
       createdAt: new Date(FIXTURE_DATE),
     }).onConflictDoNothing();
 
-    const cookieHeader = await sealSessionCookie({ sessionId });
-    const cookieParts = cookieHeader.split(";").map((p) => p.trim());
-    const [nameValue] = cookieParts[0].split("=");
-    const cookieValue = nameValue === "slotmerge_session" ? decodeURIComponent(cookieParts[0].split("=")[1] ?? "") : "";
+    const sealedValue = await sealSessionCookieValue({ sessionId });
 
     const cookieObj = {
       name: "slotmerge_session",
-      value: cookieValue || decodeURIComponent(cookieParts[0].split("=")[1] ?? ""),
+      value: sealedValue,
       domain: "localhost",
       path: "/",
       expires: Math.floor(sessionExpiry.getTime() / 1000),

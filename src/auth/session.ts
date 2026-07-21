@@ -42,13 +42,16 @@ export async function sealSessionCookie({
 }: {
   sessionId: string;
 }): Promise<string> {
-  const sealed = await Iron.seal(
-    { sessionId },
-    getSessionSecret(),
-    Iron.defaults,
-  );
-
+  const sealed = await sealSessionCookieValue({ sessionId });
   return `${sessionCookieName}=${encodeURIComponent(sealed)}; Path=/; HttpOnly; SameSite=Lax`;
+}
+
+export async function sealSessionCookieValue({
+  sessionId,
+}: {
+  sessionId: string;
+}): Promise<string> {
+  return Iron.seal({ sessionId }, getSessionSecret(), Iron.defaults);
 }
 
 export function clearSessionCookie(): string {
@@ -157,6 +160,32 @@ export function isOrganizerOrAdminSession(
   session: Session | null,
 ): session is Session {
   return session?.user.role === "organizer" || session?.user.role === "admin";
+}
+
+export async function getServerSession(): Promise<Session | null> {
+  const { cookies } = await import("next/headers");
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(sessionCookieName)?.value;
+
+  if (!sessionToken) {
+    return null;
+  }
+
+  try {
+    const payload = (await Iron.unseal(
+      decodeURIComponent(sessionToken),
+      getSessionSecret(),
+      Iron.defaults,
+    )) as { sessionId: string };
+
+    const session = await getSessionRepository().findById(
+      payload.sessionId,
+      systemClock().now(),
+    );
+    return session;
+  } catch {
+    return null;
+  }
 }
 
 export function getSessionSecret(): string {

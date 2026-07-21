@@ -1,7 +1,114 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { renderToString } from "react-dom/server";
 
-describe("app shell", () => {
-  it("placeholder test - setup checklist page is a server component", () => {
-    expect(true).toBe(true);
+import * as sessionModule from "@/auth/session";
+import { setupTest } from "./helpers/setup";
+import { USER_FIXTURES } from "./fixtures/seeds";
+
+vi.mock("@/auth/session");
+
+const TEST_USER = USER_FIXTURES[0];
+const TEST_ORGANIZER = USER_FIXTURES[1];
+const TEST_ADMIN = USER_FIXTURES[2];
+
+function mockServerSession(user: (typeof USER_FIXTURES)[number]) {
+  vi.mocked(sessionModule.getServerSession).mockResolvedValue({
+    user: {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      avatarUrl: null,
+      shortBio: null,
+      role: user.role,
+      status: user.status,
+      profileTimezone: user.profileTimezone ?? null,
+      bufferMinutes: user.bufferMinutes,
+    },
+    csrfToken: "test-csrf",
+  });
+}
+
+function mockServerSessionNull() {
+  vi.mocked(sessionModule.getServerSession).mockResolvedValue(null);
+}
+
+describe("Setup Home page component", () => {
+  beforeEach(setupTest);
+
+  it("renders five setup checklist cards for an authenticated user", async () => {
+    mockServerSession(TEST_USER);
+
+    const { default: ProductLayout } = await import("../app/(product)/layout");
+    const { default: Page } = await import("../app/(product)/page");
+    const html = renderToString(
+      await ProductLayout({ children: await Page() }),
+    );
+
+    expect(html).toContain("Welcome to SlotMerge");
+    expect(html).toContain("Profile");
+    expect(html).toContain("Discoverability");
+    expect(html).toContain("Topics");
+    expect(html).toContain("Availability");
+    expect(html).toContain("Calendar Connection");
+    expect(html).toContain("Setup");
+    expect(html).toContain("Calendar");
+  });
+
+  it("shows profile card as complete when user has displayName", async () => {
+    mockServerSession(TEST_USER);
+
+    const { default: Page } = await import("../app/(product)/page");
+    const html = renderToString(await Page());
+
+    expect(html).toContain('data-status="complete"');
+    expect(html).toContain('data-status="pending"');
+    expect(html).toContain('data-status="optional"');
+  });
+
+  it("shows Search nav link for organizer role", async () => {
+    mockServerSession(TEST_ORGANIZER);
+
+    const { default: ProductLayout } = await import("../app/(product)/layout");
+    const { default: Page } = await import("../app/(product)/page");
+    const html = renderToString(
+      await ProductLayout({ children: await Page() }),
+    );
+
+    expect(html).toContain("Search");
+    expect(html).not.toContain("Admin");
+  });
+
+  it("shows Search and Admin nav links for admin role", async () => {
+    mockServerSession(TEST_ADMIN);
+
+    const { default: ProductLayout } = await import("../app/(product)/layout");
+    const { default: Page } = await import("../app/(product)/page");
+    const html = renderToString(
+      await ProductLayout({ children: await Page() }),
+    );
+
+    expect(html).toContain("Search");
+    expect(html).toContain("Admin");
+  });
+
+  it("renders the HeaderMenuToggle with correct initial aria-expanded", async () => {
+    mockServerSession(TEST_USER);
+
+    const { default: ProductLayout } = await import("../app/(product)/layout");
+    const { default: Page } = await import("../app/(product)/page");
+    const html = renderToString(
+      await ProductLayout({ children: await Page() }),
+    );
+
+    expect(html).toContain('data-testid="avatar-dropdown-trigger"');
+  });
+
+  it("renders signed-out message when no session", async () => {
+    mockServerSessionNull();
+
+    const { default: Page } = await import("../app/(product)/page");
+    const html = renderToString(await Page());
+
+    expect(html).toContain("Please sign in to continue.");
   });
 });

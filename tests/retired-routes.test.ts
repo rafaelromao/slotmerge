@@ -48,7 +48,7 @@ describe("Retired routes return 404 with successor Link header", () => {
       expect(response.status).toBe(404);
       const link = response.headers.get("Link");
       expect(link).toBe(
-        "</api/v1/searches/{id}>; rel=\"successor-version\"",
+        "</api/v1/searches>; rel=\"successor-version\"",
       );
     });
   });

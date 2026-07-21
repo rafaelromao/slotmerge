@@ -5,7 +5,7 @@ export function GET(_request: Request): Response {
     {
       status: 404,
       headers: {
-        Link: `</api/v1/searches/{id}>; rel="successor-version"`,
+        Link: `</api/v1/searches>; rel="successor-version"`,
       },
     },
   );

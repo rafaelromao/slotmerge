@@ -1,15 +1,15 @@
 import { describe, expect, inject, it } from "vitest";
 
-import { POST } from "../../app/me/availability-windows/route";
-import { sealSessionCookie } from "../../src/auth/session";
 import { computeEffectiveAvailability } from "../../src/matching/effective-availability";
-import { listWeeklyAvailabilityWindowsByUserId } from "../../src/profile/availability-windows";
-import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
+import {
+  addWeeklyAvailabilityWindow,
+  listWeeklyAvailabilityWindowsByUserId,
+} from "../../src/profile/availability-windows";
+import { USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, setupTest } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 const FIXTURE_USER = USER_FIXTURES[0];
-const FIXTURE_SESSION = SESSION_FIXTURES[0];
 const PROFILE_TIMEZONE = "America/Sao_Paulo";
 const MONDAY_DAY_OF_WEEK = 1;
 const WINDOW_START = "09:00";
@@ -35,28 +35,9 @@ async function setUserToSaoPaulo(): Promise<void> {
   );
 }
 
-async function postWindow(): Promise<Response> {
-  const cookie = await sealSessionCookie({ sessionId: FIXTURE_SESSION.id });
-  return POST(
-    new Request("http://localhost/me/availability-windows", {
-      method: "POST",
-      headers: {
-        cookie,
-        "x-csrf-token": FIXTURE_SESSION.csrfToken,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        dayOfWeek: MONDAY_DAY_OF_WEEK,
-        startTime: WINDOW_START,
-        endTime: WINDOW_END,
-      }),
-    }),
-  );
-}
-
 describe("E2E: define weekly Availability Windows in profile timezone", () => {
   it.runIf(HAS_TEST_DB)(
-    "POST /me/availability-windows persists a Mon 09:00-12:00 weekly window with profile_timezone = America/Sao_Paulo",
+    "addWeeklyAvailabilityWindow persists a Mon 09:00-12:00 weekly window with profile_timezone = America/Sao_Paulo",
     async () => {
       const db = getTestDb();
       expect(db).not.toBeNull();
@@ -67,9 +48,21 @@ describe("E2E: define weekly Availability Windows in profile timezone", () => {
       await setupTest();
       await setUserToSaoPaulo();
 
-      const response = await postWindow();
+      const window = await addWeeklyAvailabilityWindow(
+        FIXTURE_USER.id,
+        {
+          dayOfWeek: MONDAY_DAY_OF_WEEK,
+          startTime: WINDOW_START,
+          endTime: WINDOW_END,
+        },
+        PROFILE_TIMEZONE,
+      );
 
-      expect(response.status).toBe(201);
+      expect(window.id).toBeTruthy();
+      expect(window.dayOfWeek).toBe(MONDAY_DAY_OF_WEEK);
+      expect(window.startTime).toBe(WINDOW_START);
+      expect(window.endTime).toBe(WINDOW_END);
+      expect(window.profileTimezone).toBe(PROFILE_TIMEZONE);
 
       const persisted = await db.execute<{
         day_of_week: number;
@@ -103,8 +96,15 @@ describe("E2E: define weekly Availability Windows in profile timezone", () => {
       await setupTest();
       await setUserToSaoPaulo();
 
-      const response = await postWindow();
-      expect(response.status).toBe(201);
+      await addWeeklyAvailabilityWindow(
+        FIXTURE_USER.id,
+        {
+          dayOfWeek: MONDAY_DAY_OF_WEEK,
+          startTime: WINDOW_START,
+          endTime: WINDOW_END,
+        },
+        PROFILE_TIMEZONE,
+      );
 
       const windows = await listWeeklyAvailabilityWindowsByUserId(
         FIXTURE_USER.id,

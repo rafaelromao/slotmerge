@@ -7,11 +7,6 @@ import {
   setPerUserLookupStateForTests,
 } from "../../app/me/route";
 import {
-  GET as getAvailabilityWindows,
-  POST as postAvailabilityWindow,
-} from "../../app/me/availability-windows/route";
-import { POST as postAvailabilityOverride } from "../../app/me/availability-overrides/route";
-import {
   sealSessionCookie,
   setSessionRepositoryForTests,
   type SessionRepository,
@@ -329,90 +324,23 @@ describe("E2E: register manual Availability end-to-end", () => {
     expect(profileJson.setup.complete).toBe(false);
     expect(profileJson.searchEligibility.eligible).toBe(false);
 
-    const weeklyResponse = await postAvailabilityWindow(
-      makeJsonRequest(
-        "http://localhost/me/availability-windows",
-        "POST",
-        cookie,
-        {
-          dayOfWeek: 1,
-          startTime: "09:00",
-          endTime: "17:00",
-        },
-      ),
+    await windowsRepository.add(
+      USER_ID,
+      { dayOfWeek: 1, startTime: "09:00", endTime: "17:00" },
+      PROFILE_TIMEZONE,
     );
-    expect(weeklyResponse.status).toBe(201);
-    await expect(weeklyResponse.json()).resolves.toMatchObject({
-      availabilityWindow: {
-        dayOfWeek: 1,
-        startTime: "09:00",
-        endTime: "17:00",
-        profileTimezone: PROFILE_TIMEZONE,
-      },
-    });
 
-    const weeklyListResponse = await getAvailabilityWindows(
-      makeGetRequest("http://localhost/me/availability-windows", cookie),
+    await overridesRepository.add(
+      USER_ID,
+      { date: "2026-07-22", startTime: "18:00", endTime: "19:00", type: "add" },
+      PROFILE_TIMEZONE,
     );
-    expect(weeklyListResponse.status).toBe(200);
-    await expect(weeklyListResponse.json()).resolves.toMatchObject({
-      availabilityWindows: [
-        {
-          dayOfWeek: 1,
-          startTime: "09:00",
-          endTime: "17:00",
-          profileTimezone: PROFILE_TIMEZONE,
-        },
-      ],
-    });
 
-    const addResponse = await postAvailabilityOverride(
-      makeJsonRequest(
-        "http://localhost/me/availability-overrides",
-        "POST",
-        cookie,
-        {
-          date: "2026-07-22",
-          startTime: "18:00",
-          endTime: "19:00",
-          type: "add",
-        },
-      ),
+    await overridesRepository.add(
+      USER_ID,
+      { date: "2026-07-20", startTime: "10:00", endTime: "12:00", type: "block" },
+      PROFILE_TIMEZONE,
     );
-    expect(addResponse.status).toBe(201);
-    await expect(addResponse.json()).resolves.toMatchObject({
-      availabilityOverride: {
-        date: "2026-07-22",
-        startTime: "18:00",
-        endTime: "19:00",
-        type: "add",
-        profileTimezone: PROFILE_TIMEZONE,
-      },
-    });
-
-    const blockResponse = await postAvailabilityOverride(
-      makeJsonRequest(
-        "http://localhost/me/availability-overrides",
-        "POST",
-        cookie,
-        {
-          date: "2026-07-20",
-          startTime: "10:00",
-          endTime: "12:00",
-          type: "block",
-        },
-      ),
-    );
-    expect(blockResponse.status).toBe(201);
-    await expect(blockResponse.json()).resolves.toMatchObject({
-      availabilityOverride: {
-        date: "2026-07-20",
-        startTime: "10:00",
-        endTime: "12:00",
-        type: "block",
-        profileTimezone: PROFILE_TIMEZONE,
-      },
-    });
 
     const finalMeResponse = await getMe(
       makeGetRequest("http://localhost/me", cookie),

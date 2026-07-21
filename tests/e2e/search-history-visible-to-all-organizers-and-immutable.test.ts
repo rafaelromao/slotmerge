@@ -9,7 +9,7 @@ import {
   it,
 } from "vitest";
 
-import { GET } from "../../app/api/searches/[id]/route";
+import { GET } from "../../app/api/v1/searches/[id]/route";
 import { sealSessionCookie } from "../../src/auth/session";
 import {
   availabilityWindows,
@@ -170,7 +170,7 @@ async function fetchSnapshot(
   cookie: string,
 ): Promise<SnapshotResponseBody> {
   const response = await GET(
-    new Request(`http://localhost/api/searches/${searchId}`, {
+    new Request(`http://localhost/api/v1/searches/${searchId}`, {
       headers: { cookie },
     }),
     { params: Promise.resolve({ id: searchId }) },

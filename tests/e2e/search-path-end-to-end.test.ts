@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { eq } from "drizzle-orm";
 
-import { GET } from "../../app/api/searches/[id]/route";
+import { GET } from "../../app/api/v1/searches/[id]/route";
 import { SearchResultClient } from "../../app/searches/[id]/results/SearchResultClient";
 import { sealSessionCookie } from "../../src/auth/session";
 import {
@@ -218,7 +218,7 @@ describe("E2E: complete Search path", () => {
         sessionId: ORGANIZER_SESSION_ID,
       });
       const response = await GET(
-        new Request(`http://localhost/api/searches/${searchId}`, {
+        new Request(`http://localhost/api/v1/searches/${searchId}`, {
           headers: { cookie },
         }),
         { params: Promise.resolve({ id: searchId }) },

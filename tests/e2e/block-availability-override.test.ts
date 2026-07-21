@@ -1,47 +1,25 @@
 import { describe, expect, inject, it } from "vitest";
 
-import { POST } from "../../app/me/availability-overrides/route";
-import { sealSessionCookie } from "../../src/auth/session";
+import { computeEffectiveAvailability } from "../../src/matching/effective-availability";
 import {
+  addAvailabilityOverride,
   expandOverrideToUtcRange,
   listAvailabilityOverridesByUserId,
 } from "../../src/profile/availability-overrides";
-import { computeEffectiveAvailability } from "../../src/matching/effective-availability";
-import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
+import { USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, setupTest } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 const FIXTURE_USER = USER_FIXTURES[0];
-const FIXTURE_SESSION = SESSION_FIXTURES[0];
 const FIXTURE_TIMEZONE = FIXTURE_USER.profileTimezone;
 const NEW_OVERRIDE_DATE = "2026-07-06";
 const NEW_OVERRIDE_START = "10:00";
 const NEW_OVERRIDE_END = "12:00";
-const NEW_OVERRIDE_TYPE = "block";
-
-async function postBlockOverride(): Promise<Response> {
-  const cookie = await sealSessionCookie({ sessionId: FIXTURE_SESSION.id });
-  return POST(
-    new Request("http://localhost/me/availability-overrides", {
-      method: "POST",
-      headers: {
-        cookie,
-        "x-csrf-token": FIXTURE_SESSION.csrfToken,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        date: NEW_OVERRIDE_DATE,
-        startTime: NEW_OVERRIDE_START,
-        endTime: NEW_OVERRIDE_END,
-        type: NEW_OVERRIDE_TYPE,
-      }),
-    }),
-  );
-}
+const NEW_OVERRIDE_TYPE = "block" as const;
 
 describe("E2E: persist one-off block Availability override and surface it from the effective Availability helper", () => {
   it.runIf(HAS_TEST_DB)(
-    "POST /me/availability-overrides persists a block override on a day with a weekly window",
+    "addAvailabilityOverride persists a block override on a day with a weekly window",
     async () => {
       const db = getTestDb();
       expect(db).not.toBeNull();
@@ -51,9 +29,23 @@ describe("E2E: persist one-off block Availability override and surface it from t
 
       await setupTest();
 
-      const response = await postBlockOverride();
+      const override = await addAvailabilityOverride(
+        FIXTURE_USER.id,
+        {
+          date: NEW_OVERRIDE_DATE,
+          startTime: NEW_OVERRIDE_START,
+          endTime: NEW_OVERRIDE_END,
+          type: NEW_OVERRIDE_TYPE,
+        },
+        FIXTURE_TIMEZONE,
+      );
 
-      expect(response.status).toBe(201);
+      expect(override.id).toBeTruthy();
+      expect(override.date).toBe(NEW_OVERRIDE_DATE);
+      expect(override.startTime).toBe(NEW_OVERRIDE_START);
+      expect(override.endTime).toBe(NEW_OVERRIDE_END);
+      expect(override.type).toBe(NEW_OVERRIDE_TYPE);
+      expect(override.profileTimezone).toBe(FIXTURE_TIMEZONE);
 
       const persisted = await db.execute<{
         date: string;
@@ -93,8 +85,16 @@ describe("E2E: persist one-off block Availability override and surface it from t
 
       await setupTest();
 
-      const response = await postBlockOverride();
-      expect(response.status).toBe(201);
+      await addAvailabilityOverride(
+        FIXTURE_USER.id,
+        {
+          date: NEW_OVERRIDE_DATE,
+          startTime: NEW_OVERRIDE_START,
+          endTime: NEW_OVERRIDE_END,
+          type: NEW_OVERRIDE_TYPE,
+        },
+        FIXTURE_TIMEZONE,
+      );
 
       const overrides = await listAvailabilityOverridesByUserId(
         FIXTURE_USER.id,

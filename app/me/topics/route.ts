@@ -143,7 +143,10 @@ export async function submitTopicProposal(request: Request): Promise<Response> {
 
   const sealed = await sealFeedback({
     type: body.error,
-    names: body.error === "too_similar" ? (body.matches ?? []).map((m) => m.name) : undefined,
+    names:
+      body.error === "too_similar"
+        ? (body.matches ?? []).map((m) => m.name)
+        : undefined,
   });
 
   return Response.redirect(
@@ -230,7 +233,8 @@ function renderTopicsPage({
   selectedTopicIds: string[];
   csrfToken: string;
   proposals: ProposalEntry[];
-  proposalError: { type: "too_similar"; names: string[] } | { type: string } | null;
+  proposalError:
+    { type: "too_similar"; names: string[] } | { type: string } | null;
 }): string {
   const topicRows = catalogue
     .map(

@@ -1,14 +1,41 @@
 import { test, expect } from "@playwright/test";
-import {
-  getLastMagicLinkUrlForRecipient,
-  resetCapturedEmails,
-} from "../../../helpers/playwright/mock-email-outbox";
 
 const TEST_USER_EMAIL = "user@example.com";
+const BASE_URL = "http://localhost:3000";
 
-test.beforeEach(() => {
-  resetCapturedEmails();
-});
+type CapturedEmailsResponse = {
+  emails: Array<{
+    type: string;
+    payload: Record<string, unknown>;
+  }>;
+};
+
+async function getMagicLinkUrl(email: string): Promise<string | null> {
+  const response = await fetch(`${BASE_URL}/api/local/emails/${encodeURIComponent(email)}`);
+  if (!response.ok) {
+    return null;
+  }
+  const data = (await response.json()) as CapturedEmailsResponse;
+  const emails = data.emails;
+  const magicLinkEmail = emails.find((e) => e.type === "magic-link");
+  if (!magicLinkEmail) {
+    return null;
+  }
+  const url = magicLinkEmail.payload["magicLinkUrl"];
+  return typeof url === "string" ? url : null;
+}
+
+async function waitForMagicLink(email: string, timeoutMs = 10000): Promise<string | null> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const url = await getMagicLinkUrl(email);
+    if (url) {
+      return url;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return null;
+}
 
 test.describe("Setup Home Journey", () => {
   test("signed-out user completes setup checklist", async ({ page }) => {
@@ -16,7 +43,7 @@ test.describe("Setup Home Journey", () => {
 
     await expect(page.getByText("Please sign in to continue.")).toBeVisible();
 
-    const magicLinkRequest = await fetch("http://localhost:3000/auth/magic-link/request", {
+    const magicLinkRequest = await fetch(`${BASE_URL}/auth/magic-link/request`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: `email=${encodeURIComponent(TEST_USER_EMAIL)}`,
@@ -24,19 +51,14 @@ test.describe("Setup Home Journey", () => {
 
     expect(magicLinkRequest.ok).toBeTruthy();
 
-    const magicLinkUrl = await page.evaluate(
-      (email) => {
-        return getLastMagicLinkUrlForRecipient(email);
-      },
-      TEST_USER_EMAIL,
-    );
+    const magicLinkUrl = await waitForMagicLink(TEST_USER_EMAIL);
 
     expect(magicLinkUrl).not.toBeNull();
     expect(magicLinkUrl).toContain("/auth/magic-link/verify?token=");
 
     await page.goto(magicLinkUrl!);
 
-    await page.waitForURL("http://localhost:3000/");
+    await page.waitForURL(`${BASE_URL}/`);
 
     await expect(page.getByText("Welcome to SlotMerge")).toBeVisible();
 

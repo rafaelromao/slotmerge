@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { getSessionFromRequest } from "../../src/auth/session";
+import { HeaderMenuToggle } from "./_components/HeaderMenuToggle";
 
 export default async function ProductLayout({
   children,
@@ -49,32 +50,10 @@ export default async function ProductLayout({
               <span className="calendar-badge" data-testid="calendar-badge">
                 Calendar
               </span>
-              <details className="avatar-dropdown">
-                <summary
-                  className="avatar-dropdown-trigger"
-                  aria-expanded="false"
-                  aria-haspopup="menu"
-                  data-testid="avatar-dropdown-trigger"
-                >
-                  <span className="avatar-initial">
-                    {session.user.displayName?.[0] ?? session.user.email[0]}
-                  </span>
-                </summary>
-                <ul className="avatar-dropdown-menu" role="menu">
-                  <li>
-                    <Link href="/me" role="menuitem">
-                      My Profile
-                    </Link>
-                  </li>
-                  <li>
-                    <form method="POST" action="/auth/session">
-                      <button type="submit" role="menuitem">
-                        Sign Out
-                      </button>
-                    </form>
-                  </li>
-                </ul>
-              </details>
+              <HeaderMenuToggle
+                displayName={session.user.displayName}
+                email={session.user.email}
+              />
             </div>
           </header>
           <main className="main-content">{children}</main>

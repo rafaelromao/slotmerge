@@ -1,36 +1,39 @@
 "use client";
 
+import Link from "next/link";
+
 type HeaderMenuToggleProps = {
-  ariaControls: string;
-  ariaLabel: string;
+  displayName: string | null;
+  email: string;
 };
 
 export function HeaderMenuToggle({
-  ariaControls,
-  ariaLabel,
+  displayName,
+  email,
 }: HeaderMenuToggleProps) {
   return (
-    <button
-      type="button"
-      aria-expanded="false"
-      aria-controls={ariaControls}
-      aria-label={ariaLabel}
-      data-testid="header-menu-toggle"
-      className="header-menu-toggle"
-    >
-      <svg
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
+    <details className="avatar-dropdown">
+      <summary
+        className="avatar-dropdown-trigger"
+        aria-haspopup="menu"
+        data-testid="avatar-dropdown-trigger"
       >
-        <path d="M4 6h16M4 12h16M4 18h16" />
-      </svg>
-    </button>
+        <span className="avatar-initial">{displayName?.[0] ?? email[0]}</span>
+      </summary>
+      <ul className="avatar-dropdown-menu" role="menu">
+        <li>
+          <Link href="/me" role="menuitem">
+            My Profile
+          </Link>
+        </li>
+        <li>
+          <form method="POST" action="/auth/session">
+            <button type="submit" role="menuitem">
+              Sign Out
+            </button>
+          </form>
+        </li>
+      </ul>
+    </details>
   );
 }

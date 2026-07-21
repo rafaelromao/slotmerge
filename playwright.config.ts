@@ -1,4 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PORT = process.env.PORT ?? 3000;
 const BASE_URL = `http://localhost:${PORT}`;
@@ -10,6 +14,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [["html", { outputFolder: "playwright/.artifacts/test-results" }], ["list"]],
+  globalSetup: path.join(__dirname, "tests/helpers/playwright/global-setup.ts"),
 
   use: {
     baseURL: BASE_URL,
@@ -29,8 +34,8 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         video: "on",
-        screenshot: "only-on-failure",
       },
+      snapshotDir: "./tests/e2e-browser/screenshots",
     },
   ],
 

@@ -51,6 +51,7 @@ async function waitForMagicLink(
 
 async function adminInvite(browser: Browser, email: string): Promise<void> {
   const context = await browser.newContext({
+    baseURL: BASE_URL,
     storageState: "playwright/.auth/admin.json",
   });
   const page = await context.newPage();

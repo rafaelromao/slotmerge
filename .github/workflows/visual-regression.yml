@@ -2,6 +2,12 @@ name: Visual Regression
 
 on:
   workflow_dispatch:
+    inputs:
+      test_path:
+        description: Playwright test path to capture
+        required: false
+        default: tests/e2e-browser
+        type: string
 
 jobs:
   visual-regression:
@@ -31,8 +37,9 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run capture project
-        run: pnpm exec playwright test --project=capture
+        run: pnpm exec playwright test "$TEST_PATH" --project=capture
         env:
+          TEST_PATH: ${{ inputs.test_path }}
           APP_ENV: test
           CI: "true"
           CAPTURE: "true"

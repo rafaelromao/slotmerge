@@ -11,43 +11,55 @@ import { GET as retiredAvailabilityOverridesGet } from "../app/me/availability-o
 import { POST as retiredAvailabilityOverridesPost } from "../app/me/availability-overrides/route";
 import { DELETE as retiredAvailabilityOverrideDelete } from "../app/me/availability-overrides/[id]/route";
 
-describe("Retired routes return 404 with successor Link header", () => {
+describe("Retired routes return 308 with Deprecation, Sunset, and successor Link headers", () => {
   describe("GET /api/searches/[id]", () => {
-    it("returns 404 with Link header pointing to v1 successor", async () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to v1 successor", async () => {
       const response = await retiredSearchGet(
         new Request("http://localhost/api/searches/123"),
         { params: Promise.resolve({ id: "123" }) },
       );
-      expect(response.status).toBe(404);
-      const link = response.headers.get("Link");
-      expect(link).toBe(
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/api/v1/searches/123");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
         "</api/v1/searches/123>; rel=\"successor-version\"",
       );
     });
   });
 
   describe("GET /search/[id]/snapshot", () => {
-    it("returns 404 with Link header pointing to v1 successor", async () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to v1 successor", async () => {
       const response = await retiredSearchSnapshotGet(
         new Request("http://localhost/search/abc/snapshot"),
         { params: Promise.resolve({ id: "abc" }) },
       );
-      expect(response.status).toBe(404);
-      const link = response.headers.get("Link");
-      expect(link).toBe(
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/api/v1/searches/abc");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
         "</api/v1/searches/abc>; rel=\"successor-version\"",
       );
     });
   });
 
   describe("GET /search/history", () => {
-    it("returns 404 with Link header pointing to v1 successor", () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to v1 successor", () => {
       const response = retiredSearchHistoryGet(
         new Request("http://localhost/search/history"),
       );
-      expect(response.status).toBe(404);
-      const link = response.headers.get("Link");
-      expect(link).toBe(
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/api/v1/searches");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
         "</api/v1/searches>; rel=\"successor-version\"",
       );
     });

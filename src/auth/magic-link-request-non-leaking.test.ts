@@ -35,7 +35,7 @@ function createMockEmailDeliveryService(): EmailDeliveryService & {
         recipient: input.recipient,
         type: input.type,
         payloadReference: "ref-test",
-        status: "sent",
+        status: "sent" as const,
         attempts: 0,
         createdAt: now,
         updatedAt: now,

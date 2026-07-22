@@ -208,6 +208,9 @@ export function createMagicLinkVerifyHandlers(
             const existingUser = await transactionalUserRepository.findByEmail(
               inviteToClaim.email,
             );
+            if (existingUser && existingUser.status !== "active") {
+              throw new VerifyError("user_suspended");
+            }
             user =
               existingUser ??
               (await transactionalUserRepository.create({

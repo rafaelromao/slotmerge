@@ -719,4 +719,60 @@ describe("magic link verify handler - T3 contract", () => {
     );
     expect(sessionRepo.create).not.toHaveBeenCalled();
   });
+
+  it("rejects an invite token when the resolved existing User is suspended", async () => {
+    const issuer = createMagicLinkTokenIssuer({
+      clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
+      baseUrl: "https://slotmerge.example.com",
+      secret: "test-secret",
+    });
+    const token = issuer.issueMagicLinkToken({
+      inviteId: "invite-1",
+      email: "alice@example.com",
+      expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      generation: 0,
+    });
+    const inviteRepo = createMockInviteRepository();
+    inviteRepo.findById.mockResolvedValue({
+      id: "invite-1",
+      email: "alice@example.com",
+      role: "user",
+      status: "pending",
+      invitedByAdminId: "admin-1",
+      expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      magicLinkGeneration: 0,
+    });
+    const userRepo = createMockUserRepository();
+    userRepo.findByEmail.mockResolvedValue({
+      id: "user-1",
+      email: "alice@example.com",
+      role: "user",
+      status: "suspended",
+    });
+    const sessionRepo = createMockSessionRepository();
+    const { POST } = createMagicLinkVerifyHandlers({
+      clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
+      magicLinkSecret: "test-secret",
+      inviteRepository: inviteRepo,
+      userRepository: userRepo,
+      sessionRepository: sessionRepo,
+      transaction: createTransaction(sessionRepo, inviteRepo, userRepo),
+    });
+
+    const response = await POST(
+      new Request("http://localhost/auth/magic-link/verify", {
+        method: "POST",
+        body: new URLSearchParams({ token: token.token }),
+      }),
+    );
+
+    expectErrorRedirect(
+      response,
+      "link_invalid",
+      "user_suspended",
+      "alice@example.com",
+    );
+    expect(sessionRepo.create).not.toHaveBeenCalled();
+    expect(userRepo.create).not.toHaveBeenCalled();
+  });
 });

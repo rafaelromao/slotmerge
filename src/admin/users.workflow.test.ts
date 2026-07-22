@@ -296,4 +296,82 @@ describe("adminUsersWorkflow", () => {
       expect(emailCall.payload.magicLinkToken).toBe("magic-token-1");
     });
   });
+
+  describe("changeRole", () => {
+    it("returns self_role_change when the actor targets themselves", async () => {
+      const changeRole = vi.fn();
+      const userRepository = buildUserRepository({ changeRole });
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository();
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.changeRole({
+        actorId: "admin-1",
+        targetUserId: "admin-1",
+        role: "user",
+      });
+
+      expect(result).toEqual({ ok: false, reason: "self_role_change" });
+      expect(changeRole).not.toHaveBeenCalled();
+    });
+
+    it("returns user_not_found when the repository reports not_found", async () => {
+      const changeRole = vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "not_found",
+      });
+      const userRepository = buildUserRepository({ changeRole });
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository();
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.changeRole({
+        actorId: "admin-1",
+        targetUserId: "u-missing",
+        role: "organizer",
+      });
+
+      expect(result).toEqual({ ok: false, reason: "user_not_found" });
+      expect(changeRole).toHaveBeenCalledWith({
+        userId: "u-missing",
+        actingAdminId: "admin-1",
+        role: "organizer",
+        now: fixedClock.now(),
+      });
+    });
+
+    it("returns ok when the repository succeeds", async () => {
+      const changeRole = vi.fn().mockResolvedValue({ ok: true });
+      const userRepository = buildUserRepository({ changeRole });
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository();
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.changeRole({
+        actorId: "admin-1",
+        targetUserId: "u-2",
+        role: "organizer",
+      });
+
+      expect(result).toEqual({ ok: true });
+    });
+  });
 });

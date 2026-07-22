@@ -50,6 +50,11 @@ vi.mock("next/navigation", () => ({
 vi.mock("../src/admin/users.workflow", () => ({
   createAdminUsersWorkflow: vi.fn(() => ({
     load: vi.fn().mockResolvedValue({ users: [], recentInvites: [] }),
+    inviteUser: vi.fn(),
+    changeRole: vi.fn(),
+    suspend: vi.fn(),
+    reinstate: vi.fn(),
+    resendInvite: vi.fn(),
   })),
 }));
 
@@ -167,6 +172,48 @@ describe("Admin page", () => {
     const { default: AdminPage } = await import("../app/(product)/admin/page");
     const html = renderToString(await AdminPage());
     expect(html).not.toContain("data-testid=\"invite-banner\"");
+  });
+
+  it("renders one row per user with role dropdown and Save button", async () => {
+    const { createAdminUsersWorkflow } = await import(
+      "../src/admin/users.workflow"
+    );
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn().mockResolvedValue({
+        users: [
+          {
+            id: "u-1",
+            email: "ada@example.com",
+            displayName: "Ada",
+            role: "user",
+            status: "active",
+          },
+          {
+            id: "admin-1",
+            email: "admin@example.com",
+            displayName: "Carol Admin",
+            role: "admin",
+            status: "active",
+          },
+        ],
+        recentInvites: [],
+      }),
+      inviteUser: vi.fn(),
+      changeRole: vi.fn(),
+      suspend: vi.fn(),
+      reinstate: vi.fn(),
+      resendInvite: vi.fn(),
+    });
+
+    const { default: AdminPage } = await import("../app/(product)/admin/page");
+    const html = renderToString(await AdminPage());
+
+    expect(html).toContain('data-testid="users-row-u-1"');
+    expect(html).toContain('data-testid="users-role-select-u-1"');
+    expect(html).toContain('data-testid="users-role-save-u-1"');
+    expect(html).toContain('data-testid="users-row-admin-1"');
+    expect(html).toContain('data-self="true"');
+    expect(html).toContain("You cannot change your own role.");
   });
 
   it("throws NEXT_NOT_FOUND when called by a non-admin", async () => {

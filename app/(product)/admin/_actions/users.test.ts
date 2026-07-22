@@ -258,3 +258,90 @@ describe("inviteUserAction", () => {
     expect(digest).toContain("NEXT_REDIRECT;303;/admin?error=invalid_invite;");
   });
 });
+
+async function importChangeRoleAction() {
+  const mod = await import("./users");
+  return mod.changeRoleAction;
+}
+
+describe("changeRoleAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setSession("admin");
+  });
+
+  it("redirects to /admin?role_change=saved on success", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn(),
+      changeRole: vi.fn().mockResolvedValue({ ok: true }),
+      suspend: vi.fn(),
+      reinstate: vi.fn(),
+      resendInvite: vi.fn(),
+    });
+
+    const action = await importChangeRoleAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          userId: "u-2",
+          role: "organizer",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain("NEXT_REDIRECT;303;/admin?role_change=saved;");
+  });
+
+  it("redirects to /admin?error=self_role_change when the actor targets themselves", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn(),
+      changeRole: vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "self_role_change",
+      }),
+      suspend: vi.fn(),
+      reinstate: vi.fn(),
+      resendInvite: vi.fn(),
+    });
+
+    const action = await importChangeRoleAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          userId: "admin-1",
+          role: "user",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain(
+      "NEXT_REDIRECT;303;/admin?error=self_role_change;",
+    );
+  });
+
+  it("redirects to /admin?error=invalid_role_change when userId is missing", async () => {
+    const action = await importChangeRoleAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          role: "user",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain(
+      "NEXT_REDIRECT;303;/admin?error=invalid_role_change;",
+    );
+  });
+});

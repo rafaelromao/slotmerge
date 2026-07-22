@@ -199,14 +199,26 @@ export function createAdminUsersWorkflow(
       } as const;
     },
 
-    changeRole({ actorId, targetUserId }) {
+    async changeRole({ actorId, targetUserId, role }) {
       if (actorId === targetUserId) {
-        return Promise.resolve({
-          ok: false,
-          reason: "self_role_change",
-        } as const);
+        return { ok: false, reason: "self_role_change" } as const;
       }
-      return Promise.resolve({ ok: false, reason: "user_not_found" } as const);
+
+      const result = await userRepository.changeRole({
+        userId: targetUserId,
+        actingAdminId: actorId,
+        role,
+        now: clock.now(),
+      });
+
+      if (!result.ok) {
+        if (result.reason === "self") {
+          return { ok: false, reason: "self_role_change" } as const;
+        }
+        return { ok: false, reason: "user_not_found" } as const;
+      }
+
+      return { ok: true } as const;
     },
 
     suspend({ actorId, targetUserId }) {

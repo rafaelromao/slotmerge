@@ -6,6 +6,7 @@ import { getServerSession } from "../../../../src/auth/session";
 import { CsrfError, csrfErrorResponse } from "../../../../src/lib/csrf";
 import {
   createAdminUsersWorkflow,
+  type AdminUserChangeRoleResult,
   type AdminUserInviteResult,
 } from "../../../../src/admin/users.workflow";
 import { createPostgresAdminUserRepository } from "../../../../src/admin/users.repository";
@@ -19,31 +20,9 @@ import { loadRuntimeConfig } from "../../../../src/config/runtime";
 import { createMagicLinkTokenIssuer } from "../../../../src/auth/magic-link";
 import type { UserRole } from "../../../../src/db/schema";
 
-export async function inviteUserAction(formData: FormData): Promise<void> {
-  const session = await getServerSession();
-  if (!session || session.user.role !== "admin") {
-    redirect("/sign-in?returnTo=%2Fadmin");
-  }
-
-  try {
-    const { assertCsrfFromFormData } = await import("../../../../src/lib/csrf");
-    assertCsrfFromFormData(formData, session);
-  } catch (error) {
-    if (error instanceof CsrfError) {
-      csrfErrorResponse();
-      return;
-    }
-    throw error;
-  }
-
-  const email = readEmail(formData);
-  const role = readRole(formData);
-  if (!email || !role) {
-    redirect("/admin?error=invalid_invite");
-  }
-
+function buildAdminWorkflow() {
   const config = loadRuntimeConfig();
-  const workflow = createAdminUsersWorkflow({
+  return createAdminUsersWorkflow({
     userRepository: createPostgresAdminUserRepository(),
     inviteRepository: createPostgresInviteRepository(),
     sessionRepository: getSessionRepository(),
@@ -59,6 +38,39 @@ export async function inviteUserAction(formData: FormData): Promise<void> {
     }),
     clock: systemClock(),
   });
+}
+
+async function assertAdminAndCsrf(
+  formData: FormData,
+): Promise<{
+  session: NonNullable<Awaited<ReturnType<typeof getServerSession>>>;
+}> {
+  const session = await getServerSession();
+  if (!session || session.user.role !== "admin") {
+    redirect("/sign-in?returnTo=%2Fadmin");
+  }
+  try {
+    const { assertCsrfFromFormData } = await import("../../../../src/lib/csrf");
+    assertCsrfFromFormData(formData, session);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      csrfErrorResponse();
+    }
+    throw error;
+  }
+  return { session };
+}
+
+export async function inviteUserAction(formData: FormData): Promise<void> {
+  const { session } = await assertAdminAndCsrf(formData);
+
+  const email = readEmail(formData);
+  const role = readRole(formData);
+  if (!email || !role) {
+    redirect("/admin?error=invalid_invite");
+  }
+
+  const workflow = buildAdminWorkflow();
 
   const result = await workflow.inviteUser({
     actorId: session.user.id,
@@ -67,7 +79,27 @@ export async function inviteUserAction(formData: FormData): Promise<void> {
     role,
   });
 
-  redirect(redirectTargetFor(result));
+  redirect(redirectTargetForInvite(result));
+}
+
+export async function changeRoleAction(formData: FormData): Promise<void> {
+  const { session } = await assertAdminAndCsrf(formData);
+
+  const targetUserId = readUserId(formData);
+  const role = readRole(formData);
+  if (!targetUserId || !role) {
+    redirect("/admin?error=invalid_role_change");
+  }
+
+  const workflow = buildAdminWorkflow();
+
+  const result = await workflow.changeRole({
+    actorId: session.user.id,
+    targetUserId,
+    role,
+  });
+
+  redirect(redirectTargetForChangeRole(result));
 }
 
 function readEmail(formData: FormData): string | null {
@@ -90,7 +122,16 @@ function readRole(formData: FormData): UserRole | null {
   return null;
 }
 
-function redirectTargetFor(result: AdminUserInviteResult): string {
+function readUserId(formData: FormData): string | null {
+  const value = formData.get("userId");
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function redirectTargetForInvite(result: AdminUserInviteResult): string {
   if (result.ok) {
     return `/admin?invited=${encodeURIComponent(result.maskedEmail)}`;
   }
@@ -102,5 +143,22 @@ function redirectTargetFor(result: AdminUserInviteResult): string {
     case "internal_error":
     default:
       return "/admin?error=invite_failed";
+  }
+}
+
+function redirectTargetForChangeRole(
+  result: AdminUserChangeRoleResult,
+): string {
+  if (result.ok) {
+    return "/admin?role_change=saved";
+  }
+  switch (result.reason) {
+    case "self_role_change":
+      return "/admin?error=self_role_change";
+    case "user_not_found":
+      return "/admin?error=user_not_found";
+    case "internal_error":
+    default:
+      return "/admin?error=role_change_failed";
   }
 }

@@ -6,11 +6,14 @@ import { getSessionRepository } from "../../../src/auth/session";
 import { systemClock } from "../../../src/system/clock";
 import { createAdminTopicsWorkflow } from "../../../src/admin/topics.workflow";
 import { createAdminStatusWorkflow } from "../../../src/admin/operational-status.workflow";
-import { inviteUserAction } from "./_actions/users";
+import { changeRoleAction, inviteUserAction } from "./_actions/users";
+import type { UserListItem } from "../../../src/admin/users.repository";
+import type { UserStatus } from "../../../src/db/schema";
 
 type SearchParams = Promise<{
   invited?: string | string[];
   error?: string | string[];
+  role_change?: string | string[];
 }>;
 
 export default async function AdminPage({
@@ -77,6 +80,17 @@ export default async function AdminPage({
         </p>
       ) : null}
 
+      {firstString(params.role_change) === "saved" ? (
+        <p
+          className="admin-info-banner"
+          role="status"
+          aria-live="polite"
+          data-testid="admin-role-change-banner"
+        >
+          Role updated.
+        </p>
+      ) : null}
+
       <details className="admin-section" open>
         <summary
           className="admin-section-summary"
@@ -129,6 +143,27 @@ export default async function AdminPage({
               Send invite
             </button>
           </form>
+
+          <table className="users-table" data-testid="users-table">
+            <thead>
+              <tr>
+                <th scope="col">Email</th>
+                <th scope="col">Role</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {usersResult.users.map((u) => (
+                <UserRow
+                  key={u.id}
+                  user={u}
+                  isSelf={u.id === context.user.id}
+                  csrfToken={context.csrfToken}
+                />
+              ))}
+            </tbody>
+          </table>
         </div>
       </details>
 
@@ -182,8 +217,86 @@ function errorMessageFor(code: string): string {
       return "An invite or account already exists for that email.";
     case "invalid_invite":
       return "Enter a valid email and role.";
-    case "invite_failed":
+    case "self_role_change":
+      return "You cannot change your own role.";
+    case "user_not_found":
+      return "That user no longer exists.";
+    case "invalid_role_change":
+      return "Choose a valid user and role.";
+    case "role_change_failed":
     default:
-      return "We could not create the invitation. Please try again.";
+      return "We could not update the role. Please try again.";
   }
+}
+
+function labelUserStatus(status: UserStatus): string {
+  return status === "active" ? "Active" : "Suspended";
+}
+
+function UserRow({
+  user,
+  isSelf,
+  csrfToken,
+}: {
+  user: UserListItem;
+  isSelf: boolean;
+  csrfToken: string;
+}) {
+  const selectId = `role-select-${user.id}`;
+  const selfHelpId = `role-self-help-${user.id}`;
+  return (
+    <tr
+      data-testid={`users-row-${user.id}`}
+      data-self={isSelf ? "true" : "false"}
+    >
+      <td>{user.email}</td>
+      <td>
+        <form
+          className="users-role-form"
+          data-testid={`users-role-form-${user.id}`}
+          action={changeRoleAction}
+        >
+          <input type="hidden" name="_csrf" value={csrfToken} />
+          <input type="hidden" name="userId" value={user.id} />
+          <label className="visually-hidden" htmlFor={selectId}>
+            Role for {user.email}
+          </label>
+          <select
+            id={selectId}
+            name="role"
+            defaultValue={user.role}
+            disabled={isSelf}
+            data-testid={`users-role-select-${user.id}`}
+            aria-describedby={isSelf ? selfHelpId : undefined}
+          >
+            <option value="user">User</option>
+            <option value="organizer">Organizer</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button
+            type="submit"
+            className="btn btn-secondary users-role-save"
+            data-testid={`users-role-save-${user.id}`}
+            disabled={isSelf}
+            aria-describedby={isSelf ? selfHelpId : undefined}
+          >
+            Save
+          </button>
+          {isSelf ? (
+            <span id={selfHelpId} className="users-self-help" role="note">
+              You cannot change your own role.
+            </span>
+          ) : null}
+        </form>
+      </td>
+      <td data-testid={`users-status-${user.id}`}>
+        {labelUserStatus(user.status)}
+      </td>
+      <td>
+        <span className="users-row-placeholder">
+          Suspend / reinstate land in slice 4 & 5.
+        </span>
+      </td>
+    </tr>
+  );
 }

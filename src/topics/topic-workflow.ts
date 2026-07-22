@@ -89,10 +89,7 @@ export type TopicWorkflow = {
     | { ok: true; value: { selectedTopicIds: string[] } }
     | { ok: false; error: SaveSelectionError }
   >;
-  propose(input: {
-    userId: string;
-    candidateName: string;
-  }): Promise<
+  propose(input: { userId: string; candidateName: string }): Promise<
     | {
         ok: true;
         value: {
@@ -108,18 +105,22 @@ export type TopicWorkflow = {
   >;
 };
 
-export function createTopicWorkflow(deps: CreateTopicWorkflowDeps): TopicWorkflow {
+export function createTopicWorkflow(
+  deps: CreateTopicWorkflowDeps,
+): TopicWorkflow {
   const { catalogue, proposals, clock } = deps;
   const replaceUserTopics = deps.replaceUserTopics ?? defaultReplaceUserTopics;
   const createProposal = deps.createProposal ?? defaultCreateProposal;
 
   return {
     async loadPageState({ userId }) {
-      const [rawCatalogue, selectedTopicIds, userProposals] = await Promise.all([
-        catalogue.listActive(),
-        catalogue.listSelectedTopicIds(userId),
-        proposals.listUserProposals(userId),
-      ]);
+      const [rawCatalogue, selectedTopicIds, userProposals] = await Promise.all(
+        [
+          catalogue.listActive(),
+          catalogue.listSelectedTopicIds(userId),
+          proposals.listUserProposals(userId),
+        ],
+      );
 
       const activeCatalogue = rawCatalogue
         .filter((row) => row.status === "active")
@@ -180,7 +181,10 @@ export function createTopicWorkflow(deps: CreateTopicWorkflowDeps): TopicWorkflo
       const activeIds = new Set(activeCatalogue.map((row) => row.id));
 
       const invalidIds = topicIds.filter(
-        (topicId) => typeof topicId !== "string" || topicId === "" || !activeIds.has(topicId),
+        (topicId) =>
+          typeof topicId !== "string" ||
+          topicId === "" ||
+          !activeIds.has(topicId),
       );
 
       if (invalidIds.length > 0) {
@@ -210,11 +214,7 @@ export function createTopicWorkflow(deps: CreateTopicWorkflowDeps): TopicWorkflo
         return { ok: false, error: { code: "invalid_name" } };
       }
 
-      const proposalCall = await createProposal(
-        userId,
-        trimmed,
-        clock.now(),
-      );
+      const proposalCall = await createProposal(userId, trimmed, clock.now());
 
       if (proposalCall.ok) {
         return {
@@ -270,12 +270,10 @@ async function defaultCreateProposal(
   candidateName: string,
   now: Date,
 ): Promise<CreateTopicProposalResult> {
-  const { createPostgresTopicProposalRepository } = await import(
-    "./proposals.repository"
-  );
-  const { createTopicProposalRouteRepository } = await import(
-    "./proposals-route"
-  );
+  const { createPostgresTopicProposalRepository } =
+    await import("./proposals.repository");
+  const { createTopicProposalRouteRepository } =
+    await import("./proposals-route");
   return createTopicProposal(
     userId,
     candidateName,

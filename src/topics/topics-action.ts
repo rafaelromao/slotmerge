@@ -137,7 +137,9 @@ export function createTopicsActionHandler(
         ok: "error",
         fieldError,
         similarMatches:
-          result.error.code === "too_similar" ? result.error.matches : undefined,
+          result.error.code === "too_similar"
+            ? result.error.matches
+            : undefined,
         values: { candidateName },
       };
     },

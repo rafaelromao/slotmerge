@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { timingSafeEqual } from "node:crypto";
 
 import {
@@ -53,9 +53,7 @@ function fakeRequest({
 }): Request {
   return new Request(url, {
     method,
-    headers: origin
-      ? { origin }
-      : { "x-something": "y" },
+    headers: origin ? { origin } : { "x-something": "y" },
   });
 }
 
@@ -87,7 +85,7 @@ describe("topics-action — saveTopicSelectionAction", () => {
     });
     const handler = createTopicsActionHandler({
       workflow: spy.workflow,
-      loadSession: async () => makeSession("csrf-token-1"),
+      loadSession: () => Promise.resolve(makeSession("csrf-token-1")),
     });
 
     const response = await handler.saveSelection({
@@ -120,7 +118,7 @@ describe("topics-action — saveTopicSelectionAction", () => {
     });
     const handler = createTopicsActionHandler({
       workflow: spy.workflow,
-      loadSession: async () => null,
+      loadSession: () => Promise.resolve(null),
     });
 
     const response = await handler.saveSelection({
@@ -150,7 +148,7 @@ describe("topics-action — saveTopicSelectionAction", () => {
     });
     const handler = createTopicsActionHandler({
       workflow: spy.workflow,
-      loadSession: async () => makeSession("csrf-token-1"),
+      loadSession: () => Promise.resolve(makeSession("csrf-token-1")),
     });
 
     const response = await handler.saveSelection({
@@ -177,7 +175,7 @@ describe("topics-action — saveTopicSelectionAction", () => {
     });
     const handler = createTopicsActionHandler({
       workflow: spy.workflow,
-      loadSession: async () => makeSession("csrf-token-1"),
+      loadSession: () => Promise.resolve(makeSession("csrf-token-1")),
     });
 
     const response = await handler.saveSelection({
@@ -216,7 +214,7 @@ describe("topics-action — proposeTopicAction", () => {
     });
     const handler = createTopicsActionHandler({
       workflow: spy.workflow,
-      loadSession: async () => makeSession("csrf-token-1"),
+      loadSession: () => Promise.resolve(makeSession("csrf-token-1")),
     });
 
     const state = await handler.propose({
@@ -252,7 +250,7 @@ describe("topics-action — proposeTopicAction", () => {
     });
     const handler = createTopicsActionHandler({
       workflow: spy.workflow,
-      loadSession: async () => makeSession("csrf-token-1"),
+      loadSession: () => Promise.resolve(makeSession("csrf-token-1")),
     });
 
     const state = await handler.propose({
@@ -286,7 +284,7 @@ describe("topics-action — proposeTopicAction", () => {
     });
     const handler = createTopicsActionHandler({
       workflow: spy.workflow,
-      loadSession: async () => makeSession("csrf-token-1"),
+      loadSession: () => Promise.resolve(makeSession("csrf-token-1")),
     });
 
     const state = await handler.propose({
@@ -318,7 +316,7 @@ describe("topics-action — proposeTopicAction", () => {
     });
     const handler = createTopicsActionHandler({
       workflow: spy.workflow,
-      loadSession: async () => makeSession("csrf-token-1"),
+      loadSession: () => Promise.resolve(makeSession("csrf-token-1")),
     });
 
     let state: ProposeActionState = { ok: "idle" };
@@ -334,7 +332,7 @@ describe("topics-action — proposeTopicAction", () => {
           origin: "http://localhost:3000",
         }),
       });
-    } catch (error) {
+    } catch {
       state = {
         ok: "error",
         fieldError: "CSRF check failed",
@@ -360,7 +358,7 @@ describe("topics-action — proposeTopicAction", () => {
     });
     const handler = createTopicsActionHandler({
       workflow: spy.workflow,
-      loadSession: async () => null,
+      loadSession: () => Promise.resolve(null),
     });
 
     let state: ProposeActionState = { ok: "idle" };
@@ -376,7 +374,7 @@ describe("topics-action — proposeTopicAction", () => {
           origin: "http://localhost:3000",
         }),
       });
-    } catch (error) {
+    } catch {
       state = {
         ok: "error",
         fieldError: "Please sign in to propose a Topic.",
@@ -398,9 +396,9 @@ describe("csrf safeCompare", () => {
     const seen: Array<{ actual: string; expected: string }> = [];
     const handler = createTopicsActionHandler({
       workflow: spy.workflow,
-      loadSession: async () => {
+      loadSession: () => {
         seen.push({ actual: "x", expected: makeSession("zz").csrfToken });
-        return makeSession("csrf-token-1");
+        return Promise.resolve(makeSession("csrf-token-1"));
       },
     });
 

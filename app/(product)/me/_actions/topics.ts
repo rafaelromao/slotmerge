@@ -25,9 +25,8 @@ import { systemClock } from "../../../../src/system/clock";
 
 async function buildWorkflow() {
   const db = getDb();
-  const { topics, userTopics, topicProposals } = await import(
-    "../../../../src/db/schema"
-  );
+  const { topics, userTopics, topicProposals } =
+    await import("../../../../src/db/schema");
   const { and, asc, eq } = await import("drizzle-orm");
 
   const catalogue: TopicCatalogueRepository & {
@@ -55,7 +54,7 @@ async function buildWorkflow() {
         .from(topics)
         .where(eq(topics.status, "active"))
         .orderBy(topics.name);
-      return rows as TopicRow[];
+      return rows;
     },
     async listSelectedTopicIds(userId) {
       const rows = await db
@@ -75,7 +74,7 @@ async function buildWorkflow() {
         .orderBy(userTopics.createdAt);
       return rows;
     },
-    async saveAssociations() {
+    saveAssociations() {
       throw new Error(
         "saveAssociations is unused by the T6 workflow; replaceUserTopics owns the write path",
       );
@@ -102,14 +101,15 @@ async function buildWorkflow() {
     proposals: proposalsRepo,
     clock: systemClock(),
     createProposal: async (userId, candidateName, now) => {
-      const { createTopicProposal } = await import(
-        "../../../../src/topics/proposals"
-      );
+      const { createTopicProposal } =
+        await import("../../../../src/topics/proposals");
       return createTopicProposal(
         userId,
         candidateName,
         now,
-        createTopicProposalRouteRepository(createPostgresTopicProposalRepository()),
+        createTopicProposalRouteRepository(
+          createPostgresTopicProposalRepository(),
+        ),
       );
     },
   });
@@ -176,6 +176,8 @@ export async function proposeTopicAction(
   const request = await buildTopicsRequest("http://localhost/me/topics");
   return handler.propose({ formData, request });
 }
+
+export type ProposeActionStateLazy = ProposeActionState;
 
 export function __resetTopicCatalogueRepositoryForTests(): void {
   setTopicCatalogueRepositoryForTests(null);

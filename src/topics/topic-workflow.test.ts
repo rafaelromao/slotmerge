@@ -31,8 +31,7 @@ function buildWorkflow(
         Promise.resolve(overrides.selectedTopicIds ?? []),
     },
     proposals: {
-      listUserProposals: () =>
-        Promise.resolve(overrides.userProposals ?? []),
+      listUserProposals: () => Promise.resolve(overrides.userProposals ?? []),
     },
     clock: fixedClock(),
   });
@@ -255,7 +254,9 @@ function makeSuccessResult(
   };
 }
 
-function makeTooSimilarResult(matches: SimilarMatch[]): CreateTopicProposalResult {
+function makeTooSimilarResult(
+  matches: SimilarMatch[],
+): CreateTopicProposalResult {
   return { ok: false, reason: "too_similar", matches };
 }
 
@@ -265,7 +266,7 @@ function makeAlreadyPendingResult(id: string): CreateTopicProposalResult {
 
 describe("topic workflow — propose", () => {
   it("returns ok with the inserted proposal row on success", async () => {
-    const createProposal = vi.fn(async () => makeSuccessResult());
+    const createProposal = vi.fn(() => Promise.resolve(makeSuccessResult()));
     const workflow = createTopicWorkflow({
       catalogue: {
         listActive: () =>
@@ -303,7 +304,7 @@ describe("topic workflow — propose", () => {
   });
 
   it("trims and collapses internal whitespace before delegating to createProposal", async () => {
-    const createProposal = vi.fn(async () => makeSuccessResult());
+    const createProposal = vi.fn(() => Promise.resolve(makeSuccessResult()));
     const workflow = createTopicWorkflow({
       catalogue: {
         listActive: () => Promise.resolve([]),
@@ -332,7 +333,9 @@ describe("topic workflow — propose", () => {
     const matches: SimilarMatch[] = [
       { name: "Product strategy", type: "active" },
     ];
-    const createProposal = vi.fn(async () => makeTooSimilarResult(matches));
+    const createProposal = vi.fn(() =>
+      Promise.resolve(makeTooSimilarResult(matches)),
+    );
     const workflow = createTopicWorkflow({
       catalogue: {
         listActive: () =>
@@ -362,8 +365,8 @@ describe("topic workflow — propose", () => {
   });
 
   it("returns already_pending when the user already has a pending proposal of this name", async () => {
-    const createProposal = vi.fn(async () =>
-      makeAlreadyPendingResult("proposal-pending"),
+    const createProposal = vi.fn(() =>
+      Promise.resolve(makeAlreadyPendingResult("proposal-pending")),
     );
     const workflow = createTopicWorkflow({
       catalogue: {
@@ -466,8 +469,8 @@ describe("topic workflow — propose", () => {
   });
 
   it("accepts the minimum-length name", async () => {
-    const createProposal = vi.fn(async () =>
-      makeSuccessResult({ candidateName: "ab" }),
+    const createProposal = vi.fn(() =>
+      Promise.resolve(makeSuccessResult({ candidateName: "ab" })),
     );
     const workflow = createTopicWorkflow({
       catalogue: {
@@ -489,8 +492,10 @@ describe("topic workflow — propose", () => {
   });
 
   it("accepts the maximum-length name", async () => {
-    const createProposal = vi.fn(async () =>
-      makeSuccessResult({ candidateName: "x".repeat(TOPIC_NAME_MAX_LENGTH) }),
+    const createProposal = vi.fn(() =>
+      Promise.resolve(
+        makeSuccessResult({ candidateName: "x".repeat(TOPIC_NAME_MAX_LENGTH) }),
+      ),
     );
     const workflow = createTopicWorkflow({
       catalogue: {

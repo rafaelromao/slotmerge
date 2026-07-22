@@ -1,4 +1,5 @@
 import { type Session } from "../../../../src/auth/session";
+import { loadRuntimeConfig } from "../../../../src/config/runtime";
 import { assertCsrfFromFormData, CsrfError } from "../../../../src/lib/csrf";
 import {
   createDiscoverabilityWorkflow,
@@ -88,7 +89,7 @@ export function createSetDiscoverabilityActionHandler(
     }
 
     const origin = request.headers.get("origin");
-    const expectedOrigin = new URL(request.url).origin;
+    const expectedOrigin = new URL(loadRuntimeConfig().appPublicUrl).origin;
     if (origin !== expectedOrigin) {
       return { kind: "csrf-error" };
     }

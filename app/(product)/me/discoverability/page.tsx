@@ -5,18 +5,13 @@ import {
   toConsentView,
 } from "../_components/DiscoverabilityView";
 import { setDiscoverabilityAction } from "../_actions/set-discoverability";
+import type { SetDiscoverabilityFormErrorCode } from "../_actions/set-discoverability-handler";
 
 type SearchParams = Promise<{
   error?: string | string[];
 }>;
 
-type ErrorCode =
-  | "consent_required"
-  | "consent_already_granted"
-  | "consent_already_revoked"
-  | "invalid_submission";
-
-const VALID_ERROR_CODES = new Set<ErrorCode>([
+const VALID_ERROR_CODES = new Set<SetDiscoverabilityFormErrorCode>([
   "consent_required",
   "consent_already_granted",
   "consent_already_revoked",
@@ -30,9 +25,11 @@ function firstString(value: string | string[] | undefined): string | null {
   return value ?? null;
 }
 
-function parseErrorCode(value: string | null): ErrorCode | undefined {
-  if (value && VALID_ERROR_CODES.has(value as ErrorCode)) {
-    return value as ErrorCode;
+function parseErrorCode(
+  value: string | null,
+): SetDiscoverabilityFormErrorCode | undefined {
+  if (value && VALID_ERROR_CODES.has(value as SetDiscoverabilityFormErrorCode)) {
+    return value as SetDiscoverabilityFormErrorCode;
   }
   return undefined;
 }

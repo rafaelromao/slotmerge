@@ -1,7 +1,5 @@
-import { timingSafeEqual } from "node:crypto";
-
 import { type Session } from "../../../../src/auth/session";
-import { loadRuntimeConfig } from "../../../../src/config/runtime";
+import { assertCsrfFromFormData, CsrfError } from "../../../../src/lib/csrf";
 import {
   createDiscoverabilityWorkflow,
   type DiscoverabilityWorkflow,
@@ -14,15 +12,17 @@ export type SetDiscoverabilityActionFieldErrors = Partial<
   Record<SetDiscoverabilityFieldErrorKey, string>
 >;
 
+export type SetDiscoverabilityFormErrorCode =
+  | "consent_required"
+  | "consent_already_granted"
+  | "consent_already_revoked"
+  | "invalid_submission";
+
 export type SetDiscoverabilityActionResult =
   | { kind: "redirect"; to: string }
   | {
       kind: "form-error";
-      code:
-        | "consent_required"
-        | "consent_already_granted"
-        | "consent_already_revoked"
-        | "invalid_submission";
+      code: SetDiscoverabilityFormErrorCode;
       fieldErrors: SetDiscoverabilityActionFieldErrors;
     }
   | { kind: "csrf-error" };
@@ -43,11 +43,7 @@ function extractFieldStrings(formData: FormData, key: string): string | null {
 }
 
 function buildFieldErrors(
-  code:
-    | "consent_required"
-    | "consent_already_granted"
-    | "consent_already_revoked"
-    | "invalid_submission",
+  code: SetDiscoverabilityFormErrorCode,
 ): SetDiscoverabilityActionFieldErrors {
   switch (code) {
     case "consent_required":
@@ -82,21 +78,17 @@ export function createSetDiscoverabilityActionHandler(
       return { kind: "redirect", to: "/sign-in" };
     }
 
-    const requestToken = request.headers.get("x-csrf-token");
-    const formToken = extractFieldStrings(formData, "_csrf");
-    const providedToken = requestToken ?? formToken;
-
-    const expected = session.csrfToken;
-    if (
-      !providedToken ||
-      providedToken.length !== expected.length ||
-      !safeCsrfEqual(providedToken, expected)
-    ) {
-      return { kind: "csrf-error" };
+    try {
+      assertCsrfFromFormData(formData, session);
+    } catch (error) {
+      if (error instanceof CsrfError) {
+        return { kind: "csrf-error" };
+      }
+      throw error;
     }
 
-    const expectedOrigin = new URL(loadRuntimeConfig().appPublicUrl).origin;
     const origin = request.headers.get("origin");
+    const expectedOrigin = new URL(request.url).origin;
     if (origin !== expectedOrigin) {
       return { kind: "csrf-error" };
     }
@@ -132,15 +124,4 @@ export function createSetDiscoverabilityActionHandler(
   };
 }
 
-function safeCsrfEqual(actual: string, expected: string): boolean {
-  try {
-    const a = Buffer.from(actual);
-    const e = Buffer.from(expected);
-    if (a.length !== e.length) {
-      return false;
-    }
-    return timingSafeEqual(a, e);
-  } catch {
-    return false;
-  }
-}
+export { buildFieldErrors, extractFieldStrings };

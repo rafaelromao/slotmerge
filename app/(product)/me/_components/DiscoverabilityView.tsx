@@ -1,4 +1,8 @@
 import type { DiscoverabilityConsentRecord } from "../../../../src/profile/discoverability-consent";
+import {
+  buildFieldErrors,
+  type SetDiscoverabilityFormErrorCode,
+} from "../_actions/set-discoverability-handler";
 
 type ConsentView =
   | { state: "initial" }
@@ -29,11 +33,7 @@ export function formatConsentDate(date: Date): string {
 export type DiscoverabilityViewProps = {
   view: ConsentView;
   csrfToken: string;
-  errorCode?:
-    | "consent_required"
-    | "consent_already_granted"
-    | "consent_already_revoked"
-    | "invalid_submission";
+  errorCode?: SetDiscoverabilityFormErrorCode;
   setDiscoverabilityAction: (formData: FormData) => Promise<void>;
 };
 
@@ -55,25 +55,14 @@ const CONSENT_BULLETS_HIDDEN: ReadonlyArray<{ label: string }> = [
 ];
 
 function fieldErrorMessageFor(
-  code: DiscoverabilityViewProps["errorCode"] | undefined,
+  code: SetDiscoverabilityFormErrorCode | undefined,
   field: "confirmed" | "form",
 ): string | null {
   if (!code) {
     return null;
   }
-  if (field === "confirmed" && code === "consent_required") {
-    return "Please tick the consent checkbox before saving.";
-  }
-  if (field === "form" && code === "consent_already_granted") {
-    return "Consent is already granted. Use Revoke to change it.";
-  }
-  if (field === "form" && code === "consent_already_revoked") {
-    return "Consent is already revoked. Tick the checkbox to re-grant.";
-  }
-  if (field === "form" && code === "invalid_submission") {
-    return "Please check your selection and try again.";
-  }
-  return null;
+  const fieldErrors = buildFieldErrors(code);
+  return fieldErrors[field] ?? null;
 }
 
 export function DiscoverabilityView({

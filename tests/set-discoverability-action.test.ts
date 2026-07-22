@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   createSetDiscoverabilityActionHandler,
   type SetDiscoverabilityActionFieldErrors,
-} from "../../app/(product)/me/_actions/set-discoverability-handler";
-import type { DiscoverabilityConsentRepository } from "../profile/discoverability-consent";
-import type { Session } from "../auth/session";
+} from "../app/(product)/me/_actions/set-discoverability-handler";
+import type { DiscoverabilityConsentRepository } from "../src/profile/discoverability-consent";
+import type { Session } from "../src/auth/session";
 
 function makeFormData(values: Record<string, string>): FormData {
   const formData = new FormData();

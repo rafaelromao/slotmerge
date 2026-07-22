@@ -31,11 +31,22 @@ services:
       timeout: 3s
       retries: 5
 
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: pnpm exec drizzle-kit migrate
+    environment:
+      DATABASE_URL: postgres://slotmerge:slotmerge@postgres:5432/slotmerge
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   web:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: sh -c "pnpm exec drizzle-kit migrate && pnpm dev:web"
+    command: pnpm dev:web
     environment:
       APP_ENV: local
       DATABASE_URL: postgres://slotmerge:slotmerge@postgres:5432/slotmerge
@@ -49,8 +60,8 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       provider-mock:
         condition: service_healthy
 
@@ -58,7 +69,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: sh -c "pnpm exec drizzle-kit migrate && pnpm dev:worker"
+    command: pnpm dev:worker
     environment:
       APP_ENV: local
       DATABASE_URL: postgres://slotmerge:slotmerge@postgres:5432/slotmerge
@@ -70,8 +81,8 @@ services:
       SESSION_SECRET: "test-session-secret-at-least-32-characters"
       CALENDAR_TOKEN_ENCRYPTION_KEY: "local-calendar-token-encryption-key-do-not-use-in-production"
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       provider-mock:
         condition: service_healthy
 

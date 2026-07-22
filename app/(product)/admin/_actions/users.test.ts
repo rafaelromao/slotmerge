@@ -1,0 +1,260 @@
+// @vitest-environment happy-dom
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("next/headers", () => ({
+  cookies: () => ({
+    toString: () => "slotmerge_session=dummy",
+    entries: () => [] as never,
+    get: () => undefined,
+    forEach: () => undefined,
+  }),
+}));
+
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => {
+    const error = new Error("NEXT_REDIRECT");
+    (error as Error & { digest?: string }).digest = `NEXT_REDIRECT;303;${url};`;
+    throw error;
+  },
+}));
+
+vi.mock("../../../../src/auth/session", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../../../src/auth/session")
+  >("../../../../src/auth/session");
+  return {
+    ...actual,
+    getServerSession: vi.fn(),
+    sealSessionCookieValue: actual.sealSessionCookieValue,
+  };
+});
+
+vi.mock("../../../../src/admin/users.workflow", () => ({
+  createAdminUsersWorkflow: vi.fn(),
+}));
+
+vi.mock("../../../../src/admin/users.repository", () => ({
+  createPostgresAdminUserRepository: vi.fn(() => ({})),
+}));
+
+vi.mock("../../../../src/admin/invites.repository", () => ({
+  createPostgresInviteRepository: vi.fn(() => ({})),
+}));
+
+vi.mock("../../../../src/email/repository", () => ({
+  createPostgresEmailEventRepository: vi.fn(() => ({})),
+}));
+
+vi.mock("../../../../src/email/service", () => ({
+  createEmailDeliveryService: vi.fn(() => ({})),
+}));
+
+vi.mock("../../../../src/email/invite-jobs", () => ({
+  enqueueInviteEmailJob: vi.fn(),
+}));
+
+vi.mock("../../../../src/auth/magic-link", () => ({
+  createMagicLinkTokenIssuer: vi.fn(() => ({})),
+}));
+
+vi.mock("../../../../src/config/runtime", () => ({
+  loadRuntimeConfig: vi.fn(() => ({
+    appBaseUrl: "http://localhost:3000",
+    magicLinkSecret: "test-secret-1234567890abcdef",
+  })),
+}));
+
+import * as sessionModule from "../../../../src/auth/session";
+import { createAdminUsersWorkflow } from "../../../../src/admin/users.workflow";
+
+async function importAction() {
+  const mod = await import("./users");
+  return mod.inviteUserAction;
+}
+
+function buildFormData(values: Record<string, string>): FormData {
+  const formData = new FormData();
+  for (const [k, v] of Object.entries(values)) {
+    formData.set(k, v);
+  }
+  return formData;
+}
+
+function setSession(role: "admin" | "user" | null) {
+  if (role === null) {
+    vi.mocked(sessionModule.getServerSession).mockResolvedValue(null);
+    return;
+  }
+  vi.mocked(sessionModule.getServerSession).mockResolvedValue({
+    user: {
+      id: "admin-1",
+      email: "admin@example.com",
+      displayName: "Carol Admin",
+      avatarUrl: null,
+      shortBio: null,
+      role,
+      status: "active",
+      profileTimezone: null,
+      bufferMinutes: 0,
+    },
+    csrfToken: "csrf-admin-1",
+  });
+}
+
+describe("inviteUserAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setSession("admin");
+  });
+
+  it("redirects to /sign-in when there is no session", async () => {
+    setSession(null);
+    const action = await importAction();
+
+    let digest = "";
+    try {
+      await action(
+        buildFormData({ email: "new@example.com", _csrf: "csrf-admin-1" }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain("/sign-in");
+  });
+
+  it("redirects to /sign-in when the session is not admin", async () => {
+    setSession("user");
+    const action = await importAction();
+
+    let digest = "";
+    try {
+      await action(
+        buildFormData({ email: "new@example.com", _csrf: "csrf-admin-1" }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain("/sign-in");
+  });
+
+  it("rejects the request with a CSRF failure when the token does not match", async () => {
+    const action = await importAction();
+
+    let digest = "";
+    try {
+      await action(buildFormData({ email: "new@example.com", _csrf: "wrong" }));
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toBe("");
+  });
+
+  it("redirects with the masked email on success", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn().mockResolvedValue({
+        ok: true,
+        maskedEmail: "ne***@example.com",
+        inviteId: "invite-1",
+      }),
+      changeRole: vi.fn(),
+      suspend: vi.fn(),
+      reinstate: vi.fn(),
+      resendInvite: vi.fn(),
+    });
+
+    const action = await importAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          email: "new@example.com",
+          role: "user",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain(
+      "NEXT_REDIRECT;303;/admin?invited=ne***%40example.com;",
+    );
+  });
+
+  it("redirects to /admin?error=self_invite when the workflow returns self_invite", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "self_invite",
+      }),
+      changeRole: vi.fn(),
+      suspend: vi.fn(),
+      reinstate: vi.fn(),
+      resendInvite: vi.fn(),
+    });
+
+    const action = await importAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          email: "admin@example.com",
+          role: "user",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain("NEXT_REDIRECT;303;/admin?error=self_invite;");
+  });
+
+  it("redirects to /admin?error=email_already_invited when the workflow returns that", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "email_already_invited",
+      }),
+      changeRole: vi.fn(),
+      suspend: vi.fn(),
+      reinstate: vi.fn(),
+      resendInvite: vi.fn(),
+    });
+
+    const action = await importAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          email: "ada@example.com",
+          role: "user",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain(
+      "NEXT_REDIRECT;303;/admin?error=email_already_invited;",
+    );
+  });
+
+  it("redirects to /admin?error=invalid_invite when the email is empty", async () => {
+    const action = await importAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          email: "",
+          role: "user",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain("NEXT_REDIRECT;303;/admin?error=invalid_invite;");
+  });
+});

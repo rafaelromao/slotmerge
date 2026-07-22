@@ -1,8 +1,17 @@
 import type { Clock } from "../system/clock";
 
 import type { AdminUserRepository, UserListItem } from "./users.repository";
-import type { InviteListItem, InviteRepository } from "./invites.repository";
+import type {
+  InviteListItem,
+  InviteRecord,
+  InviteRepository,
+  InviteRole,
+} from "./invites.repository";
 import type { SessionRepository } from "../auth/session";
+import type { MagicLinkTokenIssuer } from "../auth/magic-link";
+import type { EmailDeliveryService } from "../email/service";
+
+const inviteLifetimeDays = 30;
 
 export type AdminUserInviteError =
   "self_invite" | "email_already_invited" | "internal_error";
@@ -52,7 +61,7 @@ export type AdminUsersWorkflow = {
     actorId: string;
     actorEmail: string;
     email: string;
-    role: InviteListItem["role"];
+    role: InviteRole;
   }): Promise<AdminUserInviteResult>;
   changeRole(input: {
     actorId: string;
@@ -77,20 +86,31 @@ export type AdminUsersWorkflowDependencies = {
   userRepository: AdminUserRepository;
   inviteRepository: InviteRepository;
   sessionRepository: Pick<SessionRepository, "deleteByUserId">;
+  emailDeliveryService?: EmailDeliveryService;
+  magicLinkTokenIssuer?: MagicLinkTokenIssuer;
   clock: Clock;
 };
 
 export function maskEmail(email: string): string {
-  const at = email.indexOf("@");
+  const normalized = email.trim().toLowerCase();
+  const at = normalized.indexOf("@");
   if (at <= 0) {
     return "***";
   }
-  const local = email.slice(0, at);
-  const domain = email.slice(at);
+  const local = normalized.slice(0, at);
+  const domain = normalized.slice(at);
   if (local.length <= 2) {
     return `${local[0] ?? "*"}***${domain}`;
   }
   return `${local.slice(0, 2)}***${domain}`;
+}
+
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+export function computeInviteExpiresAt(now: Date): Date {
+  return new Date(now.getTime() + inviteLifetimeDays * 24 * 60 * 60 * 1000);
 }
 
 export function createAdminUsersWorkflow(
@@ -99,11 +119,11 @@ export function createAdminUsersWorkflow(
   const {
     userRepository,
     inviteRepository,
-    sessionRepository: _unused1,
-    clock: _unused2,
+    sessionRepository: _sessionRepository,
+    emailDeliveryService,
+    magicLinkTokenIssuer,
+    clock,
   } = deps;
-  void _unused1;
-  void _unused2;
 
   return {
     async load() {
@@ -112,14 +132,71 @@ export function createAdminUsersWorkflow(
       return { users, recentInvites };
     },
 
-    inviteUser({ actorEmail, email }) {
-      if (normalizeEmail(email) === normalizeEmail(actorEmail)) {
-        return Promise.resolve({ ok: false, reason: "self_invite" } as const);
+    async inviteUser({ actorId, actorEmail, email, role }) {
+      const normalizedEmail = normalizeEmail(email);
+      const normalizedActorEmail = normalizeEmail(actorEmail);
+
+      if (normalizedEmail === normalizedActorEmail) {
+        return { ok: false, reason: "self_invite" } as const;
       }
-      return Promise.resolve({
-        ok: false,
-        reason: "email_already_invited",
-      } as const);
+
+      const [activeUser, pendingInvite] = await Promise.all([
+        userRepository.findActiveUserByEmail(normalizedEmail),
+        inviteRepository.findPendingInviteByEmail?.(normalizedEmail),
+      ]);
+
+      if (activeUser || pendingInvite) {
+        return { ok: false, reason: "email_already_invited" } as const;
+      }
+
+      const now = clock.now();
+      const expiresAt = computeInviteExpiresAt(now);
+
+      const createResult = await inviteRepository.createInvite({
+        email: normalizedEmail,
+        role,
+        invitedByAdminId: actorId,
+        now,
+        expiresAt,
+      });
+
+      if (!createResult.ok) {
+        if (createResult.reason === "duplicate") {
+          return { ok: false, reason: "email_already_invited" } as const;
+        }
+        return { ok: false, reason: "internal_error" } as const;
+      }
+
+      if (emailDeliveryService && magicLinkTokenIssuer) {
+        const invite: InviteRecord = createResult.invite;
+        const magicLink = magicLinkTokenIssuer.issueMagicLinkToken({
+          inviteId: invite.id,
+          email: invite.email,
+          expiresAt: invite.expiresAt,
+          generation: invite.magicLinkGeneration ?? 0,
+        });
+
+        await emailDeliveryService.sendEmail({
+          recipient: invite.email,
+          type: "invite",
+          payload: {
+            inviteId: invite.id,
+            email: invite.email,
+            role: invite.role,
+            invitedByAdminId: invite.invitedByAdminId,
+            magicLinkGeneration: invite.magicLinkGeneration ?? 0,
+            magicLinkUrl: magicLink.magicLinkUrl,
+            magicLinkToken: magicLink.token,
+            expiresAt: magicLink.expiresAt.toISOString(),
+          },
+        });
+      }
+
+      return {
+        ok: true,
+        maskedEmail: maskEmail(normalizedEmail),
+        inviteId: createResult.invite.id,
+      } as const;
     },
 
     changeRole({ actorId, targetUserId }) {
@@ -133,6 +210,8 @@ export function createAdminUsersWorkflow(
     },
 
     suspend({ actorId, targetUserId }) {
+      void clock;
+      void _sessionRepository;
       if (actorId === targetUserId) {
         return Promise.resolve({ ok: false, reason: "self_suspend" } as const);
       }
@@ -156,10 +235,6 @@ export function createAdminUsersWorkflow(
       } as const);
     },
   };
-}
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
 }
 
 // Re-export the session deleteByUserId hook so the workflow can revoke all

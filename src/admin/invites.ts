@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { getSessionFromRequest, type Session } from "../auth/session";
@@ -34,6 +34,7 @@ export type InviteRecord = InviteListItem & {
 export type InviteRepository = {
   listInvites(): Promise<InviteListItem[]>;
   listRecentInvites(limit: number): Promise<InviteListItem[]>;
+  findPendingInviteByEmail?(email: string): Promise<InviteListItem | null>;
   createInvite(input: {
     email: string;
     role: InviteRole;
@@ -356,6 +357,24 @@ const databaseInviteRepository: InviteRepository = {
       .limit(limit);
 
     return rows;
+  },
+  findPendingInviteByEmail: async (email) => {
+    const [row] = await getDb()
+      .select({
+        id: invites.id,
+        email: invites.email,
+        role: invites.role,
+        status: invites.status,
+        invitedByAdminId: invites.invitedByAdminId,
+        invitedByAdminEmail: users.email,
+        magicLinkGeneration: invites.magicLinkGeneration,
+      })
+      .from(invites)
+      .leftJoin(users, eq(invites.invitedByAdminId, users.id))
+      .where(and(eq(invites.email, email), eq(invites.status, "pending")))
+      .limit(1);
+
+    return row ?? null;
   },
   createInvite: async ({ email, role, invitedByAdminId, now }) => {
     const db = getDb();

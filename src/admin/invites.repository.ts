@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import {
@@ -7,6 +7,8 @@ import {
   type InviteRole,
   type InviteStatus,
 } from "../db/schema";
+
+export type { InviteRole, InviteStatus };
 
 export type InviteListItem = {
   id: string;
@@ -28,6 +30,7 @@ export type CreateInviteResult =
 export type InviteRepository = {
   listInvites(): Promise<InviteListItem[]>;
   listRecentInvites(limit: number): Promise<InviteListItem[]>;
+  findPendingInviteByEmail?(email: string): Promise<InviteListItem | null>;
   createInvite(input: {
     email: string;
     role: InviteRole;
@@ -82,6 +85,25 @@ export function createPostgresInviteRepository(db = getDb()): InviteRepository {
         .limit(limit);
 
       return rows;
+    },
+
+    async findPendingInviteByEmail(email) {
+      const [row] = await db
+        .select({
+          id: invites.id,
+          email: invites.email,
+          role: invites.role,
+          status: invites.status,
+          invitedByAdminId: invites.invitedByAdminId,
+          invitedByAdminEmail: users.email,
+          magicLinkGeneration: invites.magicLinkGeneration,
+        })
+        .from(invites)
+        .leftJoin(users, eq(invites.invitedByAdminId, users.id))
+        .where(and(eq(invites.email, email), eq(invites.status, "pending")))
+        .limit(1);
+
+      return row ?? null;
     },
 
     async createInvite(input: CreateInvitePersistenceInput) {

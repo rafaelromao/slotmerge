@@ -58,6 +58,6 @@ export function middleware(request: NextRequest): NextResponse {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/local/health).*)",
+    "/((?!_next/static|_next/image|_next/data|favicon.ico|api/local/health).*)",
   ],
 };

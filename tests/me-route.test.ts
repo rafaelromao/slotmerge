@@ -9,7 +9,7 @@ import {
   listTopicsForUserInTests,
   listAvailabilityWindowsForUserInTests,
   listCalendarConnectionsForUserInTests,
-} from "../app/me/route";
+} from "../app/api/v1/me/route";
 import { getProfileByUserId } from "../src/profile/repository";
 import {
   sealSessionCookie,
@@ -18,8 +18,9 @@ import {
 import {
   clearDiscoverabilityConsentOverride,
   setDiscoverabilityConsentRepositoryForTests,
-  type DiscoverabilityConsentRecord,
   type DiscoverabilityConsentRepository,
+  type DiscoverabilityConsentState,
+  type RevokedConsentRecord,
 } from "../src/profile/discoverability-consent";
 import { setProfileRepositoryForTests } from "../src/profile/repository";
 import { type TopicProposalStatus } from "../src/db/schema";
@@ -101,32 +102,46 @@ const setupItems = [
 ];
 
 class InMemoryDiscoverabilityConsentRepository implements DiscoverabilityConsentRepository {
-  private readonly state = new Map<string, DiscoverabilityConsentRecord>();
+  private readonly state = new Map<string, DiscoverabilityConsentState>();
 
   async findByUserId(
     userId: string,
-  ): Promise<DiscoverabilityConsentRecord | null> {
+  ): Promise<DiscoverabilityConsentState | null> {
     await Promise.resolve();
-    return this.state.get(userId) ?? null;
+    const stored = this.state.get(userId);
+    if (!stored) {
+      return null;
+    }
+    if (stored.state === "granted") {
+      return { state: "granted", grantedAt: stored.grantedAt };
+    }
+    return { state: "revoked", revokedAt: stored.revokedAt };
   }
 
-  async grant(userId: string): Promise<DiscoverabilityConsentRecord> {
+  async grant(
+    userId: string,
+  ): Promise<{ userId: string; grantedAt: Date }> {
     await Promise.resolve();
-    const existing = this.state.get(userId);
-    if (existing) {
-      return existing;
-    }
-    const record: DiscoverabilityConsentRecord = {
-      userId,
-      grantedAt: new Date("2026-07-12T12:00:00.000Z"),
+    const grantedAt = new Date("2026-07-12T12:00:00.000Z");
+    const record: DiscoverabilityConsentState = {
+      state: "granted",
+      grantedAt,
     };
     this.state.set(userId, record);
-    return record;
+    return { userId, grantedAt };
   }
 
-  async revoke(userId: string): Promise<void> {
+  async revoke(
+    userId: string,
+  ): Promise<RevokedConsentRecord> {
     await Promise.resolve();
-    this.state.delete(userId);
+    const revokedAt = new Date("2026-07-13T08:00:00.000Z");
+    const record: DiscoverabilityConsentState = {
+      state: "revoked",
+      revokedAt,
+    };
+    this.state.set(userId, record);
+    return { userId, revokedAt };
   }
 }
 

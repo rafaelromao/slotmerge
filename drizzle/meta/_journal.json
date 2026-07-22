@@ -103,8 +103,15 @@
     {
       "idx": 13,
       "version": "7",
-      "when": 1784721600013,
-      "tag": "0013_user_magic_link_generation",
+      "when": 1783780000013,
+      "tag": "0013_discoverability_consent_revoked_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1784721600014,
+      "tag": "0014_user_magic_link_generation",
       "breakpoints": true
     }
   ]

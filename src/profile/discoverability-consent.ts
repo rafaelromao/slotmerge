@@ -5,15 +5,35 @@ import { discoverabilityConsents } from "../db/schema";
 import type { Clock } from "../system/clock";
 import { systemClock } from "../system/clock";
 
-export type DiscoverabilityConsentRecord = {
+export type DiscoverabilityConsentGrant = {
+  state: "granted";
+  grantedAt: Date;
+};
+
+export type DiscoverabilityConsentRevoke = {
+  state: "revoked";
+  revokedAt: Date;
+};
+
+export type DiscoverabilityConsentState =
+  DiscoverabilityConsentGrant | DiscoverabilityConsentRevoke;
+
+export type DiscoverabilityConsentRecord = DiscoverabilityConsentState;
+
+export type GrantedConsentRecord = {
   userId: string;
   grantedAt: Date;
 };
 
+export type RevokedConsentRecord = {
+  userId: string;
+  revokedAt: Date;
+};
+
 export type DiscoverabilityConsentRepository = {
-  findByUserId(userId: string): Promise<DiscoverabilityConsentRecord | null>;
-  grant(userId: string): Promise<DiscoverabilityConsentRecord>;
-  revoke(userId: string): Promise<void>;
+  findByUserId(userId: string): Promise<DiscoverabilityConsentState | null>;
+  grant(userId: string): Promise<GrantedConsentRecord>;
+  revoke(userId: string): Promise<RevokedConsentRecord>;
 };
 
 let repositoryOverride: DiscoverabilityConsentRepository | null = null;
@@ -35,22 +55,35 @@ export function createPostgresDiscoverabilityConsentRepository(
     async findByUserId(userId) {
       const [row] = await getDb()
         .select({
-          userId: discoverabilityConsents.userId,
           grantedAt: discoverabilityConsents.grantedAt,
+          revokedAt: discoverabilityConsents.revokedAt,
         })
         .from(discoverabilityConsents)
         .where(eq(discoverabilityConsents.userId, userId))
         .limit(1);
 
-      return row ?? null;
+      if (!row) {
+        return null;
+      }
+
+      if (row.grantedAt !== null) {
+        return { state: "granted", grantedAt: row.grantedAt };
+      }
+
+      if (row.revokedAt !== null) {
+        return { state: "revoked", revokedAt: row.revokedAt };
+      }
+
+      return null;
     },
     async grant(userId) {
+      const grantedAt = clock.now();
       const inserted = await getDb()
         .insert(discoverabilityConsents)
-        .values({ userId })
+        .values({ userId, grantedAt, revokedAt: null })
         .onConflictDoUpdate({
           target: discoverabilityConsents.userId,
-          set: { grantedAt: clock.now() },
+          set: { grantedAt, revokedAt: null },
         })
         .returning({
           userId: discoverabilityConsents.userId,
@@ -58,16 +91,32 @@ export function createPostgresDiscoverabilityConsentRepository(
         });
 
       const [row] = inserted;
-      if (!row) {
+      if (!row || row.grantedAt === null) {
         throw new Error("discoverability_consent grant returned no row");
       }
 
-      return row;
+      return { userId: row.userId, grantedAt: row.grantedAt };
     },
     async revoke(userId) {
-      await getDb()
-        .delete(discoverabilityConsents)
-        .where(eq(discoverabilityConsents.userId, userId));
+      const revokedAt = clock.now();
+      const upserted = await getDb()
+        .insert(discoverabilityConsents)
+        .values({ userId, grantedAt: null, revokedAt })
+        .onConflictDoUpdate({
+          target: discoverabilityConsents.userId,
+          set: { grantedAt: null, revokedAt },
+        })
+        .returning({
+          userId: discoverabilityConsents.userId,
+          revokedAt: discoverabilityConsents.revokedAt,
+        });
+
+      const [row] = upserted;
+      if (!row || row.revokedAt === null) {
+        throw new Error("discoverability_consent revoke returned no row");
+      }
+
+      return { userId: row.userId, revokedAt: row.revokedAt };
     },
   };
 }
@@ -94,12 +143,18 @@ export async function getDiscoverabilityConsent(
 
 export async function grantDiscoverabilityConsent(
   userId: string,
-): Promise<DiscoverabilityConsentRecord> {
+): Promise<GrantedConsentRecord> {
   return getRepository().grant(userId);
 }
 
 export async function revokeDiscoverabilityConsent(
   userId: string,
-): Promise<void> {
+): Promise<RevokedConsentRecord> {
   return getRepository().revoke(userId);
+}
+
+export function consentStateIsGranted(
+  state: DiscoverabilityConsentState | null,
+): state is DiscoverabilityConsentGrant {
+  return state?.state === "granted";
 }

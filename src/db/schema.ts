@@ -359,9 +359,8 @@ export const discoverabilityConsents = pgTable("discoverability_consents", {
   userId: uuid("user_id")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
-  grantedAt: timestamp("granted_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  grantedAt: timestamp("granted_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
 });
 
 export const availabilityWindows = pgTable(

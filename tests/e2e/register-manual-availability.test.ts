@@ -5,7 +5,7 @@ import {
   GET as getMe,
   PATCH as patchMe,
   setPerUserLookupStateForTests,
-} from "../../app/me/route";
+} from "../../app/api/v1/me/route";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,
@@ -281,14 +281,17 @@ describe("E2E: register manual Availability end-to-end", () => {
     const consentRepository: DiscoverabilityConsentRepository = {
       findByUserId: async (userId) => {
         await Promise.resolve();
-        return userId === USER_ID ? { userId, grantedAt: FIXED_NOW } : null;
+        return userId === USER_ID
+          ? { state: "granted", grantedAt: FIXED_NOW }
+          : null;
       },
       grant: async (userId) => {
         await Promise.resolve();
         return { userId, grantedAt: FIXED_NOW };
       },
-      revoke: async () => {
+      revoke: async (userId) => {
         await Promise.resolve();
+        return { userId, revokedAt: FIXED_NOW };
       },
     };
 

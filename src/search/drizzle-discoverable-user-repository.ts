@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import {
@@ -32,7 +32,10 @@ export function createPostgresDiscoverableUserRepository(): DiscoverableUserRepo
         )
         .innerJoin(
           discoverabilityConsents,
-          eq(discoverabilityConsents.userId, users.id),
+          and(
+            eq(discoverabilityConsents.userId, users.id),
+            isNotNull(discoverabilityConsents.grantedAt),
+          ),
         )
         .leftJoin(availabilityWindows, eq(availabilityWindows.userId, users.id))
         .where(inArray(userTopics.topicId, selectedTopicIds))

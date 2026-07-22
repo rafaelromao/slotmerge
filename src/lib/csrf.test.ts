@@ -5,6 +5,7 @@ import {
   assertCsrfFromFormData,
   assertCsrfOrThrow,
   csrfErrorResponse,
+  withCsrfProtection,
 } from "./csrf";
 
 vi.mock("../config/runtime", async () => {
@@ -248,5 +249,64 @@ describe("csrfErrorResponse", () => {
     const response = csrfErrorResponse();
     expect(response.status).toBe(403);
     expect(await response.text()).toBe("");
+  });
+});
+
+describe("withCsrfProtection", () => {
+  it("returns a generic 403 response when the wrapped handler fails CSRF", async () => {
+    const handler = withCsrfProtection(() => {
+      return new Response("ok", { status: 200 });
+    });
+
+    const request = new Request("http://localhost:3000/me/foo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Origin: "http://localhost:3000",
+      },
+      body: new URLSearchParams({ _csrf: "wrong-token" }).toString(),
+    });
+
+    const response = await handler(request, session);
+    expect(response.status).toBe(403);
+    expect(await response.text()).toBe("");
+  });
+
+  it("passes through the wrapped handler's response when CSRF succeeds", async () => {
+    const handler = withCsrfProtection(() => {
+      return new Response("ok", { status: 200 });
+    });
+
+    const request = new Request("http://localhost:3000/me/foo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Origin: "http://localhost:3000",
+      },
+      body: new URLSearchParams({ _csrf: "csrf-token-1" }).toString(),
+    });
+
+    const response = await handler(request, session);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("ok");
+  });
+
+  it("rethrows non-CSRF errors so they surface to the framework", async () => {
+    const handler = withCsrfProtection(() => {
+      throw new Error("downstream failure");
+    });
+
+    const request = new Request("http://localhost:3000/me/foo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Origin: "http://localhost:3000",
+      },
+      body: new URLSearchParams({ _csrf: "csrf-token-1" }).toString(),
+    });
+
+    await expect(handler(request, session)).rejects.toThrow(
+      "downstream failure",
+    );
   });
 });

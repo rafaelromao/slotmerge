@@ -59,6 +59,27 @@ export function csrfErrorResponse(): Response {
   });
 }
 
+export type CsrfProtectedHandler = (
+  request: Request,
+  session: Session,
+) => Promise<Response> | Response;
+
+export function withCsrfProtection(
+  handler: CsrfProtectedHandler,
+): CsrfProtectedHandler {
+  return async (request, session) => {
+    try {
+      await assertCsrfOrThrow(request, session);
+      return await handler(request, session);
+    } catch (error) {
+      if (error instanceof CsrfError) {
+        return csrfErrorResponse();
+      }
+      throw error;
+    }
+  };
+}
+
 function assertOrigin(request: Request): void {
   const origin = request.headers.get("Origin");
   if (!origin) {

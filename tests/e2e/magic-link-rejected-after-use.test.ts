@@ -112,7 +112,7 @@ describe("E2E: magic link is rejected after use", () => {
         }),
       );
 
-      expect(firstResponse.status).toBe(302);
+      expect(firstResponse.status).toBe(303);
       expect(firstResponse.headers.get("Location")).toBe("http://localhost/");
       expect(firstResponse.headers.get("Set-Cookie")).toContain(
         "slotmerge_session=",
@@ -129,9 +129,12 @@ describe("E2E: magic link is rejected after use", () => {
         }),
       );
 
-      expect(secondResponse.status).toBe(400);
-      const secondHtml = await secondResponse.text();
-      expect(secondHtml).toContain("invite_already_accepted");
+      expect(secondResponse.status).toBe(303);
+      const secondUrl = new URL(secondResponse.headers.get("Location")!);
+      expect(secondUrl.searchParams.get("error")).toBe("link_used");
+      expect(secondUrl.searchParams.get("reason")).toBe(
+        "invite_already_accepted",
+      );
 
       expect(await countSessionsForUserEmail(INVITEE_EMAIL)).toBe(1);
     },

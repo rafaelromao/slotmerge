@@ -37,6 +37,7 @@ export const users = pgTable("users", {
   shortBio: text("short_bio"),
   role: text("role").$type<UserRole>().notNull().default("user"),
   status: text("status").$type<UserStatus>().notNull().default("active"),
+  magicLinkGeneration: integer("magic_link_generation").notNull().default(0),
   profileTimezone: text("profile_timezone"),
   bufferMinutes: integer("buffer_minutes").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true })

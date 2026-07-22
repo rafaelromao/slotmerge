@@ -127,7 +127,7 @@ describe("E2E: reject sign-in for non-invited email", () => {
   });
 
   it.runIf(HAS_TEST_DB)(
-    "returns 400 not_invited for an email with no matching invite or user",
+    "returns 202 for an email with no matching invite or user (no leak)",
     async () => {
       await setupTest();
 
@@ -135,8 +135,8 @@ describe("E2E: reject sign-in for non-invited email", () => {
         "unknown@example.com",
       );
 
-      expect(response.status).toBe(400);
-      expect(body).toEqual({ error: "not_invited" });
+      expect(response.status).toBe(202);
+      expect(body).toEqual({ sent: true });
       expect(await countUsersByEmail("unknown@example.com")).toBe(0);
       expect(emailService.sends).toHaveLength(0);
       expect(await countEmailEventsByRecipient("unknown@example.com")).toBe(0);
@@ -144,7 +144,7 @@ describe("E2E: reject sign-in for non-invited email", () => {
   );
 
   it.runIf(HAS_TEST_DB)(
-    "returns the same not_invited response when an accepted invite exists but no user account",
+    "returns the same 202 response when an accepted invite exists but no user account",
     async () => {
       await setupTest();
       await insertAcceptedInvite("accepted-invite@example.com");
@@ -153,8 +153,8 @@ describe("E2E: reject sign-in for non-invited email", () => {
         "accepted-invite@example.com",
       );
 
-      expect(response.status).toBe(400);
-      expect(body).toEqual({ error: "not_invited" });
+      expect(response.status).toBe(202);
+      expect(body).toEqual({ sent: true });
       expect(await countUsersByEmail("accepted-invite@example.com")).toBe(0);
       expect(emailService.sends).toHaveLength(0);
       expect(
@@ -164,7 +164,7 @@ describe("E2E: reject sign-in for non-invited email", () => {
   );
 
   it.runIf(HAS_TEST_DB)(
-    "returns indistinguishable responses for unknown email and uninvited-but-known email",
+    "returns indistinguishable 202 responses for unknown email and uninvited-but-known email",
     async () => {
       await setupTest();
       await insertAcceptedInvite("accepted-invite@example.com");
@@ -176,7 +176,7 @@ describe("E2E: reject sign-in for non-invited email", () => {
 
       expect(unknown.response.status).toBe(uninvited.response.status);
       expect(unknown.body).toEqual(uninvited.body);
-      expect(unknown.body).toEqual({ error: "not_invited" });
+      expect(unknown.body).toEqual({ sent: true });
       expect(unknown.headers).toEqual(uninvited.headers);
 
       expect(unknown.emailService.sends).toHaveLength(0);

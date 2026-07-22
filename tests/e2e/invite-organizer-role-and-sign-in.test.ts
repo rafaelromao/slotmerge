@@ -11,13 +11,13 @@ import {
 
 import { createAdminInvitesHandlers } from "../../src/admin/invites";
 import { createMagicLinkVerifyHandlers } from "../../src/auth/magic-link-verify";
-import { getSessionFromRequest, sealSessionCookie } from "../../src/auth/session";
+import {
+  getSessionFromRequest,
+  sealSessionCookie,
+} from "../../src/auth/session";
 import { systemDependencies } from "../../src/system";
 import { invites, sessions } from "../../src/db/schema";
-import type {
-  EmailDeliveryService,
-  EmailType,
-} from "../../src/email/service";
+import type { EmailDeliveryService, EmailType } from "../../src/email/service";
 import { grantDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
@@ -158,8 +158,7 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
     delete process.env.SESSION_SECRET;
   });
 
-  afterEach(() => {
-  });
+  afterEach(() => {});
 
   it.runIf(HAS_TEST_DB)(
     "Admin submits an Organizer invite and the recipient signs in with Organizer permissions for a subsequent search",
@@ -235,7 +234,7 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
         }),
       );
 
-      expect(verifyResponse.status).toBe(302);
+      expect(verifyResponse.status).toBe(303);
       const setCookie = verifyResponse.headers.get("Set-Cookie");
       expect(setCookie).not.toBeNull();
       const cookieValue = setCookie ?? "";
@@ -270,57 +269,60 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
 
       const candidateId = USER_FIXTURES[0].id;
       await grantDiscoverabilityConsent(candidateId);
-      const matches = await runMatchingViaAssembler(newOrganizerId, candidateId);
+      const matches = await runMatchingViaAssembler(
+        newOrganizerId,
+        candidateId,
+      );
 
       expect(matches).toContain(candidateId);
     },
   );
 
-async function runMatchingViaAssembler(
-  organizerId: string,
-  candidateId: string,
-): Promise<string[]> {
-  const assembler = new SearchSnapshotAssembler(
-    createDefaultSearchSnapshotAssemblerDeps({
-      discoverableUserRepository: createPostgresDiscoverableUserRepository(),
-      topicRepository: {
-        listActive() {
-          return Promise.resolve(
-            TOPIC_FIXTURES.filter((t) => t.status === "active").map((t) => ({
-              id: t.id,
-              name: t.name,
-              status: "active" as const,
-            })),
-          );
+  async function runMatchingViaAssembler(
+    organizerId: string,
+    candidateId: string,
+  ): Promise<string[]> {
+    const assembler = new SearchSnapshotAssembler(
+      createDefaultSearchSnapshotAssemblerDeps({
+        discoverableUserRepository: createPostgresDiscoverableUserRepository(),
+        topicRepository: {
+          listActive() {
+            return Promise.resolve(
+              TOPIC_FIXTURES.filter((t) => t.status === "active").map((t) => ({
+                id: t.id,
+                name: t.name,
+                status: "active" as const,
+              })),
+            );
+          },
         },
-      },
-      profileRepository: {
-        findByUserId(uid) {
-          return getProfileByUserId(uid);
+        profileRepository: {
+          findByUserId(uid) {
+            return getProfileByUserId(uid);
+          },
         },
-      },
-    }),
-  );
-  const snapshot = await assembler.assemble({
-    organizerId,
-    selectedTopicIds: [TOPIC_FIXTURES[0].id],
-    durationMinutes: 60,
-    dateRangeStart: new Date("2026-07-13T00:00:00.000Z"),
-    dateRangeEnd: new Date("2026-07-14T00:00:00.000Z"),
-    organizerTimezone: "UTC",
-    minimumMatchingUsers: 1,
-    now: getTestClock()(),
-  });
-  const matched = new Set<string>();
-  for (const slot of snapshot.slots) {
-    for (const match of slot.matches) {
-      if (match.userId === candidateId) {
-        matched.add(match.userId);
+      }),
+    );
+    const snapshot = await assembler.assemble({
+      organizerId,
+      selectedTopicIds: [TOPIC_FIXTURES[0].id],
+      durationMinutes: 60,
+      dateRangeStart: new Date("2026-07-13T00:00:00.000Z"),
+      dateRangeEnd: new Date("2026-07-14T00:00:00.000Z"),
+      organizerTimezone: "UTC",
+      minimumMatchingUsers: 1,
+      now: getTestClock()(),
+    });
+    const matched = new Set<string>();
+    for (const slot of snapshot.slots) {
+      for (const match of slot.matches) {
+        if (match.userId === candidateId) {
+          matched.add(match.userId);
+        }
       }
     }
+    return Array.from(matched);
   }
-  return Array.from(matched);
-}
 
   it.runIf(HAS_TEST_DB)(
     "the Admin invite form renders an explicit role select with an Organizer option and an Admin option",

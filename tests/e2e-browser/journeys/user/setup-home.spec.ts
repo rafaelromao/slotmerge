@@ -59,7 +59,7 @@ test.describe("Setup Home Journey", () => {
     const magicLinkUrl = await waitForMagicLink(TEST_USER_EMAIL, previousCount);
 
     expect(magicLinkUrl).not.toBeNull();
-    expect(magicLinkUrl).toContain("/auth/magic-link/verify?token=");
+    expect(magicLinkUrl).toContain("/sign-in/verify?token=");
 
     const verificationUrl = new URL(magicLinkUrl!);
     verificationUrl.host = new URL(BASE_URL).host;
@@ -107,7 +107,7 @@ test.describe("Setup Home Journey", () => {
     await expect(homeLink).toBeVisible();
   });
 
-  test("uninvited email shows inline error in the sign-in form", async ({
+  test("uninvited email receives the same non-leaking sent state", async ({
     page,
   }) => {
     await page.goto("/");
@@ -120,9 +120,9 @@ test.describe("Setup Home Journey", () => {
     await emailField.fill("stranger@example.com");
     await page.getByTestId("sign-in-submit").click();
 
-    await expect(page.getByTestId("sign-in-error")).toBeVisible();
-    await expect(page.getByTestId("sign-in-error")).toHaveText(
-      /not on the invite list/i,
+    await expect(page.getByTestId("sign-in-sent")).toBeVisible();
+    await expect(page.getByTestId("sign-in-sent")).toContainText(
+      "If an account exists for that email, we just sent a sign-in link.",
     );
   });
 });

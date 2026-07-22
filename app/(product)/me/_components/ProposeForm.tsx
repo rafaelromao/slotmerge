@@ -20,12 +20,6 @@ export function ProposeForm({ csrfToken }: ProposeFormProps) {
     IDLE_STATE,
   );
 
-  const errorField = state.ok === "error" ? state.fieldError : null;
-  const submittedName =
-    state.ok === "success" || state.ok === "error"
-      ? state.values.candidateName
-      : "";
-
   return (
     <form
       action={formAction}
@@ -38,39 +32,7 @@ export function ProposeForm({ csrfToken }: ProposeFormProps) {
       <div className="topics-propose-row">
         <label htmlFor="topics-propose-input">Propose a new Topic</label>
         <div className="topics-propose-input">
-          <input
-            id="topics-propose-input"
-            name="candidateName"
-            type="text"
-            maxLength={60}
-            defaultValue={submittedName}
-            aria-invalid={errorField ? "true" : "false"}
-            aria-describedby={
-              errorField ? "topics-propose-error" : "topics-propose-hint"
-            }
-            placeholder="e.g. Sailing"
-            data-testid="topics-propose-input"
-            required
-          />
-          {errorField ? (
-            <p
-              id="topics-propose-error"
-              className="topics-propose-error"
-              role="alert"
-              aria-live="polite"
-              data-testid="topics-propose-error"
-            >
-              {errorField}
-            </p>
-          ) : (
-            <p
-              id="topics-propose-hint"
-              className="topics-propose-hint"
-              data-testid="topics-propose-hint"
-            >
-              2 to 60 characters after trim. Proposals are reviewed by Admins.
-            </p>
-          )}
+          <ProposeFormField state={state} />
         </div>
       </div>
 
@@ -78,17 +40,76 @@ export function ProposeForm({ csrfToken }: ProposeFormProps) {
         <ProposeSubmitButton />
       </div>
 
-      {state.ok === "success" ? (
-        <p
-          className="topics-propose-success"
-          role="status"
-          aria-live="polite"
-          data-testid="topics-propose-success"
-        >
-          Proposal submitted. Admins will review it shortly.
-        </p>
-      ) : null}
+      <ProposeFormStatus state={state} />
     </form>
+  );
+}
+
+export function ProposeFormField({
+  state,
+}: {
+  state: ProposeActionStateLazy;
+}) {
+  const errorField = state.ok === "error" ? state.fieldError : null;
+  const submittedName =
+    state.ok === "success" || state.ok === "error"
+      ? state.values.candidateName
+      : "";
+
+  return (
+    <>
+      <input
+        id="topics-propose-input"
+        name="candidateName"
+        type="text"
+        maxLength={60}
+        defaultValue={submittedName}
+        aria-invalid={errorField ? "true" : "false"}
+        aria-describedby={
+          errorField ? "topics-propose-error" : "topics-propose-hint"
+        }
+        placeholder="e.g. Sailing"
+        data-testid="topics-propose-input"
+        required
+      />
+      {errorField ? (
+        <p
+          id="topics-propose-error"
+          className="topics-propose-error"
+          role="alert"
+          aria-live="polite"
+          data-testid="topics-propose-error"
+        >
+          {errorField}
+        </p>
+      ) : (
+        <p
+          id="topics-propose-hint"
+          className="topics-propose-hint"
+          data-testid="topics-propose-hint"
+        >
+          2 to 60 characters after trim. Proposals are reviewed by Admins.
+        </p>
+      )}
+    </>
+  );
+}
+
+export function ProposeFormStatus({
+  state,
+}: {
+  state: ProposeActionStateLazy;
+}) {
+  if (state.ok !== "success") return null;
+  return (
+    <p
+      className="topics-propose-success"
+      role="status"
+      aria-live="polite"
+      data-testid="topics-propose-success"
+    >
+      Proposal submitted. Admins will review it shortly.
+    </p>
   );
 }
 

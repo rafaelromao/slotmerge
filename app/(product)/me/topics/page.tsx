@@ -1,5 +1,6 @@
 import { requirePageContext } from "../../../../src/lib/page-context";
 import { createTopicWorkflow } from "../../../../src/topics/topic-workflow";
+import { buildTopicsPageRepositories } from "../../../../src/topics/page-repositories";
 import { ProposeForm } from "../_components/ProposeForm";
 import { saveTopicSelectionAction } from "../_actions/topics";
 
@@ -23,8 +24,8 @@ export default async function TopicsPage({
   const showSavedIndicator = firstSaved === "1";
 
   const workflow = createTopicWorkflow({
-    catalogue: await buildCatalogueRepositoryForPage(),
-    proposals: await buildProposalsRepositoryForPage(),
+    catalogue: buildTopicsPageRepositories().catalogue,
+    proposals: buildTopicsPageRepositories().proposals,
     clock: { now: () => new Date() },
   });
 
@@ -197,59 +198,4 @@ function labelForStatus(
     case "retired":
       return "Retired";
   }
-}
-
-async function buildCatalogueRepositoryForPage() {
-  const { getDb } = await import("../../../../src/db/client");
-  const { topics, userTopics } = await import("../../../../src/db/schema");
-  const { and, eq } = await import("drizzle-orm");
-
-  const db = getDb();
-
-  return {
-    async listActive() {
-      const rows = await db
-        .select({
-          id: topics.id,
-          name: topics.name,
-          status: topics.status,
-        })
-        .from(topics)
-        .where(eq(topics.status, "active"))
-        .orderBy(topics.name);
-      return rows;
-    },
-    async listSelectedTopicIds(userId: string) {
-      const rows = await db
-        .select({ topicId: userTopics.topicId })
-        .from(userTopics)
-        .where(
-          and(eq(userTopics.userId, userId), eq(userTopics.status, "active")),
-        )
-        .orderBy(userTopics.createdAt);
-      return rows.map((row) => row.topicId);
-    },
-  };
-}
-
-async function buildProposalsRepositoryForPage() {
-  const { getDb } = await import("../../../../src/db/client");
-  const { topicProposals } = await import("../../../../src/db/schema");
-  const { eq } = await import("drizzle-orm");
-
-  const db = getDb();
-
-  return {
-    async listUserProposals(userId: string) {
-      const rows = await db
-        .select({
-          id: topicProposals.id,
-          candidateName: topicProposals.candidateName,
-          status: topicProposals.status,
-        })
-        .from(topicProposals)
-        .where(eq(topicProposals.proposedByUserId, userId));
-      return rows;
-    },
-  };
 }

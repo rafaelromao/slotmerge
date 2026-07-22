@@ -100,30 +100,31 @@ export function createMagicLinkRequestHandlers(
 
       const existingUser = await userRepo.findByEmail(normalizedEmail);
       if (existingUser?.status === "suspended") {
-        return jsonResponse({ error: "not_invited" }, 400);
+        return jsonResponse({ sent: true }, 202);
       }
-
-      const pendingInvite =
-        await inviteRepo.findPendingByEmail(normalizedEmail);
-      if (pendingInvite) {
-        return handlePendingInvite({
-          invite: pendingInvite,
-          issuer,
-          emailService,
-          clock,
-        });
-      }
-
       if (existingUser) {
-        return handleExistingUser({
+        await handleExistingUser({
           user: existingUser,
           issuer,
           emailService,
           clock,
         });
+        return jsonResponse({ sent: true }, 202);
       }
 
-      return jsonResponse({ error: "not_invited" }, 400);
+      const pendingInvite =
+        await inviteRepo.findPendingByEmail(normalizedEmail);
+      if (pendingInvite) {
+        await handlePendingInvite({
+          invite: pendingInvite,
+          issuer,
+          emailService,
+          clock,
+        });
+        return jsonResponse({ sent: true }, 202);
+      }
+
+      return jsonResponse({ sent: true }, 202);
     },
   };
 }
@@ -138,7 +139,7 @@ async function handlePendingInvite({
   issuer: MagicLinkTokenIssuer;
   emailService: EmailDeliveryService | undefined;
   clock: Clock;
-}): Promise<Response> {
+}): Promise<void> {
   const expiresAt = new Date(
     clock.now().getTime() + magicLinkLifetimeHours * 60 * 60 * 1000,
   );
@@ -160,8 +161,6 @@ async function handlePendingInvite({
       },
     });
   }
-
-  return jsonResponse({ sent: true }, 200);
 }
 
 async function handleExistingUser({
@@ -174,7 +173,7 @@ async function handleExistingUser({
   issuer: MagicLinkTokenIssuer;
   emailService: EmailDeliveryService | undefined;
   clock: Clock;
-}): Promise<Response> {
+}): Promise<void> {
   const expiresAt = new Date(
     clock.now().getTime() + magicLinkLifetimeHours * 60 * 60 * 1000,
   );
@@ -196,8 +195,6 @@ async function handleExistingUser({
       },
     });
   }
-
-  return jsonResponse({ sent: true }, 200);
 }
 
 function jsonResponse(data: unknown, status: number): Response {

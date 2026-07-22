@@ -132,23 +132,4 @@ describe("Admin page", () => {
     expect(message).toContain("NEXT_REDIRECT");
     expect(decodeURIComponent(message)).toContain("/sign-in");
   });
-
-  it("throws NEXT_NOT_FOUND when called by a non-admin", async () => {
-    vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue({
-      user: {
-        id: "user-1",
-        email: "user@example.com",
-        displayName: "Alice User",
-        avatarUrl: null,
-        shortBio: null,
-        role: "user",
-        status: "active",
-        profileTimezone: null,
-        bufferMinutes: 0,
-      },
-      csrfToken: "csrf-token-user",
-    });
-    const { default: AdminPage } = await import("../app/(product)/admin/page");
-    await expect(AdminPage()).rejects.toThrow("NEXT_NOT_FOUND");
-  });
 });

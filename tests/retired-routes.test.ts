@@ -55,9 +55,7 @@ describe("Retired routes return 308 with Deprecation, Sunset, and successor Link
 
   describe("GET /search/history", () => {
     it("returns 308 with Deprecation, Sunset, and Link headers pointing to v1 successor", () => {
-      const response = retiredSearchHistoryGet(
-        new Request("http://localhost/search/history"),
-      );
+      const response = retiredSearchHistoryGet();
       expect(response.status).toBe(308);
       expect(response.headers.get("Location")).toBe("/api/v1/searches");
       expect(response.headers.get("Deprecation")).toBe("true");
@@ -90,9 +88,7 @@ describe("Retired routes return 308 with Deprecation, Sunset, and successor Link
 
   describe("GET /admin/invites", () => {
     it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#users", () => {
-      const response = retiredAdminInvitesGet(
-        new Request("http://localhost/admin/invites"),
-      );
+      const response = retiredAdminInvitesGet();
       expect(response.status).toBe(308);
       expect(response.headers.get("Location")).toBe("/admin#users");
       expect(response.headers.get("Deprecation")).toBe("true");
@@ -107,9 +103,7 @@ describe("Retired routes return 308 with Deprecation, Sunset, and successor Link
 
   describe("POST /admin/invites", () => {
     it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#users", () => {
-      const response = retiredAdminInvitesPost(
-        new Request("http://localhost/admin/invites", { method: "POST" }),
-      );
+      const response = retiredAdminInvitesPost();
       expect(response.status).toBe(308);
       expect(response.headers.get("Location")).toBe("/admin#users");
       expect(response.headers.get("Deprecation")).toBe("true");
@@ -124,9 +118,7 @@ describe("Retired routes return 308 with Deprecation, Sunset, and successor Link
 
   describe("GET /admin/topic-proposals", () => {
     it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#topics", () => {
-      const response = retiredAdminTopicProposalsGet(
-        new Request("http://localhost/admin/topic-proposals"),
-      );
+      const response = retiredAdminTopicProposalsGet();
       expect(response.status).toBe(308);
       expect(response.headers.get("Location")).toBe("/admin#topics");
       expect(response.headers.get("Deprecation")).toBe("true");
@@ -141,11 +133,7 @@ describe("Retired routes return 308 with Deprecation, Sunset, and successor Link
 
   describe("POST /admin/topic-proposals", () => {
     it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#topics", () => {
-      const response = retiredAdminTopicProposalsPost(
-        new Request("http://localhost/admin/topic-proposals", {
-          method: "POST",
-        }),
-      );
+      const response = retiredAdminTopicProposalsPost();
       expect(response.status).toBe(308);
       expect(response.headers.get("Location")).toBe("/admin#topics");
       expect(response.headers.get("Deprecation")).toBe("true");

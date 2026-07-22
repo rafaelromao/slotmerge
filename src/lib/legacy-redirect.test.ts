@@ -30,17 +30,19 @@ describe("legacyRedirect", () => {
       sunset: SUNSET,
     });
 
-    expect(response.headers.get("Sunset")).toBe("Thu, 31 Dec 2026 23:59:59 GMT");
+    expect(response.headers.get("Sunset")).toBe(
+      "Thu, 31 Dec 2026 23:59:59 GMT",
+    );
   });
 
-  it("includes a Link header with rel=\"successor-version\"", () => {
+  it('includes a Link header with rel="successor-version"', () => {
     const response = legacyRedirect({
       target: "/api/v1/searches/123",
       sunset: SUNSET,
     });
 
     expect(response.headers.get("Link")).toBe(
-      "</api/v1/searches/123>; rel=\"successor-version\"",
+      '</api/v1/searches/123>; rel="successor-version"',
     );
   });
 
@@ -51,7 +53,7 @@ describe("legacyRedirect", () => {
     });
 
     expect(response.headers.get("Link")).toBe(
-      "</admin#users>; rel=\"successor-version\"",
+      '</admin#users>; rel="successor-version"',
     );
     expect(response.headers.get("Location")).toBe("/admin#users");
   });

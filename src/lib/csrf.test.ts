@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CsrfError, assertCsrfFromFormData, assertCsrfOrThrow } from "./csrf";
 
 vi.mock("../config/runtime", async () => {
-  const actual = await vi.importActual<typeof import("../config/runtime")>(
-    "../config/runtime",
-  );
+  const actual =
+    await vi.importActual<typeof import("../config/runtime")>(
+      "../config/runtime",
+    );
   return {
     ...actual,
     loadRuntimeConfig: () => ({
@@ -63,7 +64,9 @@ function postRequest(headers: Record<string, string> = {}): Request {
 
 describe("assertCsrfOrThrow", () => {
   it("returns void when the request has a matching CSRF token and origin", async () => {
-    await expect(assertCsrfOrThrow(postRequest(), session)).resolves.toBeUndefined();
+    await expect(
+      assertCsrfOrThrow(postRequest(), session),
+    ).resolves.toBeUndefined();
   });
 
   it("accepts the CSRF token from the x-csrf-token header", async () => {
@@ -102,7 +105,10 @@ describe("assertCsrfOrThrow", () => {
         "Content-Type": "application/x-www-form-urlencoded",
         Origin: "http://localhost:3000",
       },
-      body: new URLSearchParams({ _csrf: "wrong-token", field: "value" }).toString(),
+      body: new URLSearchParams({
+        _csrf: "wrong-token",
+        field: "value",
+      }).toString(),
     });
 
     await expect(assertCsrfOrThrow(request, session)).rejects.toBeInstanceOf(
@@ -168,28 +174,22 @@ describe("assertCsrfOrThrow", () => {
 });
 
 describe("assertCsrfFromFormData", () => {
-  it("returns void when the form _csrf field matches", async () => {
+  it("returns void when the form _csrf field matches", () => {
     const formData = new FormData();
     formData.set("_csrf", "csrf-token-1");
-    await expect(
-      assertCsrfFromFormData(formData, session),
-    ).resolves.toBeUndefined();
+    expect(assertCsrfFromFormData(formData, session)).toBeUndefined();
   });
 
-  it("throws CsrfError when the form _csrf field is missing", async () => {
+  it("throws CsrfError when the form _csrf field is missing", () => {
     const formData = new FormData();
     formData.set("field", "value");
-    await expect(
-      assertCsrfFromFormData(formData, session),
-    ).rejects.toBeInstanceOf(CsrfError);
+    expect(() => assertCsrfFromFormData(formData, session)).toThrow(CsrfError);
   });
 
-  it("throws CsrfError when the form _csrf field does not match", async () => {
+  it("throws CsrfError when the form _csrf field does not match", () => {
     const formData = new FormData();
     formData.set("_csrf", "wrong-token");
-    await expect(
-      assertCsrfFromFormData(formData, session),
-    ).rejects.toBeInstanceOf(CsrfError);
+    expect(() => assertCsrfFromFormData(formData, session)).toThrow(CsrfError);
   });
 });
 

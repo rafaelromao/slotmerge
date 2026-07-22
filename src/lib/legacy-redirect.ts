@@ -15,7 +15,10 @@ const HTTP_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "GMT",
 });
 
-export function legacyRedirect({ target, sunset }: LegacyRedirectArgs): Response {
+export function legacyRedirect({
+  target,
+  sunset,
+}: LegacyRedirectArgs): Response {
   return new Response(null, {
     status: 308,
     headers: {

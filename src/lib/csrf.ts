@@ -38,10 +38,10 @@ export async function assertCsrfOrThrow(
   }
 }
 
-export async function assertCsrfFromFormData(
+export function assertCsrfFromFormData(
   formData: FormData,
   session: Session,
-): Promise<void> {
+): void {
   const token = formData.get("_csrf");
   if (typeof token !== "string" || !token) {
     throw new CsrfError();
@@ -71,7 +71,9 @@ function assertSecFetchSite(request: Request): void {
   }
 }
 
-async function extractTokenFromRequest(request: Request): Promise<string | null> {
+async function extractTokenFromRequest(
+  request: Request,
+): Promise<string | null> {
   const headerToken = request.headers.get("x-csrf-token");
   if (headerToken) {
     return headerToken;

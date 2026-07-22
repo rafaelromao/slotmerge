@@ -1,9 +1,7 @@
+import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 
-import {
-  getSessionFromRequest,
-  type Session,
-} from "../auth/session";
+import { getSessionFromRequest, type Session } from "../auth/session";
 import type { UserRole } from "../db/schema";
 
 export type Capability = {
@@ -30,16 +28,16 @@ export function assertRole(
 
 export async function requirePageContext(
   capability: Capability,
-  request: Request,
+  request?: Request,
 ): Promise<PageContext> {
-  const session = await getSessionFromRequest(request);
+  const session = await resolveSession(request);
 
   if (!session) {
-    redirectToSignIn(request);
+    redirectToSignIn(request ?? (await currentRequestFromHeaders()));
   }
 
   if (!isAuthedSession(session)) {
-    redirectToSignIn(request);
+    redirectToSignIn(request ?? (await currentRequestFromHeaders()));
   }
 
   if (!capability.roles.includes(session.user.role)) {
@@ -56,8 +54,40 @@ export async function requirePageContext(
   };
 }
 
+async function resolveSession(request?: Request): Promise<Session | null> {
+  if (request) {
+    return getSessionFromRequest(request);
+  }
+  const built = await currentRequestFromHeaders();
+  return getSessionFromRequest(built);
+}
+
+async function currentRequestFromHeaders(): Promise<Request> {
+  const headerStore = await headers();
+  const cookieStore = await cookies();
+  const headersObject: Record<string, string> = {};
+  headerStore.forEach((value, key) => {
+    headersObject[key] = value;
+  });
+  const cookieHeader = cookieStore.toString();
+  if (cookieHeader) {
+    headersObject["cookie"] = cookieHeader;
+  }
+  const url = headersObject["x-url"] ?? "http://localhost";
+  return new Request(url, {
+    headers: headersObject,
+  });
+}
+
 function isAuthedSession(session: Session): boolean {
   return session.user.status === "active";
+}
+
+class RedirectError extends Error {
+  constructor(public readonly response: Response) {
+    super("redirect");
+    this.name = "RedirectError";
+  }
 }
 
 function redirectToSignIn(request: Request): never {
@@ -65,10 +95,11 @@ function redirectToSignIn(request: Request): never {
   const target = returnTo
     ? `/sign-in?returnTo=${encodeURIComponent(returnTo)}`
     : "/sign-in";
-  throw new Response(null, {
+  const response = new Response(null, {
     status: 303,
     headers: { Location: target },
   });
+  throw new RedirectError(response);
 }
 
 function safeReturnTo(url: URL): string | null {

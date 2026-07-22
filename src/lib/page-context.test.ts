@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { assertRole, requirePageContext } from "./page-context";
-import { sealSessionCookieValue } from "../auth/session";
+import {
+  sealSessionCookieValue,
+  type SessionRepository,
+} from "../auth/session";
 
 vi.mock("../config/runtime", async () => {
-  const actual = await vi.importActual<typeof import("../config/runtime")>(
-    "../config/runtime",
-  );
+  const actual =
+    await vi.importActual<typeof import("../config/runtime")>(
+      "../config/runtime",
+    );
   return {
     ...actual,
     loadRuntimeConfig: () => ({
@@ -43,19 +47,21 @@ const baseSession = {
 };
 
 const fakeSessionRepository = {
-  findById: vi.fn(async () => baseSession),
-  delete: vi.fn(async () => undefined),
+  findById: vi.fn(() => Promise.resolve(baseSession)),
+  delete: vi.fn(() => Promise.resolve()),
 };
 
 const fakeSessionRepositorySuspended = {
-  findById: vi.fn(async () => ({
-    ...baseSession,
-    user: { ...baseSession.user, status: "suspended" as const },
-  })),
+  findById: vi.fn(() =>
+    Promise.resolve({
+      ...baseSession,
+      user: { ...baseSession.user, status: "suspended" as const },
+    }),
+  ),
 };
 
 const fakeSessionRepositoryNull = {
-  findById: vi.fn(async () => null),
+  findById: vi.fn(() => Promise.resolve(null)),
 };
 
 beforeEach(() => {
@@ -69,11 +75,28 @@ async function cookieForSessionId(sessionId: string): Promise<string> {
   return `slotmerge_session=${encodeURIComponent(sealed)}`;
 }
 
-async function setSessionRepositoryForTests(repo: {
-  findById: (sessionId: string, now: Date) => Promise<typeof baseSession | null>;
-}): Promise<void> {
+async function setSessionRepositoryForTests(
+  repo: SessionRepository,
+): Promise<void> {
   const sessionModule = await import("../auth/session");
   sessionModule.setSessionRepositoryForTests(repo);
+}
+
+async function expectRedirect(promise: Promise<unknown>): Promise<Response> {
+  try {
+    await promise;
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "response" in error &&
+      error.response instanceof Response
+    ) {
+      return error.response;
+    }
+    throw error;
+  }
+  throw new Error("expected redirect");
 }
 
 describe("assertRole", () => {
@@ -113,10 +136,12 @@ describe("requirePageContext", () => {
 
   it("returns isAdmin=true for admin role", async () => {
     await setSessionRepositoryForTests({
-      findById: vi.fn(async () => ({
-        ...baseSession,
-        user: { ...baseSession.user, role: "admin" as const },
-      })),
+      findById: vi.fn(() =>
+        Promise.resolve({
+          ...baseSession,
+          user: { ...baseSession.user, role: "admin" as const },
+        }),
+      ),
     });
     const request = new Request("http://localhost/admin", {
       headers: {
@@ -124,10 +149,7 @@ describe("requirePageContext", () => {
       },
     });
 
-    const context = await requirePageContext(
-      { roles: ["admin"] },
-      request,
-    );
+    const context = await requirePageContext({ roles: ["admin"] }, request);
 
     expect(context.isAdmin).toBe(true);
     expect(context.isOrganizerOrAdmin).toBe(true);
@@ -135,10 +157,12 @@ describe("requirePageContext", () => {
 
   it("returns isOrganizerOrAdmin=true for organizer role", async () => {
     await setSessionRepositoryForTests({
-      findById: vi.fn(async () => ({
-        ...baseSession,
-        user: { ...baseSession.user, role: "organizer" as const },
-      })),
+      findById: vi.fn(() =>
+        Promise.resolve({
+          ...baseSession,
+          user: { ...baseSession.user, role: "organizer" as const },
+        }),
+      ),
     });
     const request = new Request("http://localhost/searches", {
       headers: {
@@ -163,68 +187,50 @@ describe("requirePageContext", () => {
       },
     });
 
-    try {
-      await requirePageContext({ roles: ["user"] }, request);
-    } catch (response) {
-      if (!(response instanceof Response)) {
-        throw response;
-      }
-      expect(response.status).toBe(303);
-      expect(response.headers.get("Location")).toBe(
-        "/sign-in?returnTo=%2Fsearches",
-      );
-    }
+    const response = await expectRedirect(
+      requirePageContext({ roles: ["user"] }, request),
+    );
+    expect(response.status).toBe(303);
+    expect(response.headers.get("Location")).toBe(
+      "/sign-in?returnTo=%2Fsearches",
+    );
   });
 
   it("redirects to /sign-in when the session is missing", async () => {
     await setSessionRepositoryForTests(fakeSessionRepositoryNull);
     const request = new Request("http://localhost/me");
 
-    try {
-      await requirePageContext({ roles: ["user"] }, request);
-    } catch (response) {
-      if (!(response instanceof Response)) {
-        throw response;
-      }
-      expect(response.status).toBe(303);
-      expect(response.headers.get("Location")).toBe(
-        "/sign-in?returnTo=%2Fme",
-      );
-    }
+    const response = await expectRedirect(
+      requirePageContext({ roles: ["user"] }, request),
+    );
+    expect(response.status).toBe(303);
+    expect(response.headers.get("Location")).toBe("/sign-in?returnTo=%2Fme");
   });
 
   it("includes a safe relative path in the returnTo query string", async () => {
     await setSessionRepositoryForTests(fakeSessionRepositoryNull);
     const request = new Request("http://localhost/searches/abc/results");
 
-    try {
-      await requirePageContext({ roles: ["user"] }, request);
-    } catch (response) {
-      if (!(response instanceof Response)) {
-        throw response;
-      }
-      expect(response.status).toBe(303);
-      const location = response.headers.get("Location") ?? "";
-      expect(location).toMatch(/^\/sign-in\?returnTo=/);
-      expect(decodeURIComponent(location)).toBe(
-        "/sign-in?returnTo=/searches/abc/results",
-      );
-    }
+    const response = await expectRedirect(
+      requirePageContext({ roles: ["user"] }, request),
+    );
+    expect(response.status).toBe(303);
+    const location = response.headers.get("Location") ?? "";
+    expect(location).toMatch(/^\/sign-in\?returnTo=/);
+    expect(decodeURIComponent(location)).toBe(
+      "/sign-in?returnTo=/searches/abc/results",
+    );
   });
 
   it("strips an unsafe returnTo target and redirects to /sign-in only", async () => {
     await setSessionRepositoryForTests(fakeSessionRepositoryNull);
     const request = new Request("http://localhost/?returnTo=//evil.com");
 
-    try {
-      await requirePageContext({ roles: ["user"] }, request);
-    } catch (response) {
-      if (!(response instanceof Response)) {
-        throw response;
-      }
-      expect(response.status).toBe(303);
-      expect(response.headers.get("Location")).toBe("/sign-in");
-    }
+    const response = await expectRedirect(
+      requirePageContext({ roles: ["user"] }, request),
+    );
+    expect(response.status).toBe(303);
+    expect(response.headers.get("Location")).toBe("/sign-in");
   });
 
   it("strips an absolute returnTo target and redirects to /sign-in only", async () => {
@@ -233,30 +239,22 @@ describe("requirePageContext", () => {
       "http://localhost/?returnTo=https://evil.com/foo",
     );
 
-    try {
-      await requirePageContext({ roles: ["user"] }, request);
-    } catch (response) {
-      if (!(response instanceof Response)) {
-        throw response;
-      }
-      expect(response.status).toBe(303);
-      expect(response.headers.get("Location")).toBe("/sign-in");
-    }
+    const response = await expectRedirect(
+      requirePageContext({ roles: ["user"] }, request),
+    );
+    expect(response.status).toBe(303);
+    expect(response.headers.get("Location")).toBe("/sign-in");
   });
 
   it("strips a path-traversal returnTo target and redirects to /sign-in only", async () => {
     await setSessionRepositoryForTests(fakeSessionRepositoryNull);
     const request = new Request("http://localhost/?returnTo=/../etc/passwd");
 
-    try {
-      await requirePageContext({ roles: ["user"] }, request);
-    } catch (response) {
-      if (!(response instanceof Response)) {
-        throw response;
-      }
-      expect(response.status).toBe(303);
-      expect(response.headers.get("Location")).toBe("/sign-in");
-    }
+    const response = await expectRedirect(
+      requirePageContext({ roles: ["user"] }, request),
+    );
+    expect(response.status).toBe(303);
+    expect(response.headers.get("Location")).toBe("/sign-in");
   });
 
   it("calls notFound() when the role does not match", async () => {

@@ -157,7 +157,7 @@ export function createMagicLinkResendHandlers(
   <body>
     <main>
       <h1>Check your email</h1>
-      <p>We sent a fresh magic link to ${escapeHtml(refreshedInvite.email)}.</p>
+      <p>We sent a fresh magic link. Open the most recent email from us to sign in.</p>
     </main>
   </body>
 </html>`);

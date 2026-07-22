@@ -122,9 +122,10 @@ describe("magic link resend handler", () => {
       }),
     );
 
-    expect(response.status).toBe(200);
-    const html = await response.text();
-    expect(html).toContain("fresh magic link");
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain("fresh magic link");
+      expect(html).not.toContain("alice@example.com");
 
     expect(mockInviteRepo.findById).toHaveBeenCalledWith("invite-1");
     expect(mockInviteRepo.incrementGeneration).toHaveBeenCalledWith("invite-1");

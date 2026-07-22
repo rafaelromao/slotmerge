@@ -88,7 +88,9 @@ describe("completeMicrosoftCalendarConnection", () => {
     const sessionSecret = "0123456789abcdef0123456789abcdef";
     const tokenEncryptionKey = "0123456789abcdef0123456789abcdef";
     const state = await sealCalendarConnectionState({
+      provider: "microsoft",
       connectionId: stored.id,
+      sessionId: "session-1",
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",
       secret: sessionSecret,
@@ -162,7 +164,9 @@ describe("completeMicrosoftCalendarConnection", () => {
     };
     const sessionSecret = "0123456789abcdef0123456789abcdef";
     const state = await sealCalendarConnectionState({
+      provider: "microsoft",
       connectionId: stored.id,
+      sessionId: "session-1",
       csrfToken: "csrf-token",
       codeVerifier: "code-verifier",
       secret: sessionSecret,

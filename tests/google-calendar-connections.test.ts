@@ -94,7 +94,9 @@ describe("Calendar Connection lifecycle", () => {
     const sessionSecret = "0123456789abcdef0123456789abcdef";
     const tokenEncryptionKey = "abcdef0123456789abcdef0123456789";
     const state = await sealCalendarConnectionState({
+      provider: provider.id,
       connectionId: stored.id,
+      sessionId: "session-1",
       csrfToken: "csrf-token",
       codeVerifier: "code-verifier",
       secret: sessionSecret,
@@ -169,7 +171,9 @@ describe("Calendar Connection lifecycle", () => {
     };
     const sessionSecret = "0123456789abcdef0123456789abcdef";
     const state = await sealCalendarConnectionState({
+      provider: provider.id,
       connectionId: stored.id,
+      sessionId: "session-1",
       csrfToken: "csrf-token",
       codeVerifier: "code-verifier",
       secret: sessionSecret,
@@ -224,7 +228,9 @@ describe("Calendar Connection lifecycle", () => {
     };
     const sessionSecret = "0123456789abcdef0123456789abcdef";
     const state = await sealCalendarConnectionState({
+      provider: provider.id,
       connectionId: stored.id,
+      sessionId: "session-1",
       csrfToken: "csrf-token",
       codeVerifier: "code-verifier",
       secret: sessionSecret,

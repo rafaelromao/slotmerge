@@ -13,12 +13,12 @@ import {
 
 import { POST as COMPLETE_CONNECTION } from "../../app/me/calendar-connections/callback/route";
 import { POST as START_CONNECTION } from "../../app/me/calendar-connections/microsoft/connect/route";
-import { GET as LIST_CONNECTIONS } from "../../app/me/calendar-connections/route";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,
 } from "../../src/auth/session";
 import { calendarConnections } from "../../src/db/schema";
+import { listConnectionsForTests } from "../helpers/calendar-connection-tests";
 import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb } from "../helpers/setup";
 import {
@@ -200,28 +200,15 @@ describe("E2E: connect Microsoft personal account surfaces not-supported message
         contributingCalendarIds: [],
       });
 
-      const listResponse = await LIST_CONNECTIONS(
-        new Request("http://localhost/me/calendar-connections", {
-          headers: { cookie },
-        }),
-      );
-      expect(listResponse.status).toBe(200);
-      const listBody = (await listResponse.json()) as {
-        connections: Array<Record<string, unknown>>;
-      };
-      const matchingConnections = listBody.connections.filter(
+      const listResponse = await listConnectionsForTests(ALICE.id);
+      const matchingConnections = listResponse.connections.filter(
         (connection) => connection.id === startBody.connection.id,
       );
-      expect(matchingConnections).toHaveLength(1);
-      expect(matchingConnections[0]).toMatchObject({
-        id: startBody.connection.id,
-        provider: "microsoft",
-        status: "pending",
-      });
-      expect(matchingConnections[0]).not.toHaveProperty("accessTokenEncrypted");
-      expect(matchingConnections[0]).not.toHaveProperty(
-        "refreshTokenEncrypted",
+      expect(matchingConnections).toHaveLength(0);
+      const unsupported = listResponse.connections.find(
+        (connection) => connection.displayStatus === "unsupported",
       );
+      expect(unsupported?.id).toBe(startBody.connection.id);
     },
   );
 });

@@ -1,31 +1,26 @@
-import { getSessionSecret } from "../../../../src/auth/session";
-import { createProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
+import { randomUUID, timingSafeEqual } from "node:crypto";
+
 import {
-  completeCalendarConnection,
-  presentCalendarConnection,
+  getSessionRepository,
+  getSessionSecret,
+} from "../../../../src/auth/session";
+import {
+  claimCalendarOAuthAttempt,
+  completeClaimedCalendarConnection,
+  hashCalendarOAuthCsrfToken,
   unsealCalendarConnectionState,
 } from "../../../../src/calendar/connection";
 import { getCalendarProvider } from "../../../../src/calendar/providers";
 import { getCalendarConnectionRepository } from "../../../../src/calendar/repository";
 import type { CalendarProvider as CalendarProviderId } from "../../../../src/db/schema";
+import { createProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
+import { requestContextFromRequest } from "../../../../src/workflow/auth";
+import { systemClock } from "../../../../src/system/clock";
 
 type OAuthConfiguration = {
   clientId: string | undefined;
   clientSecret: string | undefined;
   missingError: string;
-};
-
-type OAuthDeniedOutcome = {
-  error: string;
-  status?: "unsupported";
-};
-
-const deniedOutcomes: Record<CalendarProviderId, OAuthDeniedOutcome> = {
-  google: { error: "oauth_denied" },
-  microsoft: {
-    error: "unsupported_microsoft_account",
-    status: "unsupported",
-  },
 };
 
 export async function POST(request: Request): Promise<Response> {
@@ -34,7 +29,7 @@ export async function POST(request: Request): Promise<Response> {
     error: asStringOrNull(formData.get("error")),
     code: asStringOrNull(formData.get("code")),
     state: asStringOrNull(formData.get("state")),
-    requestUrl: request.url,
+    request,
   });
 }
 
@@ -44,7 +39,7 @@ export async function GET(request: Request): Promise<Response> {
     error: url.searchParams.get("error"),
     code: url.searchParams.get("code"),
     state: url.searchParams.get("state"),
-    requestUrl: request.url,
+    request,
   });
 }
 
@@ -56,99 +51,131 @@ async function handleCallback({
   error,
   code,
   state,
-  requestUrl,
+  request,
 }: {
   error: string | null | undefined;
   code: string | null | undefined;
   state: string | null | undefined;
-  requestUrl: string;
+  request: Request;
 }): Promise<Response> {
-  const repository = getCalendarConnectionRepository();
-
-  if (typeof error === "string" && error) {
-    const connection = await findConnectionFromState(state);
-    const outcome = connection
-      ? deniedOutcomes[connection.provider]
-      : { error: "oauth_denied" };
-    if (connection && outcome.status) {
-      await repository.updateById(connection.id, { status: outcome.status });
-    }
-    return Response.json({ error: outcome.error }, { status: 400 });
-  }
-
-  if (typeof code !== "string" || typeof state !== "string") {
-    return Response.json({ error: "invalid_oauth_callback" }, { status: 400 });
-  }
-
-  const payload = await unsealCalendarConnectionState({
-    state,
-    secret: getSessionSecret(),
-  });
-  const connection = await repository.findById(payload.connectionId);
-  if (!connection) {
-    throw new Error("Calendar connection not found.");
-  }
-
-  const provider = getCalendarProvider(connection.provider);
-  const configuration = getOAuthConfiguration(provider.id);
-  const tokenEncryptionKey = process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
-
-  if (
-    !configuration.clientId ||
-    !configuration.clientSecret ||
-    !tokenEncryptionKey
-  ) {
-    return Response.json(
-      { error: configuration.missingError },
-      { status: 500 },
-    );
-  }
-
-  const isLocalOrTest =
-    process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
-  const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
-  const fetchImpl =
-    isLocalOrTest && overrideUrl
-      ? createProviderFetchImpl(fetch, overrideUrl)
-      : fetch;
-
-  const result = await completeCalendarConnection({
-    provider,
-    repository,
-    baseUrl: new URL(requestUrl).origin,
-    clientId: configuration.clientId,
-    clientSecret: configuration.clientSecret,
-    code,
-    fetchImpl,
-    sessionSecret: getSessionSecret(),
-    state,
-    tokenEncryptionKey,
-  });
-
-  if (result.status === "unsupported") {
-    return Response.json({ error: result.reason }, { status: 400 });
-  }
-
-  return Response.json({
-    connection: presentCalendarConnection({
-      provider: getCalendarProvider(result.connection.provider),
-      connection: result.connection,
-    }),
-  });
-}
-
-async function findConnectionFromState(state: string | null | undefined) {
-  if (typeof state !== "string" || !state) return null;
+  const requestId = safeRequestId(request);
 
   try {
+    if (typeof state !== "string" || !state) {
+      throw new Error("Calendar OAuth state is missing.");
+    }
+
+    const now = systemClock().now();
     const payload = await unsealCalendarConnectionState({
       state,
       secret: getSessionSecret(),
+      now,
     });
-    return getCalendarConnectionRepository().findById(payload.connectionId);
+    const session = await getSessionRepository().findById(
+      payload.sessionId,
+      now,
+    );
+    if (!session || session.user.status !== "active") {
+      throw new Error("Calendar OAuth session is not active.");
+    }
+    if (
+      !hashesMatch(
+        payload.csrfTokenHash,
+        hashCalendarOAuthCsrfToken(session.csrfToken),
+      )
+    ) {
+      throw new Error("Calendar OAuth session binding does not match.");
+    }
+
+    const repository = getCalendarConnectionRepository();
+    const connection = await repository.findById(payload.connectionId);
+    if (
+      !connection ||
+      connection.userId !== session.user.id ||
+      connection.provider !== payload.provider ||
+      connection.status !== "pending"
+    ) {
+      throw new Error("Calendar OAuth attempt is not pending.");
+    }
+
+    const claimed = await claimCalendarOAuthAttempt({
+      repository,
+      payload,
+      userId: session.user.id,
+    });
+
+    if (typeof error === "string" && error) {
+      return redirectOutcome(request, "denied");
+    }
+    if (typeof code !== "string" || !code) {
+      throw new Error("Calendar OAuth code is missing.");
+    }
+
+    const provider = getCalendarProvider(payload.provider);
+    const configuration = getOAuthConfiguration(provider.id);
+    const tokenEncryptionKey = process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
+    if (
+      !configuration.clientId ||
+      !configuration.clientSecret ||
+      !tokenEncryptionKey
+    ) {
+      throw new Error(configuration.missingError);
+    }
+
+    const isLocalOrTest =
+      process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
+    const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
+    const fetchImpl =
+      isLocalOrTest && overrideUrl
+        ? createProviderFetchImpl(fetch, overrideUrl)
+        : fetch;
+    const result = await completeClaimedCalendarConnection({
+      provider,
+      repository,
+      connection: claimed,
+      baseUrl: new URL(request.url).origin,
+      clientId: configuration.clientId,
+      clientSecret: configuration.clientSecret,
+      code,
+      codeVerifier: payload.codeVerifier,
+      fetchImpl,
+      tokenEncryptionKey,
+    });
+
+    return redirectOutcome(
+      request,
+      result.status === "unsupported" ? "unsupported" : "connected",
+    );
   } catch {
-    return null;
+    return redirectOutcome(request, "failed", requestId);
   }
+}
+
+function hashesMatch(actual: string, expected: string): boolean {
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+  return (
+    actualBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(actualBuffer, expectedBuffer)
+  );
+}
+
+function safeRequestId(request: Request): string {
+  const requestId = requestContextFromRequest(request).requestId;
+  return /^[A-Za-z0-9_-]{1,100}$/.test(requestId) ? requestId : randomUUID();
+}
+
+function redirectOutcome(
+  request: Request,
+  outcome: "connected" | "denied" | "unsupported" | "failed",
+  requestId?: string,
+): Response {
+  const target = new URL("/me/calendar-connections", request.url);
+  target.searchParams.set("oauth", outcome);
+  if (outcome === "failed" && requestId) {
+    target.searchParams.set("requestId", requestId);
+  }
+  return Response.redirect(target, 303);
 }
 
 function getOAuthConfiguration(

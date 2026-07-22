@@ -2,11 +2,16 @@ import {
   buildCalendarConnectionHealthFields,
   type CalendarConnectionHealthStatus,
 } from "../calendar/calendar-connection-health";
-import type {
-  CalendarConnectionRecord,
-  CalendarConnectionRepository,
+import {
+  startCalendarConnection,
+  type CalendarConnectionRecord,
+  type CalendarConnectionRepository,
 } from "../calendar/connection";
-import type { ProviderCalendar } from "../calendar/providers";
+import {
+  getCalendarProvider,
+  type ProviderCalendar,
+} from "../calendar/providers";
+import type { CalendarProvider as CalendarProviderId } from "../db/schema";
 import { err, ok, type Result } from "../lib/result";
 import type { Clock } from "../system/clock";
 
@@ -33,13 +38,32 @@ export type CalendarConnectionPageState = {
 };
 
 export type CalendarConnectionError = {
-  code: "load_failed";
+  code: "load_failed" | "oauth_not_configured" | "oauth_start_failed";
 };
 
 export type CalendarConnectionWorkflow = {
   loadPage(input: {
     userId: string;
   }): Promise<Result<CalendarConnectionPageState, CalendarConnectionError>>;
+  startOAuth(input: {
+    userId: string;
+    provider: CalendarProviderId;
+    connectionId?: string;
+  }): Promise<
+    Result<
+      { authorizeUrl: string; connectionId: string },
+      CalendarConnectionError
+    >
+  >;
+};
+
+export type CalendarConnectionOAuthDependencies = {
+  baseUrl: string;
+  clientIds: Record<CalendarProviderId, string | undefined>;
+  csrfToken: string;
+  sessionId: string;
+  sessionSecret: string;
+  generateId?: () => string;
 };
 
 export type CreateCalendarConnectionWorkflowDeps = {
@@ -48,6 +72,7 @@ export type CreateCalendarConnectionWorkflowDeps = {
   listProviderCalendars: (
     connection: CalendarConnectionRecord,
   ) => Promise<ProviderCalendar[]>;
+  oauth?: CalendarConnectionOAuthDependencies;
 };
 
 function displayStatus(
@@ -139,6 +164,36 @@ export function createCalendarConnectionWorkflow(
         return ok({ connections });
       } catch {
         return err({ code: "load_failed" });
+      }
+    },
+
+    async startOAuth({ userId, provider }) {
+      const oauth = deps.oauth;
+      const clientId = oauth?.clientIds[provider];
+      if (!oauth || !clientId) {
+        return err({ code: "oauth_not_configured" });
+      }
+
+      try {
+        const started = await startCalendarConnection({
+          provider: getCalendarProvider(provider),
+          repository: deps.repository,
+          baseUrl: oauth.baseUrl,
+          clientId,
+          csrfToken: oauth.csrfToken,
+          sessionId: oauth.sessionId,
+          clock: deps.clock,
+          generateId: oauth.generateId,
+          sessionSecret: oauth.sessionSecret,
+          userId,
+        });
+
+        return ok({
+          authorizeUrl: started.authorizationUrl,
+          connectionId: started.connection.id,
+        });
+      } catch {
+        return err({ code: "oauth_start_failed" });
       }
     },
   };

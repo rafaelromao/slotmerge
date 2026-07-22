@@ -1,8 +1,9 @@
 :root {
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
-    monospace;
+  --font-sans:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
@@ -822,7 +823,9 @@ button {
   font-weight: var(--weight-medium);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  transition: color var(--duration-fast), background var(--duration-fast);
+  transition:
+    color var(--duration-fast),
+    background var(--duration-fast);
 }
 
 .nav-link:hover {
@@ -1698,5 +1701,261 @@ button {
 
   .availability-weekly-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Calendar Connection page */
+
+.calendar-connection-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.calendar-connection-intro {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.calendar-connection-section {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.calendar-connection-section h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.calendar-connection-connect-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.calendar-connection-connect-form {
+  display: flex;
+}
+
+.calendar-connection-connect-form .btn {
+  width: 100%;
+}
+
+.calendar-connection-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.calendar-connection-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: var(--surface-base);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.calendar-connection-card--needs_reconnect {
+  border-color: var(--warning, #b58a00);
+}
+
+.calendar-connection-card--failed {
+  border-color: var(--danger, #b3261e);
+}
+
+.calendar-connection-card--unsupported {
+  border-color: var(--text-subtle);
+}
+
+.calendar-connection-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.calendar-connection-card-title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-connection-card-account {
+  font-weight: var(--weight-regular, 400);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.calendar-connection-status-pill {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.calendar-connection-status-pill--connected {
+  background: var(--success-bg, #ecfdf5);
+  color: var(--success, #057a55);
+}
+
+.calendar-connection-status-pill--sync_delayed {
+  background: var(--warning-bg, #fef3c7);
+  color: var(--warning, #92400e);
+}
+
+.calendar-connection-status-pill--needs_reconnect,
+.calendar-connection-status-pill--unsupported,
+.calendar-connection-status-pill--failed {
+  background: var(--danger-bg, #fee2e2);
+  color: var(--danger, #991b1b);
+}
+
+.calendar-connection-last-sync {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.calendar-connection-row-error {
+  margin: 0;
+  color: var(--danger, #991b1b);
+  background: var(--danger-bg, #fee2e2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+
+.calendar-connection-calendars-form,
+.calendar-connection-reconnect-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.calendar-connection-calendars-fieldset {
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.calendar-connection-calendars-legend {
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
+  padding: 0 var(--space-2);
+}
+
+.calendar-connection-calendars-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.calendar-connection-calendars-item label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.calendar-connection-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: stretch;
+}
+
+.calendar-connection-action-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1 1 240px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+}
+
+.calendar-connection-disconnect-confirm-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.calendar-connection-disconnect-confirm-input {
+  padding: var(--space-2);
+  border: 1px solid var(--border-strong, var(--border-subtle));
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.calendar-connection-disconnect-hint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.calendar-connection-disconfirm-prompt {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.calendar-connection-banner {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  margin: 0;
+}
+
+.calendar-connection-banner p {
+  margin: 0;
+}
+
+.calendar-connection-banner-success {
+  background: var(--success-bg, #ecfdf5);
+  border-color: var(--success, #057a55);
+  color: var(--success, #057a55);
+}
+
+.calendar-connection-banner-warning {
+  background: var(--warning-bg, #fef3c7);
+  border-color: var(--warning, #92400e);
+  color: var(--warning, #92400e);
+}
+
+.calendar-connection-banner-error {
+  background: var(--danger-bg, #fee2e2);
+  border-color: var(--danger, #991b1b);
+  color: var(--danger, #991b1b);
+}
+
+@media (max-width: 767px) {
+  .calendar-connection-connect-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .calendar-connection-card-actions {
+    flex-direction: column;
   }
 }

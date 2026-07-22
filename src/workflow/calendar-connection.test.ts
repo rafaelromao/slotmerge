@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  CalendarConnectionRecord,
-  CalendarConnectionRepository,
+import {
+  type CalendarConnectionRecord,
+  type CalendarConnectionRepository,
+  unsealCalendarConnectionState,
 } from "../calendar/connection";
 import { createCalendarConnectionWorkflow } from "./calendar-connection";
 
@@ -158,5 +159,62 @@ describe("calendarConnectionWorkflow.loadPage", () => {
 
     expect(result).toEqual({ ok: false, error: { code: "load_failed" } });
     expect(JSON.stringify(result)).not.toContain("database detail");
+  });
+});
+
+describe("calendarConnectionWorkflow.startOAuth", () => {
+  it("creates one owned pending connection and returns a provider authorization URL", async () => {
+    const created: CalendarConnectionRecord[] = [];
+    const testRepository = repository([]);
+    testRepository.createPending = (record) => {
+      created.push(record);
+      return Promise.resolve(record);
+    };
+    const now = new Date("2026-07-12T12:00:00.000Z");
+    const secret = "0123456789abcdef0123456789abcdef";
+    const workflow = createCalendarConnectionWorkflow({
+      repository: testRepository,
+      clock: { now: () => now },
+      listProviderCalendars: () => Promise.resolve([]),
+      oauth: {
+        baseUrl: "http://localhost:3000",
+        clientIds: { google: "google-client-id", microsoft: "ms-client-id" },
+        csrfToken: "csrf-token-1",
+        sessionId: "session-1",
+        sessionSecret: secret,
+        generateId: () => "new-connection-id",
+      },
+    });
+
+    const result = await workflow.startOAuth({
+      userId: "user-1",
+      provider: "google",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("Expected OAuth start");
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatchObject({
+      id: "new-connection-id",
+      userId: "user-1",
+      provider: "google",
+      status: "pending",
+    });
+    const authorizeUrl = new URL(result.value.authorizeUrl);
+    expect(authorizeUrl.hostname).toBe("accounts.google.com");
+    const state = authorizeUrl.searchParams.get("state");
+    expect(state).toBeTruthy();
+    const payload = await unsealCalendarConnectionState({
+      state: state ?? "",
+      secret,
+      now,
+    });
+    expect(payload).toMatchObject({
+      version: 1,
+      provider: "google",
+      connectionId: "new-connection-id",
+      sessionId: "session-1",
+      returnTo: "/me/calendar-connections",
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { calendarConnections } from "../db/schema";
@@ -120,6 +120,25 @@ export function createPostgresCalendarConnectionRepository(
           updatedAt: clock.now(),
         })
         .where(eq(calendarConnections.id, id))
+        .returning(calendarConnectionSelectColumns);
+
+      return row ?? null;
+    },
+    claimPending: async ({ id, userId, provider }) => {
+      const [row] = await getDb()
+        .update(calendarConnections)
+        .set({
+          status: "disconnected",
+          updatedAt: clock.now(),
+        })
+        .where(
+          and(
+            eq(calendarConnections.id, id),
+            eq(calendarConnections.userId, userId),
+            eq(calendarConnections.provider, provider),
+            eq(calendarConnections.status, "pending"),
+          ),
+        )
         .returning(calendarConnectionSelectColumns);
 
       return row ?? null;

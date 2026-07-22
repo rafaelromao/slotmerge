@@ -81,6 +81,7 @@ export default async function ProductLayout({
     <div className="product-shell">
       <header className="top-bar">
         <details
+          open
           className="primary-nav"
           data-testid="primary-nav"
           aria-label="Primary navigation"

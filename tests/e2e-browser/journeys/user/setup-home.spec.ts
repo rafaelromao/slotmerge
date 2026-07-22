@@ -61,9 +61,11 @@ test.describe("Setup Home Journey", () => {
     expect(magicLinkUrl).not.toBeNull();
     expect(magicLinkUrl).toContain("/auth/magic-link/verify?token=");
 
-    await page.goto(magicLinkUrl!);
+    const verificationUrl = new URL(magicLinkUrl!);
+    verificationUrl.host = new URL(BASE_URL).host;
+    await page.goto(verificationUrl.toString());
 
-    await page.waitForURL(`${BASE_URL}/`);
+    await page.waitForURL((url) => url.pathname === "/");
 
     await expect(page.getByText("Welcome to SlotMerge")).toBeVisible();
     await captureState(page, "setup-home", "checklist");
@@ -71,11 +73,17 @@ test.describe("Setup Home Journey", () => {
     const cards = page.locator(".setup-card");
     await expect(cards).toHaveCount(5);
 
-    await expect(page.getByText("Profile")).toBeVisible();
-    await expect(page.getByText("Discoverability")).toBeVisible();
-    await expect(page.getByText("Topics")).toBeVisible();
-    await expect(page.getByText("Availability")).toBeVisible();
-    await expect(page.getByText("Calendar Connection")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Discoverability" }),
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Topics" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Availability" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Calendar Connection" }),
+    ).toBeVisible();
 
     await expect(page.getByTestId("setup-chip")).toBeVisible();
 

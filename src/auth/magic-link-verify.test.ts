@@ -397,7 +397,7 @@ describe("magic link verify handler", () => {
       );
 
       expect(response.status).toBe(302);
-      expect(response.headers.get("Location")).toBe("http://localhost/");
+      expect(response.headers.get("Location")).toBe("http://localhost:3000/");
       expect(response.headers.get("Set-Cookie")).toContain(
         "slotmerge_session=",
       );

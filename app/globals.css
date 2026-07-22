@@ -1008,6 +1008,10 @@ button {
   display: contents;
 }
 
+.primary-nav:not([open]) > .top-nav {
+  display: flex;
+}
+
 .top-bar {
   position: relative;
 }

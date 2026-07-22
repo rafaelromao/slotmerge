@@ -37,9 +37,7 @@ async function waitForMagicLink(
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const { emails } = await getCapturedEmails(email);
-    const magicLinkEmails = emails.filter(
-      (item) => item.type === "magic-link",
-    );
+    const magicLinkEmails = emails.filter((item) => item.type === "magic-link");
     if (magicLinkEmails.length > previousCount) {
       const url = magicLinkEmails.at(-1)?.payload["magicLinkUrl"];
       return typeof url === "string" ? url : null;
@@ -71,9 +69,9 @@ test.describe("Magic-link request, verify, and resend", () => {
     await page.getByTestId("sign-in-submit").click();
 
     await page.waitForURL((url) => url.pathname === "/sign-in/sent");
-    await expect(
-      page.getByTestId("sent-non-leaking"),
-    ).toContainText("If an account exists for that email, we just sent a sign-in link.");
+    await expect(page.getByTestId("sent-non-leaking")).toContainText(
+      "If an account exists for that email, we just sent a sign-in link.",
+    );
     await captureState(page, "sign-in", "sent");
 
     const magicLinkUrl = await waitForMagicLink(INVITED_EMAIL, previousCount);
@@ -83,9 +81,7 @@ test.describe("Magic-link request, verify, and resend", () => {
     const absoluteMagicLinkUrl = absoluteUrl(magicLinkUrl!);
     await page.goto(absoluteMagicLinkUrl);
 
-    await expect(
-      page.getByTestId("verify-auto-submit"),
-    ).toBeVisible();
+    await expect(page.getByTestId("verify-auto-submit")).toBeVisible();
     await captureState(page, "sign-in", "verify-auto-submit");
 
     await page.waitForURL((url) => url.pathname === "/");
@@ -101,7 +97,9 @@ test.describe("Magic-link request, verify, and resend", () => {
   });
 
   test("/sign-in?email= pre-fills the email input", async ({ page }) => {
-    await page.goto(`/sign-in?email=${encodeURIComponent("alice@example.com")}`);
+    await page.goto(
+      `/sign-in?email=${encodeURIComponent("alice@example.com")}`,
+    );
     const emailInput = page.getByTestId("sign-in-email");
     await expect(emailInput).toHaveValue("alice@example.com");
   });
@@ -116,9 +114,9 @@ test.describe("Magic-link request, verify, and resend", () => {
     await page.getByTestId("sign-in-submit").click();
 
     await page.waitForURL((url) => url.pathname === "/sign-in/sent");
-    await expect(
-      page.getByTestId("sent-non-leaking"),
-    ).toContainText("If an account exists for that email, we just sent a sign-in link.");
+    await expect(page.getByTestId("sent-non-leaking")).toContainText(
+      "If an account exists for that email, we just sent a sign-in link.",
+    );
     const after = await getMagicLinkCount(UNINVITED_EMAIL);
     expect(after).toBe(previousCount);
   });
@@ -133,10 +131,7 @@ test.describe("Magic-link request, verify, and resend", () => {
     await page.getByTestId("sign-in-email").fill(INVITED_EMAIL);
     await page.getByTestId("sign-in-submit").click();
 
-    const magicLinkUrl = await waitForMagicLink(
-      INVITED_EMAIL,
-      previousCount,
-    );
+    const magicLinkUrl = await waitForMagicLink(INVITED_EMAIL, previousCount);
     expect(magicLinkUrl).not.toBeNull();
     const absoluteMagicLinkUrl = absoluteUrl(magicLinkUrl!);
     await page.goto(absoluteMagicLinkUrl);

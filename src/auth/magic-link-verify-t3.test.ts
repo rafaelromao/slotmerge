@@ -43,13 +43,14 @@ function createMockUserRepository() {
 
 function createMockSessionRepository() {
   return {
-    create: vi.fn<
-      (data: {
-        userId: string;
-        csrfToken: string;
-        expiresAt: Date;
-      }) => Promise<{ id: string }>
-    >(),
+    create:
+      vi.fn<
+        (data: {
+          userId: string;
+          csrfToken: string;
+          expiresAt: Date;
+        }) => Promise<{ id: string }>
+      >(),
     delete: vi.fn<(id: string) => Promise<void>>(),
   };
 }
@@ -129,7 +130,9 @@ describe("magic link verify handler - T3 contract", () => {
       expect(response.headers.get("Location")).toMatch(
         /^http:\/\/localhost(?::3000)?\/$/,
       );
-      expect(response.headers.get("Set-Cookie")).toContain("slotmerge_session=");
+      expect(response.headers.get("Set-Cookie")).toContain(
+        "slotmerge_session=",
+      );
     });
   });
 
@@ -459,7 +462,9 @@ describe("magic link verify handler - T3 contract", () => {
       });
 
       const mockSessionRepo = createMockSessionRepository();
-      mockSessionRepo.create.mockRejectedValue(new Error("session insert boom"));
+      mockSessionRepo.create.mockRejectedValue(
+        new Error("session insert boom"),
+      );
 
       const { POST } = createMagicLinkVerifyHandlers({
         clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },

@@ -26,7 +26,7 @@ async function renderVerify(
     Parameters<typeof VerifyPage>[0]
   >["searchParams"];
   const element = await VerifyPage({ searchParams });
-  return renderToString(await PublicLayout({ children: element }));
+  return renderToString(PublicLayout({ children: element }));
 }
 
 describe("Public /sign-in/verify page", () => {

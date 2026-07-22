@@ -26,7 +26,7 @@ async function renderSignIn(
     Parameters<typeof SignInPage>[0]
   >["searchParams"];
   const element = await SignInPage({ searchParams });
-  return renderToString(await PublicLayout({ children: element }));
+  return renderToString(PublicLayout({ children: element }));
 }
 
 describe("Public sign-in page", () => {

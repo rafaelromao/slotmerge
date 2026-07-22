@@ -26,7 +26,7 @@ async function renderSent(
     Parameters<typeof SentPage>[0]
   >["searchParams"];
   const element = await SentPage({ searchParams });
-  return renderToString(await PublicLayout({ children: element }));
+  return renderToString(PublicLayout({ children: element }));
 }
 
 describe("Public /sign-in/sent page", () => {

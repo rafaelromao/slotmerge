@@ -23,13 +23,13 @@ function createMockEmailDeliveryService(): EmailDeliveryService & {
   sends: Array<{ recipient: string; type: string }>;
 } {
   const sends: Array<{ recipient: string; type: string }> = [];
-  const sendEmail: EmailDeliveryService["sendEmail"] = vi.fn(async (input) => {
+  const sendEmail = vi.fn<EmailDeliveryService["sendEmail"]>((input) => {
     sends.push({
       recipient: input.recipient,
       type: input.type,
     });
     const now = new Date();
-    return {
+    return Promise.resolve({
       emailEvent: {
         id: "evt-1",
         recipient: input.recipient,
@@ -45,7 +45,7 @@ function createMockEmailDeliveryService(): EmailDeliveryService & {
         lastErrorCode: null,
         lastErrorMessage: null,
       },
-    };
+    });
   });
   return { sends, sendEmail };
 }

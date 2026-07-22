@@ -5,16 +5,19 @@ import { timingSafeEqual } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { getSessionFromRequest, type Session } from "../../../src/auth/session";
-import { CsrfError } from "../../../src/lib/csrf";
+import {
+  getSessionFromRequest,
+  type Session,
+} from "../../../../src/auth/session";
+import { CsrfError } from "../../../../src/lib/csrf";
 import {
   createDiscoverabilityWorkflow,
   type DiscoverabilityWorkflow,
-} from "../../../src/workflow/discoverability";
-import type { DiscoverabilityConsentRepository } from "../../../src/profile/discoverability-consent";
-import { createPostgresDiscoverabilityConsentRepository } from "../../../src/profile/discoverability-consent";
-import { systemClock } from "../../../src/system/clock";
-import { loadRuntimeConfig } from "../../../src/config/runtime";
+} from "../../../../src/workflow/discoverability";
+import type { DiscoverabilityConsentRepository } from "../../../../src/profile/discoverability-consent";
+import { createPostgresDiscoverabilityConsentRepository } from "../../../../src/profile/discoverability-consent";
+import { systemClock } from "../../../../src/system/clock";
+import { loadRuntimeConfig } from "../../../../src/config/runtime";
 
 export type SetDiscoverabilityFieldErrorKey = "confirmed" | "form";
 

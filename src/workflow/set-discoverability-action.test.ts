@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createSetDiscoverabilityActionHandler,
   type SetDiscoverabilityActionFieldErrors,
-} from "../../app/(product)/_actions/set-discoverability";
+} from "../../app/(product)/me/_actions/set-discoverability";
 import type { DiscoverabilityConsentRepository } from "../profile/discoverability-consent";
 import type { Session } from "../auth/session";
 

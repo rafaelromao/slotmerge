@@ -5,7 +5,7 @@ import {
   GET as getMe,
   PATCH as patchMe,
   setPerUserLookupStateForTests,
-} from "../../app/me/route";
+} from "../../app/api/v1/me/route";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,

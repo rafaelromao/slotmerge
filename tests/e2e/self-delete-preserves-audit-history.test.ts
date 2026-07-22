@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
-import { DELETE } from "../../app/me/route";
+import { DELETE } from "../../app/api/v1/me/route";
 import { createAdminTopicProposalsHandlers } from "../../src/admin/topic-proposals";
 import { sealSessionCookie } from "../../src/auth/session";
 import {

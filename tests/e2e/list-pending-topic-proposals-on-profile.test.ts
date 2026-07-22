@@ -13,7 +13,7 @@ import {
   clearPerUserLookupStateForTests,
   GET as meGet,
   setPerUserLookupStateForTests,
-} from "../../app/me/route";
+} from "../../app/api/v1/me/route";
 import { GET as getMyTopics } from "../../app/me/topics/route";
 import { POST as postPropose } from "../../app/me/topics/propose/route";
 import { sealSessionCookie } from "../../src/auth/session";

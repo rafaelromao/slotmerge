@@ -112,7 +112,7 @@ describe("E2E: magic link is rejected after use", () => {
         }),
       );
 
-      expect(firstResponse.status).toBe(302);
+      expect(firstResponse.status).toBe(303);
       expect(firstResponse.headers.get("Location")).toBe("http://localhost/");
       expect(firstResponse.headers.get("Set-Cookie")).toContain(
         "slotmerge_session=",

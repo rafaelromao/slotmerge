@@ -149,7 +149,7 @@ describe("E2E: request a new magic link after an expired link", () => {
         }),
       );
 
-      expect(requestResponse.status).toBe(200);
+      expect(requestResponse.status).toBe(202);
       expect(emailService.sends).toHaveLength(1);
       const originalToken = extractMagicLinkToken(
         emailService.sends[0].payload,
@@ -174,8 +174,13 @@ describe("E2E: request a new magic link after an expired link", () => {
       expect(verifyExpiredResponse.headers.get("Set-Cookie")).toBeNull();
       const expiredHtml = await verifyExpiredResponse.text();
       expect(expiredHtml).toContain("token_expired");
+      expect(expiredHtml).toContain("link_expired");
       expect(expiredHtml).toContain("Send a new link");
       expect(expiredHtml).toContain('action="/auth/magic-link/resend"');
+      expect(expiredHtml).toContain("Request a new link");
+      expect(expiredHtml).toContain(
+        `href="/sign-in?email=${encodeURIComponent(INVITEE_EMAIL)}"`,
+      );
 
       expect(await countSessions()).toBe(sessionsBefore);
 
@@ -199,7 +204,7 @@ describe("E2E: request a new magic link after an expired link", () => {
       expect(resendResponse.status).toBe(200);
       const resendHtml = await resendResponse.text();
       expect(resendHtml).toContain("Check your email");
-      expect(resendHtml).toContain(INVITEE_EMAIL);
+      expect(resendHtml).not.toContain(INVITEE_EMAIL);
 
       expect(emailService.sends).toHaveLength(2);
       const resentToken = extractMagicLinkToken(emailService.sends[1].payload);
@@ -226,7 +231,7 @@ describe("E2E: request a new magic link after an expired link", () => {
         }),
       );
 
-      expect(verifyFreshResponse.status).toBe(302);
+      expect(verifyFreshResponse.status).toBe(303);
       const setCookie = verifyFreshResponse.headers.get("Set-Cookie");
       expect(setCookie).not.toBeNull();
       expect(setCookie ?? "").toContain("slotmerge_session=");

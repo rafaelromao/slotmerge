@@ -242,7 +242,7 @@ describe("E2E: invite role selection is explicit for User", () => {
         }),
       );
 
-      expect(verifyResponse.status).toBe(302);
+      expect(verifyResponse.status).toBe(303);
       expect(verifyResponse.headers.get("Location")).toBe("http://localhost/");
       const setCookie = verifyResponse.headers.get("Set-Cookie");
       expect(setCookie).not.toBeNull();

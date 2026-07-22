@@ -135,7 +135,7 @@ describe("E2E: magic link is rejected after expiration", () => {
         }),
       );
 
-      expect(requestResponse.status).toBe(200);
+      expect(requestResponse.status).toBe(202);
       expect(emailService.sends).toHaveLength(1);
       const sent = emailService.sends[0];
       const magicLinkToken = extractMagicLinkToken(sent.payload);

@@ -235,7 +235,7 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
         }),
       );
 
-      expect(verifyResponse.status).toBe(302);
+      expect(verifyResponse.status).toBe(303);
       const setCookie = verifyResponse.headers.get("Set-Cookie");
       expect(setCookie).not.toBeNull();
       const cookieValue = setCookie ?? "";

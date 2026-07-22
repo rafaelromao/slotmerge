@@ -459,3 +459,111 @@ describe("suspendAction", () => {
     expect(digest).toContain("NEXT_REDIRECT;303;/admin?error=invalid_suspend;");
   });
 });
+
+async function importReinstateAction() {
+  const mod = await import("./users");
+  return mod.reinstateAction;
+}
+
+describe("reinstateAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setSession("admin");
+  });
+
+  it("redirects to /admin?action=reinstated on success", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn(),
+      changeRole: vi.fn(),
+      suspend: vi.fn(),
+      reinstate: vi.fn().mockResolvedValue({ ok: true }),
+      resendInvite: vi.fn(),
+    });
+
+    const action = await importReinstateAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          userId: "u-2",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain("NEXT_REDIRECT;303;/admin?action=reinstated;");
+  });
+
+  it("redirects to /admin?error=self_reinstate when the actor targets themselves", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn(),
+      changeRole: vi.fn(),
+      suspend: vi.fn(),
+      reinstate: vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "self_reinstate",
+      }),
+      resendInvite: vi.fn(),
+    });
+
+    const action = await importReinstateAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          userId: "admin-1",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain("NEXT_REDIRECT;303;/admin?error=self_reinstate;");
+  });
+
+  it("redirects to /admin?error=user_already_active when the user is already active", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn(),
+      changeRole: vi.fn(),
+      suspend: vi.fn(),
+      reinstate: vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "user_already_active",
+      }),
+      resendInvite: vi.fn(),
+    });
+
+    const action = await importReinstateAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          userId: "u-2",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain(
+      "NEXT_REDIRECT;303;/admin?error=user_already_active;",
+    );
+  });
+
+  it("redirects to /admin?error=invalid_reinstate when userId is missing", async () => {
+    const action = await importReinstateAction();
+    let digest = "";
+    try {
+      await action(buildFormData({ _csrf: "csrf-admin-1" }));
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain(
+      "NEXT_REDIRECT;303;/admin?error=invalid_reinstate;",
+    );
+  });
+});

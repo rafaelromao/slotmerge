@@ -9,6 +9,7 @@ import { createAdminStatusWorkflow } from "../../../src/admin/operational-status
 import {
   changeRoleAction,
   inviteUserAction,
+  reinstateAction,
   suspendAction,
 } from "./_actions/users";
 import { SuspendTypedConfirm } from "./_components/SuspendTypedConfirm";
@@ -105,6 +106,17 @@ export default async function AdminPage({
           data-testid="admin-suspend-banner"
         >
           User suspended and active sessions revoked.
+        </p>
+      ) : null}
+
+      {firstString(params.action) === "reinstated" ? (
+        <p
+          className="admin-info-banner"
+          role="status"
+          aria-live="polite"
+          data-testid="admin-reinstate-banner"
+        >
+          User reinstated.
         </p>
       ) : null}
 
@@ -249,8 +261,16 @@ function errorMessageFor(code: string): string {
     case "invalid_suspend":
       return "Type the user's email to confirm.";
     case "suspend_failed":
-    default:
       return "We could not suspend the user. Please try again.";
+    case "self_reinstate":
+      return "You cannot reinstate yourself.";
+    case "user_already_active":
+      return "That user is already active.";
+    case "invalid_reinstate":
+      return "Choose a valid user to reinstate.";
+    case "reinstate_failed":
+    default:
+      return "We could not reinstate the user. Please try again.";
   }
 }
 
@@ -326,9 +346,21 @@ function UserRow({
             action={suspendAction}
           />
         ) : (
-          <span className="users-row-placeholder">
-            Suspended — reinstate lands in slice 5.
-          </span>
+          <form
+            className="users-reinstate-form"
+            data-testid={`users-reinstate-form-${user.id}`}
+            action={reinstateAction}
+          >
+            <input type="hidden" name="_csrf" value={csrfToken} />
+            <input type="hidden" name="userId" value={user.id} />
+            <button
+              type="submit"
+              className="btn btn-secondary users-reinstate-button"
+              data-testid={`users-reinstate-button-${user.id}`}
+            >
+              Reinstate
+            </button>
+          </form>
         )}
       </td>
     </tr>

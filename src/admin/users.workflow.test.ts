@@ -478,4 +478,102 @@ describe("adminUsersWorkflow", () => {
       expect(deleteByUserId).toHaveBeenCalledWith("u-2");
     });
   });
+
+  describe("reinstate", () => {
+    it("returns self_reinstate when the actor targets themselves", async () => {
+      const reinstate = vi.fn();
+      const userRepository = buildUserRepository({ reinstate });
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository();
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.reinstate({
+        actorId: "admin-1",
+        targetUserId: "admin-1",
+      });
+
+      expect(result).toEqual({ ok: false, reason: "self_reinstate" });
+      expect(reinstate).not.toHaveBeenCalled();
+    });
+
+    it("returns user_already_active when the user is already active", async () => {
+      const reinstate = vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "already_active",
+      });
+      const userRepository = buildUserRepository({ reinstate });
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository();
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.reinstate({
+        actorId: "admin-1",
+        targetUserId: "u-2",
+      });
+
+      expect(result).toEqual({ ok: false, reason: "user_already_active" });
+    });
+
+    it("returns user_not_found when the repository reports not_found", async () => {
+      const reinstate = vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "not_found",
+      });
+      const userRepository = buildUserRepository({ reinstate });
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository();
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.reinstate({
+        actorId: "admin-1",
+        targetUserId: "u-missing",
+      });
+
+      expect(result).toEqual({ ok: false, reason: "user_not_found" });
+      expect(reinstate).toHaveBeenCalledWith({
+        userId: "u-missing",
+        actingAdminId: "admin-1",
+        now: fixedClock.now(),
+      });
+    });
+
+    it("returns ok when the repository succeeds", async () => {
+      const reinstate = vi.fn().mockResolvedValue({ ok: true });
+      const userRepository = buildUserRepository({ reinstate });
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository();
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.reinstate({
+        actorId: "admin-1",
+        targetUserId: "u-2",
+      });
+
+      expect(result).toEqual({ ok: true });
+    });
+  });
 });

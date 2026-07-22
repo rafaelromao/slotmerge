@@ -8,6 +8,7 @@ import {
   createAdminUsersWorkflow,
   type AdminUserChangeRoleResult,
   type AdminUserInviteResult,
+  type AdminUserReinstateResult,
   type AdminUserSuspendResult,
 } from "../../../../src/admin/users.workflow";
 import { createPostgresAdminUserRepository } from "../../../../src/admin/users.repository";
@@ -120,6 +121,24 @@ export async function suspendAction(formData: FormData): Promise<void> {
   redirect(redirectTargetForSuspend(result));
 }
 
+export async function reinstateAction(formData: FormData): Promise<void> {
+  const { session } = await assertAdminAndCsrf(formData);
+
+  const targetUserId = readUserId(formData);
+  if (!targetUserId) {
+    redirect("/admin?error=invalid_reinstate");
+  }
+
+  const workflow = buildAdminWorkflow();
+
+  const result = await workflow.reinstate({
+    actorId: session.user.id,
+    targetUserId,
+  });
+
+  redirect(redirectTargetForReinstate(result));
+}
+
 function readEmail(formData: FormData): string | null {
   const value = formData.get("email");
   if (typeof value !== "string") {
@@ -204,5 +223,22 @@ function redirectTargetForSuspend(result: AdminUserSuspendResult): string {
     case "internal_error":
     default:
       return "/admin?error=suspend_failed";
+  }
+}
+
+function redirectTargetForReinstate(result: AdminUserReinstateResult): string {
+  if (result.ok) {
+    return "/admin?action=reinstated";
+  }
+  switch (result.reason) {
+    case "self_reinstate":
+      return "/admin?error=self_reinstate";
+    case "user_already_active":
+      return "/admin?error=user_already_active";
+    case "user_not_found":
+      return "/admin?error=user_not_found";
+    case "internal_error":
+    default:
+      return "/admin?error=reinstate_failed";
   }
 }

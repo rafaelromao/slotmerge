@@ -251,14 +251,30 @@ export function createAdminUsersWorkflow(
       return { ok: true } as const;
     },
 
-    reinstate({ actorId, targetUserId }) {
+    async reinstate({ actorId, targetUserId }) {
       if (actorId === targetUserId) {
-        return Promise.resolve({
-          ok: false,
-          reason: "self_reinstate",
-        } as const);
+        return { ok: false, reason: "self_reinstate" } as const;
       }
-      return Promise.resolve({ ok: false, reason: "user_not_found" } as const);
+
+      const result = await userRepository.reinstate({
+        userId: targetUserId,
+        actingAdminId: actorId,
+        now: clock.now(),
+      });
+
+      if (!result.ok) {
+        switch (result.reason) {
+          case "self":
+            return { ok: false, reason: "self_reinstate" } as const;
+          case "already_active":
+            return { ok: false, reason: "user_already_active" } as const;
+          case "not_found":
+          default:
+            return { ok: false, reason: "user_not_found" } as const;
+        }
+      }
+
+      return { ok: true } as const;
     },
 
     resendInvite() {

@@ -19,96 +19,131 @@
     {
       "idx": 2,
       "version": "7",
+      "when": 1783789542999,
+      "tag": "0001_email_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
       "when": 1783789543000,
       "tag": "0001_profile_attributes",
       "breakpoints": true
     },
     {
-      "idx": 3,
+      "idx": 4,
       "version": "7",
       "when": 1783780000001,
       "tag": "0002_admin_invites",
       "breakpoints": true
     },
     {
-      "idx": 4,
+      "idx": 5,
+      "version": "7",
+      "when": 1783780000001,
+      "tag": "0002_google_calendar_connections",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
       "version": "7",
       "when": 1783780000002,
       "tag": "0003_topics",
       "breakpoints": true
     },
     {
-      "idx": 5,
+      "idx": 7,
       "version": "7",
       "when": 1783780000003,
       "tag": "0004_discoverability_consent",
       "breakpoints": true
     },
     {
-      "idx": 6,
+      "idx": 8,
       "version": "7",
       "when": 1783780000004,
       "tag": "0005_self_delete_account",
       "breakpoints": true
     },
     {
-      "idx": 6,
+      "idx": 9,
       "version": "7",
       "when": 1783780000005,
       "tag": "0006_searches",
       "breakpoints": true
     },
     {
-      "idx": 7,
+      "idx": 10,
+      "version": "7",
+      "when": 1783780000006,
+      "tag": "0006_calendar_connection_sync_failure",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783780000007,
+      "tag": "0007_contributing_calendars",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
       "version": "7",
       "when": 1783780000007,
       "tag": "0007_imported_busy_intervals",
       "breakpoints": true
     },
     {
-      "idx": 8,
+      "idx": 13,
       "version": "7",
       "when": 1783780000008,
       "tag": "0008_availability_windows",
       "breakpoints": true
     },
     {
-      "idx": 9,
+      "idx": 14,
       "version": "7",
       "when": 1783780000009,
       "tag": "0009_calendar_connection_last_sync",
       "breakpoints": true
     },
     {
-      "idx": 10,
+      "idx": 15,
+      "version": "7",
+      "when": 1783780000009,
+      "tag": "0009_magic_link_generation",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
       "version": "7",
       "when": 1783780000010,
       "tag": "0010_search_results",
       "breakpoints": true
     },
     {
-      "idx": 11,
+      "idx": 17,
       "version": "7",
       "when": 1783780000011,
       "tag": "0011_availability_overrides",
       "breakpoints": true
     },
     {
-      "idx": 12,
+      "idx": 18,
       "version": "7",
       "when": 1783780000012,
       "tag": "0012_topic_proposal_audit_preserved",
       "breakpoints": true
     },
     {
-      "idx": 13,
+      "idx": 19,
       "version": "7",
       "when": 1783780000013,
       "tag": "0013_discoverability_consent_revoked_at",
       "breakpoints": true
     },
     {
-      "idx": 14,
+      "idx": 20,
       "version": "7",
       "when": 1784721600014,
       "tag": "0014_user_magic_link_generation",

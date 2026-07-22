@@ -7,6 +7,7 @@ import {
   importedBusyIntervals,
   userTopics,
   sessions,
+  discoverabilityConsents,
 } from "../../src/db/schema";
 import type { AppDb } from "../../src/db/client";
 
@@ -197,6 +198,8 @@ export const SESSION_FIXTURES = [
 
 export async function seedAll(db: AppDb): Promise<void> {
   const now = new Date(FIXTURE_DATE);
+
+  await db.delete(discoverabilityConsents);
 
   for (const user of USER_FIXTURES) {
     await db

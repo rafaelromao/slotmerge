@@ -62,7 +62,7 @@ export default async function VerifyPage({
   );
 }
 
-function renderErrorState(state: VerifyErrorState, email: string): JSX.Element {
+function renderErrorState(state: VerifyErrorState, email: string) {
   const signInHref = email
     ? `/sign-in?email=${encodeURIComponent(email)}`
     : "/sign-in";

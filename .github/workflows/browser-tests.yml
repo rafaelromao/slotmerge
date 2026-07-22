@@ -58,7 +58,7 @@ jobs:
         with:
           name: playwright-artifacts
           path: |
-            playwright/.artifacts/**/videos/**/*.webm
-            playwright/.artifacts/**/trace.zip
+            playwright/.artifacts/**/*.webm
+            playwright/.artifacts/**/*.zip
             playwright/.auth/**
           retention-days: 14

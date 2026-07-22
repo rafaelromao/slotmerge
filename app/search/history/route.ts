@@ -1,12 +1,8 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function GET(_request: Request): Response {
-  return Response.json(
-    { error: "gone", message: "This endpoint has been retired." },
-    {
-      status: 404,
-      headers: {
-        Link: `</api/v1/searches>; rel="successor-version"`,
-      },
-    },
-  );
+import { legacyRedirect } from "../../../src/lib/legacy-redirect";
+
+export function GET(): Response {
+  return legacyRedirect({
+    target: "/api/v1/searches",
+    sunset: new Date("2026-12-31T23:59:59.000Z"),
+  });
 }

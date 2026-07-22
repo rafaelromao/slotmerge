@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { GET as retiredSearchGet } from "../app/api/searches/[id]/route";
+import { GET as retiredSearchResultsGet } from "../app/searches/[id]/results/route";
+import { GET as retiredAdminInvitesGet } from "../app/admin/invites/route";
+import { GET as retiredAdminTopicProposalsGet } from "../app/admin/topic-proposals/route";
+import { POST as retiredAdminTopicProposalsPost } from "../app/admin/topic-proposals/route";
 import { GET as retiredSearchSnapshotGet } from "../app/search/[id]/snapshot/route";
 import { GET as retiredSearchHistoryGet } from "../app/search/history/route";
 import { GET as retiredAvailabilityWindowsGet } from "../app/me/availability-windows/route";
@@ -11,45 +15,119 @@ import { GET as retiredAvailabilityOverridesGet } from "../app/me/availability-o
 import { POST as retiredAvailabilityOverridesPost } from "../app/me/availability-overrides/route";
 import { DELETE as retiredAvailabilityOverrideDelete } from "../app/me/availability-overrides/[id]/route";
 
-describe("Retired routes return 404 with successor Link header", () => {
+describe("Retired routes return 308 with Deprecation, Sunset, and successor Link headers", () => {
   describe("GET /api/searches/[id]", () => {
-    it("returns 404 with Link header pointing to v1 successor", async () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to v1 successor", async () => {
       const response = await retiredSearchGet(
         new Request("http://localhost/api/searches/123"),
         { params: Promise.resolve({ id: "123" }) },
       );
-      expect(response.status).toBe(404);
-      const link = response.headers.get("Link");
-      expect(link).toBe(
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/api/v1/searches/123");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
         "</api/v1/searches/123>; rel=\"successor-version\"",
       );
     });
   });
 
   describe("GET /search/[id]/snapshot", () => {
-    it("returns 404 with Link header pointing to v1 successor", async () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to v1 successor", async () => {
       const response = await retiredSearchSnapshotGet(
         new Request("http://localhost/search/abc/snapshot"),
         { params: Promise.resolve({ id: "abc" }) },
       );
-      expect(response.status).toBe(404);
-      const link = response.headers.get("Link");
-      expect(link).toBe(
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/api/v1/searches/abc");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
         "</api/v1/searches/abc>; rel=\"successor-version\"",
       );
     });
   });
 
   describe("GET /search/history", () => {
-    it("returns 404 with Link header pointing to v1 successor", () => {
-      const response = retiredSearchHistoryGet(
-        new Request("http://localhost/search/history"),
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to v1 successor", () => {
+      const response = retiredSearchHistoryGet();
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/api/v1/searches");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
       );
-      expect(response.status).toBe(404);
-      const link = response.headers.get("Link");
-      expect(link).toBe(
+      expect(response.headers.get("Link")).toBe(
         "</api/v1/searches>; rel=\"successor-version\"",
       );
+    });
+  });
+
+  describe("GET /searches/[id]/results", () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to canonical /searches/[id]", async () => {
+      const response = await retiredSearchResultsGet(
+        new Request("http://localhost/searches/123/results"),
+        { params: Promise.resolve({ id: "123" }) },
+      );
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/searches/123");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
+        "</searches/123>; rel=\"successor-version\"",
+      );
+    });
+  });
+
+  describe("GET /admin/invites", () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#users", () => {
+      const response = retiredAdminInvitesGet();
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/admin#users");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
+        "</admin#users>; rel=\"successor-version\"",
+      );
+    });
+  });
+
+  describe("GET /admin/topic-proposals", () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#topics", () => {
+      const response = retiredAdminTopicProposalsGet();
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/admin#topics");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
+        "</admin#topics>; rel=\"successor-version\"",
+      );
+    });
+  });
+
+  describe("POST /admin/topic-proposals", () => {
+    it("still serves the Admin Topic Proposal POST handler", async () => {
+      const response = await retiredAdminTopicProposalsPost(
+        new Request("http://localhost/admin/topic-proposals", {
+          method: "POST",
+          headers: {
+            cookie: "placeholder",
+            "content-type": "application/x-www-form-urlencoded",
+          },
+          body: "_csrf=x",
+        }),
+      );
+      expect(response.status).not.toBe(308);
     });
   });
 

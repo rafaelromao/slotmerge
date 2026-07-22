@@ -30,9 +30,39 @@ const deniedOutcomes: Record<CalendarProviderId, OAuthDeniedOutcome> = {
 
 export async function POST(request: Request): Promise<Response> {
   const formData = await request.formData();
-  const error = formData.get("error");
-  const code = formData.get("code");
-  const state = formData.get("state");
+  return handleCallback({
+    error: asStringOrNull(formData.get("error")),
+    code: asStringOrNull(formData.get("code")),
+    state: asStringOrNull(formData.get("state")),
+    requestUrl: request.url,
+  });
+}
+
+export async function GET(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+  return handleCallback({
+    error: url.searchParams.get("error"),
+    code: url.searchParams.get("code"),
+    state: url.searchParams.get("state"),
+    requestUrl: request.url,
+  });
+}
+
+function asStringOrNull(value: FormDataEntryValue | null): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+async function handleCallback({
+  error,
+  code,
+  state,
+  requestUrl,
+}: {
+  error: string | null | undefined;
+  code: string | null | undefined;
+  state: string | null | undefined;
+  requestUrl: string;
+}): Promise<Response> {
   const repository = getCalendarConnectionRepository();
 
   if (typeof error === "string" && error) {
@@ -85,7 +115,7 @@ export async function POST(request: Request): Promise<Response> {
   const result = await completeCalendarConnection({
     provider,
     repository,
-    baseUrl: new URL(request.url).origin,
+    baseUrl: new URL(requestUrl).origin,
     clientId: configuration.clientId,
     clientSecret: configuration.clientSecret,
     code,
@@ -107,7 +137,7 @@ export async function POST(request: Request): Promise<Response> {
   });
 }
 
-async function findConnectionFromState(state: FormDataEntryValue | null) {
+async function findConnectionFromState(state: string | null | undefined) {
   if (typeof state !== "string" || !state) return null;
 
   try {

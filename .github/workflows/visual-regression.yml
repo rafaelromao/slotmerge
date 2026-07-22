@@ -5,6 +5,8 @@ on:
 
 jobs:
   visual-regression:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -38,6 +40,19 @@ jobs:
           name: playwright-screenshots
           path: tests/e2e-browser/screenshots/**/*.png
           retention-days: 14
+
+      - name: Commit captured baselines
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "sandman-bot"
+          git config user.email "sandman-bot@users.noreply.github.com"
+          if git status --porcelain tests/e2e-browser/screenshots/ | grep -q .; then
+            git add tests/e2e-browser/screenshots/
+            git commit -m "chore(t2): commit per-state visual-capture baselines" || echo "nothing to commit"
+            git push origin "$GITHUB_REF_NAME"
+          else
+            echo "No new screenshots to commit"
+          fi
 
       - name: Upload test results
         if: always()

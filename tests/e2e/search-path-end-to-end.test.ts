@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { eq } from "drizzle-orm";
 
 import { GET } from "../../app/api/v1/searches/[id]/route";
-import { SearchResultClient } from "../../app/searches/[id]/results/SearchResultClient";
+import { SearchResultClient } from "../../app/(product)/searches/[id]/SearchResultClient";
 import { sealSessionCookie } from "../../src/auth/session";
 import {
   availabilityWindows,

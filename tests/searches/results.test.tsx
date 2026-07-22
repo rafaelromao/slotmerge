@@ -2,7 +2,7 @@
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { SearchResultClient } from "../../app/searches/[id]/results/SearchResultClient";
+import { SearchResultClient } from "../../app/(product)/searches/[id]/SearchResultClient";
 import type { SearchSnapshot, Slot } from "../../src/db/schema";
 
 describe("SearchResultClient click-to-open flow", () => {

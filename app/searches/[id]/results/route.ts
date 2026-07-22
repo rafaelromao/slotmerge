@@ -6,7 +6,7 @@ export async function GET(
 ): Promise<Response> {
   const { id } = await params;
   return legacyRedirect({
-    target: `/api/v1/searches/${id}`,
+    target: `/searches/${id}`,
     sunset: new Date("2026-12-31T23:59:59.000Z"),
   });
 }

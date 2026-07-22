@@ -36,7 +36,6 @@ export type AvailabilityViewProps = {
   errorCode: string | null;
   errorField: string | null;
   errorTarget: string | null;
-  bufferError: string | null;
   addWindowAction: (formData: FormData) => Promise<never>;
   removeWindowAction: (formData: FormData) => Promise<never>;
   addOverrideAction: (formData: FormData) => Promise<never>;
@@ -83,7 +82,6 @@ export function AvailabilityView(props: AvailabilityViewProps) {
     errorCode,
     errorField,
     errorTarget,
-    bufferError,
     addWindowAction,
     removeWindowAction,
     addOverrideAction,
@@ -554,7 +552,7 @@ export function AvailabilityView(props: AvailabilityViewProps) {
             data-testid="availability-buffer-section"
           >
             <h2 id="availability-buffer-heading">Calendar conflict buffer</h2>
-            {bufferError || bufferIsInvalid ? (
+            {bufferIsInvalid ? (
               <p
                 className="availability-form-error"
                 role="alert"
@@ -638,6 +636,13 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                 Add a weekly window or a one-off override above to start
                 appearing in Organizer Searches.
               </p>
+              <a
+                href="#availability-weekly-section"
+                className="btn btn-primary"
+                data-testid="availability-empty-cta"
+              >
+                Add your first weekly window
+              </a>
             </div>
           ) : null}
         </>

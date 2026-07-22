@@ -320,7 +320,6 @@ describe("AvailabilityView server component", () => {
         errorCode={null}
         errorField={null}
         errorTarget={null}
-        bufferError={null}
         addWindowAction={noopAction}
         removeWindowAction={noopAction}
         addOverrideAction={noopAction}

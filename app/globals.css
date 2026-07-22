@@ -1685,8 +1685,18 @@ button {
   margin-top: var(--space-2);
 }
 
+@media (max-width: 1023px) {
+  .availability-weekly-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 767px) {
   .availability-override-add-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .availability-weekly-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }

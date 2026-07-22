@@ -93,7 +93,7 @@ function buildRedirectUrl(search: Record<string, string>): string {
 function originMatches(request: Request): boolean {
   const origin = request.headers.get("origin");
   if (!origin) {
-    return true;
+    return false;
   }
   try {
     const expected = new URL(loadRuntimeConfig().appPublicUrl).origin;

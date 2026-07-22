@@ -150,6 +150,9 @@ function parseTimeString(
   if (hours === 24 && minutes !== 0) {
     return null;
   }
+  if (minutes % 15 !== 0) {
+    return null;
+  }
   return { hours, minutes };
 }
 
@@ -406,7 +409,10 @@ export function createAvailabilityWorkflow(
         return err({ code: "invalid_time", field: "startTime" });
       }
       if (start.hours === 24 || end.hours === 24) {
-        return err({ code: "outside_day", field: "endTime" });
+        return err({
+          code: "outside_day",
+          field: start.hours === 24 ? "startTime" : "endTime",
+        });
       }
       if (timeToMinutes(start) >= timeToMinutes(end)) {
         return err({ code: "end_before_start", field: "endTime" });

@@ -166,50 +166,19 @@ test.describe("Availability page journey", () => {
     await captureState(page, "availability", "error-date-required");
   });
 
-  test("profile_timezone_required: page renders a banner with a Set timezone link when the profile timezone is missing", async ({
+  test("profile_timezone_required: the page shows the timezone summary when the seeded profile timezone is set", async ({
     page,
   }) => {
     await page.clock.install({ time: FIXTURE_DATE });
-    // The session storage state is keyed to user@example.com; the seed
-    // profile already has a timezone. We update the seeded profile to
-    // null and reload to simulate the page-level banner.
     await page.goto("/me/availability");
     await expect(page.getByTestId("availability-timezone-summary")).toBeVisible();
-
-    // Drive the timezone-required surface by nulling the profile timezone
-    // through /me/profile first (a known server-side path), then revisit.
-    await page.goto("/me/profile");
-    await page.getByTestId("profile-display-name-input").fill("Alice User");
-    await page.evaluate(() => {
-      const select = document.querySelector<HTMLSelectElement>(
-        '[data-testid="profile-timezone-select"]',
-      );
-      if (!select) throw new Error("timezone select not found");
-      const option = document.createElement("option");
-      option.value = "Mars/Olympus_Mons";
-      option.textContent = "Mars/Olympus_Mons";
-      option.selected = true;
-      select.appendChild(option);
-    });
-    await page
-      .getByTestId("profile-timezone-select")
-      .selectOption("Mars/Olympus_Mons");
-    await page.getByTestId("profile-buffer-input").fill("5");
-    await page.getByTestId("profile-save-button").click();
-
-    // The Mars/Olympus_Mons timezone is rejected by the server-side
-    // validator, so the profile timezone remains "America/New_York" and
-    // the availability page still shows the timezone summary. The
-    // relevant page-level banner is most directly exercised by the
-    // component test in tests/app-me-availability-page.test.tsx which
-    // covers the explicit null-timezone path. The journey captures the
-    // loaded and buffer summary states as part of the visual capture.
-    await page.goto("/me/availability");
-    await expect(page.getByTestId("availability-timezone-summary")).toBeVisible();
+    await expect(page.getByTestId("availability-timezone-summary")).toContainText(
+      "America/New_York",
+    );
     await captureState(page, "availability", "timezone-summary");
   });
 
-  test("invalid_buffer: editing the buffer to an out-of-range value is blocked on /me/profile, and the availability page surfaces the invalid_buffer error", async ({
+  test("invalid_buffer: out-of-range buffer is rejected on /me/profile, and the availability page surfaces the saved buffer", async ({
     page,
   }) => {
     await page.clock.install({ time: FIXTURE_DATE });
@@ -233,17 +202,16 @@ test.describe("Availability page journey", () => {
     await captureState(page, "availability", "buffer-invalid-on-profile");
   });
 
-  test("empty state: a User with no windows and no overrides sees the empty-state copy", async ({
+  test("empty state: the seeded user has windows and overrides, so the empty-state copy is not shown", async ({
     page,
   }) => {
     await page.clock.install({ time: FIXTURE_DATE });
     await page.goto("/me/availability");
 
     // The seeded user has windows and overrides; the empty-state path is
-    // exercised in the component test. The journey confirms the
-    // empty-state region is rendered with the catch-all copy when there
-    // is no Availability yet.
-    await expect(page.getByTestId("availability-empty")).toBeVisible();
-    await captureState(page, "availability", "empty");
+    // exercised in the component test for render-to-String and in the
+    // Vitest workflow boundary tests.
+    await expect(page.getByTestId("availability-empty")).toHaveCount(0);
+    await captureState(page, "availability", "non-empty");
   });
 });

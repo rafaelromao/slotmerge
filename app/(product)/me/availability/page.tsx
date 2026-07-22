@@ -111,11 +111,7 @@ export default async function AvailabilityPage({
     : stateResult.value.profileTimezone;
   const bufferMinutes = timezoneRequired ? 0 : stateResult.value.bufferMinutes;
   const bufferValid = workflow.validateBuffer({ bufferMinutes });
-  const bufferError = bufferValid.ok
-    ? null
-    : validErrorCode === "invalid_buffer"
-      ? "invalid_buffer"
-      : null;
+  const bufferIsInvalid = !bufferValid.ok;
 
   const windowsByDay = timezoneRequired
     ? { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }
@@ -128,7 +124,7 @@ export default async function AvailabilityPage({
       csrfToken={context.csrfToken}
       profileTimezone={profileTimezone}
       bufferMinutes={bufferMinutes}
-      bufferIsInvalid={!bufferValid.ok}
+      bufferIsInvalid={bufferIsInvalid}
       timezoneRequired={timezoneRequired}
       saved={saved}
       windowsByDay={windowsByDay}
@@ -141,7 +137,6 @@ export default async function AvailabilityPage({
       removeWindowAction={removeWindowAction}
       addOverrideAction={addOverrideAction}
       removeOverrideAction={removeOverrideAction}
-      bufferError={bufferError}
     />
   );
 }

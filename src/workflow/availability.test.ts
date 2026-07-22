@@ -249,6 +249,19 @@ describe("availabilityWorkflow", () => {
     expect(result.error.code).toBe("invalid_time");
   });
 
+  it("addWindow returns invalid_time when the minutes are not in 15-minute increments", async () => {
+    const result = await workflow.addWindow({
+      userId: "user-1",
+      dayOfWeek: 1,
+      startTime: "09:07",
+      endTime: "10:00",
+      profileTimezone: "America/New_York",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("invalid_time");
+  });
+
   it("addWindow returns outside_day when endTime is 24:00", async () => {
     const result = await workflow.addWindow({
       userId: "user-1",

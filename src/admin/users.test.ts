@@ -39,6 +39,7 @@ describe("admin users", () => {
         changeRole: vi.fn(),
         suspend: vi.fn(),
         reinstate: vi.fn(),
+        findActiveUserByEmail: vi.fn(),
       },
     });
 
@@ -69,6 +70,7 @@ describe("admin users", () => {
         changeRole: vi.fn(),
         suspend: vi.fn(),
         reinstate: vi.fn(),
+        findActiveUserByEmail: vi.fn(),
       },
     });
 
@@ -87,6 +89,7 @@ describe("admin users", () => {
         changeRole: vi.fn(),
         suspend: vi.fn(),
         reinstate: vi.fn(),
+        findActiveUserByEmail: vi.fn(),
       },
     });
 
@@ -118,6 +121,7 @@ describe("admin users", () => {
         changeRole: vi.fn(),
         suspend: vi.fn(),
         reinstate: vi.fn(),
+        findActiveUserByEmail: vi.fn(),
       },
     });
 
@@ -139,6 +143,7 @@ describe("admin users", () => {
           changeRole,
           suspend: vi.fn(),
           reinstate: vi.fn(),
+          findActiveUserByEmail: vi.fn(),
         },
       });
 
@@ -178,6 +183,7 @@ describe("admin users", () => {
           changeRole,
           suspend: vi.fn(),
           reinstate: vi.fn(),
+          findActiveUserByEmail: vi.fn(),
         },
       });
 
@@ -211,6 +217,7 @@ describe("admin users", () => {
           changeRole,
           suspend: vi.fn(),
           reinstate: vi.fn(),
+          findActiveUserByEmail: vi.fn(),
         },
       });
 
@@ -245,6 +252,7 @@ describe("admin users", () => {
           changeRole,
           suspend: vi.fn(),
           reinstate: vi.fn(),
+          findActiveUserByEmail: vi.fn(),
         },
       });
 
@@ -278,6 +286,7 @@ describe("admin users", () => {
           changeRole: vi.fn(),
           suspend,
           reinstate: vi.fn(),
+          findActiveUserByEmail: vi.fn(),
         },
       });
 
@@ -318,6 +327,7 @@ describe("admin users", () => {
           changeRole: vi.fn(),
           suspend,
           reinstate: vi.fn(),
+          findActiveUserByEmail: vi.fn(),
         },
       });
 
@@ -351,6 +361,7 @@ describe("admin users", () => {
           changeRole: vi.fn(),
           suspend,
           reinstate: vi.fn(),
+          findActiveUserByEmail: vi.fn(),
         },
       });
 
@@ -381,6 +392,7 @@ describe("admin users", () => {
           changeRole: vi.fn(),
           suspend,
           reinstate: vi.fn(),
+          findActiveUserByEmail: vi.fn(),
         },
       });
 
@@ -412,6 +424,7 @@ describe("admin users", () => {
           changeRole: vi.fn(),
           suspend,
           reinstate: vi.fn(),
+          findActiveUserByEmail: vi.fn(),
         },
       });
 
@@ -445,6 +458,7 @@ describe("admin users", () => {
           changeRole: vi.fn(),
           suspend: vi.fn(),
           reinstate,
+          findActiveUserByEmail: vi.fn(),
         },
       });
 
@@ -485,6 +499,7 @@ describe("admin users", () => {
           changeRole: vi.fn(),
           suspend: vi.fn(),
           reinstate,
+          findActiveUserByEmail: vi.fn(),
         },
       });
 
@@ -518,6 +533,7 @@ describe("admin users", () => {
           changeRole: vi.fn(),
           suspend: vi.fn(),
           reinstate,
+          findActiveUserByEmail: vi.fn(),
         },
       });
 
@@ -551,6 +567,7 @@ describe("admin users", () => {
           changeRole: vi.fn(),
           suspend: vi.fn(),
           reinstate,
+          findActiveUserByEmail: vi.fn(),
         },
       });
 

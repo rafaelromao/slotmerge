@@ -33,6 +33,7 @@ export type InviteRecord = InviteListItem & {
 
 export type InviteRepository = {
   listInvites(): Promise<InviteListItem[]>;
+  listRecentInvites(limit: number): Promise<InviteListItem[]>;
   createInvite(input: {
     email: string;
     role: InviteRole;
@@ -335,6 +336,24 @@ const databaseInviteRepository: InviteRepository = {
       .from(invites)
       .leftJoin(users, eq(invites.invitedByAdminId, users.id))
       .orderBy(desc(invites.createdAt));
+
+    return rows;
+  },
+  listRecentInvites: async (limit) => {
+    const rows = await getDb()
+      .select({
+        id: invites.id,
+        email: invites.email,
+        role: invites.role,
+        status: invites.status,
+        invitedByAdminId: invites.invitedByAdminId,
+        invitedByAdminEmail: users.email,
+        magicLinkGeneration: invites.magicLinkGeneration,
+      })
+      .from(invites)
+      .leftJoin(users, eq(invites.invitedByAdminId, users.id))
+      .orderBy(desc(invites.createdAt))
+      .limit(limit);
 
     return rows;
   },

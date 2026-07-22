@@ -27,6 +27,7 @@ export type CreateInviteResult =
 
 export type InviteRepository = {
   listInvites(): Promise<InviteListItem[]>;
+  listRecentInvites(limit: number): Promise<InviteListItem[]>;
   createInvite(input: {
     email: string;
     role: InviteRole;
@@ -60,6 +61,25 @@ export function createPostgresInviteRepository(db = getDb()): InviteRepository {
         .from(invites)
         .leftJoin(users, eq(invites.invitedByAdminId, users.id))
         .orderBy(desc(invites.createdAt));
+
+      return rows;
+    },
+
+    async listRecentInvites(limit) {
+      const rows = await db
+        .select({
+          id: invites.id,
+          email: invites.email,
+          role: invites.role,
+          status: invites.status,
+          invitedByAdminId: invites.invitedByAdminId,
+          invitedByAdminEmail: users.email,
+          magicLinkGeneration: invites.magicLinkGeneration,
+        })
+        .from(invites)
+        .leftJoin(users, eq(invites.invitedByAdminId, users.id))
+        .orderBy(desc(invites.createdAt))
+        .limit(limit);
 
       return rows;
     },

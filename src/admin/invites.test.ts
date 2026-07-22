@@ -28,6 +28,7 @@ describe("admin invites", () => {
       }),
       inviteRepository: {
         listInvites: vi.fn().mockResolvedValue([]),
+        listRecentInvites: vi.fn().mockResolvedValue([]),
         createInvite: vi.fn(),
       },
     });
@@ -227,6 +228,7 @@ describe("admin invites", () => {
             invitedByAdminEmail: "admin@example.com",
           },
         ]),
+        listRecentInvites: vi.fn().mockResolvedValue([]),
         createInvite: vi.fn(),
       },
     });
@@ -450,6 +452,7 @@ describe("admin invites", () => {
             invitedByAdminEmail: null,
           },
         ]),
+        listRecentInvites: vi.fn().mockResolvedValue([]),
         createInvite: vi.fn(),
       },
     });

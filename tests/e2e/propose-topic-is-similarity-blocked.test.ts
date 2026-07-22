@@ -10,8 +10,8 @@ import {
   it,
 } from "vitest";
 
-import { POST as postPropose } from "../../app/me/topics/propose/route";
-import { GET as getMyTopics } from "../../app/me/topics/route";
+import { POST as postPropose } from "../../app/api/v1/me/topics/propose/route";
+import { GET as getMyTopics } from "../../app/api/v1/me/topics/route";
 import { clearPerUserLookupStateForTests } from "../../app/api/v1/me/route";
 import { sealSessionCookie } from "../../src/auth/session";
 import { topicProposals } from "../../src/db/schema";

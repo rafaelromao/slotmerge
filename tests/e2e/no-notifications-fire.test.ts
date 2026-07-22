@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, inject, it } from "vitest";
 
-import { POST as postPropose } from "../../app/me/topics/propose/route";
+import { POST as postPropose } from "../../app/api/v1/me/topics/propose/route";
 import { createAdminTopicsHandlers } from "../../src/admin/topics";
 import { createAdminTopicProposalsHandlers } from "../../src/admin/topic-proposals";
 import { sealSessionCookie } from "../../src/auth/session";

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, inject, it } from "vitest";
 
-import { GET } from "../../app/me/topics/route";
+import { GET } from "../../app/api/v1/me/topics/route";
 import { createAdminTopicProposalsHandlers } from "../../src/admin/topic-proposals";
 import { sealSessionCookie } from "../../src/auth/session";
 import {

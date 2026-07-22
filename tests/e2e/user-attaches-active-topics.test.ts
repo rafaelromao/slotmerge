@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
-import { GET, PUT } from "../../app/me/topics/route";
+import { GET, PUT } from "../../app/api/v1/me/topics/route";
 import { sealSessionCookie } from "../../src/auth/session";
 import {
   SESSION_FIXTURES,

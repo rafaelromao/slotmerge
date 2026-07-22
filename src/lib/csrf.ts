@@ -52,6 +52,13 @@ export function assertCsrfFromFormData(
   }
 }
 
+export function csrfErrorResponse(): Response {
+  return new Response(null, {
+    status: 403,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}
+
 function assertOrigin(request: Request): void {
   const origin = request.headers.get("Origin");
   if (!origin) {

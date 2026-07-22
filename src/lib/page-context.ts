@@ -1,5 +1,5 @@
 import { cookies, headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 import { getSessionFromRequest, type Session } from "../auth/session";
 import type { UserRole } from "../db/schema";
@@ -88,7 +88,14 @@ function redirectToSignIn(request: Request): never {
   const target = returnTo
     ? `/sign-in?returnTo=${encodeURIComponent(returnTo)}`
     : "/sign-in";
-  redirect(target);
+  throw makeRedirectError(target);
+}
+
+function makeRedirectError(target: string): Error {
+  const error = new Error("NEXT_REDIRECT");
+  (error as Error & { digest?: string }).digest =
+    `NEXT_REDIRECT;303;${encodeURI(target)};`;
+  return error;
 }
 
 function safeReturnTo(url: URL): string | null {

@@ -36,10 +36,14 @@ vi.mock("next/headers", () => ({
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
-    throw new Error("NEXT_NOT_FOUND");
+    const error = new Error("NEXT_NOT_FOUND");
+    (error as Error & { digest?: string }).digest = "NEXT_NOT_FOUND";
+    throw error;
   },
   redirect: (url: string) => {
-    throw new Error(`NEXT_REDIRECT:${url}`);
+    const error = new Error("NEXT_REDIRECT");
+    (error as Error & { digest?: string }).digest = `NEXT_REDIRECT;303;${url};`;
+    throw error;
   },
 }));
 
@@ -93,7 +97,14 @@ describe("Admin page", () => {
   it("redirects when there is no session", async () => {
     vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue(null);
     const { default: AdminPage } = await import("../app/(product)/admin/page");
-    await expect(AdminPage()).rejects.toThrow(/NEXT_REDIRECT:\/sign-in/);
+    let message = "";
+    try {
+      await AdminPage();
+    } catch (error) {
+      message = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(message).toContain("NEXT_REDIRECT");
+    expect(decodeURIComponent(message)).toContain("/sign-in");
   });
 
   it("redirects when the session is suspended", async () => {
@@ -112,6 +123,32 @@ describe("Admin page", () => {
       csrfToken: "csrf-token-user",
     });
     const { default: AdminPage } = await import("../app/(product)/admin/page");
-    await expect(AdminPage()).rejects.toThrow(/NEXT_REDIRECT:\/sign-in/);
+    let message = "";
+    try {
+      await AdminPage();
+    } catch (error) {
+      message = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(message).toContain("NEXT_REDIRECT");
+    expect(decodeURIComponent(message)).toContain("/sign-in");
+  });
+
+  it("throws NEXT_NOT_FOUND when called by a non-admin", async () => {
+    vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue({
+      user: {
+        id: "user-1",
+        email: "user@example.com",
+        displayName: "Alice User",
+        avatarUrl: null,
+        shortBio: null,
+        role: "user",
+        status: "active",
+        profileTimezone: null,
+        bufferMinutes: 0,
+      },
+      csrfToken: "csrf-token-user",
+    });
+    const { default: AdminPage } = await import("../app/(product)/admin/page");
+    await expect(AdminPage()).rejects.toThrow("NEXT_NOT_FOUND");
   });
 });

@@ -6,12 +6,8 @@ import {
   type SessionRepository,
 } from "../auth/session";
 
-const redirectMock = vi.fn((url: string) => {
-  throw new Error(`NEXT_REDIRECT:${url}`);
-});
-const notFoundMock = vi.fn(() => {
-  throw new Error("NEXT_NOT_FOUND");
-});
+const redirectMock = vi.fn();
+const notFoundMock = vi.fn();
 
 vi.mock("../config/runtime", async () => {
   const actual =
@@ -39,8 +35,18 @@ vi.mock("../config/runtime", async () => {
 });
 
 vi.mock("next/navigation", () => ({
-  redirect: (url: string) => redirectMock(url),
-  notFound: () => notFoundMock(),
+  redirect: (url: string) => {
+    redirectMock(url);
+    const error = new Error("NEXT_REDIRECT");
+    (error as Error & { digest?: string }).digest = `NEXT_REDIRECT;303;${url};`;
+    throw error;
+  },
+  notFound: () => {
+    notFoundMock();
+    const error = new Error("NEXT_NOT_FOUND");
+    (error as Error & { digest?: string }).digest = "NEXT_NOT_FOUND";
+    throw error;
+  },
 }));
 
 const headersMock = vi.fn();
@@ -121,16 +127,17 @@ async function setSessionRepositoryForTests(
 
 async function expectRedirect(
   promise: Promise<unknown>,
-  expectedPath: string,
+  expectedLocation: string,
 ): Promise<void> {
   try {
     await promise;
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith("NEXT_REDIRECT:")) {
-      const target = error.message.slice("NEXT_REDIRECT:".length);
-      expect(target).toBe(expectedPath);
-      expect(redirectMock).toHaveBeenCalledWith(expectedPath);
-      return;
+    if (error instanceof Error) {
+      const digest = (error as Error & { digest?: string }).digest ?? "";
+      if (digest.startsWith("NEXT_REDIRECT")) {
+        expect(decodeURIComponent(digest)).toContain(expectedLocation);
+        return;
+      }
     }
     throw error;
   }

@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CsrfError, assertCsrfFromFormData, assertCsrfOrThrow } from "./csrf";
+import {
+  CsrfError,
+  assertCsrfFromFormData,
+  assertCsrfOrThrow,
+  csrfErrorResponse,
+} from "./csrf";
 
 vi.mock("../config/runtime", async () => {
   const actual =
@@ -235,5 +240,13 @@ describe("CsrfError", () => {
       expect(response.status).toBe(403);
       expect(await response.text()).toBe("");
     }
+  });
+});
+
+describe("csrfErrorResponse", () => {
+  it("returns a generic 403 response with no body", async () => {
+    const response = csrfErrorResponse();
+    expect(response.status).toBe(403);
+    expect(await response.text()).toBe("");
   });
 });

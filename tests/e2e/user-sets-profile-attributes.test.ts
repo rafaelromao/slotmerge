@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, inject, it } from "vitest";
 
-import { GET, PATCH } from "../../app/me/route";
+import { GET, PATCH } from "../../app/api/v1/me/route";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,

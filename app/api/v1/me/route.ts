@@ -4,18 +4,18 @@ import { z } from "zod";
 import {
   clearSessionCookie,
   getSessionFromRequest,
-} from "../../src/auth/session";
-import { getDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
+} from "../../../../src/auth/session";
+import { getDiscoverabilityConsent } from "../../../../src/profile/discoverability-consent";
 import {
   deleteProfileByUserId,
   getProfileByUserId,
   updateProfileByUserId,
-} from "../../src/profile/repository";
+} from "../../../../src/profile/repository";
 import {
   isEligibleForSearch,
   type ProfileInputs,
-} from "../../src/search/search-snapshot-assembler";
-import { type TopicProposalStatus } from "../../src/db/schema";
+} from "../../../../src/search/search-snapshot-assembler";
+import { type TopicProposalStatus } from "../../../../src/db/schema";
 
 const supportedTimeZones = new Set(Intl.supportedValuesOf("timeZone"));
 
@@ -324,8 +324,11 @@ async function buildMeResponse(
   calendarConnections: CalendarConnection[],
 ): Promise<Response> {
   const consent = await getDiscoverabilityConsent(profile.id);
-  const consented = consent !== null;
-  const grantedAtIso = consented ? consent.grantedAt.toISOString() : null;
+  const consented = consent?.state === "granted";
+  const grantedAtIso =
+    consented && consent.state === "granted"
+      ? consent.grantedAt.toISOString()
+      : null;
 
   const setup = computeSetupCompleteness(
     profile,

@@ -37,6 +37,7 @@ export const users = pgTable("users", {
   shortBio: text("short_bio"),
   role: text("role").$type<UserRole>().notNull().default("user"),
   status: text("status").$type<UserStatus>().notNull().default("active"),
+  magicLinkGeneration: integer("magic_link_generation").notNull().default(0),
   profileTimezone: text("profile_timezone"),
   bufferMinutes: integer("buffer_minutes").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -358,9 +359,8 @@ export const discoverabilityConsents = pgTable("discoverability_consents", {
   userId: uuid("user_id")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
-  grantedAt: timestamp("granted_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  grantedAt: timestamp("granted_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
 });
 
 export const availabilityWindows = pgTable(

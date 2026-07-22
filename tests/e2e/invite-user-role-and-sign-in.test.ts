@@ -242,7 +242,7 @@ describe("E2E: invite role selection is explicit for User", () => {
         }),
       );
 
-      expect(verifyResponse.status).toBe(302);
+      expect(verifyResponse.status).toBe(303);
       expect(verifyResponse.headers.get("Location")).toBe("http://localhost/");
       const setCookie = verifyResponse.headers.get("Set-Cookie");
       expect(setCookie).not.toBeNull();
@@ -289,9 +289,12 @@ describe("E2E: invite role selection is explicit for User", () => {
         }),
       );
 
-      expect(replayResponse.status).toBe(400);
-      const replayHtml = await replayResponse.text();
-      expect(replayHtml).toContain("invite_already_accepted");
+      expect(replayResponse.status).toBe(303);
+      const replayUrl = new URL(replayResponse.headers.get("Location")!);
+      expect(replayUrl.searchParams.get("error")).toBe("link_used");
+      expect(replayUrl.searchParams.get("reason")).toBe(
+        "invite_already_accepted",
+      );
 
       const replaySetCookie = replayResponse.headers.get("Set-Cookie");
       const containsSessionCookie =

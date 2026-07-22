@@ -2,6 +2,12 @@ name: Browser Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      test_path:
+        description: Playwright test path to run
+        required: false
+        default: tests/e2e-browser
+        type: string
 
 jobs:
   browser-tests:
@@ -10,6 +16,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.11.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -24,8 +35,9 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run browser tests
-        run: pnpm exec playwright test --project=default
+        run: pnpm exec playwright test "$TEST_PATH" --project=default
         env:
+          TEST_PATH: ${{ inputs.test_path }}
           APP_ENV: test
           CI: "true"
           DATABASE_URL: postgres://slotmerge:slotmerge@localhost:5432/slotmerge
@@ -46,7 +58,7 @@ jobs:
         with:
           name: playwright-artifacts
           path: |
-            playwright/.artifacts/**/videos/**/*.webm
-            playwright/.artifacts/**/trace.zip
+            playwright/.artifacts/**/*.webm
+            playwright/.artifacts/**/*.zip
             playwright/.auth/**
           retention-days: 14

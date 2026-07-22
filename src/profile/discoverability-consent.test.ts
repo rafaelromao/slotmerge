@@ -2,49 +2,61 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   clearDiscoverabilityConsentOverride,
+  type DiscoverabilityConsentRecord,
+  type DiscoverabilityConsentRepository,
+  type DiscoverabilityConsentState,
   getDiscoverabilityConsent,
+  grantDiscoverabilityConsent,
   revokeDiscoverabilityConsent,
   setDiscoverabilityConsentRepositoryForTests,
-  type DiscoverabilityConsentRepository,
-  type DiscoverabilityConsentRecord,
 } from "./discoverability-consent";
 
 class InMemoryDiscoverabilityConsentRepository implements DiscoverabilityConsentRepository {
-  private readonly state = new Map<string, DiscoverabilityConsentRecord>();
+  private readonly state = new Map<string, DiscoverabilityConsentState>();
+
+  constructor(private readonly now: () => Date = () => new Date()) {}
 
   async findByUserId(
     userId: string,
-  ): Promise<DiscoverabilityConsentRecord | null> {
+  ): Promise<DiscoverabilityConsentState | null> {
     await Promise.resolve();
-    return this.state.get(userId) ?? null;
-  }
-
-  async grant(userId: string): Promise<DiscoverabilityConsentRecord> {
-    await Promise.resolve();
-    const existing = this.state.get(userId);
-    if (existing) {
-      return existing;
+    const stored = this.state.get(userId);
+    if (!stored) {
+      return null;
     }
-    const record: DiscoverabilityConsentRecord = {
-      userId,
-      grantedAt: new Date("2026-07-12T12:00:00.000Z"),
-    };
-    this.state.set(userId, record);
-    return record;
+    if (stored.state === "granted") {
+      return { state: "granted", grantedAt: stored.grantedAt };
+    }
+    return { state: "revoked", revokedAt: stored.revokedAt };
   }
 
-  async revoke(userId: string): Promise<void> {
+  async grant(userId: string): Promise<{ userId: string; grantedAt: Date }> {
     await Promise.resolve();
-    this.state.delete(userId);
+    const grantedAt = this.now();
+    const record = { state: "granted" as const, grantedAt };
+    this.state.set(userId, record);
+    return { userId, grantedAt };
+  }
+
+  async revoke(userId: string): Promise<{ userId: string; revokedAt: Date }> {
+    await Promise.resolve();
+    const revokedAt = this.now();
+    const record = { state: "revoked" as const, revokedAt };
+    this.state.set(userId, record);
+    return { userId, revokedAt };
+  }
+
+  hasStoredRecord(userId: string): boolean {
+    return this.state.has(userId);
   }
 }
 
-describe("discoverability consent repository", () => {
+describe("discoverability consent repository (soft-revoke)", () => {
   afterEach(() => {
     clearDiscoverabilityConsentOverride();
   });
 
-  it("returns no consent record for a user who has never granted consent", async () => {
+  it("returns null when the user has never granted consent", async () => {
     setDiscoverabilityConsentRepositoryForTests(
       new InMemoryDiscoverabilityConsentRepository(),
     );
@@ -52,59 +64,81 @@ describe("discoverability consent repository", () => {
     await expect(getDiscoverabilityConsent("user-1")).resolves.toBeNull();
   });
 
-  it("persists a granted consent record with the grant timestamp", async () => {
-    const repository = new InMemoryDiscoverabilityConsentRepository();
-    setDiscoverabilityConsentRepositoryForTests(repository);
-
-    await expect(repository.grant("user-1")).resolves.toMatchObject({
-      userId: "user-1",
-    });
-    const record = await getDiscoverabilityConsent("user-1");
-
-    expect(record).not.toBeNull();
-    expect(record?.grantedAt).toBeInstanceOf(Date);
-  });
-
-  it("treats revoke on a missing record as an idempotent no-op", async () => {
-    const repository = new InMemoryDiscoverabilityConsentRepository();
-    setDiscoverabilityConsentRepositoryForTests(repository);
-
-    await expect(
-      revokeDiscoverabilityConsent("user-1"),
-    ).resolves.toBeUndefined();
-    await expect(getDiscoverabilityConsent("user-1")).resolves.toBeNull();
-  });
-
-  it("removes the consent record on revoke so it is no longer persisted", async () => {
-    const repository = new InMemoryDiscoverabilityConsentRepository();
-    setDiscoverabilityConsentRepositoryForTests(repository);
-
-    await repository.grant("user-1");
-    await revokeDiscoverabilityConsent("user-1");
-
-    await expect(getDiscoverabilityConsent("user-1")).resolves.toBeNull();
-  });
-
-  it("re-granting consent after a revoke yields a fresh consent record", async () => {
-    const repository = new InMemoryDiscoverabilityConsentRepository();
-    setDiscoverabilityConsentRepositoryForTests(repository);
-
-    await repository.grant("user-1");
-    await revokeDiscoverabilityConsent("user-1");
-    const reGranted = await repository.grant("user-1");
-
-    await expect(getDiscoverabilityConsent("user-1")).resolves.toEqual(
-      reGranted,
+  it("returns the granted state with the grant timestamp after grant()", async () => {
+    const fixedNow = new Date("2026-07-12T12:00:00.000Z");
+    const repository = new InMemoryDiscoverabilityConsentRepository(
+      () => fixedNow,
     );
+    setDiscoverabilityConsentRepositoryForTests(repository);
+
+    await grantDiscoverabilityConsent("user-1");
+
+    await expect(getDiscoverabilityConsent("user-1")).resolves.toEqual({
+      state: "granted",
+      grantedAt: fixedNow,
+    });
+  });
+
+  it("soft-revokes the consent record so the row is preserved with revokedAt", async () => {
+    let now = new Date("2026-07-12T12:00:00.000Z");
+    const repository = new InMemoryDiscoverabilityConsentRepository(() => now);
+    setDiscoverabilityConsentRepositoryForTests(repository);
+
+    await grantDiscoverabilityConsent("user-1");
+    const revokeAt = new Date("2026-07-13T08:00:00.000Z");
+    now = revokeAt;
+    await revokeDiscoverabilityConsent("user-1");
+
+    expect(repository.hasStoredRecord("user-1")).toBe(true);
+    await expect(getDiscoverabilityConsent("user-1")).resolves.toEqual({
+      state: "revoked",
+      revokedAt: revokeAt,
+    });
+  });
+
+  it("treats revoke on a missing record as a fresh revoked record", async () => {
+    const revokeAt = new Date("2026-07-13T08:00:00.000Z");
+    const repository = new InMemoryDiscoverabilityConsentRepository(
+      () => revokeAt,
+    );
+    setDiscoverabilityConsentRepositoryForTests(repository);
+
+    await revokeDiscoverabilityConsent("user-1");
+
+    await expect(getDiscoverabilityConsent("user-1")).resolves.toEqual({
+      state: "revoked",
+      revokedAt: revokeAt,
+    });
+  });
+
+  it("re-granting after a revoke clears the revoked timestamp and stores grantedAt", async () => {
+    let now = new Date("2026-07-12T12:00:00.000Z");
+    const repository = new InMemoryDiscoverabilityConsentRepository(() => now);
+    setDiscoverabilityConsentRepositoryForTests(repository);
+
+    await grantDiscoverabilityConsent("user-1");
+    now = new Date("2026-07-13T08:00:00.000Z");
+    await revokeDiscoverabilityConsent("user-1");
+    const reGrantAt = new Date("2026-07-14T09:30:00.000Z");
+    now = reGrantAt;
+    await grantDiscoverabilityConsent("user-1");
+
+    await expect(getDiscoverabilityConsent("user-1")).resolves.toEqual({
+      state: "granted",
+      grantedAt: reGrantAt,
+    });
   });
 
   it("supports swapping the repository via the test override without leaking across tests", async () => {
-    const firstRepository = new InMemoryDiscoverabilityConsentRepository();
+    const grantAt = new Date("2026-07-12T12:00:00.000Z");
+    const firstRepository = new InMemoryDiscoverabilityConsentRepository(
+      () => grantAt,
+    );
     setDiscoverabilityConsentRepositoryForTests(firstRepository);
 
-    await firstRepository.grant("user-1");
+    await grantDiscoverabilityConsent("user-1");
     await expect(getDiscoverabilityConsent("user-1")).resolves.toMatchObject({
-      userId: "user-1",
+      state: "granted",
     });
 
     clearDiscoverabilityConsentOverride();
@@ -113,5 +147,24 @@ describe("discoverability consent repository", () => {
     setDiscoverabilityConsentRepositoryForTests(secondRepository);
 
     await expect(getDiscoverabilityConsent("user-1")).resolves.toBeNull();
+  });
+
+  it("type-narrows the returned record so callers can switch on state", async () => {
+    const fixedNow = new Date("2026-07-12T12:00:00.000Z");
+    const repository = new InMemoryDiscoverabilityConsentRepository(
+      () => fixedNow,
+    );
+    setDiscoverabilityConsentRepositoryForTests(repository);
+
+    await grantDiscoverabilityConsent("user-1");
+    const grantedRecord: DiscoverabilityConsentRecord | null =
+      await getDiscoverabilityConsent("user-1");
+    expect(grantedRecord).not.toBeNull();
+    expect(grantedRecord?.state).toBe("granted");
+
+    await revokeDiscoverabilityConsent("user-1");
+    const revokedRecord: DiscoverabilityConsentRecord | null =
+      await getDiscoverabilityConsent("user-1");
+    expect(revokedRecord?.state).toBe("revoked");
   });
 });

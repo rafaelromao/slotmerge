@@ -8,37 +8,45 @@ import {
 import {
   clearDiscoverabilityConsentOverride,
   setDiscoverabilityConsentRepositoryForTests,
-  type DiscoverabilityConsentRecord,
   type DiscoverabilityConsentRepository,
+  type DiscoverabilityConsentState,
 } from "../src/profile/discoverability-consent";
 
-class InMemoryDiscoverabilityConsentRepository implements DiscoverabilityConsentRepository {
-  private readonly state = new Map<string, DiscoverabilityConsentRecord>();
+class InMemoryDiscoverabilityConsentRepository
+  implements DiscoverabilityConsentRepository
+{
+  private readonly state = new Map<string, DiscoverabilityConsentState>();
 
   async findByUserId(
     userId: string,
-  ): Promise<DiscoverabilityConsentRecord | null> {
+  ): Promise<DiscoverabilityConsentState | null> {
     await Promise.resolve();
-    return this.state.get(userId) ?? null;
-  }
-
-  async grant(userId: string): Promise<DiscoverabilityConsentRecord> {
-    await Promise.resolve();
-    const existing = this.state.get(userId);
-    if (existing) {
-      return existing;
+    const stored = this.state.get(userId);
+    if (!stored) {
+      return null;
     }
-    const record: DiscoverabilityConsentRecord = {
-      userId,
-      grantedAt: new Date("2026-07-12T12:00:00.000Z"),
-    };
-    this.state.set(userId, record);
-    return record;
+    if (stored.state === "granted") {
+      return { state: "granted", grantedAt: stored.grantedAt };
+    }
+    return { state: "revoked", revokedAt: stored.revokedAt };
   }
 
-  async revoke(userId: string): Promise<void> {
+  async grant(
+    userId: string,
+  ): Promise<{ userId: string; grantedAt: Date }> {
     await Promise.resolve();
-    this.state.delete(userId);
+    const grantedAt = new Date("2026-07-12T12:00:00.000Z");
+    this.state.set(userId, { state: "granted", grantedAt });
+    return { userId, grantedAt };
+  }
+
+  async revoke(
+    userId: string,
+  ): Promise<{ userId: string; revokedAt: Date }> {
+    await Promise.resolve();
+    const revokedAt = new Date("2026-07-13T08:00:00.000Z");
+    this.state.set(userId, { state: "revoked", revokedAt });
+    return { userId, revokedAt };
   }
 }
 
@@ -270,7 +278,7 @@ describe("DELETE /me/discoverability-consent", () => {
     });
   });
 
-  it("removes a previously granted record on revoke", async () => {
+  it("soft-revokes a previously granted record", async () => {
     const repository = new InMemoryDiscoverabilityConsentRepository();
     await repository.grant("user-1");
     setDiscoverabilityConsentRepositoryForTests(repository);
@@ -294,5 +302,8 @@ describe("DELETE /me/discoverability-consent", () => {
     await expect(response.json()).resolves.toEqual({
       discoverability: { consented: false },
     });
+
+    const stored = await repository.findByUserId("user-1");
+    expect(stored?.state).toBe("revoked");
   });
 });

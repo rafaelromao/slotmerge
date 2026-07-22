@@ -89,7 +89,7 @@ function createMockEmailDeliveryService() {
 
 describe("magic link request handler", () => {
   describe("POST", () => {
-    it("returns not_invited for unknown email (no pending invite, no user)", async () => {
+    it("returns 202 for unknown email (no pending invite, no user) — non-leaking", async () => {
       const mockInviteRepo = createMockInviteRepository();
       mockInviteRepo.findPendingByEmail.mockResolvedValue(null);
 
@@ -110,15 +110,15 @@ describe("magic link request handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(202);
       const body = (await response.json()) as {
         error?: string;
         sent?: boolean;
       };
-      expect(body).toEqual({ error: "not_invited" });
+      expect(body).toEqual({ sent: true });
     });
 
-    it("returns not_invited for email with only accepted invite (no user)", async () => {
+    it("returns 202 for email with only accepted invite (no user) — non-leaking", async () => {
       const mockInviteRepo = createMockInviteRepository();
       mockInviteRepo.findPendingByEmail.mockResolvedValue(null);
 
@@ -139,15 +139,15 @@ describe("magic link request handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(202);
       const body = (await response.json()) as {
         error?: string;
         sent?: boolean;
       };
-      expect(body).toEqual({ error: "not_invited" });
+      expect(body).toEqual({ sent: true });
     });
 
-    it("returns not_invited for suspended user", async () => {
+    it("returns 202 for suspended user — non-leaking", async () => {
       const mockInviteRepo = createMockInviteRepository();
       mockInviteRepo.findPendingByEmail.mockResolvedValue(null);
 
@@ -173,15 +173,15 @@ describe("magic link request handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(202);
       const body = (await response.json()) as {
         error?: string;
         sent?: boolean;
       };
-      expect(body).toEqual({ error: "not_invited" });
+      expect(body).toEqual({ sent: true });
     });
 
-    it("returns not_invited for suspended user even with pending invite", async () => {
+    it("returns 202 for suspended user even with pending invite (no email sent, non-leaking)", async () => {
       const mockInviteRepo = createMockInviteRepository();
       mockInviteRepo.findPendingByEmail.mockResolvedValue({
         id: "invite-1",
@@ -214,16 +214,16 @@ describe("magic link request handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(202);
       const body = (await response.json()) as {
         error?: string;
         sent?: boolean;
       };
-      expect(body).toEqual({ error: "not_invited" });
+      expect(body).toEqual({ sent: true });
       expect(mockInviteRepo.findPendingByEmail).not.toHaveBeenCalled();
     });
 
-    it("rate limits repeated request attempts from the same client", async () => {
+    it("rate limits repeated request attempts from the same client (5 OK then 429)", async () => {
       const mockInviteRepo = createMockInviteRepository();
       mockInviteRepo.findPendingByEmail.mockResolvedValue(null);
 
@@ -245,7 +245,7 @@ describe("magic link request handler", () => {
 
       for (let attempt = 0; attempt < 5; attempt += 1) {
         const response = await POST(request());
-        expect(response.status).toBe(400);
+        expect(response.status).toBe(202);
       }
 
       const response = await POST(request());
@@ -351,7 +351,7 @@ describe("magic link request handler", () => {
         }),
       );
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(202);
       const body = (await response.json()) as {
         error?: string;
         sent?: boolean;
@@ -422,7 +422,7 @@ describe("magic link request handler", () => {
         }),
       );
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(202);
       const body = (await response.json()) as {
         error?: string;
         sent?: boolean;
@@ -500,7 +500,7 @@ describe("magic link request handler", () => {
         }),
       );
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(202);
       const body = (await response.json()) as {
         error?: string;
         sent?: boolean;
@@ -508,7 +508,7 @@ describe("magic link request handler", () => {
       expect(body).toEqual({ sent: true });
 
       expect(mockUserRepo.findByEmail).toHaveBeenCalledWith("both@example.com");
-      expect(mockInviteRepo.findPendingByEmail).toHaveBeenCalled();
+      expect(mockInviteRepo.findPendingByEmail).not.toHaveBeenCalled();
       expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           recipient: "both@example.com",
@@ -571,13 +571,13 @@ describe("magic link request handler", () => {
         }),
       );
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(202);
       expect(mockInviteRepo.findPendingByEmail).toHaveBeenCalledWith(
         "alice@example.com",
       );
     });
 
-    it("returns same error for unknown email and uninvited-but-known email", async () => {
+    it("returns indistinguishable 202 responses for unknown and uninvited emails", async () => {
       const mockInviteRepo = createMockInviteRepository();
       mockInviteRepo.findPendingByEmail.mockResolvedValue(null);
 
@@ -605,15 +605,15 @@ describe("magic link request handler", () => {
         }),
       );
 
-      expect(unknownResponse.status).toBe(400);
-      expect(knownButNotInvitedResponse.status).toBe(400);
+      expect(unknownResponse.status).toBe(202);
+      expect(knownButNotInvitedResponse.status).toBe(202);
 
-      const unknownBody = (await unknownResponse.json()) as { error?: string };
+      const unknownBody = (await unknownResponse.json()) as { sent?: boolean };
       const knownBody = (await knownButNotInvitedResponse.json()) as {
-        error?: string;
+        sent?: boolean;
       };
       expect(unknownBody).toEqual(knownBody);
-      expect(unknownBody).toEqual({ error: "not_invited" });
+      expect(unknownBody).toEqual({ sent: true });
     });
   });
 });

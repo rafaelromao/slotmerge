@@ -1,16 +1,14 @@
 import { eq, sql } from "drizzle-orm";
 
-import {
-  createMagicLinkTokenIssuer,
-  decodeMagicLinkTokenPayload,
-} from "./magic-link";
-import { loadRuntimeConfig } from "../config/runtime";
+import { decodeMagicLinkTokenPayload } from "./magic-link";
 import { getDb } from "../db/client";
 import { invites } from "../db/schema";
-import { createEmailDeliveryService } from "../email/service";
-import { createPostgresEmailEventRepository } from "../email/repository";
-import { enqueueInviteEmailJob } from "../email/invite-jobs";
 import type { Clock } from "../system/clock";
+import {
+  authWorkflow,
+  requestContextFromRequest,
+  type AuthWorkflow,
+} from "../workflow/auth";
 import type { MagicLinkTokenPayload } from "./magic-link";
 
 export type MagicLinkResendInviteRecord = {
@@ -39,8 +37,7 @@ export type MagicLinkResendDependencies = {
   clock: Clock;
   magicLinkSecret?: string;
   inviteRepository?: MagicLinkResendInviteRepository;
-  emailDeliveryService?: ReturnType<typeof createEmailDeliveryService>;
-  magicLinkTokenIssuer?: ReturnType<typeof createMagicLinkTokenIssuer>;
+  requestMagicLink?: AuthWorkflow["requestMagicLink"];
   rateLimiter?: MagicLinkResendRateLimiter;
 };
 
@@ -49,10 +46,8 @@ export function createMagicLinkResendHandlers(
 ) {
   const clock = deps.clock;
   const inviteRepository = deps.inviteRepository ?? defaultInviteRepository;
-  const emailDeliveryService =
-    deps.emailDeliveryService ?? loadDefaultEmailDeliveryService({ clock });
-  const magicLinkTokenIssuer =
-    deps.magicLinkTokenIssuer ?? createDefaultMagicLinkTokenIssuer(clock);
+  const requestMagicLink =
+    deps.requestMagicLink ?? authWorkflow.requestMagicLink.bind(authWorkflow);
   const rateLimiter = deps.rateLimiter ?? createDefaultRateLimiter({ clock });
 
   return {
@@ -64,11 +59,12 @@ export function createMagicLinkResendHandlers(
         return errorResponse("invalid_token", 400);
       }
 
-      const magicLinkSecret = deps.magicLinkSecret ?? getMagicLinkSecret();
-
       let payload: MagicLinkTokenPayload;
       try {
-        payload = decodeMagicLinkTokenPayload(token, magicLinkSecret);
+        payload = decodeMagicLinkTokenPayload(
+          token,
+          deps.magicLinkSecret ?? getMagicLinkSecret(),
+        );
       } catch {
         return errorResponse("invalid_token", 400);
       }
@@ -81,70 +77,36 @@ export function createMagicLinkResendHandlers(
       if (isNaN(tokenExpiresAt.getTime()) || tokenExpiresAt > clock.now()) {
         return errorResponse("token_not_expired", 400);
       }
-
       if (!payload.inviteId) {
         return errorResponse("invalid_token", 400);
       }
 
       const invite = await inviteRepository.findById(payload.inviteId);
-      if (!invite) {
-        return errorResponse("invite_not_found", 400);
+      const reason = invalidInviteReason(invite, payload, clock.now());
+      if (reason) {
+        return errorResponse(reason, 400);
       }
 
-      if (invite.status === "accepted") {
-        return errorResponse("invite_already_accepted", 400);
-      }
-
-      if (invite.status === "revoked") {
-        return errorResponse("invite_revoked", 400);
-      }
-
-      if (invite.expiresAt <= clock.now()) {
-        return errorResponse("invite_expired", 400);
-      }
-
-      if (invite.email !== payload.email) {
-        return errorResponse("email_mismatch", 400);
-      }
-
-      const originalGeneration = invite.magicLinkGeneration ?? 0;
+      const originalGeneration = invite!.magicLinkGeneration ?? 0;
       const refreshedInvite = await inviteRepository.incrementGeneration(
-        invite.id,
+        invite!.id,
       );
-
       if (!refreshedInvite) {
-        return errorResponse("server_error", 500);
+        return errorResponse("server_error", 400);
       }
 
-      const magicLink = magicLinkTokenIssuer.issueMagicLinkToken({
-        inviteId: refreshedInvite.id,
+      const result = await requestMagicLink({
         email: refreshedInvite.email,
-        expiresAt: refreshedInvite.expiresAt,
-        generation: refreshedInvite.magicLinkGeneration ?? 0,
+        requestContext: requestContextFromRequest(request),
       });
-
-      try {
-        await emailDeliveryService.sendEmail({
-          recipient: refreshedInvite.email,
-          type: "magic-link",
-          payload: {
-            inviteId: refreshedInvite.id,
-            email: refreshedInvite.email,
-            role: refreshedInvite.role,
-            magicLinkUrl: magicLink.magicLinkUrl,
-            magicLinkToken: magicLink.token,
-            generation: refreshedInvite.magicLinkGeneration ?? 0,
-            expiresAt: magicLink.expiresAt.toISOString(),
-          },
-        });
-      } catch (error) {
+      if (!result.ok) {
         await inviteRepository.setMagicLinkGeneration(
-          invite.id,
+          invite!.id,
           originalGeneration,
         );
         return errorResponse(
-          `magic_link_delivery_failed: ${error instanceof Error ? error.message : "unknown"}`,
-          502,
+          result.error,
+          result.error === "rate_limited" ? 429 : 400,
         );
       }
 
@@ -157,12 +119,38 @@ export function createMagicLinkResendHandlers(
   <body>
     <main>
       <h1>Check your email</h1>
-      <p>We sent a fresh magic link to ${escapeHtml(refreshedInvite.email)}.</p>
+      <p>We sent a fresh magic link. Open the most recent email from us to sign in.</p>
     </main>
   </body>
 </html>`);
     },
   };
+}
+
+function invalidInviteReason(
+  invite: MagicLinkResendInviteRecord | null,
+  payload: MagicLinkTokenPayload,
+  now: Date,
+): string | null {
+  if (!invite) {
+    return "invite_not_found";
+  }
+  if (invite.status === "accepted") {
+    return "invite_already_accepted";
+  }
+  if (invite.status === "revoked") {
+    return "invite_revoked";
+  }
+  if (invite.expiresAt <= now) {
+    return "invite_expired";
+  }
+  if (invite.email !== payload.email) {
+    return "email_mismatch";
+  }
+  if ((invite.magicLinkGeneration ?? 0) !== (payload.generation ?? 0)) {
+    return "invalid_token";
+  }
+  return null;
 }
 
 function getMagicLinkSecret(): string {
@@ -178,29 +166,6 @@ function getMagicLinkSecret(): string {
     );
   }
   return "local-magic-link-secret-do-not-use-in-production";
-}
-
-function createDefaultMagicLinkTokenIssuer(
-  clock: Clock,
-): ReturnType<typeof createMagicLinkTokenIssuer> {
-  const config = loadRuntimeConfig();
-  return createMagicLinkTokenIssuer({
-    baseUrl: config.appBaseUrl,
-    secret: config.magicLinkSecret,
-    clock,
-  });
-}
-
-function loadDefaultEmailDeliveryService({
-  clock,
-}: {
-  clock: Clock;
-}): ReturnType<typeof createEmailDeliveryService> {
-  return createEmailDeliveryService({
-    clock,
-    eventRepository: createPostgresEmailEventRepository(),
-    queueJob: (job) => enqueueInviteEmailJob(job),
-  });
 }
 
 function createDefaultRateLimiter({
@@ -223,11 +188,9 @@ function createDefaultRateLimiter({
         buckets.set(key, { count: 1, resetAt: now + windowMs });
         return true;
       }
-
       if (bucket.count >= limit) {
         return false;
       }
-
       bucket.count += 1;
       return true;
     },
@@ -269,59 +232,27 @@ function escapeHtml(value: string): string {
 
 const defaultInviteRepository: MagicLinkResendInviteRepository = {
   findById: async (id) => {
-    const db = getDb();
-    const [row] = await db
+    const [row] = await getDb()
       .select()
       .from(invites)
       .where(eq(invites.id, id))
       .limit(1);
-    return row
-      ? {
-          id: row.id,
-          email: row.email,
-          role: row.role,
-          status: row.status,
-          expiresAt: row.expiresAt,
-          magicLinkGeneration: row.magicLinkGeneration,
-        }
-      : null;
+    return row ?? null;
   },
   setMagicLinkGeneration: async (id, generation) => {
-    const db = getDb();
-    const [row] = await db
+    const [row] = await getDb()
       .update(invites)
       .set({ magicLinkGeneration: generation })
       .where(eq(invites.id, id))
       .returning();
-
-    return row
-      ? {
-          id: row.id,
-          email: row.email,
-          role: row.role,
-          status: row.status,
-          expiresAt: row.expiresAt,
-          magicLinkGeneration: row.magicLinkGeneration,
-        }
-      : null;
+    return row ?? null;
   },
   incrementGeneration: async (id) => {
-    const db = getDb();
-    const [row] = await db
+    const [row] = await getDb()
       .update(invites)
       .set({ magicLinkGeneration: sql`${invites.magicLinkGeneration} + 1` })
       .where(eq(invites.id, id))
       .returning();
-
-    return row
-      ? {
-          id: row.id,
-          email: row.email,
-          role: row.role,
-          status: row.status,
-          expiresAt: row.expiresAt,
-          magicLinkGeneration: row.magicLinkGeneration,
-        }
-      : null;
+    return row ?? null;
   },
 };

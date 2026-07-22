@@ -8,6 +8,8 @@ import { systemDependencies } from "../../../src/system";
 export type SignInActionResult =
   { status: "sent" } | { status: "error"; code: string };
 
+const handlers = createMagicLinkRequestHandlers(systemDependencies());
+
 export async function requestMagicLinkAction(
   formData: FormData,
 ): Promise<void> {
@@ -22,21 +24,19 @@ export async function requestMagicLinkAction(
     body: new URLSearchParams({ email: email.toString() }).toString(),
   });
 
-  const handlers = createMagicLinkRequestHandlers(systemDependencies());
   const response = await handlers.POST(request);
 
+  let destination = "/?sent=1";
   if (response.status === 429) {
-    redirect("/?error=rate_limited");
-  }
-
-  if (!response.ok) {
+    destination = "/?error=rate_limited";
+  } else if (!response.ok) {
     try {
       const body = (await response.json()) as { error?: string };
-      redirect(`/?error=${body.error ?? "request_failed"}`);
+      destination = `/?error=${body.error ?? "request_failed"}`;
     } catch {
-      redirect("/?error=request_failed");
+      destination = "/?error=request_failed";
     }
   }
 
-  redirect("/?sent=1");
+  redirect(destination);
 }

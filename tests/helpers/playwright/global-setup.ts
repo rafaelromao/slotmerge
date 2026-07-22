@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { sealSessionCookieValue } from "../../../src/auth/session";
 import { FIXTURE_DATE, seedAll } from "../../fixtures/seeds";
 import { getDb } from "../../../src/db/client";
-import { users, sessions } from "../../../src/db/schema";
+import { users, sessions, invites } from "../../../src/db/schema";
 import { eq } from "drizzle-orm";
 
 type StorageState = {
@@ -36,6 +36,30 @@ async function globalSetup() {
   const db = getDb();
 
   await seedAll(db);
+
+  const inviteExpiry = new Date(FIXTURE_DATE);
+  inviteExpiry.setDate(inviteExpiry.getDate() + 30);
+  await db
+    .insert(invites)
+    .values({
+      id: "00000000-0000-0000-0000-000000000070",
+      email: "invited-user@example.com",
+      role: "user",
+      status: "pending",
+      magicLinkGeneration: 0,
+      expiresAt: inviteExpiry,
+      createdAt: new Date(FIXTURE_DATE),
+      updatedAt: new Date(FIXTURE_DATE),
+    })
+    .onConflictDoUpdate({
+      target: invites.email,
+      set: {
+        status: "pending",
+        magicLinkGeneration: 0,
+        expiresAt: inviteExpiry,
+        updatedAt: new Date(FIXTURE_DATE),
+      },
+    });
 
   const roles = [
     { name: "user", email: "user@example.com" },

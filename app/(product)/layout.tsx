@@ -49,11 +49,11 @@ export default async function ProductLayout({
     .where(eq(availabilityWindows.userId, userId))
     .limit(1);
 
-  const [calendarRow] = await db
+  const calendarRows = await db
     .select({ status: calendarConnections.status })
     .from(calendarConnections)
     .where(eq(calendarConnections.userId, userId))
-    .limit(1);
+    .limit(100);
 
   const profileComplete = !!session.user.displayName;
   const discoverabilityComplete = discoverabilityRow.count > 0;
@@ -64,7 +64,17 @@ export default async function ProductLayout({
     !discoverabilityComplete ||
     !topicsComplete ||
     !availabilityComplete;
-  const calendarBadge = buildCalendarBadgeState(calendarRow?.status);
+  const calendarStatuses = calendarRows.map((row) => row.status);
+  const calendarStatus = calendarStatuses.some((status) =>
+    ["needs_reconnect", "sync_delayed", "disconnected"].includes(status),
+  )
+    ? "needs_reconnect"
+    : calendarStatuses.includes("unsupported")
+      ? "unsupported"
+      : calendarStatuses.includes("connected")
+        ? "connected"
+        : undefined;
+  const calendarBadge = buildCalendarBadgeState(calendarStatus);
   const calendarBadgeLabel = renderCalendarBadgeLabel(calendarBadge);
 
   return (

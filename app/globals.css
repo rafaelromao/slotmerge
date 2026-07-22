@@ -194,7 +194,7 @@ button {
   cursor: pointer;
 }
 
-:where(button, a, input, select, textarea):focus-visible {
+:where(button, a, input, select, textarea, summary):focus-visible {
   outline: 2px solid var(--border-focus);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
@@ -1008,6 +1008,10 @@ button {
   display: contents;
 }
 
+.top-bar {
+  position: relative;
+}
+
 .header-menu-toggle {
   display: none;
   background: none;
@@ -1056,7 +1060,7 @@ button {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .top-bar {
     padding: var(--space-3);
   }

@@ -32,6 +32,7 @@ jobs:
           DATABASE_URL: postgres://slotmerge:slotmerge@localhost:5432/slotmerge
 
       - name: Upload screenshots
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-screenshots
@@ -39,6 +40,7 @@ jobs:
           retention-days: 14
 
       - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-test-results
@@ -48,6 +50,7 @@ jobs:
           retention-days: 14
 
       - name: Upload videos
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-videos
@@ -55,6 +58,7 @@ jobs:
           retention-days: 14
 
       - name: Upload traces
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-traces

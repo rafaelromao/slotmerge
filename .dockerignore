@@ -1,0 +1,10 @@
+node_modules
+.next
+playwright/.auth
+playwright/.artifacts
+test-results
+tests/e2e-browser/screenshots
+.env
+.env.*
+.git
+.sandman

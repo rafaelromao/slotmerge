@@ -44,7 +44,7 @@ services:
       EMAIL_CAPTURE_ENABLED: "true"
       FIXTURE_DATE: "2026-07-12T12:00:00.000Z"
       MAGIC_LINK_SECRET: "local-magic-link-secret-do-not-use-in-production"
-      SESSION_SECRET: "local-session-secret-do-not-use-in-production"
+      SESSION_SECRET: "test-session-secret-at-least-32-characters"
       CALENDAR_TOKEN_ENCRYPTION_KEY: "local-calendar-token-encryption-key-do-not-use-in-production"
     ports:
       - "3000:3000"
@@ -67,7 +67,7 @@ services:
       EMAIL_CAPTURE_ENABLED: "true"
       FIXTURE_DATE: "2026-07-12T12:00:00.000Z"
       MAGIC_LINK_SECRET: "local-magic-link-secret-do-not-use-in-production"
-      SESSION_SECRET: "local-session-secret-do-not-use-in-production"
+      SESSION_SECRET: "test-session-secret-at-least-32-characters"
       CALENDAR_TOKEN_ENCRYPTION_KEY: "local-calendar-token-encryption-key-do-not-use-in-production"
     depends_on:
       postgres:

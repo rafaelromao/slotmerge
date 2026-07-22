@@ -26,9 +26,12 @@ export function HeaderMenuToggle({
         className="avatar-dropdown-trigger"
         aria-expanded={open ? "true" : "false"}
         aria-haspopup="menu"
+        aria-label={`Account menu for ${displayName ?? email}`}
         data-testid="avatar-dropdown-trigger"
       >
-        <span className="avatar-initial">{displayName?.[0] ?? email[0]}</span>
+        <span className="avatar-initial" aria-hidden="true">
+          {displayName?.[0] ?? email[0]}
+        </span>
       </summary>
       {children}
     </details>

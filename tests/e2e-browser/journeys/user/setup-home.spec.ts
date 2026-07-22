@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { captureState } from "../../../helpers/playwright/screenshot-helper";
 
-const TEST_USER_EMAIL = "user@example.com";
+const TEST_USER_EMAIL = "invited-user@example.com";
 const BASE_URL = "http://localhost:3000";
 
 type CapturedEmailsResponse = {
@@ -11,33 +11,28 @@ type CapturedEmailsResponse = {
   }>;
 };
 
-async function getMagicLinkUrl(email: string): Promise<string | null> {
+async function getCapturedEmails(email: string): Promise<CapturedEmailsResponse> {
   const response = await fetch(
     `${BASE_URL}/api/local/emails/${encodeURIComponent(email)}`,
   );
   if (!response.ok) {
-    return null;
+    return { emails: [] };
   }
-  const data = (await response.json()) as CapturedEmailsResponse;
-  const emails = data.emails;
-  const magicLinkEmails = emails.filter((e) => e.type === "magic-link");
-  if (magicLinkEmails.length === 0) {
-    return null;
-  }
-  const lastMagicLinkEmail = magicLinkEmails[magicLinkEmails.length - 1];
-  const url = lastMagicLinkEmail.payload["magicLinkUrl"];
-  return typeof url === "string" ? url : null;
+  return (await response.json()) as CapturedEmailsResponse;
 }
 
 async function waitForMagicLink(
   email: string,
+  previousCount: number,
   timeoutMs = 10000,
 ): Promise<string | null> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const url = await getMagicLinkUrl(email);
-    if (url) {
-      return url;
+    const { emails } = await getCapturedEmails(email);
+    const magicLinkEmails = emails.filter((item) => item.type === "magic-link");
+    if (magicLinkEmails.length > previousCount) {
+      const url = magicLinkEmails.at(-1)?.payload["magicLinkUrl"];
+      return typeof url === "string" ? url : null;
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
@@ -46,23 +41,22 @@ async function waitForMagicLink(
 
 test.describe("Setup Home Journey", () => {
   test("signed-out user completes setup checklist", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-07-12T12:00:00.000Z") });
     await page.goto("/");
 
     await expect(page.getByText("Please sign in to continue.")).toBeVisible();
     await captureState(page, "setup-home", "signed-out");
 
-    const magicLinkRequest = await fetch(
-      `${BASE_URL}/auth/magic-link/request`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `email=${encodeURIComponent(TEST_USER_EMAIL)}`,
-      },
-    );
+    const previousEmails = await getCapturedEmails(TEST_USER_EMAIL);
+    const previousCount = previousEmails.emails.filter(
+      (item) => item.type === "magic-link",
+    ).length;
 
-    expect(magicLinkRequest.ok).toBeTruthy();
+    await page.getByTestId("sign-in-email").fill(TEST_USER_EMAIL);
+    await page.getByTestId("sign-in-submit").click();
+    await expect(page.getByTestId("sign-in-sent")).toBeVisible();
 
-    const magicLinkUrl = await waitForMagicLink(TEST_USER_EMAIL);
+    const magicLinkUrl = await waitForMagicLink(TEST_USER_EMAIL, previousCount);
 
     expect(magicLinkUrl).not.toBeNull();
     expect(magicLinkUrl).toContain("/auth/magic-link/verify?token=");

@@ -57,7 +57,7 @@ export default async function VerifyPage({
       </form>
       <script
         dangerouslySetInnerHTML={{
-          __html: `document.forms[document.forms.length - 1].submit();`,
+          __html: `window.setTimeout(() => document.forms[document.forms.length - 1].submit(), 1500);`,
         }}
       />
     </main>

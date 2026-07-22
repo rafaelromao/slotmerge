@@ -4,18 +4,18 @@ import { z } from "zod";
 import {
   clearSessionCookie,
   getSessionFromRequest,
-} from "../../src/auth/session";
-import { getDiscoverabilityConsent } from "../../src/profile/discoverability-consent";
+} from "../../../../src/auth/session";
+import { getDiscoverabilityConsent } from "../../../../src/profile/discoverability-consent";
 import {
   deleteProfileByUserId,
   getProfileByUserId,
   updateProfileByUserId,
-} from "../../src/profile/repository";
+} from "../../../../src/profile/repository";
 import {
   isEligibleForSearch,
   type ProfileInputs,
-} from "../../src/search/search-snapshot-assembler";
-import { type TopicProposalStatus } from "../../src/db/schema";
+} from "../../../../src/search/search-snapshot-assembler";
+import { type TopicProposalStatus } from "../../../../src/db/schema";
 
 const supportedTimeZones = new Set(Intl.supportedValuesOf("timeZone"));
 

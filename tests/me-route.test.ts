@@ -9,7 +9,7 @@ import {
   listTopicsForUserInTests,
   listAvailabilityWindowsForUserInTests,
   listCalendarConnectionsForUserInTests,
-} from "../app/me/route";
+} from "../app/api/v1/me/route";
 import { getProfileByUserId } from "../src/profile/repository";
 import {
   sealSessionCookie,

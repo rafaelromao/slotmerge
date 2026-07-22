@@ -40,7 +40,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-async function noopAction() {
+function noopAction() {
   return undefined as never;
 }
 

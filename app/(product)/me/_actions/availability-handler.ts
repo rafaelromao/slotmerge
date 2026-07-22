@@ -46,9 +46,15 @@ export type AvailabilityActionInput = {
 
 export type AvailabilityActionHandler = {
   addWindow(input: AvailabilityActionInput): Promise<AvailabilityActionResult>;
-  removeWindow(input: AvailabilityActionInput): Promise<AvailabilityActionResult>;
-  addOverride(input: AvailabilityActionInput): Promise<AvailabilityActionResult>;
-  removeOverride(input: AvailabilityActionInput): Promise<AvailabilityActionResult>;
+  removeWindow(
+    input: AvailabilityActionInput,
+  ): Promise<AvailabilityActionResult>;
+  addOverride(
+    input: AvailabilityActionInput,
+  ): Promise<AvailabilityActionResult>;
+  removeOverride(
+    input: AvailabilityActionInput,
+  ): Promise<AvailabilityActionResult>;
 };
 
 export type CreateAvailabilityActionHandlerDeps = {
@@ -103,7 +109,7 @@ function mapWindowError(error: AvailabilityWindowError): {
 } {
   return {
     code: error.code,
-    field: (error.field ?? "startTime") as AvailabilityFormErrorField,
+    field: error.field ?? "startTime",
   };
 }
 
@@ -113,7 +119,7 @@ function mapOverrideError(error: AvailabilityOverrideError): {
 } {
   return {
     code: error.code,
-    field: (error.field ?? "startTime") as AvailabilityFormErrorField,
+    field: error.field ?? "startTime",
   };
 }
 
@@ -123,9 +129,7 @@ export function buildAvailabilityActionHandler(
   const workflow = deps.workflow ?? createAvailabilityWorkflow();
   const loadSession = deps.loadSession;
 
-  async function loadAuthedSession(
-    request: Request,
-  ): Promise<Session | null> {
+  async function loadAuthedSession(request: Request): Promise<Session | null> {
     if (!originMatches(request)) {
       return null;
     }

@@ -1,6 +1,3 @@
-import type {
-  AvailabilityActionResult,
-} from "../_actions/availability-handler";
 import { formatAvailabilityError } from "../_actions/availability-handler";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -66,14 +63,10 @@ function errorForField(
   field: string,
   errorCode: string | null,
   errorField: string | null,
-  errorTarget: string | null,
 ): string | null {
   if (!errorCode || !errorField) return null;
   if (field !== errorField) return null;
-  return formatAvailabilityError(
-    errorCode as never,
-    errorField as never,
-  );
+  return formatAvailabilityError(errorCode as never, errorField as never);
 }
 
 export function AvailabilityView(props: AvailabilityViewProps) {
@@ -101,15 +94,14 @@ export function AvailabilityView(props: AvailabilityViewProps) {
     Object.values(windowsByDay).some((list) => list.length > 0) ||
     overrides.length > 0;
 
-  const pageErrorCode =
-    errorCode && errorTarget === "page" ? errorCode : null;
+  const pageErrorCode = errorCode && errorTarget === "page" ? errorCode : null;
 
   return (
     <main className="app-container" data-testid="availability-page">
       <h1 data-testid="availability-page-heading">Availability</h1>
       <p className="availability-page-intro">
-        Define when you are available. Weekly windows apply to every week; one-off
-        overrides add or block specific dates.
+        Define when you are available. Weekly windows apply to every week;
+        one-off overrides add or block specific dates.
       </p>
 
       {saved ? (
@@ -188,19 +180,16 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                   "dayOfWeek",
                   errorCode,
                   errorField,
-                  errorTarget,
                 );
                 const startFieldError = errorForField(
                   "startTime",
                   errorCode,
                   errorField,
-                  errorTarget,
                 );
                 const endFieldError = errorForField(
                   "endTime",
                   errorCode,
                   errorField,
-                  errorTarget,
                 );
                 const showDayError =
                   isWindowErrorTarget(errorTarget, null) &&
@@ -277,11 +266,7 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                       data-testid={`availability-day-${dayIndex}-add-form`}
                     >
                       <input type="hidden" name="_csrf" value={csrfToken} />
-                      <input
-                        type="hidden"
-                        name="dayOfWeek"
-                        value={dayIndex}
-                      />
+                      <input type="hidden" name="dayOfWeek" value={dayIndex} />
                       <input
                         type="hidden"
                         name="profileTimezone"
@@ -300,7 +285,9 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                         step={900}
                         defaultValue="09:00"
                         required
-                        aria-invalid={showDayError && startFieldError ? "true" : "false"}
+                        aria-invalid={
+                          showDayError && startFieldError ? "true" : "false"
+                        }
                         aria-describedby={
                           showDayError && startFieldError
                             ? `availability-day-${dayIndex}-error`
@@ -321,7 +308,9 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                         step={900}
                         defaultValue="12:00"
                         required
-                        aria-invalid={showDayError && endFieldError ? "true" : "false"}
+                        aria-invalid={
+                          showDayError && endFieldError ? "true" : "false"
+                        }
                         aria-describedby={
                           showDayError && endFieldError
                             ? `availability-day-${dayIndex}-error`
@@ -541,7 +530,9 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                 Add override
               </button>
             </form>
-            {isOverrideErrorTarget(errorTarget, null) && errorCode && errorField ? (
+            {isOverrideErrorTarget(errorTarget, null) &&
+            errorCode &&
+            errorField ? (
               <p
                 id="availability-override-error"
                 className="availability-form-error"
@@ -641,10 +632,7 @@ export function AvailabilityView(props: AvailabilityViewProps) {
           </section>
 
           {!hasAnyAvailability ? (
-            <div
-              className="empty-state"
-              data-testid="availability-empty"
-            >
+            <div className="empty-state" data-testid="availability-empty">
               <p className="empty-state-title">No Availability yet.</p>
               <p>
                 Add a weekly window or a one-off override above to start

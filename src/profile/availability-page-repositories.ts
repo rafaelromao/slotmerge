@@ -6,7 +6,10 @@ import {
   setAvailabilityOverrideRepositoryForTests,
   type AvailabilityOverrideRepository,
 } from "./availability-overrides";
-import { setProfileRepositoryForTests, type ProfileRepository } from "./repository";
+import {
+  setProfileRepositoryForTests,
+  type ProfileRepository,
+} from "./repository";
 
 export type AvailabilityPageRepositories = {
   windows: WeeklyAvailabilityWindowRepository;
@@ -52,7 +55,9 @@ export function buildAvailabilityPageRepositories(): AvailabilityPageRepositorie
   return {
     windows: windowsOverride ?? {
       add: () => {
-        throw new Error("windows repository not configured for availability page");
+        throw new Error(
+          "windows repository not configured for availability page",
+        );
       },
       listByUserId: () => Promise.resolve([]),
       findById: () => Promise.resolve(null),
@@ -61,7 +66,9 @@ export function buildAvailabilityPageRepositories(): AvailabilityPageRepositorie
     },
     overrides: overridesOverride ?? {
       add: () => {
-        throw new Error("overrides repository not configured for availability page");
+        throw new Error(
+          "overrides repository not configured for availability page",
+        );
       },
       listByUserId: () => Promise.resolve([]),
       findById: () => Promise.resolve(null),

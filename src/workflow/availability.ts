@@ -14,16 +14,11 @@ import {
   listAvailabilityOverridesByUserId,
   removeAvailabilityOverrideById,
 } from "../profile/availability-overrides";
-import {
-  getProfileByUserId,
-  type UserProfile,
-} from "../profile/repository";
+import { getProfileByUserId, type UserProfile } from "../profile/repository";
 import {
   computeEffectiveAvailability,
   type Interval,
 } from "../matching/effective-availability";
-import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 
 export type AvailabilityDayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -41,25 +36,16 @@ export type AvailabilityOverrideFieldErrorCode =
   | "profile_timezone_required";
 
 export type AvailabilityWindowErrorCode =
-  | AvailabilityWindowFieldErrorCode
-  | "not_found";
+  AvailabilityWindowFieldErrorCode | "not_found";
 
 export type AvailabilityOverrideErrorCode =
-  | AvailabilityOverrideFieldErrorCode
-  | "not_found";
+  AvailabilityOverrideFieldErrorCode | "not_found";
 
 export type AvailabilityWindowErrorField =
-  | "dayOfWeek"
-  | "startTime"
-  | "endTime"
-  | "profileTimezone";
+  "dayOfWeek" | "startTime" | "endTime" | "profileTimezone";
 
 export type AvailabilityOverrideErrorField =
-  | "date"
-  | "startTime"
-  | "endTime"
-  | "type"
-  | "profileTimezone";
+  "date" | "startTime" | "endTime" | "type" | "profileTimezone";
 
 export type AvailabilityWindowError = {
   code: AvailabilityWindowErrorCode;
@@ -105,7 +91,9 @@ export type AvailabilityWorkflow = {
     startTime: string;
     endTime: string;
     profileTimezone: string;
-  }): Promise<Result<{ window: WeeklyAvailabilityWindow }, AvailabilityWindowError>>;
+  }): Promise<
+    Result<{ window: WeeklyAvailabilityWindow }, AvailabilityWindowError>
+  >;
   removeWindow(input: {
     userId: string;
     windowId: string;
@@ -117,7 +105,9 @@ export type AvailabilityWorkflow = {
     endTime: string;
     type: "add" | "block";
     profileTimezone: string;
-  }): Promise<Result<{ override: AvailabilityOverride }, AvailabilityOverrideError>>;
+  }): Promise<
+    Result<{ override: AvailabilityOverride }, AvailabilityOverrideError>
+  >;
   removeOverride(input: {
     userId: string;
     overrideId: string;
@@ -128,7 +118,6 @@ export type AvailabilityWorkflow = {
 };
 
 export type CreateAvailabilityWorkflowDeps = {
-  clock?: Clock;
   listWindows?: typeof listWeeklyAvailabilityWindowsByUserId;
   addWindow?: typeof addWeeklyAvailabilityWindow;
   findWindow?: typeof findWeeklyAvailabilityWindowById;
@@ -142,7 +131,9 @@ export type CreateAvailabilityWorkflowDeps = {
 export const PROFILE_BUFFER_MINUTES_MIN = 0;
 export const PROFILE_BUFFER_MINUTES_MAX = 60;
 
-function parseTimeString(value: string): { hours: number; minutes: number } | null {
+function parseTimeString(
+  value: string,
+): { hours: number; minutes: number } | null {
   const trimmed = value.trim();
   if (!/^\d{1,2}:\d{2}$/.test(trimmed)) {
     return null;
@@ -183,7 +174,11 @@ function isValidDate(value: string): boolean {
     return false;
   }
   const [year, month, day] = value.split("-").map(Number);
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
     return false;
   }
   if (year < 1970 || year > 9999) {
@@ -198,13 +193,10 @@ function isValidDate(value: string): boolean {
   return true;
 }
 
-function formatRange(start: { hours: number; minutes: number }, end: { hours: number; minutes: number }): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(start.hours)}:${pad(start.minutes)}–${pad(end.hours)}:${pad(end.minutes)}`;
-}
-
 function isProfileTimezoneSet(profileTimezone: string | null): boolean {
-  return typeof profileTimezone === "string" && profileTimezone.trim().length > 0;
+  return (
+    typeof profileTimezone === "string" && profileTimezone.trim().length > 0
+  );
 }
 
 function windowsOverlap(
@@ -287,7 +279,9 @@ function buildPreviewLines(
     dayDate.setUTCDate(dayDate.getUTCDate() + i);
     const dayOfWeek = getLocalDayOfWeek(dayDate, timeZone);
     const dayLabel = formatLocalDate(dayDate, timeZone);
-    const dayIntervals = (bucketByLocalDate.get(dayLabel) ?? []).slice().sort((a, b) => a.localeCompare(b));
+    const dayIntervals = (bucketByLocalDate.get(dayLabel) ?? [])
+      .slice()
+      .sort((a, b) => a.localeCompare(b));
     lines.push({
       date: dayLabel,
       dayOfWeek,
@@ -300,14 +294,15 @@ function buildPreviewLines(
 export function createAvailabilityWorkflow(
   deps: CreateAvailabilityWorkflowDeps = {},
 ): AvailabilityWorkflow {
-  const clock = deps.clock ?? systemClock();
   const listWindows = deps.listWindows ?? listWeeklyAvailabilityWindowsByUserId;
   const addWindowFn = deps.addWindow ?? addWeeklyAvailabilityWindow;
   const findWindow = deps.findWindow ?? findWeeklyAvailabilityWindowById;
-  const removeWindowById = deps.removeWindowById ?? removeWeeklyAvailabilityWindowById;
+  const removeWindowById =
+    deps.removeWindowById ?? removeWeeklyAvailabilityWindowById;
   const listOverrides = deps.listOverrides ?? listAvailabilityOverridesByUserId;
   const addOverrideFn = deps.addOverride ?? addAvailabilityOverride;
-  const removeOverrideById = deps.removeOverrideById ?? removeAvailabilityOverrideById;
+  const removeOverrideById =
+    deps.removeOverrideById ?? removeAvailabilityOverrideById;
   const getProfile = deps.getProfile ?? getProfileByUserId;
 
   async function loadProfile(userId: string): Promise<UserProfile | null> {
@@ -346,14 +341,18 @@ export function createAvailabilityWorkflow(
       }
       for (const day of Object.keys(windowsByDay)) {
         const dayIndex = Number(day);
-        windowsByDay[dayIndex] = (windowsByDay[dayIndex] ?? []).slice().sort((a, b) =>
-          a.startTime.localeCompare(b.startTime),
-        );
+        windowsByDay[dayIndex] = (windowsByDay[dayIndex] ?? [])
+          .slice()
+          .sort((a, b) => a.startTime.localeCompare(b.startTime));
       }
 
       const overrides = allOverrides
         .slice()
-        .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+        .sort(
+          (a, b) =>
+            a.date.localeCompare(b.date) ||
+            a.startTime.localeCompare(b.startTime),
+        );
 
       const { rangeStart, rangeEnd } = computePreviewRange(now);
       const intervals = computeEffectiveAvailability({
@@ -387,10 +386,16 @@ export function createAvailabilityWorkflow(
     }) {
       const profile = await loadProfile(userId);
       if (!profile || !isProfileTimezoneSet(profile.profileTimezone)) {
-        return err({ code: "profile_timezone_required", field: "profileTimezone" });
+        return err({
+          code: "profile_timezone_required",
+          field: "profileTimezone",
+        });
       }
       if (!isProfileTimezoneSet(profileTimezone)) {
-        return err({ code: "profile_timezone_required", field: "profileTimezone" });
+        return err({
+          code: "profile_timezone_required",
+          field: "profileTimezone",
+        });
       }
       if (!isValidDayOfWeek(dayOfWeek)) {
         return err({ code: "invalid_time", field: "dayOfWeek" });
@@ -451,10 +456,16 @@ export function createAvailabilityWorkflow(
     }) {
       const profile = await loadProfile(userId);
       if (!profile || !isProfileTimezoneSet(profile.profileTimezone)) {
-        return err({ code: "profile_timezone_required", field: "profileTimezone" });
+        return err({
+          code: "profile_timezone_required",
+          field: "profileTimezone",
+        });
       }
       if (!isProfileTimezoneSet(profileTimezone)) {
-        return err({ code: "profile_timezone_required", field: "profileTimezone" });
+        return err({
+          code: "profile_timezone_required",
+          field: "profileTimezone",
+        });
       }
       if (!date || !isValidDate(date)) {
         return err({ code: "date_required", field: "date" });

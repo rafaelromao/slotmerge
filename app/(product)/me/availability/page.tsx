@@ -73,37 +73,28 @@ export default async function AvailabilityPage({
 
   const repositories = buildAvailabilityPageRepositories();
   const workflow = createAvailabilityWorkflow({
-    clock: systemClock(),
     listWindows: async (userId) => {
-      "use server";
       return repositories.windows.listByUserId(userId);
     },
     addWindow: async (userId, request, profileTimezone) => {
-      "use server";
       return repositories.windows.add(userId, request, profileTimezone);
     },
     findWindow: async (id, userId) => {
-      "use server";
       return repositories.windows.findById(id, userId);
     },
     removeWindowById: async (id, userId) => {
-      "use server";
       return repositories.windows.removeById(id, userId);
     },
     listOverrides: async (userId) => {
-      "use server";
       return repositories.overrides.listByUserId(userId);
     },
     addOverride: async (userId, request, profileTimezone) => {
-      "use server";
       return repositories.overrides.add(userId, request, profileTimezone);
     },
     removeOverrideById: async (id, userId) => {
-      "use server";
       return repositories.overrides.removeById(id, userId);
     },
     getProfile: async (userId) => {
-      "use server";
       return repositories.profile.findByUserId(userId);
     },
   });
@@ -120,7 +111,11 @@ export default async function AvailabilityPage({
     : stateResult.value.profileTimezone;
   const bufferMinutes = timezoneRequired ? 0 : stateResult.value.bufferMinutes;
   const bufferValid = workflow.validateBuffer({ bufferMinutes });
-  const bufferError = bufferValid.ok ? null : (validErrorCode === "invalid_buffer" ? "invalid_buffer" : null);
+  const bufferError = bufferValid.ok
+    ? null
+    : validErrorCode === "invalid_buffer"
+      ? "invalid_buffer"
+      : null;
 
   const windowsByDay = timezoneRequired
     ? { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }

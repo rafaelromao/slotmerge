@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 
 import { getSessionFromRequest } from "../../../../src/auth/session";
 import { CsrfError } from "../../../../src/lib/csrf";
-import { systemClock } from "../../../../src/system/clock";
 import { createAvailabilityWorkflow } from "../../../../src/workflow/availability";
 import {
   buildAvailabilityActionHandler,
@@ -14,7 +13,7 @@ import {
 } from "./availability-handler";
 
 const handler = buildAvailabilityActionHandler({
-  workflow: createAvailabilityWorkflow({ clock: systemClock() }),
+  workflow: createAvailabilityWorkflow(),
   loadSession: async (request) => getSessionFromRequest(request),
 });
 
@@ -38,14 +37,17 @@ function handleResult(result: AvailabilityActionResult, source: string): never {
     case "csrf-error":
       throw new CsrfError();
       break;
-    case "form-error":
+    case "form-error": {
       const searchParams = buildErrorSearchParams(
         result.code,
         result.field,
         result.target,
       );
-      redirect(`/me/availability?${new URLSearchParams(searchParams).toString()}&source=${source}`);
+      redirect(
+        `/me/availability?${new URLSearchParams(searchParams).toString()}&source=${source}`,
+      );
       break;
+    }
   }
 }
 

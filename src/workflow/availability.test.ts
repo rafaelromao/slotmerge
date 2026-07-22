@@ -15,13 +15,14 @@ import {
   type AvailabilityOverride,
   type AvailabilityOverrideRepository,
 } from "../profile/availability-overrides";
-import { setProfileRepositoryForTests, type UserProfile } from "../profile/repository";
+import {
+  setProfileRepositoryForTests,
+  type UserProfile,
+} from "../profile/repository";
 
 const NOW = new Date("2026-07-12T12:00:00.000Z");
 
-function makeProfile(
-  overrides: Partial<UserProfile> = {},
-): UserProfile {
+function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
   return {
     id: "user-1",
     email: "user@example.com",
@@ -103,9 +104,7 @@ describe("availabilityWorkflow", () => {
     });
     setWeeklyAvailabilityWindowRepositoryForTests(windows);
     setAvailabilityOverrideRepositoryForTests(overrides);
-    workflow = createAvailabilityWorkflow({
-      clock: { now: () => NOW },
-    });
+    workflow = createAvailabilityWorkflow();
   });
 
   afterEach(() => {
@@ -115,10 +114,22 @@ describe("availabilityWorkflow", () => {
   });
 
   it("loadPageState returns the user's windows grouped by day, overrides, profile timezone, and buffer", async () => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(windows.listByUserId).mockResolvedValue([
-      makeWindow({ id: "window-mon", dayOfWeek: 1, startTime: "09:00", endTime: "12:00" }),
-      makeWindow({ id: "window-tue", dayOfWeek: 2, startTime: "09:00", endTime: "17:00" }),
+      makeWindow({
+        id: "window-mon",
+        dayOfWeek: 1,
+        startTime: "09:00",
+        endTime: "12:00",
+      }),
+      makeWindow({
+        id: "window-tue",
+        dayOfWeek: 2,
+        startTime: "09:00",
+        endTime: "17:00",
+      }),
     ]);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(overrides.listByUserId).mockResolvedValue([
       makeOverride({ id: "override-block", type: "block", date: "2026-07-15" }),
     ]);
@@ -140,11 +151,13 @@ describe("availabilityWorkflow", () => {
 
   it("loadPageState returns a profile_timezone_required error when the profile timezone is null", async () => {
     setProfileRepositoryForTests({
-      findByUserId: vi.fn().mockResolvedValue(makeProfile({ profileTimezone: null })),
+      findByUserId: vi
+        .fn()
+        .mockResolvedValue(makeProfile({ profileTimezone: null })),
       updateByUserId: vi.fn().mockResolvedValue(null),
       deleteByUserId: vi.fn().mockResolvedValue(false),
     });
-    workflow = createAvailabilityWorkflow({ clock: { now: () => NOW } });
+    workflow = createAvailabilityWorkflow();
 
     const result = await workflow.loadPageState({ userId: "user-1", now: NOW });
     expect(result.ok).toBe(false);
@@ -153,7 +166,13 @@ describe("availabilityWorkflow", () => {
   });
 
   it("addWindow persists a new window and returns ok", async () => {
-    const created = makeWindow({ id: "new-window", dayOfWeek: 3, startTime: "10:00", endTime: "11:00" });
+    const created = makeWindow({
+      id: "new-window",
+      dayOfWeek: 3,
+      startTime: "10:00",
+      endTime: "11:00",
+    });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(windows.add).mockResolvedValue(created);
 
     const result = await workflow.addWindow({
@@ -166,6 +185,7 @@ describe("availabilityWorkflow", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.window.id).toBe("new-window");
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(windows.add).toHaveBeenCalledWith(
       "user-1",
       { dayOfWeek: 3, startTime: "10:00", endTime: "11:00" },
@@ -174,7 +194,9 @@ describe("availabilityWorkflow", () => {
   });
 
   it("removeWindow returns ok when the repository removes the window", async () => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(windows.findById).mockResolvedValue(makeWindow());
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(windows.removeById).mockResolvedValue(true);
 
     const result = await workflow.removeWindow({
@@ -187,7 +209,9 @@ describe("availabilityWorkflow", () => {
   });
 
   it("removeWindow returns not_found when the window does not belong to the user", async () => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(windows.findById).mockResolvedValue(null);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(windows.removeById).mockResolvedValue(false);
 
     const result = await workflow.removeWindow({
@@ -239,8 +263,14 @@ describe("availabilityWorkflow", () => {
   });
 
   it("addWindow returns overlap_existing_window when a window overlaps an existing one on the same day", async () => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(windows.listByUserId).mockResolvedValue([
-      makeWindow({ id: "existing", dayOfWeek: 1, startTime: "09:00", endTime: "12:00" }),
+      makeWindow({
+        id: "existing",
+        dayOfWeek: 1,
+        startTime: "09:00",
+        endTime: "12:00",
+      }),
     ]);
 
     const result = await workflow.addWindow({
@@ -256,10 +286,22 @@ describe("availabilityWorkflow", () => {
   });
 
   it("addWindow allows non-overlapping windows on the same day", async () => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(windows.listByUserId).mockResolvedValue([
-      makeWindow({ id: "existing", dayOfWeek: 1, startTime: "09:00", endTime: "12:00" }),
+      makeWindow({
+        id: "existing",
+        dayOfWeek: 1,
+        startTime: "09:00",
+        endTime: "12:00",
+      }),
     ]);
-    const created = makeWindow({ id: "new", dayOfWeek: 1, startTime: "13:00", endTime: "15:00" });
+    const created = makeWindow({
+      id: "new",
+      dayOfWeek: 1,
+      startTime: "13:00",
+      endTime: "15:00",
+    });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(windows.add).mockResolvedValue(created);
 
     const result = await workflow.addWindow({
@@ -274,11 +316,13 @@ describe("availabilityWorkflow", () => {
 
   it("addWindow returns profile_timezone_required when the profile timezone is null", async () => {
     setProfileRepositoryForTests({
-      findByUserId: vi.fn().mockResolvedValue(makeProfile({ profileTimezone: null })),
+      findByUserId: vi
+        .fn()
+        .mockResolvedValue(makeProfile({ profileTimezone: null })),
       updateByUserId: vi.fn().mockResolvedValue(null),
       deleteByUserId: vi.fn().mockResolvedValue(false),
     });
-    workflow = createAvailabilityWorkflow({ clock: { now: () => NOW } });
+    workflow = createAvailabilityWorkflow();
 
     const result = await workflow.addWindow({
       userId: "user-1",
@@ -294,6 +338,7 @@ describe("availabilityWorkflow", () => {
 
   it("addOverride persists a new add override and returns ok", async () => {
     const created = makeOverride({ id: "new-override", type: "add" });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(overrides.add).mockResolvedValue(created);
 
     const result = await workflow.addOverride({
@@ -307,6 +352,7 @@ describe("availabilityWorkflow", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.override.id).toBe("new-override");
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(overrides.add).toHaveBeenCalledWith(
       "user-1",
       { date: "2026-07-20", startTime: "18:00", endTime: "20:00", type: "add" },
@@ -357,6 +403,7 @@ describe("availabilityWorkflow", () => {
   });
 
   it("removeOverride returns ok when the repository removes the override", async () => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(overrides.removeById).mockResolvedValue(true);
 
     const result = await workflow.removeOverride({
@@ -369,6 +416,7 @@ describe("availabilityWorkflow", () => {
   });
 
   it("removeOverride returns not_found when the override does not belong to the user", async () => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(overrides.removeById).mockResolvedValue(false);
 
     const result = await workflow.removeOverride({
@@ -402,16 +450,25 @@ describe("availabilityWorkflow", () => {
   });
 
   it("loadPageState returns preview lines for the next 7 days based on the user's windows", async () => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(windows.listByUserId).mockResolvedValue([
-      makeWindow({ id: "window-mon", dayOfWeek: 1, startTime: "09:00", endTime: "12:00" }),
+      makeWindow({
+        id: "window-mon",
+        dayOfWeek: 1,
+        startTime: "09:00",
+        endTime: "12:00",
+      }),
     ]);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(overrides.listByUserId).mockResolvedValue([]);
 
     const result = await workflow.loadPageState({ userId: "user-1", now: NOW });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.previewLines.length).toBe(7);
-    const mondayLine = result.value.previewLines.find((line) => line.dayOfWeek === 1);
+    const mondayLine = result.value.previewLines.find(
+      (line) => line.dayOfWeek === 1,
+    );
     expect(mondayLine?.intervals).toContain("09:00–12:00");
   });
 });

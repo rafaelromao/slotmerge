@@ -96,7 +96,9 @@ type DepOverrides = {
 export type ProfileWorkflow = {
   loadMe(input: {
     userId: string;
-  }): Promise<{ ok: true; value: UserProfile } | { ok: false; error: "not_found" }>;
+  }): Promise<
+    { ok: true; value: UserProfile } | { ok: false; error: "not_found" }
+  >;
   updateProfile(input: {
     userId: string;
     patch: ProfilePatch;
@@ -106,7 +108,9 @@ export type ProfileWorkflow = {
   >;
 };
 
-export function createProfileWorkflow(deps: DepOverrides = {}): ProfileWorkflow {
+export function createProfileWorkflow(
+  deps: DepOverrides = {},
+): ProfileWorkflow {
   const getProfile = deps.getProfileByUserId ?? getProfileByUserId;
   const updateProfile = deps.updateProfileByUserId ?? updateProfileByUserId;
   const supportedTimeZones =

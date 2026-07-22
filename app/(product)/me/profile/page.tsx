@@ -27,8 +27,8 @@ export default async function ProfileEditPage({
         <div className="empty-state" data-testid="profile-empty">
           <p className="empty-state-title">Profile not found</p>
           <p>
-            We could not load your profile. Please refresh, or contact support if
-            the problem persists.
+            We could not load your profile. Please refresh, or contact support
+            if the problem persists.
           </p>
         </div>
       </main>

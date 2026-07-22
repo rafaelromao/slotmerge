@@ -32,10 +32,10 @@ export function ProfileForm({
   csrfToken,
   supportedTimeZones,
 }: ProfileFormProps) {
-  const [state, formAction] = useActionState<UpdateProfileActionState, FormData>(
-    handleUpdateProfileFormSubmit,
-    IDLE_STATE,
-  );
+  const [state, formAction] = useActionState<
+    UpdateProfileActionState,
+    FormData
+  >(handleUpdateProfileFormSubmit, IDLE_STATE);
 
   const initialDisplayName =
     state.values?.displayName ?? defaultValues.displayName;
@@ -48,7 +48,7 @@ export function ProfileForm({
 
   const [bufferRaw, setBufferRaw] = useState(initialBuffer);
 
-  const fieldErrors = state.ok === "error" ? state.fieldErrors ?? {} : {};
+  const fieldErrors = state.ok === "error" ? (state.fieldErrors ?? {}) : {};
 
   return (
     <form
@@ -111,7 +111,9 @@ export function ProfileForm({
             aria-readonly="true"
             data-testid="profile-email-input"
           />
-          <p className="profile-form-hint">Email is managed by your invite.</p>
+          <p className="profile-form-hint">
+            Email is set by the sign-in you accepted.
+          </p>
         </div>
       </div>
 
@@ -255,9 +257,7 @@ export function ProfileForm({
             rows={3}
             aria-invalid={fieldErrors.shortBio ? "true" : "false"}
             aria-describedby={
-              fieldErrors.shortBio
-                ? "profile-bio-error"
-                : "profile-bio-hint"
+              fieldErrors.shortBio ? "profile-bio-error" : "profile-bio-hint"
             }
             data-testid="profile-bio-input"
           />

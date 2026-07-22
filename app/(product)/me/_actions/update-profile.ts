@@ -3,7 +3,10 @@
 import { redirect } from "next/navigation";
 import { timingSafeEqual } from "node:crypto";
 
-import { requirePageContext, type PageContext } from "../../../../src/lib/page-context";
+import {
+  requirePageContext,
+  type PageContext,
+} from "../../../../src/lib/page-context";
 import {
   createProfileWorkflow,
   type ProfilePatch,
@@ -68,10 +71,9 @@ export async function handleUpdateProfileFormSubmit(
   return state;
 }
 
-let depsOverride: UpdateProfileActionDeps | null = null;
-
 export function __resetUpdateProfileActionDepsForTests(): void {
-  depsOverride = null;
+  // No module-level state to reset; tests inject deps via
+  // `buildUpdateProfileAction({...})` for hermetic isolation.
 }
 
 async function defaultGetUserContext(): Promise<PageContext> {

@@ -16,10 +16,11 @@ type UpdateProfileActionState = {
 async function loadActionModule(): Promise<ActionModule> {
   // Path includes parentheses; static import trips up `tsc --noEmit`, so load
   // via dynamic import. The runtime path is the same.
-  return (await import(
+  const mod = (await import(
     // @ts-expect-error - dynamic import with parentheses in path
     "../../app/(product)/me/_actions/update-profile"
-  )) as unknown as ActionModule;
+  )) as ActionModule;
+  return mod;
 }
 
 function makeFormData(values: Record<string, string>): FormData {
@@ -66,7 +67,7 @@ describe("updateProfileAction (Server Action)", () => {
       workflow: workflow as never,
     });
 
-    const result = (await action(
+    const result = await action(
       makeFormData({
         _csrf: "csrf-token-1",
         displayName: "Grace Hopper",
@@ -75,7 +76,7 @@ describe("updateProfileAction (Server Action)", () => {
         avatarUrl: "https://example.com/grace.png",
         shortBio: "Compiler pioneer",
       }),
-    )) as UpdateProfileActionState;
+    );
 
     expect(result.ok).toBe("success");
     expect(result.fieldErrors ?? {}).toEqual({});
@@ -102,7 +103,7 @@ describe("updateProfileAction (Server Action)", () => {
       workflow: workflow as never,
     });
 
-    const result = (await action(
+    const result = await action(
       makeFormData({
         _csrf: "csrf-token-1",
         displayName: "   ",
@@ -111,7 +112,7 @@ describe("updateProfileAction (Server Action)", () => {
         avatarUrl: "",
         shortBio: "",
       }),
-    )) as UpdateProfileActionState;
+    );
 
     expect(result.ok).toBe("error");
     expect(result.fieldErrors?.displayName).toBe(
@@ -204,7 +205,7 @@ describe("updateProfileAction (Server Action)", () => {
       workflow: workflow as never,
     });
 
-    const result = (await action(
+    const result = await action(
       makeFormData({
         _csrf: "csrf-token-1",
         displayName: "Grace Hopper",
@@ -213,13 +214,14 @@ describe("updateProfileAction (Server Action)", () => {
         avatarUrl: "",
         shortBio: "",
       }),
-    )) as UpdateProfileActionState;
+    );
 
     expect(result.ok).toBe("error");
     expect(result.values?.bufferMinutes).toBe("not-a-number");
     expect(workflow.updateProfile).toHaveBeenCalledWith({
       userId: "user-1",
-      patch: expect.objectContaining({ bufferMinutes: Number.NaN }),
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      patch: expect.objectContaining({ bufferMinutes: NaN }),
     });
   });
 });

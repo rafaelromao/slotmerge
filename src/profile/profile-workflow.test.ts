@@ -117,16 +117,12 @@ describe("validateProfilePatch", () => {
 
   it("accepts buffer minutes value at 0 and 60 boundaries", () => {
     expect(
-      validateProfilePatch(
-        { bufferMinutes: 0 },
-        { supportedTimeZones },
-      ).bufferMinutes,
+      validateProfilePatch({ bufferMinutes: 0 }, { supportedTimeZones })
+        .bufferMinutes,
     ).toBeUndefined();
     expect(
-      validateProfilePatch(
-        { bufferMinutes: 60 },
-        { supportedTimeZones },
-      ).bufferMinutes,
+      validateProfilePatch({ bufferMinutes: 60 }, { supportedTimeZones })
+        .bufferMinutes,
     ).toBeUndefined();
   });
 
@@ -237,7 +233,9 @@ describe("createProfileWorkflow.updateProfile", () => {
       getProfileByUserId: (userId) =>
         Promise.resolve(userId === initial.id ? initial : null),
       updateProfileByUserId: (userId, patch) =>
-        Promise.resolve(userId === initial.id ? { ...initial, ...patch } : null),
+        Promise.resolve(
+          userId === initial.id ? { ...initial, ...patch } : null,
+        ),
       clock: fixedClock(new Date("2026-07-12T12:00:00.000Z")),
       supportedTimeZones,
     });

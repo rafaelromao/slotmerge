@@ -567,3 +567,87 @@ describe("reinstateAction", () => {
     );
   });
 });
+
+async function importResendInviteAction() {
+  const mod = await import("./users");
+  return mod.resendInviteAction;
+}
+
+describe("resendInviteAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setSession("admin");
+  });
+
+  it("redirects to /admin?invited=<masked> on success", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn(),
+      changeRole: vi.fn(),
+      suspend: vi.fn(),
+      reinstate: vi.fn(),
+      resendInvite: vi.fn().mockResolvedValue({
+        ok: true,
+        maskedEmail: "ne***@example.com",
+        inviteId: "invite-2",
+      }),
+    });
+
+    const action = await importResendInviteAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          inviteId: "invite-1",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain(
+      "NEXT_REDIRECT;303;/admin?invited=ne***%40example.com;",
+    );
+  });
+
+  it("redirects to /admin?error=invite_not_found when the workflow rejects", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn(),
+      changeRole: vi.fn(),
+      suspend: vi.fn(),
+      reinstate: vi.fn(),
+      resendInvite: vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "invite_not_found",
+      }),
+    });
+
+    const action = await importResendInviteAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          inviteId: "invite-missing",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain(
+      "NEXT_REDIRECT;303;/admin?error=invite_not_found;",
+    );
+  });
+
+  it("redirects to /admin?error=invalid_resend when inviteId is missing", async () => {
+    const action = await importResendInviteAction();
+    let digest = "";
+    try {
+      await action(buildFormData({ _csrf: "csrf-admin-1" }));
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain("NEXT_REDIRECT;303;/admin?error=invalid_resend;");
+  });
+});

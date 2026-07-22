@@ -31,6 +31,8 @@ function buildInviteRepository(
     listInvites: vi.fn().mockResolvedValue([]),
     listRecentInvites: vi.fn().mockResolvedValue([]),
     createInvite: vi.fn(),
+    findInviteById: vi.fn(),
+    revokeInvite: vi.fn(),
     ...overrides,
   } as InviteRepository;
 }
@@ -101,6 +103,64 @@ describe("adminUsersWorkflow", () => {
       const result = await workflow.load();
 
       expect(result.recentInvites).toEqual([]);
+    });
+
+    it("derives the expired status when a pending invite has passed its expiry", async () => {
+      const inviteRows = [
+        {
+          id: "invite-fresh",
+          email: "fresh@example.com",
+          role: "user" as const,
+          status: "pending" as const,
+          invitedByAdminId: "admin-1",
+          invitedByAdminEmail: "admin@example.com",
+          expiresAt: new Date("2026-07-19T12:00:00.000Z"),
+        },
+        {
+          id: "invite-stale",
+          email: "stale@example.com",
+          role: "user" as const,
+          status: "pending" as const,
+          invitedByAdminId: "admin-1",
+          invitedByAdminEmail: "admin@example.com",
+          expiresAt: new Date("2026-06-01T12:00:00.000Z"),
+        },
+        {
+          id: "invite-accepted",
+          email: "accepted@example.com",
+          role: "user" as const,
+          status: "accepted" as const,
+          invitedByAdminId: "admin-1",
+          invitedByAdminEmail: "admin@example.com",
+          expiresAt: new Date("2026-08-01T12:00:00.000Z"),
+        },
+      ];
+
+      const userRepository = buildUserRepository({
+        listUsers: vi.fn().mockResolvedValue([]),
+      });
+      const inviteRepository = buildInviteRepository({
+        listRecentInvites: vi.fn().mockResolvedValue(inviteRows),
+      });
+      const sessionRepository = buildSessionRepository();
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.load();
+
+      const fresh = result.recentInvites.find((i) => i.id === "invite-fresh");
+      const stale = result.recentInvites.find((i) => i.id === "invite-stale");
+      const accepted = result.recentInvites.find(
+        (i) => i.id === "invite-accepted",
+      );
+      expect(fresh?.effectiveStatus).toBe("pending");
+      expect(stale?.effectiveStatus).toBe("expired");
+      expect(accepted?.effectiveStatus).toBe("accepted");
     });
   });
 
@@ -297,11 +357,14 @@ describe("adminUsersWorkflow", () => {
     });
   });
 
-  describe("changeRole", () => {
-    it("returns self_role_change when the actor targets themselves", async () => {
-      const changeRole = vi.fn();
-      const userRepository = buildUserRepository({ changeRole });
-      const inviteRepository = buildInviteRepository();
+  describe("resendInvite", () => {
+    const now = new Date("2026-07-12T12:00:00.000Z");
+    const fixedClock = { now: () => now };
+
+    it("returns invite_not_found when the original invite is missing", async () => {
+      const userRepository = buildUserRepository();
+      const findInviteById = vi.fn().mockResolvedValue(null);
+      const inviteRepository = buildInviteRepository({ findInviteById });
       const sessionRepository = buildSessionRepository();
 
       const workflow = createAdminUsersWorkflow({
@@ -311,269 +374,363 @@ describe("adminUsersWorkflow", () => {
         clock: fixedClock,
       });
 
-      const result = await workflow.changeRole({
+      const result = await workflow.resendInvite({
         actorId: "admin-1",
-        targetUserId: "admin-1",
+        inviteId: "invite-missing",
+      });
+
+      expect(result).toEqual({ ok: false, reason: "invite_not_found" });
+    });
+
+    it("revokes the original invite and creates a fresh pending invite", async () => {
+      const userRepository = buildUserRepository();
+      const findInviteById = vi.fn().mockResolvedValue({
+        id: "invite-1",
+        email: "stale@example.com",
+        role: "user" as const,
+        status: "pending" as const,
+        invitedByAdminId: "admin-1",
+        invitedByAdminEmail: "admin@example.com",
+        magicLinkGeneration: 0,
+      });
+      const revokeInvite = vi.fn().mockResolvedValue(undefined);
+      const createInvite = vi.fn().mockResolvedValue({
+        ok: true,
+        invite: {
+          id: "invite-2",
+          email: "stale@example.com",
+          role: "user" as const,
+          status: "pending" as const,
+          invitedByAdminId: "admin-1",
+          invitedByAdminEmail: "admin@example.com",
+          expiresAt: new Date("2026-08-11T12:00:00.000Z"),
+          magicLinkGeneration: 1,
+        },
+      });
+      const inviteRepository = buildInviteRepository({
+        findInviteById,
+        revokeInvite,
+        createInvite,
+      });
+      const sessionRepository = buildSessionRepository();
+      const issueMagicLinkToken = vi.fn().mockReturnValue({
+        token: "magic-token-2",
+        magicLinkUrl:
+          "http://localhost/auth/magic-link/verify?token=magic-token-2",
+        expiresAt: new Date("2026-08-11T12:00:00.000Z"),
+      });
+      const emailDeliveryService = {
+        sendEmail: vi.fn().mockResolvedValue({ emailEvent: { id: "evt-2" } }),
+      };
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        emailDeliveryService,
+        magicLinkTokenIssuer: { issueMagicLinkToken },
+        clock: fixedClock,
+      });
+
+      const result = await workflow.resendInvite({
+        actorId: "admin-1",
+        inviteId: "invite-1",
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        maskedEmail: "st***@example.com",
+        inviteId: "invite-2",
+      });
+      expect(revokeInvite).toHaveBeenCalledWith("invite-1");
+      expect(createInvite).toHaveBeenCalledWith({
+        email: "stale@example.com",
         role: "user",
+        invitedByAdminId: "admin-1",
+        now,
+        expiresAt: new Date("2026-08-11T12:00:00.000Z"),
       });
+      expect(emailDeliveryService.sendEmail).toHaveBeenCalled();
+    });
+  });
+});
 
-      expect(result).toEqual({ ok: false, reason: "self_role_change" });
-      expect(changeRole).not.toHaveBeenCalled();
+describe("changeRole", () => {
+  it("returns self_role_change when the actor targets themselves", async () => {
+    const changeRole = vi.fn();
+    const userRepository = buildUserRepository({ changeRole });
+    const inviteRepository = buildInviteRepository();
+    const sessionRepository = buildSessionRepository();
+
+    const workflow = createAdminUsersWorkflow({
+      userRepository,
+      inviteRepository,
+      sessionRepository,
+      clock: fixedClock,
     });
 
-    it("returns user_not_found when the repository reports not_found", async () => {
-      const changeRole = vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "not_found",
-      });
-      const userRepository = buildUserRepository({ changeRole });
-      const inviteRepository = buildInviteRepository();
-      const sessionRepository = buildSessionRepository();
-
-      const workflow = createAdminUsersWorkflow({
-        userRepository,
-        inviteRepository,
-        sessionRepository,
-        clock: fixedClock,
-      });
-
-      const result = await workflow.changeRole({
-        actorId: "admin-1",
-        targetUserId: "u-missing",
-        role: "organizer",
-      });
-
-      expect(result).toEqual({ ok: false, reason: "user_not_found" });
-      expect(changeRole).toHaveBeenCalledWith({
-        userId: "u-missing",
-        actingAdminId: "admin-1",
-        role: "organizer",
-        now: fixedClock.now(),
-      });
+    const result = await workflow.changeRole({
+      actorId: "admin-1",
+      targetUserId: "admin-1",
+      role: "user",
     });
 
-    it("returns ok when the repository succeeds", async () => {
-      const changeRole = vi.fn().mockResolvedValue({ ok: true });
-      const userRepository = buildUserRepository({ changeRole });
-      const inviteRepository = buildInviteRepository();
-      const sessionRepository = buildSessionRepository();
+    expect(result).toEqual({ ok: false, reason: "self_role_change" });
+    expect(changeRole).not.toHaveBeenCalled();
+  });
 
-      const workflow = createAdminUsersWorkflow({
-        userRepository,
-        inviteRepository,
-        sessionRepository,
-        clock: fixedClock,
-      });
+  it("returns user_not_found when the repository reports not_found", async () => {
+    const changeRole = vi.fn().mockResolvedValue({
+      ok: false,
+      reason: "not_found",
+    });
+    const userRepository = buildUserRepository({ changeRole });
+    const inviteRepository = buildInviteRepository();
+    const sessionRepository = buildSessionRepository();
 
-      const result = await workflow.changeRole({
-        actorId: "admin-1",
-        targetUserId: "u-2",
-        role: "organizer",
-      });
+    const workflow = createAdminUsersWorkflow({
+      userRepository,
+      inviteRepository,
+      sessionRepository,
+      clock: fixedClock,
+    });
 
-      expect(result).toEqual({ ok: true });
+    const result = await workflow.changeRole({
+      actorId: "admin-1",
+      targetUserId: "u-missing",
+      role: "organizer",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "user_not_found" });
+    expect(changeRole).toHaveBeenCalledWith({
+      userId: "u-missing",
+      actingAdminId: "admin-1",
+      role: "organizer",
+      now: fixedClock.now(),
     });
   });
 
-  describe("suspend", () => {
-    it("returns self_suspend when the actor targets themselves", async () => {
-      const suspend = vi.fn();
-      const userRepository = buildUserRepository({ suspend });
-      const inviteRepository = buildInviteRepository();
-      const sessionRepository = buildSessionRepository();
+  it("returns ok when the repository succeeds", async () => {
+    const changeRole = vi.fn().mockResolvedValue({ ok: true });
+    const userRepository = buildUserRepository({ changeRole });
+    const inviteRepository = buildInviteRepository();
+    const sessionRepository = buildSessionRepository();
 
-      const workflow = createAdminUsersWorkflow({
-        userRepository,
-        inviteRepository,
-        sessionRepository,
-        clock: fixedClock,
-      });
-
-      const result = await workflow.suspend({
-        actorId: "admin-1",
-        targetUserId: "admin-1",
-      });
-
-      expect(result).toEqual({ ok: false, reason: "self_suspend" });
-      expect(suspend).not.toHaveBeenCalled();
+    const workflow = createAdminUsersWorkflow({
+      userRepository,
+      inviteRepository,
+      sessionRepository,
+      clock: fixedClock,
     });
 
-    it("returns user_already_suspended without revoking sessions when already suspended", async () => {
-      const suspend = vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "already_suspended",
-      });
-      const deleteByUserId = vi.fn();
-      const userRepository = buildUserRepository({ suspend });
-      const inviteRepository = buildInviteRepository();
-      const sessionRepository = buildSessionRepository({ deleteByUserId });
-
-      const workflow = createAdminUsersWorkflow({
-        userRepository,
-        inviteRepository,
-        sessionRepository,
-        clock: fixedClock,
-      });
-
-      const result = await workflow.suspend({
-        actorId: "admin-1",
-        targetUserId: "u-2",
-      });
-
-      expect(result).toEqual({ ok: false, reason: "user_already_suspended" });
-      expect(deleteByUserId).not.toHaveBeenCalled();
+    const result = await workflow.changeRole({
+      actorId: "admin-1",
+      targetUserId: "u-2",
+      role: "organizer",
     });
 
-    it("returns user_not_found without revoking sessions when the user is missing", async () => {
-      const suspend = vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "not_found",
-      });
-      const deleteByUserId = vi.fn();
-      const userRepository = buildUserRepository({ suspend });
-      const inviteRepository = buildInviteRepository();
-      const sessionRepository = buildSessionRepository({ deleteByUserId });
+    expect(result).toEqual({ ok: true });
+  });
+});
 
-      const workflow = createAdminUsersWorkflow({
-        userRepository,
-        inviteRepository,
-        sessionRepository,
-        clock: fixedClock,
-      });
+describe("suspend", () => {
+  it("returns self_suspend when the actor targets themselves", async () => {
+    const suspend = vi.fn();
+    const userRepository = buildUserRepository({ suspend });
+    const inviteRepository = buildInviteRepository();
+    const sessionRepository = buildSessionRepository();
 
-      const result = await workflow.suspend({
-        actorId: "admin-1",
-        targetUserId: "u-missing",
-      });
-
-      expect(result).toEqual({ ok: false, reason: "user_not_found" });
-      expect(deleteByUserId).not.toHaveBeenCalled();
+    const workflow = createAdminUsersWorkflow({
+      userRepository,
+      inviteRepository,
+      sessionRepository,
+      clock: fixedClock,
     });
 
-    it("revokes the user's active sessions after a successful suspend", async () => {
-      const suspend = vi.fn().mockResolvedValue({ ok: true });
-      const deleteByUserId = vi.fn().mockResolvedValue(undefined);
-      const userRepository = buildUserRepository({ suspend });
-      const inviteRepository = buildInviteRepository();
-      const sessionRepository = buildSessionRepository({ deleteByUserId });
+    const result = await workflow.suspend({
+      actorId: "admin-1",
+      targetUserId: "admin-1",
+    });
 
-      const workflow = createAdminUsersWorkflow({
-        userRepository,
-        inviteRepository,
-        sessionRepository,
-        clock: fixedClock,
-      });
+    expect(result).toEqual({ ok: false, reason: "self_suspend" });
+    expect(suspend).not.toHaveBeenCalled();
+  });
 
-      const result = await workflow.suspend({
-        actorId: "admin-1",
-        targetUserId: "u-2",
-      });
+  it("returns user_already_suspended without revoking sessions when already suspended", async () => {
+    const suspend = vi.fn().mockResolvedValue({
+      ok: false,
+      reason: "already_suspended",
+    });
+    const deleteByUserId = vi.fn();
+    const userRepository = buildUserRepository({ suspend });
+    const inviteRepository = buildInviteRepository();
+    const sessionRepository = buildSessionRepository({ deleteByUserId });
 
-      expect(result).toEqual({ ok: true });
-      expect(suspend).toHaveBeenCalledWith({
-        userId: "u-2",
-        actingAdminId: "admin-1",
-        now: fixedClock.now(),
-      });
-      expect(deleteByUserId).toHaveBeenCalledWith("u-2");
+    const workflow = createAdminUsersWorkflow({
+      userRepository,
+      inviteRepository,
+      sessionRepository,
+      clock: fixedClock,
+    });
+
+    const result = await workflow.suspend({
+      actorId: "admin-1",
+      targetUserId: "u-2",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "user_already_suspended" });
+    expect(deleteByUserId).not.toHaveBeenCalled();
+  });
+
+  it("returns user_not_found without revoking sessions when the user is missing", async () => {
+    const suspend = vi.fn().mockResolvedValue({
+      ok: false,
+      reason: "not_found",
+    });
+    const deleteByUserId = vi.fn();
+    const userRepository = buildUserRepository({ suspend });
+    const inviteRepository = buildInviteRepository();
+    const sessionRepository = buildSessionRepository({ deleteByUserId });
+
+    const workflow = createAdminUsersWorkflow({
+      userRepository,
+      inviteRepository,
+      sessionRepository,
+      clock: fixedClock,
+    });
+
+    const result = await workflow.suspend({
+      actorId: "admin-1",
+      targetUserId: "u-missing",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "user_not_found" });
+    expect(deleteByUserId).not.toHaveBeenCalled();
+  });
+
+  it("revokes the user's active sessions after a successful suspend", async () => {
+    const suspend = vi.fn().mockResolvedValue({ ok: true });
+    const deleteByUserId = vi.fn().mockResolvedValue(undefined);
+    const userRepository = buildUserRepository({ suspend });
+    const inviteRepository = buildInviteRepository();
+    const sessionRepository = buildSessionRepository({ deleteByUserId });
+
+    const workflow = createAdminUsersWorkflow({
+      userRepository,
+      inviteRepository,
+      sessionRepository,
+      clock: fixedClock,
+    });
+
+    const result = await workflow.suspend({
+      actorId: "admin-1",
+      targetUserId: "u-2",
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(suspend).toHaveBeenCalledWith({
+      userId: "u-2",
+      actingAdminId: "admin-1",
+      now: fixedClock.now(),
+    });
+    expect(deleteByUserId).toHaveBeenCalledWith("u-2");
+  });
+});
+
+describe("reinstate", () => {
+  it("returns self_reinstate when the actor targets themselves", async () => {
+    const reinstate = vi.fn();
+    const userRepository = buildUserRepository({ reinstate });
+    const inviteRepository = buildInviteRepository();
+    const sessionRepository = buildSessionRepository();
+
+    const workflow = createAdminUsersWorkflow({
+      userRepository,
+      inviteRepository,
+      sessionRepository,
+      clock: fixedClock,
+    });
+
+    const result = await workflow.reinstate({
+      actorId: "admin-1",
+      targetUserId: "admin-1",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "self_reinstate" });
+    expect(reinstate).not.toHaveBeenCalled();
+  });
+
+  it("returns user_already_active when the user is already active", async () => {
+    const reinstate = vi.fn().mockResolvedValue({
+      ok: false,
+      reason: "already_active",
+    });
+    const userRepository = buildUserRepository({ reinstate });
+    const inviteRepository = buildInviteRepository();
+    const sessionRepository = buildSessionRepository();
+
+    const workflow = createAdminUsersWorkflow({
+      userRepository,
+      inviteRepository,
+      sessionRepository,
+      clock: fixedClock,
+    });
+
+    const result = await workflow.reinstate({
+      actorId: "admin-1",
+      targetUserId: "u-2",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "user_already_active" });
+  });
+
+  it("returns user_not_found when the repository reports not_found", async () => {
+    const reinstate = vi.fn().mockResolvedValue({
+      ok: false,
+      reason: "not_found",
+    });
+    const userRepository = buildUserRepository({ reinstate });
+    const inviteRepository = buildInviteRepository();
+    const sessionRepository = buildSessionRepository();
+
+    const workflow = createAdminUsersWorkflow({
+      userRepository,
+      inviteRepository,
+      sessionRepository,
+      clock: fixedClock,
+    });
+
+    const result = await workflow.reinstate({
+      actorId: "admin-1",
+      targetUserId: "u-missing",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "user_not_found" });
+    expect(reinstate).toHaveBeenCalledWith({
+      userId: "u-missing",
+      actingAdminId: "admin-1",
+      now: fixedClock.now(),
     });
   });
 
-  describe("reinstate", () => {
-    it("returns self_reinstate when the actor targets themselves", async () => {
-      const reinstate = vi.fn();
-      const userRepository = buildUserRepository({ reinstate });
-      const inviteRepository = buildInviteRepository();
-      const sessionRepository = buildSessionRepository();
+  it("returns ok when the repository succeeds", async () => {
+    const reinstate = vi.fn().mockResolvedValue({ ok: true });
+    const userRepository = buildUserRepository({ reinstate });
+    const inviteRepository = buildInviteRepository();
+    const sessionRepository = buildSessionRepository();
 
-      const workflow = createAdminUsersWorkflow({
-        userRepository,
-        inviteRepository,
-        sessionRepository,
-        clock: fixedClock,
-      });
-
-      const result = await workflow.reinstate({
-        actorId: "admin-1",
-        targetUserId: "admin-1",
-      });
-
-      expect(result).toEqual({ ok: false, reason: "self_reinstate" });
-      expect(reinstate).not.toHaveBeenCalled();
+    const workflow = createAdminUsersWorkflow({
+      userRepository,
+      inviteRepository,
+      sessionRepository,
+      clock: fixedClock,
     });
 
-    it("returns user_already_active when the user is already active", async () => {
-      const reinstate = vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "already_active",
-      });
-      const userRepository = buildUserRepository({ reinstate });
-      const inviteRepository = buildInviteRepository();
-      const sessionRepository = buildSessionRepository();
-
-      const workflow = createAdminUsersWorkflow({
-        userRepository,
-        inviteRepository,
-        sessionRepository,
-        clock: fixedClock,
-      });
-
-      const result = await workflow.reinstate({
-        actorId: "admin-1",
-        targetUserId: "u-2",
-      });
-
-      expect(result).toEqual({ ok: false, reason: "user_already_active" });
+    const result = await workflow.reinstate({
+      actorId: "admin-1",
+      targetUserId: "u-2",
     });
 
-    it("returns user_not_found when the repository reports not_found", async () => {
-      const reinstate = vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "not_found",
-      });
-      const userRepository = buildUserRepository({ reinstate });
-      const inviteRepository = buildInviteRepository();
-      const sessionRepository = buildSessionRepository();
-
-      const workflow = createAdminUsersWorkflow({
-        userRepository,
-        inviteRepository,
-        sessionRepository,
-        clock: fixedClock,
-      });
-
-      const result = await workflow.reinstate({
-        actorId: "admin-1",
-        targetUserId: "u-missing",
-      });
-
-      expect(result).toEqual({ ok: false, reason: "user_not_found" });
-      expect(reinstate).toHaveBeenCalledWith({
-        userId: "u-missing",
-        actingAdminId: "admin-1",
-        now: fixedClock.now(),
-      });
-    });
-
-    it("returns ok when the repository succeeds", async () => {
-      const reinstate = vi.fn().mockResolvedValue({ ok: true });
-      const userRepository = buildUserRepository({ reinstate });
-      const inviteRepository = buildInviteRepository();
-      const sessionRepository = buildSessionRepository();
-
-      const workflow = createAdminUsersWorkflow({
-        userRepository,
-        inviteRepository,
-        sessionRepository,
-        clock: fixedClock,
-      });
-
-      const result = await workflow.reinstate({
-        actorId: "admin-1",
-        targetUserId: "u-2",
-      });
-
-      expect(result).toEqual({ ok: true });
-    });
+    expect(result).toEqual({ ok: true });
   });
 });

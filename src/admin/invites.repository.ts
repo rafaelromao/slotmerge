@@ -27,10 +27,17 @@ export type InviteRecord = InviteListItem & {
 export type CreateInviteResult =
   { ok: true; invite: InviteRecord } | { ok: false; reason: "duplicate" };
 
+export type InviteListItemWithExpiry = InviteListItem & {
+  expiresAt: Date;
+  magicLinkGeneration: number;
+};
+
 export type InviteRepository = {
   listInvites(): Promise<InviteListItem[]>;
-  listRecentInvites(limit: number): Promise<InviteListItem[]>;
+  listRecentInvites(limit: number): Promise<InviteListItemWithExpiry[]>;
   findPendingInviteByEmail?(email: string): Promise<InviteListItem | null>;
+  findInviteById?(inviteId: string): Promise<InviteListItemWithExpiry | null>;
+  revokeInvite?(inviteId: string): Promise<void>;
   createInvite(input: {
     email: string;
     role: InviteRole;
@@ -78,13 +85,63 @@ export function createPostgresInviteRepository(db = getDb()): InviteRepository {
           invitedByAdminId: invites.invitedByAdminId,
           invitedByAdminEmail: users.email,
           magicLinkGeneration: invites.magicLinkGeneration,
+          expiresAt: invites.expiresAt,
         })
         .from(invites)
         .leftJoin(users, eq(invites.invitedByAdminId, users.id))
         .orderBy(desc(invites.createdAt))
         .limit(limit);
 
-      return rows;
+      return rows.map((row) => ({
+        id: row.id,
+        email: row.email,
+        role: row.role,
+        status: row.status,
+        invitedByAdminId: row.invitedByAdminId,
+        invitedByAdminEmail: row.invitedByAdminEmail,
+        magicLinkGeneration: row.magicLinkGeneration,
+        expiresAt: row.expiresAt,
+      }));
+    },
+
+    async findInviteById(inviteId) {
+      const [row] = await db
+        .select({
+          id: invites.id,
+          email: invites.email,
+          role: invites.role,
+          status: invites.status,
+          invitedByAdminId: invites.invitedByAdminId,
+          invitedByAdminEmail: users.email,
+          magicLinkGeneration: invites.magicLinkGeneration,
+          expiresAt: invites.expiresAt,
+        })
+        .from(invites)
+        .leftJoin(users, eq(invites.invitedByAdminId, users.id))
+        .where(eq(invites.id, inviteId))
+        .limit(1);
+
+      if (!row) {
+        return null;
+      }
+
+      return {
+        id: row.id,
+        email: row.email,
+        role: row.role,
+        status: row.status,
+        invitedByAdminId: row.invitedByAdminId,
+        invitedByAdminEmail: row.invitedByAdminEmail,
+        magicLinkGeneration: row.magicLinkGeneration,
+        expiresAt: row.expiresAt,
+      };
+    },
+
+    async revokeInvite(inviteId) {
+      await db
+        .update(invites)
+        .set({ status: "revoked", updatedAt: new Date() })
+        .where(eq(invites.id, inviteId));
     },
 
     async findPendingInviteByEmail(email) {

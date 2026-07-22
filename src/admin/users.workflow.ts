@@ -2,16 +2,23 @@ import type { Clock } from "../system/clock";
 
 import type { AdminUserRepository, UserListItem } from "./users.repository";
 import type {
-  InviteListItem,
+  InviteListItemWithExpiry,
   InviteRecord,
   InviteRepository,
   InviteRole,
+  InviteStatus,
 } from "./invites.repository";
 import type { SessionRepository } from "../auth/session";
 import type { MagicLinkTokenIssuer } from "../auth/magic-link";
 import type { EmailDeliveryService } from "../email/service";
 
 const inviteLifetimeDays = 30;
+
+export type InviteEffectiveStatus = InviteStatus | "expired";
+
+export type AdminUsersRecentInvite = InviteListItemWithExpiry & {
+  effectiveStatus: InviteEffectiveStatus;
+};
 
 export type AdminUserInviteError =
   "self_invite" | "email_already_invited" | "internal_error";
@@ -52,7 +59,7 @@ export type AdminUserResendInviteResult =
 
 export type AdminUsersLoadResult = {
   users: UserListItem[];
-  recentInvites: InviteListItem[];
+  recentInvites: AdminUsersRecentInvite[];
 };
 
 export type AdminUsersWorkflow = {
@@ -113,6 +120,16 @@ export function computeInviteExpiresAt(now: Date): Date {
   return new Date(now.getTime() + inviteLifetimeDays * 24 * 60 * 60 * 1000);
 }
 
+export function deriveInviteStatus(
+  invite: InviteListItemWithExpiry,
+  now: Date,
+): InviteEffectiveStatus {
+  if (invite.status !== "pending") {
+    return invite.status;
+  }
+  return invite.expiresAt.getTime() <= now.getTime() ? "expired" : "pending";
+}
+
 export function createAdminUsersWorkflow(
   deps: AdminUsersWorkflowDependencies,
 ): AdminUsersWorkflow {
@@ -128,7 +145,14 @@ export function createAdminUsersWorkflow(
   return {
     async load() {
       const users = await userRepository.listUsers();
-      const recentInvites = await inviteRepository.listRecentInvites(20);
+      const recentInvitesRaw = await inviteRepository.listRecentInvites(20);
+      const now = clock.now();
+      const recentInvites: AdminUsersRecentInvite[] = recentInvitesRaw.map(
+        (invite) => ({
+          ...invite,
+          effectiveStatus: deriveInviteStatus(invite, now),
+        }),
+      );
       return { users, recentInvites };
     },
 
@@ -277,11 +301,59 @@ export function createAdminUsersWorkflow(
       return { ok: true } as const;
     },
 
-    resendInvite() {
-      return Promise.resolve({
-        ok: false,
-        reason: "invite_not_found",
-      } as const);
+    async resendInvite({ actorId, inviteId }) {
+      const original = await inviteRepository.findInviteById?.(inviteId);
+      if (!original) {
+        return { ok: false, reason: "invite_not_found" } as const;
+      }
+
+      await inviteRepository.revokeInvite?.(original.id);
+
+      const now = clock.now();
+      const expiresAt = computeInviteExpiresAt(now);
+      const createResult = await inviteRepository.createInvite({
+        email: original.email,
+        role: original.role,
+        invitedByAdminId: actorId,
+        now,
+        expiresAt,
+      });
+
+      if (!createResult.ok) {
+        return { ok: false, reason: "internal_error" } as const;
+      }
+
+      if (emailDeliveryService && magicLinkTokenIssuer) {
+        const invite: InviteRecord = createResult.invite;
+        const magicLink = magicLinkTokenIssuer.issueMagicLinkToken({
+          inviteId: invite.id,
+          email: invite.email,
+          expiresAt: invite.expiresAt,
+          generation: invite.magicLinkGeneration ?? 0,
+        });
+
+        await emailDeliveryService.sendEmail({
+          recipient: invite.email,
+          type: "invite",
+          payload: {
+            inviteId: invite.id,
+            email: invite.email,
+            role: invite.role,
+            invitedByAdminId: invite.invitedByAdminId,
+            magicLinkGeneration: invite.magicLinkGeneration ?? 0,
+            magicLinkUrl: magicLink.magicLinkUrl,
+            magicLinkToken: magicLink.token,
+            expiresAt: magicLink.expiresAt.toISOString(),
+            previousInviteId: original.id,
+          },
+        });
+      }
+
+      return {
+        ok: true,
+        maskedEmail: maskEmail(original.email),
+        inviteId: createResult.invite.id,
+      } as const;
     },
   };
 }

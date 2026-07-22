@@ -10,11 +10,13 @@ import {
   changeRoleAction,
   inviteUserAction,
   reinstateAction,
+  resendInviteAction,
   suspendAction,
 } from "./_actions/users";
 import { SuspendTypedConfirm } from "./_components/SuspendTypedConfirm";
 import type { UserListItem } from "../../../src/admin/users.repository";
-import type { UserStatus } from "../../../src/db/schema";
+import type { UserRole, UserStatus } from "../../../src/db/schema";
+import type { AdminUsersRecentInvite } from "../../../src/admin/users.workflow";
 
 type SearchParams = Promise<{
   invited?: string | string[];
@@ -22,6 +24,8 @@ type SearchParams = Promise<{
   role_change?: string | string[];
   action?: string | string[];
 }>;
+
+type InviteEffectiveStatus = "pending" | "accepted" | "revoked" | "expired";
 
 export default async function AdminPage({
   searchParams,
@@ -193,6 +197,38 @@ export default async function AdminPage({
               ))}
             </tbody>
           </table>
+
+          <section className="recent-invites" data-testid="recent-invites">
+            <h3 className="recent-invites-heading">Recent invites</h3>
+            {usersResult.recentInvites.length === 0 ? (
+              <p
+                className="recent-invites-empty"
+                data-testid="recent-invites-empty"
+              >
+                No invites yet.
+              </p>
+            ) : (
+              <table className="recent-invites-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Email</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usersResult.recentInvites.map((invite) => (
+                    <InviteRow
+                      key={invite.id}
+                      invite={invite}
+                      csrfToken={context.csrfToken}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
         </div>
       </details>
 
@@ -269,13 +305,34 @@ function errorMessageFor(code: string): string {
     case "invalid_reinstate":
       return "Choose a valid user to reinstate.";
     case "reinstate_failed":
-    default:
       return "We could not reinstate the user. Please try again.";
+    case "invite_not_found":
+      return "That invite no longer exists.";
+    case "invalid_resend":
+      return "Choose a valid invite to resend.";
+    case "resend_failed":
+    default:
+      return "We could not resend the invite. Please try again.";
   }
 }
 
 function labelUserStatus(status: UserStatus): string {
   return status === "active" ? "Active" : "Suspended";
+}
+
+function labelUserRole(role: UserRole): string {
+  return role === "user"
+    ? "User"
+    : role === "organizer"
+      ? "Organizer"
+      : "Admin";
+}
+
+function labelInviteStatus(status: InviteEffectiveStatus): string {
+  if (status === "pending") return "Pending";
+  if (status === "accepted") return "Accepted";
+  if (status === "revoked") return "Revoked";
+  return "Expired";
 }
 
 function UserRow({
@@ -362,6 +419,43 @@ function UserRow({
             </button>
           </form>
         )}
+      </td>
+    </tr>
+  );
+}
+
+function InviteRow({
+  invite,
+  csrfToken,
+}: {
+  invite: AdminUsersRecentInvite;
+  csrfToken: string;
+}) {
+  const isResendable = invite.effectiveStatus === "pending";
+  const actionLabel = isResendable ? "Resend" : "Re-invite";
+  return (
+    <tr data-testid={`recent-invites-row-${invite.id}`}>
+      <td>{invite.email}</td>
+      <td>{labelUserRole(invite.role)}</td>
+      <td data-testid={`recent-invites-status-${invite.id}`}>
+        {labelInviteStatus(invite.effectiveStatus)}
+      </td>
+      <td>
+        <form
+          className="recent-invites-action"
+          data-testid={`recent-invites-action-${invite.id}`}
+          action={resendInviteAction}
+        >
+          <input type="hidden" name="_csrf" value={csrfToken} />
+          <input type="hidden" name="inviteId" value={invite.id} />
+          <button
+            type="submit"
+            className="btn btn-secondary"
+            data-testid={`recent-invites-button-${invite.id}`}
+          >
+            {actionLabel}
+          </button>
+        </form>
       </td>
     </tr>
   );

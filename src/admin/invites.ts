@@ -31,10 +31,17 @@ export type InviteRecord = InviteListItem & {
   magicLinkGeneration?: number;
 };
 
+export type InviteListItemWithExpiry = InviteListItem & {
+  expiresAt: Date;
+  magicLinkGeneration: number;
+};
+
 export type InviteRepository = {
   listInvites(): Promise<InviteListItem[]>;
-  listRecentInvites(limit: number): Promise<InviteListItem[]>;
+  listRecentInvites(limit: number): Promise<InviteListItemWithExpiry[]>;
   findPendingInviteByEmail?(email: string): Promise<InviteListItem | null>;
+  findInviteById?(inviteId: string): Promise<InviteListItemWithExpiry | null>;
+  revokeInvite?(inviteId: string): Promise<void>;
   createInvite(input: {
     email: string;
     role: InviteRole;
@@ -350,13 +357,61 @@ const databaseInviteRepository: InviteRepository = {
         invitedByAdminId: invites.invitedByAdminId,
         invitedByAdminEmail: users.email,
         magicLinkGeneration: invites.magicLinkGeneration,
+        expiresAt: invites.expiresAt,
       })
       .from(invites)
       .leftJoin(users, eq(invites.invitedByAdminId, users.id))
       .orderBy(desc(invites.createdAt))
       .limit(limit);
 
-    return rows;
+    return rows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      role: row.role,
+      status: row.status,
+      invitedByAdminId: row.invitedByAdminId,
+      invitedByAdminEmail: row.invitedByAdminEmail,
+      magicLinkGeneration: row.magicLinkGeneration,
+      expiresAt: row.expiresAt,
+    }));
+  },
+  findInviteById: async (inviteId) => {
+    const [row] = await getDb()
+      .select({
+        id: invites.id,
+        email: invites.email,
+        role: invites.role,
+        status: invites.status,
+        invitedByAdminId: invites.invitedByAdminId,
+        invitedByAdminEmail: users.email,
+        magicLinkGeneration: invites.magicLinkGeneration,
+        expiresAt: invites.expiresAt,
+      })
+      .from(invites)
+      .leftJoin(users, eq(invites.invitedByAdminId, users.id))
+      .where(eq(invites.id, inviteId))
+      .limit(1);
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      email: row.email,
+      role: row.role,
+      status: row.status,
+      invitedByAdminId: row.invitedByAdminId,
+      invitedByAdminEmail: row.invitedByAdminEmail,
+      magicLinkGeneration: row.magicLinkGeneration,
+      expiresAt: row.expiresAt,
+    };
+  },
+  revokeInvite: async (inviteId) => {
+    await getDb()
+      .update(invites)
+      .set({ status: "revoked", updatedAt: new Date() })
+      .where(eq(invites.id, inviteId));
   },
   findPendingInviteByEmail: async (email) => {
     const [row] = await getDb()

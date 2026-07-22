@@ -9,6 +9,7 @@ import {
   type AdminUserChangeRoleResult,
   type AdminUserInviteResult,
   type AdminUserReinstateResult,
+  type AdminUserResendInviteResult,
   type AdminUserSuspendResult,
 } from "../../../../src/admin/users.workflow";
 import { createPostgresAdminUserRepository } from "../../../../src/admin/users.repository";
@@ -139,6 +140,24 @@ export async function reinstateAction(formData: FormData): Promise<void> {
   redirect(redirectTargetForReinstate(result));
 }
 
+export async function resendInviteAction(formData: FormData): Promise<void> {
+  const { session } = await assertAdminAndCsrf(formData);
+
+  const inviteId = readInviteId(formData);
+  if (!inviteId) {
+    redirect("/admin?error=invalid_resend");
+  }
+
+  const workflow = buildAdminWorkflow();
+
+  const result = await workflow.resendInvite({
+    actorId: session.user.id,
+    inviteId,
+  });
+
+  redirect(redirectTargetForResendInvite(result));
+}
+
 function readEmail(formData: FormData): string | null {
   const value = formData.get("email");
   if (typeof value !== "string") {
@@ -161,6 +180,15 @@ function readRole(formData: FormData): UserRole | null {
 
 function readUserId(formData: FormData): string | null {
   const value = formData.get("userId");
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function readInviteId(formData: FormData): string | null {
+  const value = formData.get("inviteId");
   if (typeof value !== "string") {
     return null;
   }
@@ -240,5 +268,20 @@ function redirectTargetForReinstate(result: AdminUserReinstateResult): string {
     case "internal_error":
     default:
       return "/admin?error=reinstate_failed";
+  }
+}
+
+function redirectTargetForResendInvite(
+  result: AdminUserResendInviteResult,
+): string {
+  if (result.ok) {
+    return `/admin?invited=${encodeURIComponent(result.maskedEmail)}`;
+  }
+  switch (result.reason) {
+    case "invite_not_found":
+      return "/admin?error=invite_not_found";
+    case "internal_error":
+    default:
+      return "/admin?error=resend_failed";
   }
 }

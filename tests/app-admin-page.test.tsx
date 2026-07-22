@@ -216,6 +216,66 @@ describe("Admin page", () => {
     expect(html).toContain("You cannot change your own role.");
   });
 
+  it("renders the Recent invites list with Resend / Re-invite actions", async () => {
+    const { createAdminUsersWorkflow } = await import(
+      "../src/admin/users.workflow"
+    );
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn().mockResolvedValue({
+        users: [],
+        recentInvites: [
+          {
+            id: "invite-1",
+            email: "fresh@example.com",
+            role: "user",
+            status: "pending",
+            invitedByAdminId: "admin-1",
+            invitedByAdminEmail: "admin@example.com",
+            expiresAt: new Date("2026-08-11T12:00:00.000Z"),
+            effectiveStatus: "pending",
+          },
+          {
+            id: "invite-2",
+            email: "expired@example.com",
+            role: "organizer",
+            status: "pending",
+            invitedByAdminId: "admin-1",
+            invitedByAdminEmail: "admin@example.com",
+            expiresAt: new Date("2026-06-01T12:00:00.000Z"),
+            effectiveStatus: "expired",
+          },
+          {
+            id: "invite-3",
+            email: "revoked@example.com",
+            role: "user",
+            status: "revoked",
+            invitedByAdminId: "admin-1",
+            invitedByAdminEmail: "admin@example.com",
+            expiresAt: new Date("2026-08-01T12:00:00.000Z"),
+            effectiveStatus: "revoked",
+          },
+        ],
+      }),
+      inviteUser: vi.fn(),
+      changeRole: vi.fn(),
+      suspend: vi.fn(),
+      reinstate: vi.fn(),
+      resendInvite: vi.fn(),
+    });
+
+    const { default: AdminPage } = await import("../app/(product)/admin/page");
+    const html = renderToString(await AdminPage());
+
+    expect(html).toContain('data-testid="recent-invites"');
+    expect(html).toContain('data-testid="recent-invites-row-invite-1"');
+    expect(html).toContain('data-testid="recent-invites-row-invite-2"');
+    expect(html).toContain('data-testid="recent-invites-row-invite-3"');
+    expect(html).toContain('data-testid="recent-invites-button-invite-1"');
+    expect(html).toContain("Resend");
+    expect(html).toContain("Re-invite");
+    expect(html).toContain("Expired");
+  });
+
   it("throws NEXT_NOT_FOUND when called by a non-admin", async () => {
     vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue({
       user: {

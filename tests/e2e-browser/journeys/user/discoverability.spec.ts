@@ -96,5 +96,6 @@ test.describe("Discoverability consent journey", () => {
     await page.getByTestId("discoverability-save").click();
 
     await expect(page.getByTestId("discoverability-granted")).toBeVisible();
+    await expect(page.getByTestId("discoverability-form")).toHaveCount(0);
   });
 });

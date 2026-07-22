@@ -28,7 +28,10 @@ function firstString(value: string | string[] | undefined): string | null {
 function parseErrorCode(
   value: string | null,
 ): SetDiscoverabilityFormErrorCode | undefined {
-  if (value && VALID_ERROR_CODES.has(value as SetDiscoverabilityFormErrorCode)) {
+  if (
+    value &&
+    VALID_ERROR_CODES.has(value as SetDiscoverabilityFormErrorCode)
+  ) {
     return value as SetDiscoverabilityFormErrorCode;
   }
   return undefined;

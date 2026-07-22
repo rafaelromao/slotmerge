@@ -171,6 +171,24 @@ describe("assertCsrfOrThrow", () => {
 
     await expect(assertCsrfOrThrow(request, session)).resolves.toBeUndefined();
   });
+
+  it("consumes the multipart form body via clone so the caller can re-parse it", async () => {
+    const formData = new FormData();
+    formData.set("_csrf", "csrf-token-1");
+    formData.set("field", "value");
+    const request = new Request("http://localhost:3000/me/foo", {
+      method: "POST",
+      headers: {
+        Origin: "http://localhost:3000",
+      },
+      body: formData,
+    });
+
+    await expect(assertCsrfOrThrow(request, session)).resolves.toBeUndefined();
+
+    const reparsed = await request.formData();
+    expect(reparsed.get("field")).toBe("value");
+  });
 });
 
 describe("assertCsrfFromFormData", () => {

@@ -79,4 +79,42 @@ test.describe("Role guard journey", () => {
 
     await context.close();
   });
+
+  test("an unauthenticated visitor to /admin is redirected to /sign-in with returnTo", async ({
+    browser,
+  }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.clock.install({ time: new Date("2026-07-12T12:00:00.000Z") });
+
+    await page.goto("/admin");
+
+    await page.waitForURL((url) => {
+      return (
+        url.pathname === "/sign-in" &&
+        url.searchParams.get("returnTo") === "/admin"
+      );
+    });
+
+    await context.close();
+  });
+
+  test("an unauthenticated visitor to /searches is redirected to /sign-in with returnTo", async ({
+    browser,
+  }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.clock.install({ time: new Date("2026-07-12T12:00:00.000Z") });
+
+    await page.goto("/searches");
+
+    await page.waitForURL((url) => {
+      return (
+        url.pathname === "/sign-in" &&
+        url.searchParams.get("returnTo") === "/searches"
+      );
+    });
+
+    await context.close();
+  });
 });

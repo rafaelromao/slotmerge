@@ -38,6 +38,9 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
+  redirect: (url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  },
 }));
 
 describe("Admin page", () => {
@@ -85,5 +88,30 @@ describe("Admin page", () => {
     });
     const { default: AdminPage } = await import("../app/(product)/admin/page");
     await expect(AdminPage()).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("redirects when there is no session", async () => {
+    vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue(null);
+    const { default: AdminPage } = await import("../app/(product)/admin/page");
+    await expect(AdminPage()).rejects.toThrow(/NEXT_REDIRECT:\/sign-in/);
+  });
+
+  it("redirects when the session is suspended", async () => {
+    vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue({
+      user: {
+        id: "user-1",
+        email: "user@example.com",
+        displayName: "Alice User",
+        avatarUrl: null,
+        shortBio: null,
+        role: "user",
+        status: "suspended",
+        profileTimezone: null,
+        bufferMinutes: 0,
+      },
+      csrfToken: "csrf-token-user",
+    });
+    const { default: AdminPage } = await import("../app/(product)/admin/page");
+    await expect(AdminPage()).rejects.toThrow(/NEXT_REDIRECT:\/sign-in/);
   });
 });

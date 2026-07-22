@@ -87,7 +87,7 @@ async function extractTokenFromRequest(
   }
 
   if (contentType.includes("multipart/form-data")) {
-    const form = await request.formData();
+    const form = await request.clone().formData();
     const value = form.get("_csrf");
     return typeof value === "string" ? value : null;
   }

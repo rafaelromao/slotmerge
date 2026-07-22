@@ -1,5 +1,5 @@
 import { cookies, headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { getSessionFromRequest, type Session } from "../auth/session";
 import type { UserRole } from "../db/schema";
@@ -83,23 +83,12 @@ function isAuthedSession(session: Session): boolean {
   return session.user.status === "active";
 }
 
-class RedirectError extends Error {
-  constructor(public readonly response: Response) {
-    super("redirect");
-    this.name = "RedirectError";
-  }
-}
-
 function redirectToSignIn(request: Request): never {
   const returnTo = safeReturnTo(new URL(request.url));
   const target = returnTo
     ? `/sign-in?returnTo=${encodeURIComponent(returnTo)}`
     : "/sign-in";
-  const response = new Response(null, {
-    status: 303,
-    headers: { Location: target },
-  });
-  throw new RedirectError(response);
+  redirect(target);
 }
 
 function safeReturnTo(url: URL): string | null {

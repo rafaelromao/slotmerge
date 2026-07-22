@@ -30,8 +30,8 @@ async function renderSignIn(
 describe("Public sign-in page", () => {
   it("renders the email input and Send magic link button", async () => {
     const html = await renderSignIn();
-    expect(html).toContain("data-testid=\"sign-in-email\"");
-    expect(html).toContain("data-testid=\"sign-in-submit\"");
+    expect(html).toContain('data-testid="sign-in-email"');
+    expect(html).toContain('data-testid="sign-in-submit"');
     expect(html).toContain("Send magic link");
   });
 
@@ -43,12 +43,6 @@ describe("Public sign-in page", () => {
     expect(html).toContain("Sign in");
   });
 
-  it("posts the form to /auth/magic-link/request", async () => {
-    const html = await renderSignIn();
-    expect(html).toContain('action="/auth/magic-link/request"');
-    expect(html).toContain('method="POST"');
-  });
-
   it("pre-fills the email input when ?email is set", async () => {
     const html = await renderSignIn({ email: "alice@example.com" });
     expect(html).toContain('value="alice@example.com"');
@@ -57,14 +51,14 @@ describe("Public sign-in page", () => {
 
   it("renders the inline error surface with copy when ?error is set", async () => {
     const html = await renderSignIn({ error: "invalid_email" });
-    expect(html).toContain("data-testid=\"sign-in-error\"");
+    expect(html).toContain('data-testid="sign-in-error"');
     expect(html).toMatch(/valid email/i);
   });
 
-  it("renders the sent hint when ?sent=1 is set", async () => {
-    const html = await renderSignIn({ sent: "1" });
-    expect(html).toContain("data-testid=\"sign-in-sent\"");
-    expect(html).toMatch(/check your inbox|we just sent|magic link/i);
+  it("renders the rate_limited inline error copy when ?error=rate_limited", async () => {
+    const html = await renderSignIn({ error: "rate_limited" });
+    expect(html).toContain('data-testid="sign-in-error"');
+    expect(html).toMatch(/too many requests/i);
   });
 
   it("renders the Calendar Connection help text below the form", async () => {

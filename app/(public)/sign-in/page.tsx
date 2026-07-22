@@ -1,6 +1,7 @@
+import { signInRequestMagicLinkAction } from "./_actions";
+
 type SearchParams = Promise<{
   error?: string | string[];
-  sent?: string | string[];
   email?: string | string[];
   returnTo?: string | string[];
 }>;
@@ -12,24 +13,8 @@ export default async function SignInPage({
 } = {}) {
   const params = (await searchParams) ?? {};
   const errorCode = firstString(params.error);
-  const sentFlag = firstString(params.sent) === "1";
   const prefilledEmail = firstString(params.email) ?? "";
   const returnTo = firstString(params.returnTo) ?? "";
-
-  if (sentFlag) {
-    return (
-      <main className="app-container">
-        <h1>Check your inbox</h1>
-        <p
-          className="sign-in-sent"
-          role="status"
-          data-testid="sign-in-sent"
-        >
-          If an account exists for that email, we just sent a sign-in link.
-        </p>
-      </main>
-    );
-  }
 
   return (
     <main className="app-container">
@@ -41,8 +26,7 @@ export default async function SignInPage({
       <form
         className="sign-in-form"
         data-testid="sign-in-form"
-        action="/auth/magic-link/request"
-        method="POST"
+        action={signInRequestMagicLinkAction}
       >
         <label className="sign-in-label" htmlFor="sign-in-email">
           Email

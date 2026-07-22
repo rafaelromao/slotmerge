@@ -1,6 +1,10 @@
 import { createHmac } from "node:crypto";
 
-import { verifyMagicLinkToken, type MagicLinkTokenPayload } from "./magic-link";
+import {
+  decodeMagicLinkTokenPayload,
+  verifyMagicLinkToken,
+  type MagicLinkTokenPayload,
+} from "./magic-link";
 import { sealSessionCookie, getSessionSecret } from "./session";
 import type { Clock } from "../system/clock";
 import type { UserRole } from "../db/schema";
@@ -101,22 +105,35 @@ export function createMagicLinkVerifyHandlers(
       const token = formData.get("token");
 
       if (typeof token !== "string" || !token) {
-        return errorResponse("invalid_token", 400);
+        return errorResponse("invalid_token", "link_invalid", 400);
       }
 
       const magicLinkSecret = deps.magicLinkSecret ?? getMagicLinkSecret();
+
+      let decodedPayload: MagicLinkTokenPayload | null = null;
+      try {
+        decodedPayload = decodeMagicLinkTokenPayload(token, magicLinkSecret);
+      } catch {
+        decodedPayload = null;
+      }
 
       let payload: MagicLinkTokenPayload;
       try {
         payload = verifyMagicLinkToken(token, magicLinkSecret, clock);
       } catch (err) {
         if (err instanceof Error && err.message === "invalid_token") {
-          return errorResponse("invalid_token", 400, token);
+          return errorResponse("invalid_token", "link_invalid", 400, token);
         }
         if (err instanceof Error && err.message === "token_expired") {
-          return errorResponse("token_expired", 400, token);
+          return errorResponse(
+            "token_expired",
+            "link_expired",
+            400,
+            token,
+            decodedPayload?.email,
+          );
         }
-        return errorResponse("invalid_token", 400, token);
+        return errorResponse("invalid_token", "link_invalid", 400, token);
       }
 
       const invite = await (
@@ -124,27 +141,63 @@ export function createMagicLinkVerifyHandlers(
       ).findById(payload.inviteId!);
 
       if (!invite) {
-        return errorResponse("not_invited", 400, token);
+        return errorResponse(
+          "not_invited",
+          "link_invalid",
+          400,
+          token,
+          payload.email,
+        );
       }
 
       if (invite.status === "accepted") {
-        return errorResponse("invite_already_accepted", 400);
+        return errorResponse(
+          "invite_already_accepted",
+          "link_used",
+          400,
+          undefined,
+          invite.email,
+        );
       }
 
       if (invite.status === "revoked") {
-        return errorResponse("invite_revoked", 400);
+        return errorResponse(
+          "invite_revoked",
+          "link_invalid",
+          400,
+          undefined,
+          invite.email,
+        );
       }
 
       if (invite.expiresAt <= clock.now()) {
-        return errorResponse("invite_expired", 400, token);
+        return errorResponse(
+          "invite_expired",
+          "link_expired",
+          400,
+          token,
+          invite.email,
+        );
       }
 
       if (invite.email !== payload.email) {
-        return errorResponse("email_mismatch", 400, token);
+        return errorResponse(
+          "email_mismatch",
+          "link_invalid",
+          400,
+          token,
+          invite.email,
+        );
       }
 
       if ((payload.generation ?? 0) !== (invite.magicLinkGeneration ?? 0)) {
-        return errorResponse("invalid_token", 400);
+        return errorResponse(
+          "invalid_token",
+          "link_invalid",
+          400,
+          undefined,
+          invite.email,
+        );
       }
 
       const userRepo = deps.userRepository ?? defaultUserRepository;
@@ -177,12 +230,12 @@ export function createMagicLinkVerifyHandlers(
           sessionCookie = await sealSessionCookie({ sessionId: session.id });
         });
       } catch {
-        return errorResponse("server_error", 500);
+        return errorResponse("server_error", "link_invalid", 500);
       }
 
       const origin = loadRuntimeConfig().appBaseUrl;
       return new Response(null, {
-        status: 302,
+        status: 303,
         headers: {
           Location: `${origin}/`,
           "Set-Cookie": sessionCookie,
@@ -214,9 +267,15 @@ function renderConfirmPage(token: string): string {
 
 function errorResponse(
   reason: string,
+  linkState: "link_expired" | "link_used" | "link_invalid",
   status: number,
   resendToken?: string,
+  email?: string,
 ): Response {
+  const requestNewLinkHref = email
+    ? `/sign-in?email=${encodeURIComponent(email)}`
+    : "/sign-in";
+
   const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -225,7 +284,7 @@ function errorResponse(
   </head>
   <body>
     <h1>Sign in failed</h1>
-    <p>Reason: ${escapeHtml(reason)}</p>
+    <p data-link-state="${escapeHtml(linkState)}">Reason: ${escapeHtml(reason)}</p>
     <p>Please contact an administrator if you believe this is an error.</p>
     ${
       resendToken
@@ -235,6 +294,7 @@ function errorResponse(
     </form>`
         : ""
     }
+    <p><a href="${escapeHtml(requestNewLinkHref)}">Request a new link</a></p>
   </body>
 </html>`;
 

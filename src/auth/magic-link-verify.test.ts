@@ -396,7 +396,7 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(302);
+      expect(response.status).toBe(303);
       expect(response.headers.get("Location")).toMatch(
         /^http:\/\/localhost(?::3000)?\/$/,
       );
@@ -567,7 +567,7 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(302);
+      expect(response.status).toBe(303);
       expect(mockUserRepo.create).not.toHaveBeenCalled();
       expect(mockUserRepo.findByEmail).toHaveBeenCalledWith(
         "alice@example.com",

@@ -16,15 +16,15 @@ export default async function SentPage({
   return (
     <main className="app-container">
       <h1>Check your inbox</h1>
-      {maskedEmail ? (
-        <p data-testid="sent-masked-email" className="sent-masked-email">
-          We sent a sign-in link to <strong>{maskedEmail}</strong>.
-        </p>
-      ) : (
-        <p data-testid="sent-masked-email" className="sent-masked-email">
-          If an account exists for that email, we just sent a sign-in link.
-        </p>
-      )}
+      <p data-testid="sent-masked-email" className="sent-masked-email">
+        {maskedEmail ? (
+          <>
+            We sent a sign-in link to <strong>{maskedEmail}</strong>.
+          </>
+        ) : (
+          "If an account exists for that email, we just sent a sign-in link."
+        )}
+      </p>
       <p
         className="sent-non-leaking"
         role="status"
@@ -51,7 +51,7 @@ function firstString(value: string | string[] | undefined): string | null {
   return value ?? null;
 }
 
-export function maskEmail(email: string): string {
+function maskEmail(email: string): string {
   const at = email.indexOf("@");
   if (at <= 0) {
     return email;

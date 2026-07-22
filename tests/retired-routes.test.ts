@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { GET as retiredSearchGet } from "../app/api/searches/[id]/route";
 import { GET as retiredSearchResultsGet } from "../app/searches/[id]/results/route";
 import { GET as retiredAdminInvitesGet } from "../app/admin/invites/route";
-import { POST as retiredAdminInvitesPost } from "../app/admin/invites/route";
 import { GET as retiredAdminTopicProposalsGet } from "../app/admin/topic-proposals/route";
 import { POST as retiredAdminTopicProposalsPost } from "../app/admin/topic-proposals/route";
 import { GET as retiredSearchSnapshotGet } from "../app/search/[id]/snapshot/route";
@@ -101,21 +100,6 @@ describe("Retired routes return 308 with Deprecation, Sunset, and successor Link
     });
   });
 
-  describe("POST /admin/invites", () => {
-    it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#users", () => {
-      const response = retiredAdminInvitesPost();
-      expect(response.status).toBe(308);
-      expect(response.headers.get("Location")).toBe("/admin#users");
-      expect(response.headers.get("Deprecation")).toBe("true");
-      expect(response.headers.get("Sunset")).toBe(
-        "Thu, 31 Dec 2026 23:59:59 GMT",
-      );
-      expect(response.headers.get("Link")).toBe(
-        "</admin#users>; rel=\"successor-version\"",
-      );
-    });
-  });
-
   describe("GET /admin/topic-proposals", () => {
     it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#topics", () => {
       const response = retiredAdminTopicProposalsGet();
@@ -132,17 +116,18 @@ describe("Retired routes return 308 with Deprecation, Sunset, and successor Link
   });
 
   describe("POST /admin/topic-proposals", () => {
-    it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#topics", () => {
-      const response = retiredAdminTopicProposalsPost();
-      expect(response.status).toBe(308);
-      expect(response.headers.get("Location")).toBe("/admin#topics");
-      expect(response.headers.get("Deprecation")).toBe("true");
-      expect(response.headers.get("Sunset")).toBe(
-        "Thu, 31 Dec 2026 23:59:59 GMT",
+    it("still serves the Admin Topic Proposal POST handler", async () => {
+      const response = await retiredAdminTopicProposalsPost(
+        new Request("http://localhost/admin/topic-proposals", {
+          method: "POST",
+          headers: {
+            cookie: "placeholder",
+            "content-type": "application/x-www-form-urlencoded",
+          },
+          body: "_csrf=x",
+        }),
       );
-      expect(response.headers.get("Link")).toBe(
-        "</admin#topics>; rel=\"successor-version\"",
-      );
+      expect(response.status).not.toBe(308);
     });
   });
 

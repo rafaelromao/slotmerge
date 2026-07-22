@@ -8,10 +8,7 @@ import { CsrfError } from "../../../../src/lib/csrf";
 import { getDb } from "../../../../src/db/client";
 import { createPostgresTopicProposalRepository } from "../../../../src/topics/proposals.repository";
 import { createTopicProposalRouteRepository } from "../../../../src/topics/proposals-route";
-import {
-  setTopicCatalogueRepositoryForTests,
-  type TopicCatalogueRepository,
-} from "../../../../src/topics/repository";
+import type { TopicCatalogueRepository } from "../../../../src/topics/repository";
 import {
   createTopicWorkflow,
   type TopicRow,
@@ -178,7 +175,3 @@ export async function proposeTopicAction(
 }
 
 export type ProposeActionStateLazy = ProposeActionState;
-
-export function __resetTopicCatalogueRepositoryForTests(): void {
-  setTopicCatalogueRepositoryForTests(null);
-}

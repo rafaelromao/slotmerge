@@ -45,11 +45,7 @@ export function ProposeForm({ csrfToken }: ProposeFormProps) {
   );
 }
 
-export function ProposeFormField({
-  state,
-}: {
-  state: ProposeActionStateLazy;
-}) {
+export function ProposeFormField({ state }: { state: ProposeActionStateLazy }) {
   const errorField = state.ok === "error" ? state.fieldError : null;
   const submittedName =
     state.ok === "success" || state.ok === "error"

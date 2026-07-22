@@ -1,15 +1,15 @@
 import { timingSafeEqual } from "node:crypto";
 
 import Iron from "@hapi/iron";
-import { getSessionFromRequest } from "../../../src/auth/session";
-import { getSessionSecret } from "../../../src/auth/session";
+import { getSessionFromRequest } from "../../../../../src/auth/session";
+import { getSessionSecret } from "../../../../../src/auth/session";
 import {
   getTopicPageState,
   saveUserTopicSelection,
-} from "../../../src/topics/repository";
-import { createMeTopicProposalsHandlers } from "../../../src/topics/me-topic-proposals-route";
-import { createTopicProposalsHandlers } from "../../../src/topics/proposals-route";
-import { systemDependencies } from "../../../src/system";
+} from "../../../../../src/topics/repository";
+import { createMeTopicProposalsHandlers } from "../../../../../src/topics/me-topic-proposals-route";
+import { createTopicProposalsHandlers } from "../../../../../src/topics/proposals-route";
+import { systemDependencies } from "../../../../../src/system";
 
 export async function GET(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);
@@ -281,7 +281,7 @@ function renderTopicsPage({
       </header>
       <section style="border-top:1px solid #e5e7eb;padding-top:1rem;">
         <h2 id="active-topics" style="margin:0 0 0.75rem;font-size:1.125rem;">Active Topics</h2>
-        <form action="/me/topics" method="post">
+        <form action="/api/v1/me/topics" method="post">
           <input type="hidden" name="csrfToken" value="${escapeHtml(csrfToken)}" />
           <ul style="margin:0;padding-left:1.25rem;">${topicRows}</ul>
           <button type="submit" style="margin-top:1rem;padding:0.625rem 1rem;">Save topics</button>
@@ -290,7 +290,7 @@ function renderTopicsPage({
       <section style="border-top:1px solid #e5e7eb;padding-top:1rem;margin-top:1.5rem;">
         <h2 id="propose-topic" style="margin:0 0 0.75rem;font-size:1.125rem;">Propose a new Topic</h2>
         ${errorBanner}
-        <form action="/me/topics/propose" method="post">
+        <form action="/api/v1/me/topics/propose" method="post">
           <input type="hidden" name="csrfToken" value="${escapeHtml(csrfToken)}" />
           <div style="display:flex;gap:0.5rem;align-items:flex-start;">
             <input type="text" name="candidateName" placeholder="Topic name" required style="flex:1;padding:0.625rem;border:1px solid #d1d5db;border-radius:0.375rem;" />

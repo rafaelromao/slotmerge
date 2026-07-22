@@ -5,6 +5,7 @@ import {
 } from "../../../../../src/calendar/providers";
 import { findCalendarConnectionById } from "../../../../../src/calendar/repository";
 import { decryptCalendarToken } from "../../../../../src/calendar/token-encryption";
+import { createProviderFetchImpl } from "../../../../../src/lib/fetch-wrapper";
 
 export async function GET(
   request: Request,
@@ -44,11 +45,19 @@ export async function GET(
     key: tokenEncryptionKey,
   });
 
+  const isLocalOrTest =
+    process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
+  const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
+  const fetchImpl =
+    isLocalOrTest && overrideUrl
+      ? createProviderFetchImpl(fetch, overrideUrl)
+      : fetch;
+
   const provider = getCalendarProvider(connection.provider);
   const providerCalendars = await listProviderCalendarsForProvider(
     provider,
     accessToken,
-    fetch,
+    fetchImpl,
   );
 
   const includedIds = new Set(connection.contributingCalendarIds);

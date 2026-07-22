@@ -52,48 +52,44 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://localhost:${PORT}`);
   const path = url.pathname;
 
-  if (req.method !== "POST") {
-    res.writeHead(404);
-    res.end();
-    return;
-  }
-
   try {
-    const body = await parseBody(req);
-
-    if (path === GOOGLE_TOKEN_ENDPOINT) {
+    if (path === GOOGLE_TOKEN_ENDPOINT && req.method === "POST") {
+      const body = await parseBody(req);
       jsonResponse(res, 200, buildGoogleTokenResponse());
       return;
     }
 
-    if (path === GOOGLE_REVOKE_ENDPOINT) {
+    if (path === GOOGLE_REVOKE_ENDPOINT && req.method === "POST") {
       jsonResponse(res, 200, {});
       return;
     }
 
-    if (path === MICROSOFT_TOKEN_ENDPOINT) {
+    if (path === MICROSOFT_TOKEN_ENDPOINT && req.method === "POST") {
+      const body = await parseBody(req);
       const scope = typeof body.scope === "string" ? body.scope : "";
       const result = buildMicrosoftTokenResponse(scope);
       jsonResponse(res, result.status, result.body);
       return;
     }
 
-    if (path === MICROSOFT_LOGOUT_ENDPOINT) {
+    if (path === MICROSOFT_LOGOUT_ENDPOINT && req.method === "POST") {
       jsonResponse(res, 200, {});
       return;
     }
 
-    if (path === GOOGLE_FREEBUSY_ENDPOINT) {
+    if (path === GOOGLE_FREEBUSY_ENDPOINT && req.method === "POST") {
+      const body = await parseBody(req);
       jsonResponse(res, 200, buildGoogleFreeBusyResponse(body));
       return;
     }
 
-    if (path === MICROSOFT_CALENDARS_ENDPOINT) {
+    if (path === MICROSOFT_CALENDARS_ENDPOINT && req.method === "GET") {
       jsonResponse(res, 200, buildMicrosoftCalendarsResponse());
       return;
     }
 
-    if (path === MICROSOFT_GETSCHEDULE_ENDPOINT) {
+    if (path === MICROSOFT_GETSCHEDULE_ENDPOINT && req.method === "POST") {
+      const body = await parseBody(req);
       jsonResponse(res, 200, buildMicrosoftGetScheduleResponse(body));
       return;
     }

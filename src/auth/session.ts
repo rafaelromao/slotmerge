@@ -193,7 +193,12 @@ export function getSessionSecret(): string {
     return process.env.SESSION_SECRET;
   }
 
-  if (process.env.NODE_ENV === "test") {
+  const appEnv = process.env.APP_ENV;
+  if (
+    process.env.NODE_ENV === "test" ||
+    appEnv === "local" ||
+    appEnv === "test"
+  ) {
     return "test-session-secret-at-least-32-characters";
   }
 

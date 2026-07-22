@@ -7,16 +7,67 @@ import {
   userTopics,
   availabilityWindows,
 } from "../../src/db/schema";
-import { SignInForm } from "./_components/SignInForm";
+import { requestMagicLinkAction } from "./_actions/request-magic-link";
 
-export default async function SetupHomePage() {
+type SearchParams = Promise<{
+  error?: string | string[];
+  sent?: string | string[];
+}>;
+
+export default async function SetupHomePage({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+} = {}) {
   const session = await getServerSession();
 
   if (!session) {
+    const params = (await searchParams) ?? {};
+    const errorCode = firstString(params.error);
+    const sentFlag = firstString(params.sent) === "1";
     return (
       <main className="app-container">
         <h1>Please sign in to continue.</h1>
-        <SignInForm />
+        {sentFlag ? (
+          <p className="sign-in-sent" role="status" data-testid="sign-in-sent">
+            Check your email for a magic link.
+          </p>
+        ) : (
+          <form
+            className="sign-in-form"
+            data-testid="sign-in-form"
+            action={requestMagicLinkAction}
+          >
+            <label className="sign-in-label" htmlFor="sign-in-email">
+              Email
+            </label>
+            <input
+              id="sign-in-email"
+              name="email"
+              type="email"
+              className="sign-in-input"
+              data-testid="sign-in-email"
+              required
+            />
+            <button
+              type="submit"
+              className="btn btn-primary sign-in-submit"
+              data-testid="sign-in-submit"
+            >
+              Send magic link
+            </button>
+            {errorCode ? (
+              <p
+                className="sign-in-error"
+                role="alert"
+                aria-live="polite"
+                data-testid="sign-in-error"
+              >
+                {errorMessageFor(errorCode)}
+              </p>
+            ) : null}
+          </form>
+        )}
       </main>
     );
   }
@@ -87,6 +138,28 @@ export default async function SetupHomePage() {
       </div>
     </div>
   );
+}
+
+function firstString(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+  return value ?? null;
+}
+
+function errorMessageFor(code: string): string {
+  switch (code) {
+    case "not_invited":
+      return "This email is not on the invite list. Ask an admin to invite you.";
+    case "invalid_email":
+      return "Please enter a valid email address.";
+    case "rate_limited":
+      return "Too many requests. Please try again in a minute.";
+    case "network_error":
+      return "Could not reach the server. Check your connection and try again.";
+    default:
+      return "We could not send a magic link. Please try again.";
+  }
 }
 
 type SetupCardProps = {

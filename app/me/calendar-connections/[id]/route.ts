@@ -9,6 +9,7 @@ import {
 import { getCalendarProvider } from "../../../../src/calendar/providers";
 import { getCalendarConnectionRepository } from "../../../../src/calendar/repository";
 import { loadRuntimeConfig } from "../../../../src/config/runtime";
+import { createProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
 import { systemClock } from "../../../../src/system/clock";
 
 export async function PATCH(
@@ -81,11 +82,19 @@ export async function PATCH(
   }
 
   if (wantsDisconnect) {
+    const isLocalOrTest =
+      process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
+    const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
+    const fetchImpl =
+      isLocalOrTest && overrideUrl
+        ? createProviderFetchImpl(fetch, overrideUrl)
+        : fetch;
+
     const connection = await revokeCalendarConnection({
       provider: getCalendarProvider(found.provider),
       repository,
       connectionId: expectedId,
-      fetchImpl: fetch,
+      fetchImpl,
       tokenEncryptionKey,
     });
     await safelyTriggerActionRequiredEmail({

@@ -63,13 +63,23 @@ async function globalSetup() {
     const roleIndex = roles.indexOf(role);
     const sessionId = SESSION_IDS[roleIndex];
 
-    await db.insert(sessions).values({
-      id: sessionId,
-      userId: userResult.id,
-      csrfToken: `csrf-${role.name}-test`,
-      expiresAt: sessionExpiry,
-      createdAt: new Date(FIXTURE_DATE),
-    }).onConflictDoNothing();
+    await db
+      .insert(sessions)
+      .values({
+        id: sessionId,
+        userId: userResult.id,
+        csrfToken: `csrf-${role.name}-test`,
+        expiresAt: sessionExpiry,
+        createdAt: new Date(FIXTURE_DATE),
+      })
+      .onConflictDoUpdate({
+        target: sessions.id,
+        set: {
+          userId: userResult.id,
+          csrfToken: `csrf-${role.name}-test`,
+          expiresAt: sessionExpiry,
+        },
+      });
 
     const sealedValue = await sealSessionCookieValue({ sessionId });
 

@@ -1004,6 +1004,10 @@ button {
   white-space: nowrap;
 }
 
+.primary-nav {
+  display: contents;
+}
+
 .header-menu-toggle {
   display: none;
   background: none;
@@ -1011,6 +1015,45 @@ button {
   cursor: pointer;
   padding: var(--space-2);
   color: var(--text-primary);
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+}
+
+.header-menu-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.header-menu-toggle-bar {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: currentColor;
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 1023px) {
+  .primary-nav .top-nav {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: var(--space-2);
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: var(--space-3) var(--space-4);
+    box-shadow: var(--shadow-md);
+    z-index: var(--z-overlay);
+  }
+
+  .primary-nav:not([open]) .top-nav {
+    display: none;
+  }
+
+  .header-menu-toggle {
+    display: flex;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1031,9 +1074,5 @@ button {
   .setup-card-action {
     margin-left: 0;
     width: 100%;
-  }
-
-  .header-menu-toggle {
-    display: block;
   }
 }

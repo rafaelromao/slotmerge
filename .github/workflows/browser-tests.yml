@@ -31,17 +31,22 @@ jobs:
           DATABASE_URL: postgres://slotmerge:slotmerge@localhost:5432/slotmerge
 
       - name: Upload test results
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-test-results
-          path: playwright/.artifacts/test-results/
+          path: |
+            playwright/.artifacts/test-results/
+            test-results/
           retention-days: 14
 
-      - name: Upload traces
-        if: failure()
+      - name: Upload artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-traces
-          path: playwright/.artifacts/**/trace.zip
+          name: playwright-artifacts
+          path: |
+            playwright/.artifacts/**/videos/**/*.webm
+            playwright/.artifacts/**/trace.zip
+            playwright/.auth/**
           retention-days: 14

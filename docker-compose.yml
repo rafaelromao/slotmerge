@@ -32,8 +32,10 @@ services:
       retries: 5
 
   web:
-    build: .
-    command: sh -c "pnpm db:migrate && pnpm dev:web"
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: sh -c "pnpm exec drizzle-kit migrate && pnpm dev:web"
     environment:
       APP_ENV: local
       DATABASE_URL: postgres://slotmerge:slotmerge@postgres:5432/slotmerge
@@ -41,6 +43,9 @@ services:
       LOCAL_PROVIDER_OVERRIDE_URL: http://provider-mock:3001
       EMAIL_CAPTURE_ENABLED: "true"
       FIXTURE_DATE: "2026-07-12T12:00:00.000Z"
+      MAGIC_LINK_SECRET: "local-magic-link-secret-do-not-use-in-production"
+      SESSION_SECRET: "local-session-secret-do-not-use-in-production"
+      CALENDAR_TOKEN_ENCRYPTION_KEY: "local-calendar-token-encryption-key-do-not-use-in-production"
     ports:
       - "3000:3000"
     depends_on:
@@ -50,8 +55,10 @@ services:
         condition: service_healthy
 
   worker:
-    build: .
-    command: sh -c "pnpm db:migrate && pnpm dev:worker"
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: sh -c "pnpm exec drizzle-kit migrate && pnpm dev:worker"
     environment:
       APP_ENV: local
       DATABASE_URL: postgres://slotmerge:slotmerge@postgres:5432/slotmerge
@@ -59,6 +66,9 @@ services:
       LOCAL_PROVIDER_OVERRIDE_URL: http://provider-mock:3001
       EMAIL_CAPTURE_ENABLED: "true"
       FIXTURE_DATE: "2026-07-12T12:00:00.000Z"
+      MAGIC_LINK_SECRET: "local-magic-link-secret-do-not-use-in-production"
+      SESSION_SECRET: "local-session-secret-do-not-use-in-production"
+      CALENDAR_TOKEN_ENCRYPTION_KEY: "local-calendar-token-encryption-key-do-not-use-in-production"
     depends_on:
       postgres:
         condition: service_healthy

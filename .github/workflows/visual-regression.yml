@@ -38,6 +38,15 @@ jobs:
           path: tests/e2e-browser/screenshots/**/*.png
           retention-days: 14
 
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: |
+            playwright/.artifacts/test-results/
+            test-results/
+          retention-days: 14
+
       - name: Upload videos
         uses: actions/upload-artifact@v4
         with:

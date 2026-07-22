@@ -1,16 +1,18 @@
 "use client";
 
-import Link from "next/link";
+import type { ReactNode } from "react";
 import { useState } from "react";
 
 type HeaderMenuToggleProps = {
   displayName: string | null;
   email: string;
+  children?: ReactNode;
 };
 
 export function HeaderMenuToggle({
   displayName,
   email,
+  children,
 }: HeaderMenuToggleProps) {
   const [open, setOpen] = useState(false);
 
@@ -28,20 +30,7 @@ export function HeaderMenuToggle({
       >
         <span className="avatar-initial">{displayName?.[0] ?? email[0]}</span>
       </summary>
-      <ul className="avatar-dropdown-menu" role="menu">
-        <li>
-          <Link href="/me" role="menuitem">
-            My Profile
-          </Link>
-        </li>
-        <li>
-          <form method="POST" action="/auth/session">
-            <button type="submit" role="menuitem">
-              Sign Out
-            </button>
-          </form>
-        </li>
-      </ul>
+      {children}
     </details>
   );
 }

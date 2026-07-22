@@ -5,6 +5,8 @@ on:
 
 jobs:
   visual-regression:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:

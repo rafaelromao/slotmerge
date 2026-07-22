@@ -4,6 +4,7 @@ import { quickAddJob } from "graphile-worker";
 import { ROLLING_WINDOW_DAYS } from "../calendar/imported-busy-intervals";
 import { createPostgresImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals.repository";
 import { decryptCalendarToken } from "../calendar/token-encryption";
+import { createProviderFetchImpl } from "../lib/fetch-wrapper";
 import {
   findCalendarConnectionById,
   getCalendarConnectionRepository,
@@ -118,6 +119,14 @@ export async function handleSyncCalendarConnectionJob(
     now.getTime() - ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
 
+  const isLocalOrTest =
+    process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
+  const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
+  const fetchImpl =
+    isLocalOrTest && overrideUrl
+      ? createProviderFetchImpl(fetch, overrideUrl)
+      : fetch;
+
   try {
     await syncCalendarConnection({
       connectionId: connection.id,
@@ -127,7 +136,7 @@ export async function handleSyncCalendarConnectionJob(
       userId: connection.userId,
       timeMin,
       timeMax,
-      fetchImpl: fetch,
+      fetchImpl,
       busyIntervalRepository,
       recordFailure: (input) =>
         recordCalendarConnectionSyncFailure(

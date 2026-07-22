@@ -52,3 +52,7 @@ token-optimizer/
 .opencode/
 .worktrees/
 .sandman/
+
+# Playwright
+playwright/.auth/
+playwright/.artifacts/

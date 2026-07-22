@@ -1,3 +1,32 @@
+import { createRequire } from "node:module";
+
+const require_ = createRequire(import.meta.url);
+
+const responses = require_("./provider-mock/responses.cjs") as {
+  buildMicrosoftTokenResponse(
+    scope: string,
+    options?: {
+      accountKind?: "work-school" | "personal";
+      accessToken?: string;
+      refreshToken?: string;
+      expiresIn?: number;
+      scope?: string;
+    },
+  ): { status: number; body: Record<string, unknown> };
+  buildMicrosoftCalendarsResponse(options?: {
+    primaryCalendarId?: string;
+  }): Record<string, unknown>;
+  buildMicrosoftGetScheduleResponse(
+    input: string | Record<string, unknown> | null,
+    options?: {
+      scheduleResponses?: Map<
+        string,
+        { availabilityView?: string; scheduleItems?: ScheduleItem[] }
+      >;
+    },
+  ): Record<string, unknown>;
+};
+
 export type MicrosoftOAuthCallback = {
   code: string;
   codeVerifier: string;
@@ -59,7 +88,6 @@ export type MockMicrosoftGraphAdapter = {
 const MICROSOFT_TOKEN_ENDPOINT =
   "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
 const MICROSOFT_GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0";
-const MICROSOFT_CALENDAR_SCOPES = "offline_access Calendars.ReadBasic";
 
 export function buildMockMicrosoftGraphAdapter(
   options: MockMicrosoftGraphAdapterOptions = {},
@@ -112,36 +140,18 @@ export function buildMockMicrosoftGraphAdapter(
         };
         oauthCallbacks.push(callback);
 
-        if (accountKind === "personal") {
-          return Promise.resolve(
-            new Response(
-              JSON.stringify({
-                error: "access_denied",
-                error_description:
-                  "The Microsoft personal accounts are not supported. Use a work or school account.",
-              }),
-              {
-                status: 400,
-                headers: { "content-type": "application/json" },
-              },
-            ),
-          );
-        }
+        const result = responses.buildMicrosoftTokenResponse(callback.scope, {
+          accountKind,
+          accessToken,
+          refreshToken,
+          expiresIn,
+        });
 
         return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-              expires_in: expiresIn,
-              scope: MICROSOFT_CALENDAR_SCOPES,
-              token_type: "Bearer",
-            }),
-            {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            },
-          ),
+          new Response(JSON.stringify(result.body), {
+            status: result.status,
+            headers: { "content-type": "application/json" },
+          }),
         );
       }
 
@@ -150,21 +160,14 @@ export function buildMockMicrosoftGraphAdapter(
         `${MICROSOFT_GRAPH_ENDPOINT}/me/calendars?$filter=isPrimaryCalendar eq true&$top=1`
       ) {
         primaryCalendarCalls.push({ accessToken: "mock" });
+        const payload = responses.buildMicrosoftCalendarsResponse({
+          primaryCalendarId,
+        });
         return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              value: [
-                {
-                  id: primaryCalendarId,
-                  isPrimaryCalendar: true,
-                },
-              ],
-            }),
-            {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            },
-          ),
+          new Response(JSON.stringify(payload), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
         );
       }
 
@@ -187,18 +190,12 @@ export function buildMockMicrosoftGraphAdapter(
           schedules: body.schedules ?? [],
         });
 
-        const scheduleItems =
-          body.schedules?.map((scheduleId) => {
-            const configured = scheduleResponses.get(scheduleId);
-            return {
-              scheduleId,
-              availabilityView: configured?.availabilityView ?? "0",
-              calendarEvents: configured?.scheduleItems ?? [],
-            };
-          }) ?? [];
+        const payload = responses.buildMicrosoftGetScheduleResponse(body, {
+          scheduleResponses,
+        });
 
         return Promise.resolve(
-          new Response(JSON.stringify({ value: scheduleItems }), {
+          new Response(JSON.stringify(payload), {
             status: 200,
             headers: { "content-type": "application/json" },
           }),

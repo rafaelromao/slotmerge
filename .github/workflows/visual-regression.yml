@@ -1,0 +1,66 @@
+name: Visual Regression
+
+on:
+  workflow_dispatch:
+
+jobs:
+  visual-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run capture project
+        run: pnpm exec playwright test --project=capture
+        env:
+          APP_ENV: test
+          CI: "true"
+          CAPTURE: "true"
+          DATABASE_URL: postgres://slotmerge:slotmerge@localhost:5432/slotmerge
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots
+          path: tests/e2e-browser/screenshots/**/*.png
+          retention-days: 14
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: |
+            playwright/.artifacts/test-results/
+            test-results/
+          retention-days: 14
+
+      - name: Upload videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-videos
+          path: playwright/.artifacts/**/videos/**/*.webm
+          retention-days: 14
+
+      - name: Upload traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: playwright/.artifacts/**/trace.zip
+          retention-days: 14

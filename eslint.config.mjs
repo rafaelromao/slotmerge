@@ -12,6 +12,7 @@ export default tseslint.config(
       "node_modules/**",
       "*.mjs",
       ".sandman/**",
+      "tests/provider-mock/**",
     ],
   },
   js.configs.recommended,

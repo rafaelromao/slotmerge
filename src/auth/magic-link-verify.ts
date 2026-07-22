@@ -4,6 +4,7 @@ import { verifyMagicLinkToken, type MagicLinkTokenPayload } from "./magic-link";
 import { sealSessionCookie, getSessionSecret } from "./session";
 import type { Clock } from "../system/clock";
 import type { UserRole } from "../db/schema";
+import { loadRuntimeConfig } from "../config/runtime";
 
 export type MagicLinkVerifyDependencies = {
   clock: Clock;
@@ -179,7 +180,7 @@ export function createMagicLinkVerifyHandlers(
         return errorResponse("server_error", 500);
       }
 
-      const origin = new URL(request.url).origin;
+      const origin = loadRuntimeConfig().appBaseUrl;
       return new Response(null, {
         status: 302,
         headers: {

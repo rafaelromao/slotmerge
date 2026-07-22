@@ -199,104 +199,207 @@ export async function seedAll(db: AppDb): Promise<void> {
   const now = new Date(FIXTURE_DATE);
 
   for (const user of USER_FIXTURES) {
-    await db.insert(users).values({
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      role: user.role,
-      status: user.status,
-      profileTimezone: user.profileTimezone,
-      bufferMinutes: user.bufferMinutes,
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db
+      .insert(users)
+      .values({
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+        status: user.status,
+        profileTimezone: user.profileTimezone,
+        bufferMinutes: user.bufferMinutes,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          email: user.email,
+          displayName: user.displayName,
+          role: user.role,
+          status: user.status,
+          profileTimezone: user.profileTimezone,
+          bufferMinutes: user.bufferMinutes,
+          updatedAt: now,
+        },
+      });
   }
 
   for (const topic of TOPIC_FIXTURES) {
-    await db.insert(topics).values({
-      id: topic.id,
-      name: topic.name,
-      status: topic.status,
-      retiredAt: topic.status === "retired" ? now : null,
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db
+      .insert(topics)
+      .values({
+        id: topic.id,
+        name: topic.name,
+        status: topic.status,
+        retiredAt: topic.status === "retired" ? now : null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: topics.id,
+        set: {
+          name: topic.name,
+          status: topic.status,
+          retiredAt: topic.status === "retired" ? now : null,
+          updatedAt: now,
+        },
+      });
   }
 
   for (const window of AVAILABILITY_WINDOW_FIXTURES) {
-    await db.insert(availabilityWindows).values({
-      id: window.id,
-      userId: window.userId,
-      dayOfWeek: window.dayOfWeek,
-      startTime: window.startTime,
-      endTime: window.endTime,
-      profileTimezone: window.profileTimezone,
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db
+      .insert(availabilityWindows)
+      .values({
+        id: window.id,
+        userId: window.userId,
+        dayOfWeek: window.dayOfWeek,
+        startTime: window.startTime,
+        endTime: window.endTime,
+        profileTimezone: window.profileTimezone,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: availabilityWindows.id,
+        set: {
+          userId: window.userId,
+          dayOfWeek: window.dayOfWeek,
+          startTime: window.startTime,
+          endTime: window.endTime,
+          profileTimezone: window.profileTimezone,
+          updatedAt: now,
+        },
+      });
   }
 
   for (const override of OVERRIDE_FIXTURES) {
-    await db.insert(availabilityOverrides).values({
-      id: override.id,
-      userId: override.userId,
-      date: override.date,
-      startTime: override.startTime,
-      endTime: override.endTime,
-      type: override.type,
-      profileTimezone: override.profileTimezone,
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db
+      .insert(availabilityOverrides)
+      .values({
+        id: override.id,
+        userId: override.userId,
+        date: override.date,
+        startTime: override.startTime,
+        endTime: override.endTime,
+        type: override.type,
+        profileTimezone: override.profileTimezone,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: availabilityOverrides.id,
+        set: {
+          userId: override.userId,
+          date: override.date,
+          startTime: override.startTime,
+          endTime: override.endTime,
+          type: override.type,
+          profileTimezone: override.profileTimezone,
+          updatedAt: now,
+        },
+      });
   }
 
   for (const conn of CALENDAR_CONNECTION_FIXTURES) {
-    await db.insert(calendarConnections).values({
-      id: conn.id,
-      userId: conn.userId,
-      provider: conn.provider,
-      providerAccountKey: conn.providerAccountKey,
-      accountIdentifier: conn.accountIdentifier,
-      scopes: conn.scopes,
-      status: conn.status,
-      contributingCalendarIds: conn.contributingCalendarIds,
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db
+      .insert(calendarConnections)
+      .values({
+        id: conn.id,
+        userId: conn.userId,
+        provider: conn.provider,
+        providerAccountKey: conn.providerAccountKey,
+        accountIdentifier: conn.accountIdentifier,
+        scopes: conn.scopes,
+        status: conn.status,
+        contributingCalendarIds: conn.contributingCalendarIds,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: calendarConnections.id,
+        set: {
+          userId: conn.userId,
+          provider: conn.provider,
+          providerAccountKey: conn.providerAccountKey,
+          accountIdentifier: conn.accountIdentifier,
+          scopes: conn.scopes,
+          status: conn.status,
+          contributingCalendarIds: conn.contributingCalendarIds,
+          updatedAt: now,
+        },
+      });
   }
 
   for (const busy of IMPORTED_BUSY_INTERVAL_FIXTURES) {
-    await db.insert(importedBusyIntervals).values({
-      id: busy.id,
-      userId: busy.userId,
-      connectionId: busy.connectionId,
-      providerCalendarId: busy.providerCalendarId,
-      providerEventReference: busy.providerEventReference,
-      status: busy.status,
-      startAt: busy.startAt,
-      endAt: busy.endAt,
-      importedAt: now,
-    });
+    await db
+      .insert(importedBusyIntervals)
+      .values({
+        id: busy.id,
+        userId: busy.userId,
+        connectionId: busy.connectionId,
+        providerCalendarId: busy.providerCalendarId,
+        providerEventReference: busy.providerEventReference,
+        status: busy.status,
+        startAt: busy.startAt,
+        endAt: busy.endAt,
+        importedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: importedBusyIntervals.id,
+        set: {
+          userId: busy.userId,
+          connectionId: busy.connectionId,
+          providerCalendarId: busy.providerCalendarId,
+          providerEventReference: busy.providerEventReference,
+          status: busy.status,
+          startAt: busy.startAt,
+          endAt: busy.endAt,
+          importedAt: now,
+        },
+      });
   }
 
   for (const ut of USER_TOPIC_FIXTURES) {
-    await db.insert(userTopics).values({
-      id: ut.id,
-      userId: ut.userId,
-      topicId: ut.topicId,
-      status: ut.status,
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db
+      .insert(userTopics)
+      .values({
+        id: ut.id,
+        userId: ut.userId,
+        topicId: ut.topicId,
+        status: ut.status,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: userTopics.id,
+        set: {
+          userId: ut.userId,
+          topicId: ut.topicId,
+          status: ut.status,
+          updatedAt: now,
+        },
+      });
   }
 
   for (const session of SESSION_FIXTURES) {
-    await db.insert(sessions).values({
-      id: session.id,
-      userId: session.userId,
-      csrfToken: session.csrfToken,
-      expiresAt: session.expiresAt,
-      createdAt: now,
-    });
+    await db
+      .insert(sessions)
+      .values({
+        id: session.id,
+        userId: session.userId,
+        csrfToken: session.csrfToken,
+        expiresAt: session.expiresAt,
+        createdAt: now,
+      })
+      .onConflictDoUpdate({
+        target: sessions.id,
+        set: {
+          userId: session.userId,
+          csrfToken: session.csrfToken,
+          expiresAt: session.expiresAt,
+        },
+      });
   }
 }

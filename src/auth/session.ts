@@ -42,13 +42,16 @@ export async function sealSessionCookie({
 }: {
   sessionId: string;
 }): Promise<string> {
-  const sealed = await Iron.seal(
-    { sessionId },
-    getSessionSecret(),
-    Iron.defaults,
-  );
-
+  const sealed = await sealSessionCookieValue({ sessionId });
   return `${sessionCookieName}=${encodeURIComponent(sealed)}; Path=/; HttpOnly; SameSite=Lax`;
+}
+
+export async function sealSessionCookieValue({
+  sessionId,
+}: {
+  sessionId: string;
+}): Promise<string> {
+  return Iron.seal({ sessionId }, getSessionSecret(), Iron.defaults);
 }
 
 export function clearSessionCookie(): string {
@@ -159,12 +162,43 @@ export function isOrganizerOrAdminSession(
   return session?.user.role === "organizer" || session?.user.role === "admin";
 }
 
+export async function getServerSession(): Promise<Session | null> {
+  const { cookies } = await import("next/headers");
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(sessionCookieName)?.value;
+
+  if (!sessionToken) {
+    return null;
+  }
+
+  try {
+    const payload = (await Iron.unseal(
+      decodeURIComponent(sessionToken),
+      getSessionSecret(),
+      Iron.defaults,
+    )) as { sessionId: string };
+
+    const session = await getSessionRepository().findById(
+      payload.sessionId,
+      systemClock().now(),
+    );
+    return session;
+  } catch {
+    return null;
+  }
+}
+
 export function getSessionSecret(): string {
   if (process.env.SESSION_SECRET) {
     return process.env.SESSION_SECRET;
   }
 
-  if (process.env.NODE_ENV === "test") {
+  const appEnv = process.env.APP_ENV;
+  if (
+    process.env.NODE_ENV === "test" ||
+    appEnv === "local" ||
+    appEnv === "test"
+  ) {
     return "test-session-secret-at-least-32-characters";
   }
 

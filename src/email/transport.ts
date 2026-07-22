@@ -1,11 +1,11 @@
 import nodemailer from "nodemailer";
 
-import type { RuntimeEnv } from "../config/runtime";
-import type { EmailTransport, QueueEmailJobInput } from "./service";
+import { captureEmail } from "../local/email-capture";
+import type { QueueEmailJobInput } from "./service";
 
 type EmailTransportOptions = {
   adapter: "mock" | "postmark";
-  env?: RuntimeEnv;
+  env?: typeof process.env;
 };
 
 export function createEmailTransport({
@@ -15,6 +15,31 @@ export function createEmailTransport({
   if (adapter === "mock") {
     return {
       send(job: QueueEmailJobInput) {
+        const shouldCapture =
+          (env.APP_ENV === "local" || env.APP_ENV === "test") &&
+          env.EMAIL_CAPTURE_ENABLED === "true";
+
+        if (shouldCapture) {
+          captureEmail({
+            recipient: job.recipient,
+            type: job.type,
+            payload: job.payload,
+            capturedAt: new Date().toISOString(),
+          });
+
+          const baseUrl = env.LOCAL_WEB_URL ?? "http://localhost:3000";
+          fetch(`${baseUrl}/api/local/emails/capture`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              recipient: job.recipient,
+              type: job.type,
+              payload: job.payload,
+              capturedAt: new Date().toISOString(),
+            }),
+          }).catch(() => {});
+        }
+
         return Promise.resolve({
           providerMessageId: `mock-${job.emailEventId}`,
         });
@@ -22,6 +47,14 @@ export function createEmailTransport({
     };
   }
 
+  return createPostmarkTransport(env);
+}
+
+type EmailTransport = {
+  send(job: QueueEmailJobInput): Promise<{ providerMessageId: string }>;
+};
+
+function createPostmarkTransport(env: typeof process.env): EmailTransport {
   const serverToken = env.POSTMARK_SERVER_TOKEN;
   if (!serverToken) {
     throw new Error("POSTMARK_SERVER_TOKEN is required for email delivery");
@@ -46,7 +79,9 @@ export function createEmailTransport({
           subject: subjectForEmailType(job.type),
           text: bodyForEmailJob(job),
         })
-        .then((info) => ({ providerMessageId: info.messageId }));
+        .then((info: { messageId: string }) => ({
+          providerMessageId: info.messageId,
+        }));
     },
   };
 }

@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { timingSafeEqual } from "node:crypto";
 
 import {
   createTopicsActionHandler,
@@ -383,42 +382,5 @@ describe("topics-action — proposeTopicAction", () => {
     }
     expect(state.ok).toBe("error");
     expect(spy.propose).not.toHaveBeenCalled();
-  });
-});
-
-describe("csrf safeCompare", () => {
-  it("verifies the CSRF compare uses timingSafeEqual", async () => {
-    const spy = buildWorkflowSpy();
-    spy.saveSelection.mockResolvedValue({
-      ok: true,
-      value: { selectedTopicIds: [] },
-    });
-    const seen: Array<{ actual: string; expected: string }> = [];
-    const handler = createTopicsActionHandler({
-      workflow: spy.workflow,
-      loadSession: () => {
-        seen.push({ actual: "x", expected: makeSession("zz").csrfToken });
-        return Promise.resolve(makeSession("csrf-token-1"));
-      },
-    });
-
-    await handler.saveSelection({
-      formData: makeFormData({
-        _csrf: "csrf-token-1",
-        topicIds: ["topic-1"],
-      }),
-      request: fakeRequest({
-        url: "http://localhost/me/topics",
-        method: "POST",
-        origin: "http://localhost:3000",
-      }),
-    });
-
-    expect(
-      timingSafeEqual(
-        Buffer.from("csrf-token-1"),
-        Buffer.from(makeSession("csrf-token-1").csrfToken),
-      ),
-    ).toBe(true);
   });
 });

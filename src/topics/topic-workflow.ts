@@ -181,10 +181,7 @@ export function createTopicWorkflow(
       const activeIds = new Set(activeCatalogue.map((row) => row.id));
 
       const invalidIds = topicIds.filter(
-        (topicId) =>
-          typeof topicId !== "string" ||
-          topicId === "" ||
-          !activeIds.has(topicId),
+        (topicId) => topicId === "" || !activeIds.has(topicId),
       );
 
       if (invalidIds.length > 0) {

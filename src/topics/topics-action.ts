@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import {
   TOPIC_NAME_MIN_LENGTH,
   TOPIC_NAME_MAX_LENGTH,
+  type ProposalStatus,
   type TopicWorkflow,
 } from "./topic-workflow";
 import type { SimilarMatch } from "./proposals";
@@ -16,7 +17,7 @@ export type ProposeActionState =
       proposal: {
         id: string;
         candidateName: string;
-        status: string;
+        status: ProposalStatus;
         createdAt: Date;
       };
     }

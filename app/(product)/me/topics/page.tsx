@@ -23,9 +23,10 @@ export default async function TopicsPage({
     : params.saved;
   const showSavedIndicator = firstSaved === "1";
 
+  const { catalogue, proposals } = buildTopicsPageRepositories();
   const workflow = createTopicWorkflow({
-    catalogue: buildTopicsPageRepositories().catalogue,
-    proposals: buildTopicsPageRepositories().proposals,
+    catalogue,
+    proposals,
     clock: { now: () => new Date() },
   });
 
@@ -50,6 +51,7 @@ export default async function TopicsPage({
         <p
           className="topics-saved-indicator"
           role="status"
+          aria-live="polite"
           data-testid="topics-saved-indicator"
         >
           Saved

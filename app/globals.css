@@ -1391,4 +1391,12 @@ button {
   .topics-propose-row {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .topics-section {
+    padding: var(--space-4);
+  }
+
+  .topics-catalogue-item label {
+    padding: var(--space-2);
+  }
 }

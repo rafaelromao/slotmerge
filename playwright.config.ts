@@ -34,6 +34,7 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         video: "on",
+        trace: "on",
       },
       snapshotDir: "./tests/e2e-browser/screenshots",
     },

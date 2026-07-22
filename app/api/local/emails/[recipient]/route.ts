@@ -8,6 +8,10 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
+  if (process.env.EMAIL_CAPTURE_ENABLED !== "true") {
+    return new Response("Not found", { status: 404 });
+  }
+
   const { recipient } = await params;
   const decodedRecipient = decodeURIComponent(recipient);
   const emails = getCapturedEmailsForRecipient(decodedRecipient);

@@ -18,7 +18,6 @@ services:
   provider-mock:
     image: node:22-alpine
     command: node tests/provider-mock/server.cjs
-    profiles: ["local", "test"]
     environment:
       PROVIDER_MOCK_PORT: "3001"
     volumes:
@@ -56,6 +55,7 @@ services:
     environment:
       APP_ENV: local
       DATABASE_URL: postgres://slotmerge:slotmerge@postgres:5432/slotmerge
+      LOCAL_WEB_URL: http://web:3000
       LOCAL_PROVIDER_OVERRIDE_URL: http://provider-mock:3001
       EMAIL_CAPTURE_ENABLED: "true"
       FIXTURE_DATE: "2026-07-12T12:00:00.000Z"

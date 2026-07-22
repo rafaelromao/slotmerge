@@ -105,19 +105,24 @@ test.describe("Setup Home Journey", () => {
     await expect(homeLink).toBeVisible();
   });
 
-  test("uninvited email returns not_invited error", async () => {
+  test("uninvited email shows inline error", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(
+      page.getByText("Please sign in to continue."),
+    ).toBeVisible();
+
     const uninvitedEmail = "stranger@example.com";
 
-    const response = await fetch(
+    const response = await page.request.post(
       `${BASE_URL}/auth/magic-link/request`,
       {
-        method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `email=${encodeURIComponent(uninvitedEmail)}`,
+        form: { email: uninvitedEmail },
       },
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status()).toBe(400);
     const body = (await response.json()) as { error?: string };
     expect(body.error).toBe("not_invited");
   });

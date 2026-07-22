@@ -22,7 +22,9 @@ async function renderSignIn(
   const search = buildSearchParams(params);
   const searchParams = Promise.resolve(
     Object.fromEntries(search.entries()),
-  ) as unknown as Parameters<typeof SignInPage>[0]["searchParams"];
+  ) as unknown as NonNullable<
+    Parameters<typeof SignInPage>[0]
+  >["searchParams"];
   const element = await SignInPage({ searchParams });
   return renderToString(await PublicLayout({ children: element }));
 }

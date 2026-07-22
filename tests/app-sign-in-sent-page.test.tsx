@@ -22,7 +22,9 @@ async function renderSent(
   const search = buildSearchParams(params);
   const searchParams = Promise.resolve(
     Object.fromEntries(search.entries()),
-  ) as unknown as Parameters<typeof SentPage>[0]["searchParams"];
+  ) as unknown as NonNullable<
+    Parameters<typeof SentPage>[0]
+  >["searchParams"];
   const element = await SentPage({ searchParams });
   return renderToString(await PublicLayout({ children: element }));
 }

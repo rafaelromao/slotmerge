@@ -23,33 +23,31 @@ function createMockEmailDeliveryService(): EmailDeliveryService & {
   sends: Array<{ recipient: string; type: string }>;
 } {
   const sends: Array<{ recipient: string; type: string }> = [];
-  return {
-    sends,
-    sendEmail: vi.fn(async (input) => {
-      sends.push({
+  const sendEmail: EmailDeliveryService["sendEmail"] = vi.fn(async (input) => {
+    sends.push({
+      recipient: input.recipient,
+      type: input.type,
+    });
+    const now = new Date();
+    return {
+      emailEvent: {
+        id: "evt-1",
         recipient: input.recipient,
         type: input.type,
-      });
-      const now = new Date();
-      return {
-        emailEvent: {
-          id: "evt-1",
-          recipient: input.recipient,
-          type: input.type,
-          payloadReference: "ref-test",
-          status: "sent",
-          attempts: 0,
-          createdAt: now,
-          updatedAt: now,
-          sentAt: now,
-          failedAt: null,
-          lastAttemptAt: null,
-          lastErrorCode: null,
-          lastErrorMessage: null,
-        },
-      };
-    }),
-  };
+        payloadReference: "ref-test",
+        status: "sent",
+        attempts: 0,
+        createdAt: now,
+        updatedAt: now,
+        sentAt: now,
+        failedAt: null,
+        lastAttemptAt: null,
+        lastErrorCode: null,
+        lastErrorMessage: null,
+      },
+    };
+  });
+  return { sends, sendEmail };
 }
 
 function buildHandlers(

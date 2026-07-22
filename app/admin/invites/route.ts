@@ -1,7 +1,10 @@
-import { createAdminInvitesHandlers } from "../../../src/admin/invites";
-import { systemDependencies } from "../../../src/system";
+import { legacyRedirect } from "../../../src/lib/legacy-redirect";
 
-const handlers = createAdminInvitesHandlers(systemDependencies());
+export function GET(_request: Request): Response {
+  return legacyRedirect({
+    target: "/admin#users",
+    sunset: new Date("2026-12-31T23:59:59.000Z"),
+  });
+}
 
-export const GET = handlers.GET;
-export const POST = handlers.POST;
+export const POST = GET;

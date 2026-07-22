@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { GET as retiredSearchGet } from "../app/api/searches/[id]/route";
+import { GET as retiredSearchResultsGet } from "../app/searches/[id]/results/route";
+import { GET as retiredAdminInvitesGet } from "../app/admin/invites/route";
+import { POST as retiredAdminInvitesPost } from "../app/admin/invites/route";
+import { GET as retiredAdminTopicProposalsGet } from "../app/admin/topic-proposals/route";
+import { POST as retiredAdminTopicProposalsPost } from "../app/admin/topic-proposals/route";
 import { GET as retiredSearchSnapshotGet } from "../app/search/[id]/snapshot/route";
 import { GET as retiredSearchHistoryGet } from "../app/search/history/route";
 import { GET as retiredAvailabilityWindowsGet } from "../app/me/availability-windows/route";
@@ -61,6 +66,94 @@ describe("Retired routes return 308 with Deprecation, Sunset, and successor Link
       );
       expect(response.headers.get("Link")).toBe(
         "</api/v1/searches>; rel=\"successor-version\"",
+      );
+    });
+  });
+
+  describe("GET /searches/[id]/results", () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to canonical /searches/[id]", async () => {
+      const response = await retiredSearchResultsGet(
+        new Request("http://localhost/searches/123/results"),
+        { params: Promise.resolve({ id: "123" }) },
+      );
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/searches/123");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
+        "</searches/123>; rel=\"successor-version\"",
+      );
+    });
+  });
+
+  describe("GET /admin/invites", () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#users", () => {
+      const response = retiredAdminInvitesGet(
+        new Request("http://localhost/admin/invites"),
+      );
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/admin#users");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
+        "</admin#users>; rel=\"successor-version\"",
+      );
+    });
+  });
+
+  describe("POST /admin/invites", () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#users", () => {
+      const response = retiredAdminInvitesPost(
+        new Request("http://localhost/admin/invites", { method: "POST" }),
+      );
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/admin#users");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
+        "</admin#users>; rel=\"successor-version\"",
+      );
+    });
+  });
+
+  describe("GET /admin/topic-proposals", () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#topics", () => {
+      const response = retiredAdminTopicProposalsGet(
+        new Request("http://localhost/admin/topic-proposals"),
+      );
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/admin#topics");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
+        "</admin#topics>; rel=\"successor-version\"",
+      );
+    });
+  });
+
+  describe("POST /admin/topic-proposals", () => {
+    it("returns 308 with Deprecation, Sunset, and Link headers pointing to /admin#topics", () => {
+      const response = retiredAdminTopicProposalsPost(
+        new Request("http://localhost/admin/topic-proposals", {
+          method: "POST",
+        }),
+      );
+      expect(response.status).toBe(308);
+      expect(response.headers.get("Location")).toBe("/admin#topics");
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBe(
+        "Thu, 31 Dec 2026 23:59:59 GMT",
+      );
+      expect(response.headers.get("Link")).toBe(
+        "</admin#topics>; rel=\"successor-version\"",
       );
     });
   });

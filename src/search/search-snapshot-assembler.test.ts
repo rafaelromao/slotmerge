@@ -181,7 +181,7 @@ describe("SearchSnapshotAssembler.assemble (eligible candidate)", () => {
       getDiscoverabilityConsent(userId) {
         if (userId === candidateId) {
           return Promise.resolve({
-            userId,
+            state: "granted",
             grantedAt: new Date("2026-07-12T12:00:00.000Z"),
           });
         }
@@ -408,7 +408,7 @@ describe("SearchSnapshotAssembler.assemble (eligible candidate)", () => {
         },
         getDiscoverabilityConsent() {
           return Promise.resolve({
-            userId: "organizer-1",
+            state: "granted",
             grantedAt: new Date("2026-07-12T12:00:00.000Z"),
           });
         },
@@ -561,9 +561,9 @@ describe("SearchSnapshotAssembler.assemble (per-candidate prep runs once)", () =
           busyIntervals: [],
         });
       },
-      getDiscoverabilityConsent(userId) {
+      getDiscoverabilityConsent() {
         return Promise.resolve({
-          userId,
+          state: "granted",
           grantedAt: new Date("2026-07-12T12:00:00.000Z"),
         });
       },
@@ -625,10 +625,10 @@ describe("SearchSnapshotAssembler.assemble (per-candidate prep runs once)", () =
             busyIntervals: [],
           });
         },
-        getDiscoverabilityConsent(userId) {
+        getDiscoverabilityConsent() {
           calls.getDiscoverabilityConsent += 1;
           return Promise.resolve({
-            userId,
+            state: "granted",
             grantedAt: new Date("2026-07-12T12:00:00.000Z"),
           });
         },
@@ -764,9 +764,9 @@ describe("SearchSnapshotAssembler.assemble (calendar freshness)", () => {
           busyIntervals,
         });
       },
-      getDiscoverabilityConsent(userId) {
+      getDiscoverabilityConsent() {
         return Promise.resolve({
-          userId,
+          state: "granted",
           grantedAt: new Date("2026-07-12T12:00:00.000Z"),
         });
       },
@@ -838,9 +838,9 @@ describe("SearchSnapshotAssembler.assemble (calendar freshness)", () => {
             ],
           });
         },
-        getDiscoverabilityConsent(userId) {
+        getDiscoverabilityConsent() {
           return Promise.resolve({
-            userId,
+            state: "granted",
             grantedAt: new Date("2026-07-12T12:00:00.000Z"),
           });
         },
@@ -1005,9 +1005,9 @@ describe("SearchSnapshotAssembler.assemble (topic details)", () => {
           busyIntervals: [],
         });
       },
-      getDiscoverabilityConsent(userId) {
+      getDiscoverabilityConsent() {
         return Promise.resolve({
-          userId,
+          state: "granted",
           grantedAt: new Date("2026-07-12T12:00:00.000Z"),
         });
       },
@@ -1146,9 +1146,9 @@ describe("SearchSnapshotAssembler.assemble (availability range seam)", () => {
             busyIntervals: [],
           });
         },
-        getDiscoverabilityConsent(userId) {
+        getDiscoverabilityConsent() {
           return Promise.resolve({
-            userId,
+            state: "granted",
             grantedAt: new Date("2026-07-12T12:00:00.000Z"),
           });
         },
@@ -1218,9 +1218,9 @@ describe("SearchSnapshotAssembler.assemble (availability range seam)", () => {
             busyIntervals: [],
           });
         },
-        getDiscoverabilityConsent(userId) {
+        getDiscoverabilityConsent() {
           return Promise.resolve({
-            userId,
+            state: "granted",
             grantedAt: new Date("2026-07-12T12:00:00.000Z"),
           });
         },

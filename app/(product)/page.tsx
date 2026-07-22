@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { eq, count } from "drizzle-orm";
+import { and, eq, count, isNotNull } from "drizzle-orm";
 import { getServerSession } from "../../src/auth/session";
 import { getDb } from "../../src/db/client";
 import {
@@ -78,7 +78,12 @@ export default async function SetupHomePage({
   const [discoverabilityRow] = await db
     .select({ count: count() })
     .from(discoverabilityConsents)
-    .where(eq(discoverabilityConsents.userId, userId))
+    .where(
+      and(
+        eq(discoverabilityConsents.userId, userId),
+        isNotNull(discoverabilityConsents.grantedAt),
+      ),
+    )
     .limit(1);
 
   const [topicsRow] = await db

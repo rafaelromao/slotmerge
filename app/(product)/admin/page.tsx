@@ -279,7 +279,7 @@ function errorMessageFor(code: string): string {
     case "self_invite":
       return "You cannot invite yourself.";
     case "email_already_invited":
-      return "An invite or account already exists for that email.";
+      return "An invite already exists or the email belongs to an existing User.";
     case "invalid_invite":
       return "Enter a valid email and role.";
     case "self_role_change":

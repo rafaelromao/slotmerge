@@ -442,7 +442,7 @@ describe("adminUsersWorkflow", () => {
         maskedEmail: "st***@example.com",
         inviteId: "invite-2",
       });
-      expect(revokeInvite).toHaveBeenCalledWith("invite-1");
+      expect(revokeInvite).toHaveBeenCalledWith("invite-1", now);
       expect(createInvite).toHaveBeenCalledWith({
         email: "stale@example.com",
         role: "user",

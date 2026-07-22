@@ -37,7 +37,7 @@ export type InviteRepository = {
   listRecentInvites(limit: number): Promise<InviteListItemWithExpiry[]>;
   findPendingInviteByEmail?(email: string): Promise<InviteListItem | null>;
   findInviteById?(inviteId: string): Promise<InviteListItemWithExpiry | null>;
-  revokeInvite?(inviteId: string): Promise<void>;
+  revokeInvite?(inviteId: string, now: Date): Promise<void>;
   createInvite(input: {
     email: string;
     role: InviteRole;
@@ -137,10 +137,10 @@ export function createPostgresInviteRepository(db = getDb()): InviteRepository {
       };
     },
 
-    async revokeInvite(inviteId) {
+    async revokeInvite(inviteId, now) {
       await db
         .update(invites)
-        .set({ status: "revoked", updatedAt: new Date() })
+        .set({ status: "revoked", updatedAt: now })
         .where(eq(invites.id, inviteId));
     },
 

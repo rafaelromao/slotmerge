@@ -307,9 +307,8 @@ export function createAdminUsersWorkflow(
         return { ok: false, reason: "invite_not_found" } as const;
       }
 
-      await inviteRepository.revokeInvite?.(original.id);
-
       const now = clock.now();
+      await inviteRepository.revokeInvite?.(original.id, now);
       const expiresAt = computeInviteExpiresAt(now);
       const createResult = await inviteRepository.createInvite({
         email: original.email,

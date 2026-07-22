@@ -21,7 +21,7 @@ describe("magic link token issuer", () => {
     expect(result.token).toMatch(/^[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/);
     expect(result.expiresAt).toEqual(expiresAt);
     expect(result.magicLinkUrl).toMatch(
-      /^https:\/\/slotmerge\.example\.com\/auth\/magic-link\/verify\?token=/,
+      /^https:\/\/slotmerge\.example\.com\/sign-in\/verify\?token=/,
     );
     expect(result.magicLinkUrl).toContain(encodeURIComponent(result.token));
   });

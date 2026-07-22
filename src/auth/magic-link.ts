@@ -64,7 +64,7 @@ export function createMagicLinkTokenIssuer({
       const payloadEncoded = base64UrlEncode(JSON.stringify(payload));
       const signature = signPayload({ payloadEncoded, secret });
       const token = `${payloadEncoded}.${signature}`;
-      const url = new URL("/auth/magic-link/verify", baseUrl);
+      const url = new URL("/sign-in/verify", baseUrl);
       url.searchParams.set("token", token);
       return {
         token,

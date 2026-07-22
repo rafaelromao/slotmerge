@@ -76,7 +76,7 @@ test.describe("Magic-link request, verify, and resend", () => {
 
     const magicLinkUrl = await waitForMagicLink(INVITED_EMAIL, previousCount);
     expect(magicLinkUrl).not.toBeNull();
-    expect(magicLinkUrl).toContain("/auth/magic-link/verify?token=");
+    expect(magicLinkUrl).toContain("/sign-in/verify?token=");
 
     const absoluteMagicLinkUrl = absoluteUrl(magicLinkUrl!);
     await page.goto(absoluteMagicLinkUrl);
@@ -121,7 +121,7 @@ test.describe("Magic-link request, verify, and resend", () => {
     expect(after).toBe(previousCount);
   });
 
-  test("replaying a used token shows the link_used error state with a Request a new link link", async ({
+  test("replaying a used token returns link_used with a Request a new link link", async ({
     page,
   }) => {
     await page.clock.install({ time: new Date("2026-07-12T12:00:00.000Z") });
@@ -141,56 +141,91 @@ test.describe("Magic-link request, verify, and resend", () => {
     const rawToken = tokenUrl.searchParams.get("token") ?? "";
     expect(rawToken.length).toBeGreaterThan(0);
 
+    const replayResponse = await page.request.post(
+      `${BASE_URL}/auth/magic-link/verify`,
+      {
+        form: { token: rawToken },
+        maxRedirects: 0,
+      },
+    );
+    expect(replayResponse.status()).toBe(400);
+    const replayHtml = await replayResponse.text();
+    expect(replayHtml).toContain("link_used");
+    expect(replayHtml).toContain("invite_already_accepted");
+    expect(replayHtml).toContain("Request a new link");
+    expect(replayHtml).toContain(
+      `href="/sign-in?email=${encodeURIComponent(INVITED_EMAIL)}"`,
+    );
+
     await page.goto(
       `${BASE_URL}/sign-in/verify?error=${encodeURIComponent("link_used")}&email=${encodeURIComponent(INVITED_EMAIL)}`,
     );
-
     await expect(page.getByTestId("verify-error-link_used")).toBeVisible();
     await captureState(page, "sign-in", "verify-error-used");
-
-    const requestNewLink = page.getByTestId(
-      "verify-request-new-link-link_used",
-    );
-    await expect(requestNewLink).toBeVisible();
-    const href = await requestNewLink.getAttribute("href");
-    expect(href).toBe(`/sign-in?email=${encodeURIComponent(INVITED_EMAIL)}`);
   });
 
-  test("waiting past expiry shows the link_expired error state with a Request a new link link", async ({
+  test("waiting past expiry returns link_expired with a Request a new link link", async ({
     page,
   }) => {
     await page.clock.install({ time: new Date("2026-07-12T12:00:00.000Z") });
+    await page.goto("/sign-in");
+
+    const previousCount = await getMagicLinkCount(INVITED_EMAIL);
+    await page.getByTestId("sign-in-email").fill(INVITED_EMAIL);
+    await page.getByTestId("sign-in-submit").click();
+
+    const magicLinkUrl = await waitForMagicLink(INVITED_EMAIL, previousCount);
+    expect(magicLinkUrl).not.toBeNull();
+    const tokenUrl = new URL(magicLinkUrl!);
+    const rawToken = tokenUrl.searchParams.get("token") ?? "";
+    expect(rawToken.length).toBeGreaterThan(0);
+
+    await page.clock.fastForward(2 * 60 * 60 * 1000);
+
+    const expiredResponse = await page.request.post(
+      `${BASE_URL}/auth/magic-link/verify`,
+      {
+        form: { token: rawToken },
+        maxRedirects: 0,
+      },
+    );
+    expect(expiredResponse.status()).toBe(400);
+    const expiredHtml = await expiredResponse.text();
+    expect(expiredHtml).toContain("link_expired");
+    expect(expiredHtml).toContain("token_expired");
+    expect(expiredHtml).toContain("Request a new link");
+    expect(expiredHtml).toContain(
+      `href="/sign-in?email=${encodeURIComponent(INVITED_EMAIL)}"`,
+    );
 
     await page.goto(
       `${BASE_URL}/sign-in/verify?error=${encodeURIComponent("link_expired")}&email=${encodeURIComponent(INVITED_EMAIL)}`,
     );
-
     await expect(page.getByTestId("verify-error-link_expired")).toBeVisible();
     await captureState(page, "sign-in", "verify-error-expired");
-
-    const requestNewLink = page.getByTestId(
-      "verify-request-new-link-link_expired",
-    );
-    await expect(requestNewLink).toBeVisible();
-    const href = await requestNewLink.getAttribute("href");
-    expect(href).toBe(`/sign-in?email=${encodeURIComponent(INVITED_EMAIL)}`);
   });
 
-  test("a malformed token shows the link_invalid error state with a Request a new link link", async ({
+  test("a malformed token returns link_invalid with a Request a new link link", async ({
     page,
   }) => {
+    const invalidResponse = await page.request.post(
+      `${BASE_URL}/auth/magic-link/verify`,
+      {
+        form: { token: "not-a-real-token" },
+        maxRedirects: 0,
+      },
+    );
+    expect(invalidResponse.status()).toBe(400);
+    const invalidHtml = await invalidResponse.text();
+    expect(invalidHtml).toContain("link_invalid");
+    expect(invalidHtml).toContain("invalid_token");
+    expect(invalidHtml).toContain("Request a new link");
+    expect(invalidHtml).toContain('href="/sign-in"');
+
     await page.goto(
       `${BASE_URL}/sign-in/verify?error=${encodeURIComponent("link_invalid")}`,
     );
-
     await expect(page.getByTestId("verify-error-link_invalid")).toBeVisible();
     await captureState(page, "sign-in", "verify-error-invalid");
-
-    const requestNewLink = page.getByTestId(
-      "verify-request-new-link-link_invalid",
-    );
-    await expect(requestNewLink).toBeVisible();
-    const href = await requestNewLink.getAttribute("href");
-    expect(href).toBe("/sign-in");
   });
 });

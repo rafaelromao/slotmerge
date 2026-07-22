@@ -29,7 +29,7 @@ export type TransactionContext = {
 
 export type InviteRepository = {
   findById(id: string): Promise<InviteRecord | null>;
-  accept(id: string): Promise<void>;
+  accept(id: string): Promise<boolean>;
 };
 
 export type UserRepository = {
@@ -61,6 +61,27 @@ export type UserRecord = {
   role: string;
   status: string;
 };
+
+class VerifyError extends Error {
+  constructor(public readonly reason: string) {
+    super(reason);
+    this.name = "VerifyError";
+  }
+}
+
+function errorLinkStateFor(
+  reason: string,
+): "link_expired" | "link_used" | "link_invalid" {
+  switch (reason) {
+    case "token_expired":
+    case "invite_expired":
+      return "link_expired";
+    case "invite_already_accepted":
+      return "link_used";
+    default:
+      return "link_invalid";
+  }
+}
 
 function getMagicLinkSecret(): string {
   if (process.env.MAGIC_LINK_SECRET) {
@@ -225,11 +246,23 @@ export function createMagicLinkVerifyHandlers(
             expiresAt,
           });
 
-          await ctx.inviteRepository.accept(invite.id);
+          const accepted = await ctx.inviteRepository.accept(invite.id);
+          if (!accepted) {
+            throw new VerifyError("invite_already_accepted");
+          }
 
           sessionCookie = await sealSessionCookie({ sessionId: session.id });
         });
-      } catch {
+      } catch (err) {
+        if (err instanceof VerifyError) {
+          return errorResponse(
+            err.reason,
+            errorLinkStateFor(err.reason),
+            400,
+            undefined,
+            invite.email,
+          );
+        }
         return errorResponse("server_error", "link_invalid", 500);
       }
 
@@ -324,7 +357,7 @@ async function defaultTransaction(
 ): Promise<void> {
   const { getDb } = await import("../db/client");
   const { sessions, invites } = await import("../db/schema");
-  const { eq } = await import("drizzle-orm");
+  const { and, eq } = await import("drizzle-orm");
   const db = getDb();
 
   await db.transaction(async (tx) => {
@@ -355,10 +388,12 @@ async function defaultTransaction(
           return row ?? null;
         },
         accept: async (id) => {
-          await tx
+          const result = await tx
             .update(invites)
             .set({ status: "accepted" })
-            .where(eq(invites.id, id));
+            .where(and(eq(invites.id, id), eq(invites.status, "pending")))
+            .returning({ id: invites.id });
+          return result.length > 0;
         },
       },
     });
@@ -380,13 +415,15 @@ const defaultInviteRepository: InviteRepository = {
   },
   accept: async (id) => {
     const { getDb } = await import("../db/client");
-    const { eq } = await import("drizzle-orm");
+    const { and, eq } = await import("drizzle-orm");
     const { invites } = await import("../db/schema");
     const db = getDb();
-    await db
+    const result = await db
       .update(invites)
       .set({ status: "accepted" })
-      .where(eq(invites.id, id));
+      .where(and(eq(invites.id, id), eq(invites.status, "pending")))
+      .returning({ id: invites.id });
+    return result.length > 0;
   },
 };
 

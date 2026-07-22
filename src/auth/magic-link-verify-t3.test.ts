@@ -16,7 +16,7 @@ function createMockInviteRepository() {
         magicLinkGeneration?: number;
       } | null>
     >(),
-    accept: vi.fn<(id: string) => Promise<void>>(),
+    accept: vi.fn<(id: string) => Promise<boolean>>(),
   };
 }
 
@@ -97,6 +97,7 @@ describe("magic link verify handler - T3 contract", () => {
         invitedByAdminId: "admin-1",
         expiresAt: new Date("2026-08-11T00:00:00.000Z"),
       });
+      mockInviteRepo.accept.mockResolvedValue(true);
 
       const mockUserRepo = createMockUserRepository();
       mockUserRepo.findByEmail.mockResolvedValue(null);
@@ -430,6 +431,62 @@ describe("magic link verify handler - T3 contract", () => {
   });
 
   describe("single-use atomicity (session insert failure rolls back invite accept)", () => {
+    it("rejects the verify with link_used when accept returns false (race or already accepted)", async () => {
+      const issuer = createMagicLinkTokenIssuer({
+        clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
+        baseUrl: "https://slotmerge.example.com",
+        secret: "test-secret",
+      });
+      const token = issuer.issueMagicLinkToken({
+        inviteId: "invite-1",
+        email: "alice@example.com",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      });
+
+      const mockInviteRepo = createMockInviteRepository();
+      mockInviteRepo.findById.mockResolvedValue({
+        id: "invite-1",
+        email: "alice@example.com",
+        role: "user",
+        status: "pending",
+        invitedByAdminId: "admin-1",
+        expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      });
+      mockInviteRepo.accept.mockResolvedValue(false);
+
+      const mockUserRepo = createMockUserRepository();
+      mockUserRepo.findByEmail.mockResolvedValue({
+        id: "user-1",
+        email: "alice@example.com",
+        role: "user",
+        status: "active",
+      });
+
+      const mockSessionRepo = createMockSessionRepository();
+      mockSessionRepo.create.mockResolvedValue({ id: "session-1" });
+
+      const { POST } = createMagicLinkVerifyHandlers({
+        clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
+        magicLinkSecret: "test-secret",
+        inviteRepository: mockInviteRepo,
+        userRepository: mockUserRepo,
+        sessionRepository: mockSessionRepo,
+        transaction: createTransaction(mockSessionRepo, mockInviteRepo),
+      });
+
+      const response = await POST(
+        new Request("http://localhost/auth/magic-link/verify", {
+          method: "POST",
+          body: new URLSearchParams({ token: token.token }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      const html = await response.text();
+      expect(html).toContain("link_used");
+      expect(html).toContain("invite_already_accepted");
+    });
+
     it("does NOT accept the invite when session insert fails", async () => {
       const issuer = createMagicLinkTokenIssuer({
         clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },

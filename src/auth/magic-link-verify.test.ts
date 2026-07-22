@@ -28,7 +28,7 @@ function createMockInviteRepository() {
         expiresAt: Date;
       } | null>
     >(),
-    accept: vi.fn<(id: string) => Promise<void>>(),
+    accept: vi.fn<(id: string) => Promise<boolean>>(),
   };
 }
 
@@ -365,7 +365,7 @@ describe("magic link verify handler", () => {
         invitedByAdminId: "admin-1",
         expiresAt: new Date("2026-08-11T00:00:00.000Z"),
       });
-      mockInviteRepo.accept.mockResolvedValue(undefined);
+      mockInviteRepo.accept.mockResolvedValue(true);
 
       const mockUserRepo = createMockUserRepository();
       mockUserRepo.findByEmail.mockResolvedValue(null);
@@ -537,7 +537,7 @@ describe("magic link verify handler", () => {
         invitedByAdminId: "admin-1",
         expiresAt: new Date("2026-08-11T00:00:00.000Z"),
       });
-      mockInviteRepo.accept.mockResolvedValue(undefined);
+      mockInviteRepo.accept.mockResolvedValue(true);
 
       const mockUserRepo = createMockUserRepository();
       mockUserRepo.findByEmail.mockResolvedValue({

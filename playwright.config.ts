@@ -13,7 +13,11 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: [["html", { outputFolder: "playwright/.artifacts/test-results" }], ["list"]],
+  reporter: [
+    ["html", { outputFolder: "playwright/.artifacts/test-results" }],
+    ["list"],
+  ],
+  outputDir: "playwright/.artifacts/test-results",
   globalSetup: path.join(__dirname, "tests/helpers/playwright/global-setup.ts"),
 
   use: {

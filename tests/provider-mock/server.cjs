@@ -44,6 +44,7 @@ const GOOGLE_TOKEN_ENDPOINT = "/google/token";
 const GOOGLE_REVOKE_ENDPOINT = "/google/revoke";
 const GOOGLE_FREEBUSY_ENDPOINT = "/google/freebusy";
 const MICROSOFT_TOKEN_ENDPOINT = "/microsoft/token";
+const MICROSOFT_LOGOUT_ENDPOINT = "/microsoft/logout";
 const MICROSOFT_CALENDARS_ENDPOINT = "/microsoft/calendars";
 const MICROSOFT_GETSCHEDULE_ENDPOINT = "/microsoft/getSchedule";
 
@@ -74,6 +75,11 @@ const server = http.createServer(async (req, res) => {
       const scope = typeof body.scope === "string" ? body.scope : "";
       const result = buildMicrosoftTokenResponse(scope);
       jsonResponse(res, result.status, result.body);
+      return;
+    }
+
+    if (path === MICROSOFT_LOGOUT_ENDPOINT) {
+      jsonResponse(res, 200, {});
       return;
     }
 

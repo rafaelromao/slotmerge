@@ -48,9 +48,7 @@ test.describe("Setup Home Journey", () => {
   test("signed-out user completes setup checklist", async ({ page }) => {
     await page.goto("/");
 
-    await expect(
-      page.getByText("Please sign in to continue."),
-    ).toBeVisible();
+    await expect(page.getByText("Please sign in to continue.")).toBeVisible();
     await captureState(page, "setup-home", "signed-out");
 
     const magicLinkRequest = await fetch(
@@ -93,7 +91,9 @@ test.describe("Setup Home Journey", () => {
     await expect(
       page.getByRole("menuitem", { name: "My Profile" }),
     ).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: "Sign Out" })).toBeVisible();
+    await expect(
+      page.getByRole("menuitem", { name: "Sign Out" }),
+    ).toBeVisible();
 
     const searchLink = page.locator(".nav-link", { hasText: "Search" });
     await expect(searchLink).toHaveCount(0);
@@ -105,25 +105,22 @@ test.describe("Setup Home Journey", () => {
     await expect(homeLink).toBeVisible();
   });
 
-  test("uninvited email shows inline error", async ({ page }) => {
+  test("uninvited email shows inline error in the sign-in form", async ({
+    page,
+  }) => {
     await page.goto("/");
 
-    await expect(
-      page.getByText("Please sign in to continue."),
-    ).toBeVisible();
+    await expect(page.getByText("Please sign in to continue.")).toBeVisible();
 
-    const uninvitedEmail = "stranger@example.com";
+    const emailField = page.getByTestId("sign-in-email");
+    await expect(emailField).toBeVisible();
 
-    const response = await page.request.post(
-      `${BASE_URL}/auth/magic-link/request`,
-      {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        form: { email: uninvitedEmail },
-      },
+    await emailField.fill("stranger@example.com");
+    await page.getByTestId("sign-in-submit").click();
+
+    await expect(page.getByTestId("sign-in-error")).toBeVisible();
+    await expect(page.getByTestId("sign-in-error")).toHaveText(
+      /not on the invite list/i,
     );
-
-    expect(response.status()).toBe(400);
-    const body = (await response.json()) as { error?: string };
-    expect(body.error).toBe("not_invited");
   });
 });

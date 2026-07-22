@@ -7,7 +7,7 @@ const GOOGLE_FREEBUSY_ENDPOINT =
 const MICROSOFT_TOKEN_ENDPOINT =
   "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
 const MICROSOFT_LOGOUT_ENDPOINT =
-  "https://login.microsoftonline.com/organizations/oauth2/v2.0/v2.0/revoke";
+  "https://login.microsoftonline.com/organizations/oauth2/v2.0/logout";
 
 interface ProviderRewriteRule {
   original: string;
@@ -35,7 +35,7 @@ const MICROSOFT_REWRITE_RULES: ProviderRewriteRule[] = [
   },
   {
     original: MICROSOFT_LOGOUT_ENDPOINT,
-    replacement: "/microsoft/revoke",
+    replacement: "/microsoft/logout",
   },
 ];
 

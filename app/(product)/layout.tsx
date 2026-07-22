@@ -19,9 +19,7 @@ export default async function ProductLayout({
 
   if (!session) {
     return (
-      <main className="app-container">
-        <p>Please sign in to continue.</p>
-      </main>
+      <main className="app-container app-container-public">{children}</main>
     );
   }
 

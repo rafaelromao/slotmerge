@@ -7,6 +7,7 @@ import {
   userTopics,
   availabilityWindows,
 } from "../../src/db/schema";
+import { SignInForm } from "./_components/SignInForm";
 
 export default async function SetupHomePage() {
   const session = await getServerSession();
@@ -14,7 +15,8 @@ export default async function SetupHomePage() {
   if (!session) {
     return (
       <main className="app-container">
-        <p>Please sign in to continue.</p>
+        <h1>Please sign in to continue.</h1>
+        <SignInForm />
       </main>
     );
   }

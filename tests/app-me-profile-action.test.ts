@@ -14,13 +14,9 @@ type UpdateProfileActionState = {
 };
 
 async function loadActionModule(): Promise<ActionModule> {
-  // Path includes parentheses; static import trips up `tsc --noEmit`, so load
-  // via dynamic import. The runtime path is the same.
-  const mod = (await import(
-    // @ts-expect-error - dynamic import with parentheses in path
-    "../../app/(product)/me/_actions/update-profile"
+  return (await import(
+    "../src/profile/update-profile-action"
   )) as ActionModule;
-  return mod;
 }
 
 function makeFormData(values: Record<string, string>): FormData {

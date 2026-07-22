@@ -3,10 +3,8 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import {
-  handleUpdateProfileFormSubmit,
-  type UpdateProfileActionState,
-} from "../_actions/update-profile";
+import { handleUpdateProfileFormSubmit } from "../_actions/update-profile";
+import type { UpdateProfileActionState } from "../../../../src/profile/update-profile-action";
 
 type ProfileFormProps = {
   defaultValues: {

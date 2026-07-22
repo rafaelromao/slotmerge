@@ -119,7 +119,7 @@ export function createAdminUsersWorkflow(
   const {
     userRepository,
     inviteRepository,
-    sessionRepository: _sessionRepository,
+    sessionRepository,
     emailDeliveryService,
     magicLinkTokenIssuer,
     clock,
@@ -221,13 +221,34 @@ export function createAdminUsersWorkflow(
       return { ok: true } as const;
     },
 
-    suspend({ actorId, targetUserId }) {
-      void clock;
-      void _sessionRepository;
+    async suspend({ actorId, targetUserId }) {
       if (actorId === targetUserId) {
-        return Promise.resolve({ ok: false, reason: "self_suspend" } as const);
+        return { ok: false, reason: "self_suspend" } as const;
       }
-      return Promise.resolve({ ok: false, reason: "user_not_found" } as const);
+
+      const result = await userRepository.suspend({
+        userId: targetUserId,
+        actingAdminId: actorId,
+        now: clock.now(),
+      });
+
+      if (!result.ok) {
+        switch (result.reason) {
+          case "self":
+            return { ok: false, reason: "self_suspend" } as const;
+          case "already_suspended":
+            return {
+              ok: false,
+              reason: "user_already_suspended",
+            } as const;
+          case "not_found":
+          default:
+            return { ok: false, reason: "user_not_found" } as const;
+        }
+      }
+
+      await sessionRepository.deleteByUserId?.(targetUserId);
+      return { ok: true } as const;
     },
 
     reinstate({ actorId, targetUserId }) {

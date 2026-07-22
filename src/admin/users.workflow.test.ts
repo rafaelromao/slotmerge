@@ -374,4 +374,108 @@ describe("adminUsersWorkflow", () => {
       expect(result).toEqual({ ok: true });
     });
   });
+
+  describe("suspend", () => {
+    it("returns self_suspend when the actor targets themselves", async () => {
+      const suspend = vi.fn();
+      const userRepository = buildUserRepository({ suspend });
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository();
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.suspend({
+        actorId: "admin-1",
+        targetUserId: "admin-1",
+      });
+
+      expect(result).toEqual({ ok: false, reason: "self_suspend" });
+      expect(suspend).not.toHaveBeenCalled();
+    });
+
+    it("returns user_already_suspended without revoking sessions when already suspended", async () => {
+      const suspend = vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "already_suspended",
+      });
+      const deleteByUserId = vi.fn();
+      const userRepository = buildUserRepository({ suspend });
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository({ deleteByUserId });
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.suspend({
+        actorId: "admin-1",
+        targetUserId: "u-2",
+      });
+
+      expect(result).toEqual({ ok: false, reason: "user_already_suspended" });
+      expect(deleteByUserId).not.toHaveBeenCalled();
+    });
+
+    it("returns user_not_found without revoking sessions when the user is missing", async () => {
+      const suspend = vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "not_found",
+      });
+      const deleteByUserId = vi.fn();
+      const userRepository = buildUserRepository({ suspend });
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository({ deleteByUserId });
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.suspend({
+        actorId: "admin-1",
+        targetUserId: "u-missing",
+      });
+
+      expect(result).toEqual({ ok: false, reason: "user_not_found" });
+      expect(deleteByUserId).not.toHaveBeenCalled();
+    });
+
+    it("revokes the user's active sessions after a successful suspend", async () => {
+      const suspend = vi.fn().mockResolvedValue({ ok: true });
+      const deleteByUserId = vi.fn().mockResolvedValue(undefined);
+      const userRepository = buildUserRepository({ suspend });
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository({ deleteByUserId });
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.suspend({
+        actorId: "admin-1",
+        targetUserId: "u-2",
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(suspend).toHaveBeenCalledWith({
+        userId: "u-2",
+        actingAdminId: "admin-1",
+        now: fixedClock.now(),
+      });
+      expect(deleteByUserId).toHaveBeenCalledWith("u-2");
+    });
+  });
 });

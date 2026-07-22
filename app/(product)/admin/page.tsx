@@ -6,7 +6,12 @@ import { getSessionRepository } from "../../../src/auth/session";
 import { systemClock } from "../../../src/system/clock";
 import { createAdminTopicsWorkflow } from "../../../src/admin/topics.workflow";
 import { createAdminStatusWorkflow } from "../../../src/admin/operational-status.workflow";
-import { changeRoleAction, inviteUserAction } from "./_actions/users";
+import {
+  changeRoleAction,
+  inviteUserAction,
+  suspendAction,
+} from "./_actions/users";
+import { SuspendTypedConfirm } from "./_components/SuspendTypedConfirm";
 import type { UserListItem } from "../../../src/admin/users.repository";
 import type { UserStatus } from "../../../src/db/schema";
 
@@ -14,6 +19,7 @@ type SearchParams = Promise<{
   invited?: string | string[];
   error?: string | string[];
   role_change?: string | string[];
+  action?: string | string[];
 }>;
 
 export default async function AdminPage({
@@ -88,6 +94,17 @@ export default async function AdminPage({
           data-testid="admin-role-change-banner"
         >
           Role updated.
+        </p>
+      ) : null}
+
+      {firstString(params.action) === "suspended" ? (
+        <p
+          className="admin-info-banner"
+          role="status"
+          aria-live="polite"
+          data-testid="admin-suspend-banner"
+        >
+          User suspended and active sessions revoked.
         </p>
       ) : null}
 
@@ -224,8 +241,16 @@ function errorMessageFor(code: string): string {
     case "invalid_role_change":
       return "Choose a valid user and role.";
     case "role_change_failed":
-    default:
       return "We could not update the role. Please try again.";
+    case "self_suspend":
+      return "You cannot suspend yourself.";
+    case "user_already_suspended":
+      return "That user is already suspended.";
+    case "invalid_suspend":
+      return "Type the user's email to confirm.";
+    case "suspend_failed":
+    default:
+      return "We could not suspend the user. Please try again.";
   }
 }
 
@@ -293,9 +318,18 @@ function UserRow({
         {labelUserStatus(user.status)}
       </td>
       <td>
-        <span className="users-row-placeholder">
-          Suspend / reinstate land in slice 4 & 5.
-        </span>
+        {user.status === "active" ? (
+          <SuspendTypedConfirm
+            userId={user.id}
+            userEmail={user.email}
+            csrfToken={csrfToken}
+            action={suspendAction}
+          />
+        ) : (
+          <span className="users-row-placeholder">
+            Suspended — reinstate lands in slice 5.
+          </span>
+        )}
       </td>
     </tr>
   );

@@ -345,3 +345,117 @@ describe("changeRoleAction", () => {
     );
   });
 });
+
+async function importSuspendAction() {
+  const mod = await import("./users");
+  return mod.suspendAction;
+}
+
+describe("suspendAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setSession("admin");
+  });
+
+  it("redirects to /admin?action=suspended on success", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn(),
+      changeRole: vi.fn(),
+      suspend: vi.fn().mockResolvedValue({ ok: true }),
+      reinstate: vi.fn(),
+      resendInvite: vi.fn(),
+    });
+
+    const action = await importSuspendAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          userId: "u-2",
+          confirmEmail: "ada@example.com",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain("NEXT_REDIRECT;303;/admin?action=suspended;");
+  });
+
+  it("redirects to /admin?error=self_suspend when the actor targets themselves", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn(),
+      changeRole: vi.fn(),
+      suspend: vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "self_suspend",
+      }),
+      reinstate: vi.fn(),
+      resendInvite: vi.fn(),
+    });
+
+    const action = await importSuspendAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          userId: "admin-1",
+          confirmEmail: "admin@example.com",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain("NEXT_REDIRECT;303;/admin?error=self_suspend;");
+  });
+
+  it("redirects to /admin?error=user_already_suspended when the user is already suspended", async () => {
+    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+      load: vi.fn(),
+      inviteUser: vi.fn(),
+      changeRole: vi.fn(),
+      suspend: vi.fn().mockResolvedValue({
+        ok: false,
+        reason: "user_already_suspended",
+      }),
+      reinstate: vi.fn(),
+      resendInvite: vi.fn(),
+    });
+
+    const action = await importSuspendAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          userId: "u-2",
+          confirmEmail: "ada@example.com",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain(
+      "NEXT_REDIRECT;303;/admin?error=user_already_suspended;",
+    );
+  });
+
+  it("redirects to /admin?error=invalid_suspend when userId is missing", async () => {
+    const action = await importSuspendAction();
+    let digest = "";
+    try {
+      await action(
+        buildFormData({
+          confirmEmail: "ada@example.com",
+          _csrf: "csrf-admin-1",
+        }),
+      );
+    } catch (error) {
+      digest = (error as Error & { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain("NEXT_REDIRECT;303;/admin?error=invalid_suspend;");
+  });
+});

@@ -8,6 +8,7 @@ import {
   createAdminUsersWorkflow,
   type AdminUserChangeRoleResult,
   type AdminUserInviteResult,
+  type AdminUserSuspendResult,
 } from "../../../../src/admin/users.workflow";
 import { createPostgresAdminUserRepository } from "../../../../src/admin/users.repository";
 import { createPostgresInviteRepository } from "../../../../src/admin/invites.repository";
@@ -40,9 +41,7 @@ function buildAdminWorkflow() {
   });
 }
 
-async function assertAdminAndCsrf(
-  formData: FormData,
-): Promise<{
+async function assertAdminAndCsrf(formData: FormData): Promise<{
   session: NonNullable<Awaited<ReturnType<typeof getServerSession>>>;
 }> {
   const session = await getServerSession();
@@ -102,6 +101,25 @@ export async function changeRoleAction(formData: FormData): Promise<void> {
   redirect(redirectTargetForChangeRole(result));
 }
 
+export async function suspendAction(formData: FormData): Promise<void> {
+  const { session } = await assertAdminAndCsrf(formData);
+
+  const targetUserId = readUserId(formData);
+  const confirmEmail = readConfirmEmail(formData);
+  if (!targetUserId || !confirmEmail) {
+    redirect("/admin?error=invalid_suspend");
+  }
+
+  const workflow = buildAdminWorkflow();
+
+  const result = await workflow.suspend({
+    actorId: session.user.id,
+    targetUserId,
+  });
+
+  redirect(redirectTargetForSuspend(result));
+}
+
 function readEmail(formData: FormData): string | null {
   const value = formData.get("email");
   if (typeof value !== "string") {
@@ -124,6 +142,15 @@ function readRole(formData: FormData): UserRole | null {
 
 function readUserId(formData: FormData): string | null {
   const value = formData.get("userId");
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function readConfirmEmail(formData: FormData): string | null {
+  const value = formData.get("confirmEmail");
   if (typeof value !== "string") {
     return null;
   }
@@ -160,5 +187,22 @@ function redirectTargetForChangeRole(
     case "internal_error":
     default:
       return "/admin?error=role_change_failed";
+  }
+}
+
+function redirectTargetForSuspend(result: AdminUserSuspendResult): string {
+  if (result.ok) {
+    return "/admin?action=suspended";
+  }
+  switch (result.reason) {
+    case "self_suspend":
+      return "/admin?error=self_suspend";
+    case "user_already_suspended":
+      return "/admin?error=user_already_suspended";
+    case "user_not_found":
+      return "/admin?error=user_not_found";
+    case "internal_error":
+    default:
+      return "/admin?error=suspend_failed";
   }
 }

@@ -38,7 +38,7 @@ vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
     redirectMock(url);
     const error = new Error("NEXT_REDIRECT");
-    (error as Error & { digest?: string }).digest = `NEXT_REDIRECT;303;${url};`;
+    (error as Error & { digest?: string }).digest = `NEXT_REDIRECT;307;${url};`;
     throw error;
   },
   notFound: () => {
@@ -247,7 +247,7 @@ describe("requirePageContext", () => {
 
     await expectRedirect(
       requirePageContext({ roles: ["user"] }, request),
-      "/sign-in?returnTo=%2Fsearches",
+      "/sign-in?returnTo=/searches",
     );
   });
 
@@ -257,7 +257,7 @@ describe("requirePageContext", () => {
 
     await expectRedirect(
       requirePageContext({ roles: ["user"] }, request),
-      "/sign-in?returnTo=%2Fme",
+      "/sign-in?returnTo=/me",
     );
   });
 
@@ -267,7 +267,7 @@ describe("requirePageContext", () => {
 
     await expectRedirect(
       requirePageContext({ roles: ["user"] }, request),
-      "/sign-in?returnTo=%2Fsearches%2Fabc%2Fresults",
+      "/sign-in?returnTo=/searches/abc/results",
     );
   });
 
@@ -324,7 +324,7 @@ describe("requirePageContext", () => {
 
     await expectRedirect(
       requirePageContext({ roles: ["admin"] }),
-      "/sign-in?returnTo=%2Fadmin",
+      "/sign-in?returnTo=/admin",
     );
   });
 });

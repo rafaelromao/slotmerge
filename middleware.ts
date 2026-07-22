@@ -16,6 +16,10 @@ const PUBLIC_PREFIXES = [
   "/favicon",
 ];
 
+const EXTERNAL_OAUTH_CALLBACKS = [
+  "/me/calendar-connections/callback",
+];
+
 function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
@@ -28,6 +32,12 @@ function isPublic(pathname: string): boolean {
   );
 }
 
+function isExternalOAuthCallback(pathname: string): boolean {
+  return EXTERNAL_OAUTH_CALLBACKS.some(
+    (callback) => pathname === callback,
+  );
+}
+
 export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
@@ -35,11 +45,11 @@ export function middleware(request: NextRequest): NextResponse {
     return NextResponse.next();
   }
 
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-url", request.url);
-  requestHeaders.set("x-pathname", pathname);
-
-  if (isProtected(pathname)) {
+  if (
+    isProtected(pathname) &&
+    !isExternalOAuthCallback(pathname) &&
+    request.method === "GET"
+  ) {
     const sessionCookie = request.cookies.get("slotmerge_session");
     if (!sessionCookie) {
       const returnTo = `${pathname}${request.nextUrl.search}`;
@@ -50,6 +60,10 @@ export function middleware(request: NextRequest): NextResponse {
       return NextResponse.redirect(target, 303);
     }
   }
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-url", request.url);
+  requestHeaders.set("x-pathname", pathname);
 
   return NextResponse.next({
     request: { headers: requestHeaders },

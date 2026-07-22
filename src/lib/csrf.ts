@@ -124,9 +124,12 @@ async function extractTokenFromRequest(
 }
 
 function tokensMatch(actual: string, expected: string): boolean {
-  if (actual.length !== expected.length) {
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+
+  if (actualBuffer.length !== expectedBuffer.length) {
     return false;
   }
 
-  return timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+  return timingSafeEqual(actualBuffer, expectedBuffer);
 }

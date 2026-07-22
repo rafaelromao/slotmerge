@@ -310,3 +310,38 @@ describe("withCsrfProtection", () => {
     );
   });
 });
+
+describe("csrf token multibyte length comparison", () => {
+  it("does not throw RangeError when the supplied and session tokens have equal character length but mismatched byte length", async () => {
+    const multibyteSession = {
+      ...session,
+      csrfToken: "ée",
+    };
+
+    const singleByteMismatch = new Request("http://localhost:3000/me/foo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Origin: "http://localhost:3000",
+      },
+      body: new URLSearchParams({ _csrf: "ae" }).toString(),
+    });
+
+    await expect(
+      assertCsrfOrThrow(singleByteMismatch, multibyteSession),
+    ).rejects.toBeInstanceOf(CsrfError);
+
+    const multibyteMatch = new Request("http://localhost:3000/me/foo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Origin: "http://localhost:3000",
+      },
+      body: new URLSearchParams({ _csrf: "ée" }).toString(),
+    });
+
+    await expect(
+      assertCsrfOrThrow(multibyteMatch, multibyteSession),
+    ).resolves.toBeUndefined();
+  });
+});

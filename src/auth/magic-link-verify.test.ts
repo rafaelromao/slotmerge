@@ -3,6 +3,23 @@ import { describe, expect, it, vi } from "vitest";
 import { createMagicLinkVerifyHandlers } from "./magic-link-verify";
 import { createMagicLinkTokenIssuer } from "./magic-link";
 
+function expectErrorRedirect(
+  response: Response,
+  state: string,
+  reason: string,
+  email?: string,
+): URL {
+  expect(response.status).toBe(303);
+  const location = response.headers.get("Location");
+  expect(location).not.toBeNull();
+  const url = new URL(location!);
+  expect(url.pathname).toBe("/sign-in/verify");
+  expect(url.searchParams.get("error")).toBe(state);
+  expect(url.searchParams.get("reason")).toBe(reason);
+  expect(url.searchParams.get("email")).toBe(email ?? null);
+  return url;
+}
+
 const SESSION_LIFETIME_DAYS = 30;
 
 function createMockInviteRepository() {
@@ -128,9 +145,7 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
-      const html = await response.text();
-      expect(html).toContain("invalid_token");
+      expectErrorRedirect(response, "link_invalid", "invalid_token");
     });
 
     it("returns error for invalid token", async () => {
@@ -146,9 +161,7 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
-      const html = await response.text();
-      expect(html).toContain("invalid_token");
+      expectErrorRedirect(response, "link_invalid", "invalid_token");
     });
 
     it("returns error for expired token", async () => {
@@ -175,11 +188,13 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
-      const html = await response.text();
-      expect(html).toContain("token_expired");
-      expect(html).toContain("Send a new link");
-      expect(html).toContain("/auth/magic-link/resend");
+      const url = expectErrorRedirect(
+        response,
+        "link_expired",
+        "token_expired",
+        "alice@example.com",
+      );
+      expect(url.searchParams.get("token")).toBe(token.token);
     });
 
     it("returns error for non-existent invite", async () => {
@@ -215,9 +230,12 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
-      const html = await response.text();
-      expect(html).toContain("not_invited");
+      expectErrorRedirect(
+        response,
+        "link_invalid",
+        "not_invited",
+        "alice@example.com",
+      );
       expect(mockUserRepo.findByEmail).not.toHaveBeenCalled();
       expect(mockUserRepo.create).not.toHaveBeenCalled();
       expect(mockSessionRepo.create).not.toHaveBeenCalled();
@@ -259,9 +277,12 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
-      const html = await response.text();
-      expect(html).toContain("invite_already_accepted");
+      expectErrorRedirect(
+        response,
+        "link_used",
+        "invite_already_accepted",
+        "alice@example.com",
+      );
     });
 
     it("returns error for expired invite record", async () => {
@@ -299,9 +320,12 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
-      const html = await response.text();
-      expect(html).toContain("invite_expired");
+      expectErrorRedirect(
+        response,
+        "link_expired",
+        "invite_expired",
+        "alice@example.com",
+      );
     });
 
     it("returns error for email mismatch", async () => {
@@ -339,9 +363,12 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
-      const html = await response.text();
-      expect(html).toContain("email_mismatch");
+      expectErrorRedirect(
+        response,
+        "link_invalid",
+        "email_mismatch",
+        "alice@example.com",
+      );
     });
 
     it("creates user, session, accepts invite, and redirects on valid token", async () => {
@@ -452,10 +479,12 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
-      const html = await response.text();
-      expect(html).toContain("invalid_token");
-      expect(mockInviteRepo.accept).not.toHaveBeenCalled();
+      expectErrorRedirect(
+        response,
+        "link_invalid",
+        "invalid_token",
+        "alice@example.com",
+      );
     });
 
     it("rolls back session if invite.accept fails", async () => {
@@ -510,7 +539,7 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(500);
+      expectErrorRedirect(response, "link_invalid", "server_error");
       expect(mockSessionRepo.create).toHaveBeenCalled();
       expect(mockInviteRepo.accept).toHaveBeenCalledWith("invite-1");
       expect(mockSessionRepo.delete).toHaveBeenCalledWith("session-1");
@@ -598,11 +627,13 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
-      const html = await response.text();
-      expect(html).toContain("token_expired");
-      expect(html).toContain('action="/auth/magic-link/resend"');
-      expect(html).toContain("Send a new link");
+      const url = expectErrorRedirect(
+        response,
+        "link_expired",
+        "token_expired",
+        "alice@example.com",
+      );
+      expect(url.searchParams.get("token")).toBe(token.token);
     });
 
     it("error page for invite_already_accepted does NOT include resend form", async () => {
@@ -640,10 +671,12 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
-      const html = await response.text();
-      expect(html).toContain("invite_already_accepted");
-      expect(html).not.toContain('action="/auth/magic-link/resend"');
+      expectErrorRedirect(
+        response,
+        "link_used",
+        "invite_already_accepted",
+        "alice@example.com",
+      );
     });
 
     it("error page for invite_revoked does NOT include resend form", async () => {
@@ -681,10 +714,12 @@ describe("magic link verify handler", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
-      const html = await response.text();
-      expect(html).toContain("invite_revoked");
-      expect(html).not.toContain('action="/auth/magic-link/resend"');
+      expectErrorRedirect(
+        response,
+        "link_invalid",
+        "invite_revoked",
+        "alice@example.com",
+      );
     });
   });
 

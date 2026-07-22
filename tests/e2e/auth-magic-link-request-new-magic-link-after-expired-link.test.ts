@@ -6,6 +6,7 @@ import { invites, users } from "../../src/db/schema";
 import { createMagicLinkRequestHandlers } from "../../src/auth/magic-link-request";
 import { createMagicLinkVerifyHandlers } from "../../src/auth/magic-link-verify";
 import { createMagicLinkResendHandlers } from "../../src/auth/magic-link-resend";
+import { createAuthWorkflow } from "../../src/workflow/auth";
 import type { EmailDeliveryService, EmailType } from "../../src/email/service";
 import { buildTestClock } from "../test-clock";
 
@@ -98,14 +99,14 @@ function extractMagicLinkToken(payload: Record<string, unknown>): string {
   return magicLinkToken;
 }
 
-function extractResendTokenFromHtml(html: string): string {
-  const match = html.match(/name="token" value="([^"]+)"/);
-  if (!match) {
+function extractResendTokenFromLocation(location: string): string {
+  const token = new URL(location).searchParams.get("token");
+  if (!token) {
     throw new Error(
-      `expired-link response did not include a hidden token input for resend: ${html}`,
+      `expired-link redirect did not include a resend token: ${location}`,
     );
   }
-  return match[1];
+  return token;
 }
 
 describe("E2E: request a new magic link after an expired link", () => {
@@ -170,27 +171,31 @@ describe("E2E: request a new magic link after an expired link", () => {
         }),
       );
 
-      expect(verifyExpiredResponse.status).toBe(400);
+      expect(verifyExpiredResponse.status).toBe(303);
       expect(verifyExpiredResponse.headers.get("Set-Cookie")).toBeNull();
-      const expiredHtml = await verifyExpiredResponse.text();
-      expect(expiredHtml).toContain("token_expired");
-      expect(expiredHtml).toContain("link_expired");
-      expect(expiredHtml).toContain("Send a new link");
-      expect(expiredHtml).toContain('action="/auth/magic-link/resend"');
-      expect(expiredHtml).toContain("Request a new link");
-      expect(expiredHtml).toContain(
-        `href="/sign-in?email=${encodeURIComponent(INVITEE_EMAIL)}"`,
-      );
+      const expiredLocation = verifyExpiredResponse.headers.get("Location");
+      expect(expiredLocation).not.toBeNull();
+      const expiredUrl = new URL(expiredLocation!);
+      expect(expiredUrl.pathname).toBe("/sign-in/verify");
+      expect(expiredUrl.searchParams.get("error")).toBe("link_expired");
+      expect(expiredUrl.searchParams.get("reason")).toBe("token_expired");
+      expect(expiredUrl.searchParams.get("email")).toBe(INVITEE_EMAIL);
 
       expect(await countSessions()).toBe(sessionsBefore);
 
-      const resendToken = extractResendTokenFromHtml(expiredHtml);
+      const resendToken = extractResendTokenFromLocation(expiredLocation!);
       expect(resendToken).toBe(originalToken);
 
-      const { POST: postResend } = createMagicLinkResendHandlers({
+      const resendWorkflow = createAuthWorkflow({
         clock,
         magicLinkSecret: MAGIC_LINK_SECRET,
         emailDeliveryService: emailService,
+      });
+      const { POST: postResend } = createMagicLinkResendHandlers({
+        clock,
+        magicLinkSecret: MAGIC_LINK_SECRET,
+        requestMagicLink:
+          resendWorkflow.requestMagicLink.bind(resendWorkflow),
       });
 
       const resendResponse = await postResend(
@@ -218,8 +223,12 @@ describe("E2E: request a new magic link after an expired link", () => {
         }),
       );
 
-      expect(verifyPriorResponse.status).toBe(400);
-      expect(verifyPriorResponse.headers.get("Set-Cookie")).toBeNull();
+      expect(verifyPriorResponse.status).toBe(303);
+      expect(
+        new URL(verifyPriorResponse.headers.get("Location")!).searchParams.get(
+          "error",
+        ),
+      ).toBe("link_invalid");
 
       expect(await countSessions()).toBe(sessionsBefore);
 

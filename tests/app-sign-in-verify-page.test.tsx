@@ -43,10 +43,15 @@ describe("Public /sign-in/verify page", () => {
     const html = await renderVerify({
       error: "link_expired",
       email: "alice@example.com",
+      token: "expired-token",
+      reason: "token_expired",
     });
     expect(html).toContain("data-testid=\"verify-error-link_expired\"");
     expect(html).toMatch(/sign-in link has expired/i);
     expect(html).toContain('href="/sign-in?email=alice%40example.com"');
+    expect(html).toContain('action="/auth/magic-link/resend"');
+    expect(html).toContain('value="expired-token"');
+    expect(html).toContain("token_expired");
   });
 
   it("renders the link_used error state with non-leaking copy", async () => {

@@ -1,11 +1,12 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { createMagicLinkRequestHandlers } from "../../../src/auth/magic-link-request";
-import { systemDependencies } from "../../../src/system";
-
-const handlers = createMagicLinkRequestHandlers(systemDependencies());
+import {
+  authWorkflow,
+  requestContextFromRequest,
+} from "../../../src/workflow/auth";
 
 export async function signInRequestMagicLinkAction(
   formData: FormData,
@@ -18,24 +19,21 @@ export async function signInRequestMagicLinkAction(
   const returnTo = formData.get("returnTo");
   const masked = maskEmailForSentPage(email.toString());
 
-  const request = new Request("http://localhost/auth/magic-link/request", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ email: email.toString() }).toString(),
+  const headerStore = await headers();
+  const requestHeaders = new Headers();
+  headerStore.forEach((value, key) => requestHeaders.set(key, value));
+  const result = await authWorkflow.requestMagicLink({
+    email: email.toString(),
+    requestContext: requestContextFromRequest(
+      new Request("http://localhost/sign-in", { headers: requestHeaders }),
+    ),
   });
 
-  const response = await handlers.POST(request);
-
   let destination = `/sign-in/sent?email=${encodeURIComponent(masked)}`;
-  if (response.status === 429) {
+  if (!result.ok && result.error === "rate_limited") {
     destination = "/sign-in?error=rate_limited";
-  } else if (!response.ok) {
-    try {
-      const body = (await response.json()) as { error?: string };
-      destination = `/sign-in?error=${body.error ?? "request_failed"}`;
-    } catch {
-      destination = "/sign-in?error=request_failed";
-    }
+  } else if (!result.ok) {
+    destination = `/sign-in?error=${result.error}`;
   }
 
   if (typeof returnTo === "string" && returnTo.length > 0) {

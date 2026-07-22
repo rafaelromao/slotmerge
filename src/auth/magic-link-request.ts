@@ -2,7 +2,8 @@ import {
   createMagicLinkTokenIssuer,
   type MagicLinkTokenIssuer,
 } from "./magic-link";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
+import { z } from "zod";
 import type { EmailDeliveryService } from "../email/service";
 import { createEmailDeliveryService } from "../email/service";
 import { createPostgresEmailEventRepository } from "../email/repository";
@@ -19,6 +20,7 @@ export type MagicLinkRequestInviteRecord = {
   role: string;
   status: "pending" | "accepted" | "revoked";
   expiresAt: Date;
+  magicLinkGeneration?: number;
 };
 
 export type MagicLinkRequestUserRecord = {
@@ -26,6 +28,7 @@ export type MagicLinkRequestUserRecord = {
   email: string;
   role: string;
   status: string;
+  magicLinkGeneration?: number;
 };
 
 export type MagicLinkRequestInviteRepository = {
@@ -43,6 +46,9 @@ export type MagicLinkRequestUserRepository = {
     email: string;
     role: string;
   }): Promise<MagicLinkRequestUserRecord>;
+  incrementMagicLinkGeneration?(
+    id: string,
+  ): Promise<MagicLinkRequestUserRecord | null>;
 };
 
 export type MagicLinkRequestDependencies = {
@@ -61,6 +67,7 @@ export type MagicLinkRequestRateLimiter = {
 };
 
 const magicLinkLifetimeHours = 1;
+const emailSchema = z.string().trim().email();
 
 export function createMagicLinkRequestHandlers(
   deps: MagicLinkRequestDependencies,
@@ -77,11 +84,15 @@ export function createMagicLinkRequestHandlers(
       const formData = await request.formData();
       const email = formData.get("email");
 
-      if (typeof email !== "string" || !email.trim()) {
+      if (typeof email !== "string") {
+        return jsonResponse({ error: "invalid_email" }, 400);
+      }
+      const parsedEmail = emailSchema.safeParse(email);
+      if (!parsedEmail.success) {
         return jsonResponse({ error: "invalid_email" }, 400);
       }
 
-      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedEmail = parsedEmail.data.toLowerCase();
 
       const issuer =
         deps.magicLinkTokenIssuer ??
@@ -93,7 +104,8 @@ export function createMagicLinkRequestHandlers(
 
       const inviteRepo =
         deps.inviteRepository ?? createDatabaseInviteRepository(clock);
-      const userRepo = deps.userRepository ?? createDatabaseUserRepository();
+      const userRepo =
+        deps.userRepository ?? createDatabaseUserRepository(clock);
       const emailService =
         deps.emailDeliveryService ??
         createDefaultEmailDeliveryService({ clock });
@@ -103,24 +115,33 @@ export function createMagicLinkRequestHandlers(
         return jsonResponse({ sent: true }, 202);
       }
       if (existingUser) {
-        await handleExistingUser({
-          user: existingUser,
-          issuer,
-          emailService,
-          clock,
-        });
+        try {
+          await handleExistingUser({
+            user: existingUser,
+            userRepository: userRepo,
+            issuer,
+            emailService,
+            clock,
+          });
+        } catch {
+          return jsonResponse({ sent: true }, 202);
+        }
         return jsonResponse({ sent: true }, 202);
       }
 
       const pendingInvite =
         await inviteRepo.findPendingByEmail(normalizedEmail);
       if (pendingInvite) {
-        await handlePendingInvite({
-          invite: pendingInvite,
-          issuer,
-          emailService,
-          clock,
-        });
+        try {
+          await handlePendingInvite({
+            invite: pendingInvite,
+            issuer,
+            emailService,
+            clock,
+          });
+        } catch {
+          return jsonResponse({ sent: true }, 202);
+        }
         return jsonResponse({ sent: true }, 202);
       }
 
@@ -148,6 +169,7 @@ async function handlePendingInvite({
     inviteId: invite.id,
     email: invite.email,
     expiresAt,
+    generation: invite.magicLinkGeneration ?? 0,
   });
 
   if (emailService) {
@@ -165,11 +187,13 @@ async function handlePendingInvite({
 
 async function handleExistingUser({
   user,
+  userRepository,
   issuer,
   emailService,
   clock,
 }: {
   user: MagicLinkRequestUserRecord;
+  userRepository: MagicLinkRequestUserRepository;
   issuer: MagicLinkTokenIssuer;
   emailService: EmailDeliveryService | undefined;
   clock: Clock;
@@ -177,11 +201,18 @@ async function handleExistingUser({
   const expiresAt = new Date(
     clock.now().getTime() + magicLinkLifetimeHours * 60 * 60 * 1000,
   );
+  const refreshedUser = userRepository.incrementMagicLinkGeneration
+    ? await userRepository.incrementMagicLinkGeneration(user.id)
+    : user;
+  if (!refreshedUser) {
+    return;
+  }
 
   const magicLink = issuer.issueMagicLinkToken({
-    userId: user.id,
-    email: user.email,
+    userId: refreshedUser.id,
+    email: refreshedUser.email,
     expiresAt,
+    generation: refreshedUser.magicLinkGeneration ?? 0,
   });
 
   if (emailService) {
@@ -270,6 +301,7 @@ function createDatabaseInviteRepository(
           role: invites.role,
           status: invites.status,
           expiresAt: invites.expiresAt,
+          magicLinkGeneration: invites.magicLinkGeneration,
         })
         .from(invites)
         .where(eq(invites.id, id))
@@ -285,6 +317,7 @@ function createDatabaseInviteRepository(
           role: invites.role,
           status: invites.status,
           expiresAt: invites.expiresAt,
+          magicLinkGeneration: invites.magicLinkGeneration,
         })
         .from(invites)
         .where(
@@ -307,7 +340,9 @@ function createDatabaseInviteRepository(
   };
 }
 
-function createDatabaseUserRepository(): MagicLinkRequestUserRepository {
+function createDatabaseUserRepository(
+  clock: Clock,
+): MagicLinkRequestUserRepository {
   return {
     findById: async (id) => {
       const [row] = await getDb()
@@ -316,6 +351,7 @@ function createDatabaseUserRepository(): MagicLinkRequestUserRepository {
           email: users.email,
           role: users.role,
           status: users.status,
+          magicLinkGeneration: users.magicLinkGeneration,
         })
         .from(users)
         .where(eq(users.id, id))
@@ -330,6 +366,7 @@ function createDatabaseUserRepository(): MagicLinkRequestUserRepository {
           email: users.email,
           role: users.role,
           status: users.status,
+          magicLinkGeneration: users.magicLinkGeneration,
         })
         .from(users)
         .where(eq(users.email, email))
@@ -350,6 +387,7 @@ function createDatabaseUserRepository(): MagicLinkRequestUserRepository {
           email: users.email,
           role: users.role,
           status: users.status,
+          magicLinkGeneration: users.magicLinkGeneration,
         });
 
       if (!row) {
@@ -357,6 +395,23 @@ function createDatabaseUserRepository(): MagicLinkRequestUserRepository {
       }
 
       return row;
+    },
+    incrementMagicLinkGeneration: async (id) => {
+      const [row] = await getDb()
+        .update(users)
+        .set({
+          magicLinkGeneration: sql`${users.magicLinkGeneration} + 1`,
+          updatedAt: clock.now(),
+        })
+        .where(and(eq(users.id, id), eq(users.status, "active")))
+        .returning({
+          id: users.id,
+          email: users.email,
+          role: users.role,
+          status: users.status,
+          magicLinkGeneration: users.magicLinkGeneration,
+        });
+      return row ?? null;
     },
   };
 }

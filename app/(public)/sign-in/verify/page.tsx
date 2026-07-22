@@ -4,6 +4,7 @@ type SearchParams = Promise<{
   token?: string | string[];
   error?: string | string[];
   email?: string | string[];
+  reason?: string | string[];
 }>;
 
 export const dynamic = "force-dynamic";
@@ -17,9 +18,10 @@ export default async function VerifyPage({
   const token = firstString(params.token);
   const errorCode = firstString(params.error);
   const email = firstString(params.email) ?? "";
+  const reason = firstString(params.reason) ?? "";
 
   if (errorCode && isKnownErrorState(errorCode)) {
-    return renderErrorState(errorCode, email);
+    return renderErrorState(errorCode, email, token ?? "", reason);
   }
 
   return (
@@ -62,7 +64,12 @@ export default async function VerifyPage({
   );
 }
 
-function renderErrorState(state: VerifyErrorState, email: string) {
+function renderErrorState(
+  state: VerifyErrorState,
+  email: string,
+  token: string,
+  reason: string,
+) {
   const signInHref = email
     ? `/sign-in?email=${encodeURIComponent(email)}`
     : "/sign-in";
@@ -79,6 +86,17 @@ function renderErrorState(state: VerifyErrorState, email: string) {
       >
         {copy.body}
       </p>
+      <span hidden data-verify-reason={reason}>
+        {reason}
+      </span>
+      {state === "link_expired" && token ? (
+        <form method="POST" action="/auth/magic-link/resend">
+          <input type="hidden" name="token" value={token} />
+          <button type="submit" className="btn btn-primary">
+            Send a new link
+          </button>
+        </form>
+      ) : null}
       <p>
         <Link
           href={signInHref}

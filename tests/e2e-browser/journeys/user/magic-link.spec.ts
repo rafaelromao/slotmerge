@@ -1,8 +1,10 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Browser } from "@playwright/test";
+import { createMagicLinkTokenIssuer } from "../../../../src/auth/magic-link";
 import { captureState } from "../../../helpers/playwright/screenshot-helper";
 
 const BASE_URL = "http://localhost:3000";
-const INVITED_EMAIL = "invited-user@example.com";
+const INVITED_EMAIL = "magic-link-journey@example.com";
+const RESEND_EMAIL = "magic-link-resend-journey@example.com";
 const UNINVITED_EMAIL = "stranger@example.com";
 
 type CapturedEmailsResponse = {
@@ -47,6 +49,36 @@ async function waitForMagicLink(
   return null;
 }
 
+async function adminInvite(browser: Browser, email: string): Promise<void> {
+  const context = await browser.newContext({
+    storageState: "playwright/.auth/admin.json",
+  });
+  const page = await context.newPage();
+  await page.goto("/admin/invites");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Role").selectOption("user");
+  await page.getByRole("button", { name: "Invite user" }).click();
+  await page.waitForURL((url) => url.pathname === "/admin/invites");
+  await expect(page.getByRole("cell", { name: email })).toBeVisible();
+  await context.close();
+}
+
+async function waitForInvitePayload(
+  email: string,
+  timeoutMs = 10000,
+): Promise<Record<string, unknown> | null> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const { emails } = await getCapturedEmails(email);
+    const invite = emails.filter((item) => item.type === "invite").at(-1);
+    if (invite) {
+      return invite.payload;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return null;
+}
+
 function absoluteUrl(maybeRelativeUrl: string): string {
   if (maybeRelativeUrl.startsWith("http")) {
     return maybeRelativeUrl;
@@ -55,9 +87,13 @@ function absoluteUrl(maybeRelativeUrl: string): string {
 }
 
 test.describe("Magic-link request, verify, and resend", () => {
-  test("happy path: public /sign-in form → sent → verify (auto-submit) → 303 to /", async ({
+  test.describe.configure({ mode: "serial" });
+
+  test("happy path: Admin invite → public /sign-in form → sent → verify → setup checklist", async ({
+    browser,
     page,
   }) => {
+    await adminInvite(browser, INVITED_EMAIL);
     await page.clock.install({ time: new Date("2026-07-12T12:00:00.000Z") });
     await page.goto("/sign-in");
 
@@ -137,95 +173,79 @@ test.describe("Magic-link request, verify, and resend", () => {
     await page.goto(absoluteMagicLinkUrl);
     await page.waitForURL((url) => url.pathname === "/");
 
-    const tokenUrl = new URL(absoluteMagicLinkUrl);
-    const rawToken = tokenUrl.searchParams.get("token") ?? "";
-    expect(rawToken.length).toBeGreaterThan(0);
-
-    const replayResponse = await page.request.post(
-      `${BASE_URL}/auth/magic-link/verify`,
-      {
-        form: { token: rawToken },
-        maxRedirects: 0,
-      },
-    );
-    expect(replayResponse.status()).toBe(400);
-    const replayHtml = await replayResponse.text();
-    expect(replayHtml).toContain("link_used");
-    expect(replayHtml).toContain("invite_already_accepted");
-    expect(replayHtml).toContain("Request a new link");
-    expect(replayHtml).toContain(
-      `href="/sign-in?email=${encodeURIComponent(INVITED_EMAIL)}"`,
-    );
-
-    await page.goto(
-      `${BASE_URL}/sign-in/verify?error=${encodeURIComponent("link_used")}&email=${encodeURIComponent(INVITED_EMAIL)}`,
+    await page.goto(absoluteMagicLinkUrl);
+    await page.waitForURL(
+      (url) =>
+        url.pathname === "/sign-in/verify" &&
+        url.searchParams.get("error") === "link_used",
     );
     await expect(page.getByTestId("verify-error-link_used")).toBeVisible();
+    const requestNewLink = page.getByTestId(
+      "verify-request-new-link-link_used",
+    );
+    await expect(requestNewLink).toHaveAttribute(
+      "href",
+      `/sign-in?email=${encodeURIComponent(INVITED_EMAIL)}`,
+    );
     await captureState(page, "sign-in", "verify-error-used");
   });
 
-  test("waiting past expiry returns link_expired with a Request a new link link", async ({
+  test("waiting past expiry returns link_expired and resends through the typed screen", async ({
+    browser,
     page,
   }) => {
+    await adminInvite(browser, RESEND_EMAIL);
+    const payload = await waitForInvitePayload(RESEND_EMAIL);
+    expect(payload).not.toBeNull();
+    const inviteId = payload?.["inviteId"];
+    expect(typeof inviteId).toBe("string");
+    const expired = createMagicLinkTokenIssuer({
+      clock: { now: () => new Date("2026-07-12T10:00:00.000Z") },
+      baseUrl: BASE_URL,
+      secret: "local-magic-link-secret-do-not-use-in-production",
+    }).issueMagicLinkToken({
+      inviteId: inviteId as string,
+      email: RESEND_EMAIL,
+      expiresAt: new Date("2026-07-12T11:59:00.000Z"),
+      generation: 0,
+    });
+
     await page.clock.install({ time: new Date("2026-07-12T12:00:00.000Z") });
-    await page.goto("/sign-in");
-
-    const previousCount = await getMagicLinkCount(INVITED_EMAIL);
-    await page.getByTestId("sign-in-email").fill(INVITED_EMAIL);
-    await page.getByTestId("sign-in-submit").click();
-
-    const magicLinkUrl = await waitForMagicLink(INVITED_EMAIL, previousCount);
-    expect(magicLinkUrl).not.toBeNull();
-    const tokenUrl = new URL(magicLinkUrl!);
-    const rawToken = tokenUrl.searchParams.get("token") ?? "";
-    expect(rawToken.length).toBeGreaterThan(0);
-
-    await page.clock.fastForward(2 * 60 * 60 * 1000);
-
-    const expiredResponse = await page.request.post(
-      `${BASE_URL}/auth/magic-link/verify`,
-      {
-        form: { token: rawToken },
-        maxRedirects: 0,
-      },
-    );
-    expect(expiredResponse.status()).toBe(400);
-    const expiredHtml = await expiredResponse.text();
-    expect(expiredHtml).toContain("link_expired");
-    expect(expiredHtml).toContain("token_expired");
-    expect(expiredHtml).toContain("Request a new link");
-    expect(expiredHtml).toContain(
-      `href="/sign-in?email=${encodeURIComponent(INVITED_EMAIL)}"`,
-    );
-
-    await page.goto(
-      `${BASE_URL}/sign-in/verify?error=${encodeURIComponent("link_expired")}&email=${encodeURIComponent(INVITED_EMAIL)}`,
+    await page.goto(expired.magicLinkUrl);
+    await page.waitForURL(
+      (url) =>
+        url.pathname === "/sign-in/verify" &&
+        url.searchParams.get("error") === "link_expired",
     );
     await expect(page.getByTestId("verify-error-link_expired")).toBeVisible();
+    await expect(
+      page.getByTestId("verify-request-new-link-link_expired"),
+    ).toHaveAttribute(
+      "href",
+      `/sign-in?email=${encodeURIComponent(RESEND_EMAIL)}`,
+    );
     await captureState(page, "sign-in", "verify-error-expired");
+
+    await page.getByRole("button", { name: "Send a new link" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Check your email" }),
+    ).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(RESEND_EMAIL);
   });
 
   test("a malformed token returns link_invalid with a Request a new link link", async ({
     page,
   }) => {
-    const invalidResponse = await page.request.post(
-      `${BASE_URL}/auth/magic-link/verify`,
-      {
-        form: { token: "not-a-real-token" },
-        maxRedirects: 0,
-      },
-    );
-    expect(invalidResponse.status()).toBe(400);
-    const invalidHtml = await invalidResponse.text();
-    expect(invalidHtml).toContain("link_invalid");
-    expect(invalidHtml).toContain("invalid_token");
-    expect(invalidHtml).toContain("Request a new link");
-    expect(invalidHtml).toContain('href="/sign-in"');
-
-    await page.goto(
-      `${BASE_URL}/sign-in/verify?error=${encodeURIComponent("link_invalid")}`,
+    await page.goto("/sign-in/verify?token=not-a-real-token");
+    await page.waitForURL(
+      (url) =>
+        url.pathname === "/sign-in/verify" &&
+        url.searchParams.get("error") === "link_invalid",
     );
     await expect(page.getByTestId("verify-error-link_invalid")).toBeVisible();
+    await expect(
+      page.getByTestId("verify-request-new-link-link_invalid"),
+    ).toHaveAttribute("href", "/sign-in");
     await captureState(page, "sign-in", "verify-error-invalid");
   });
 });

@@ -99,6 +99,13 @@
       "when": 1783780000012,
       "tag": "0012_topic_proposal_audit_preserved",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784721600013,
+      "tag": "0013_user_magic_link_generation",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,23 @@ import { describe, expect, it, vi } from "vitest";
 import { createMagicLinkVerifyHandlers } from "./magic-link-verify";
 import { createMagicLinkTokenIssuer } from "./magic-link";
 
+function expectErrorRedirect(
+  response: Response,
+  state: string,
+  reason: string,
+  email?: string,
+): URL {
+  expect(response.status).toBe(303);
+  const location = response.headers.get("Location");
+  expect(location).not.toBeNull();
+  const url = new URL(location!);
+  expect(url.pathname).toBe("/sign-in/verify");
+  expect(url.searchParams.get("error")).toBe(state);
+  expect(url.searchParams.get("reason")).toBe(reason);
+  expect(url.searchParams.get("email")).toBe(email ?? null);
+  return url;
+}
+
 function createMockInviteRepository() {
   return {
     findById: vi.fn<
@@ -22,6 +39,15 @@ function createMockInviteRepository() {
 
 function createMockUserRepository() {
   return {
+    findById: vi.fn<
+      (id: string) => Promise<{
+        id: string;
+        email: string;
+        role: string;
+        status: string;
+        magicLinkGeneration?: number;
+      } | null>
+    >(),
     findByEmail: vi.fn<
       (email: string) => Promise<{
         id: string;
@@ -37,6 +63,20 @@ function createMockUserRepository() {
         role: string;
         status: string;
       }>
+    >(),
+    claimMagicLink: vi.fn<
+      (input: {
+        id: string;
+        email: string;
+        generation: number;
+        now: Date;
+      }) => Promise<{
+        id: string;
+        email: string;
+        role: string;
+        status: string;
+        magicLinkGeneration?: number;
+      } | null>
     >(),
   };
 }
@@ -58,18 +98,21 @@ function createMockSessionRepository() {
 function createTransaction(
   sessionRepo: ReturnType<typeof createMockSessionRepository>,
   inviteRepo: ReturnType<typeof createMockInviteRepository>,
+  userRepo?: ReturnType<typeof createMockUserRepository>,
 ) {
   return vi.fn<
     (
       fn: (ctx: {
         sessionRepository: ReturnType<typeof createMockSessionRepository>;
         inviteRepository: ReturnType<typeof createMockInviteRepository>;
+        userRepository?: ReturnType<typeof createMockUserRepository>;
       }) => Promise<void>,
     ) => Promise<void>
   >(async (fn) => {
     await fn({
       sessionRepository: sessionRepo,
       inviteRepository: inviteRepo,
+      userRepository: userRepo,
     });
   });
 }
@@ -162,11 +205,13 @@ describe("magic link verify handler - T3 contract", () => {
         }),
       );
 
-      const html = await response.text();
-      expect(html).toContain("link_expired");
-      expect(html).toContain("token_expired");
-      expect(html).toContain("Request a new link");
-      expect(html).toContain('href="/sign-in?email=alice%40example.com"');
+      const url = expectErrorRedirect(
+        response,
+        "link_expired",
+        "token_expired",
+        "alice@example.com",
+      );
+      expect(url.searchParams.get("token")).toBe(token.token);
     });
 
     it("maps invite_expired to link_expired label", async () => {
@@ -204,9 +249,12 @@ describe("magic link verify handler - T3 contract", () => {
         }),
       );
 
-      const html = await response.text();
-      expect(html).toContain("link_expired");
-      expect(html).toContain("invite_expired");
+      expectErrorRedirect(
+        response,
+        "link_expired",
+        "invite_expired",
+        "alice@example.com",
+      );
     });
 
     it("maps invite_already_accepted to link_used label", async () => {
@@ -244,9 +292,12 @@ describe("magic link verify handler - T3 contract", () => {
         }),
       );
 
-      const html = await response.text();
-      expect(html).toContain("link_used");
-      expect(html).toContain("invite_already_accepted");
+      expectErrorRedirect(
+        response,
+        "link_used",
+        "invite_already_accepted",
+        "alice@example.com",
+      );
     });
 
     it("maps invalid_token to link_invalid label", async () => {
@@ -262,9 +313,7 @@ describe("magic link verify handler - T3 contract", () => {
         }),
       );
 
-      const html = await response.text();
-      expect(html).toContain("link_invalid");
-      expect(html).toContain("invalid_token");
+      expectErrorRedirect(response, "link_invalid", "invalid_token");
     });
 
     it("maps email_mismatch to link_invalid label", async () => {
@@ -302,9 +351,12 @@ describe("magic link verify handler - T3 contract", () => {
         }),
       );
 
-      const html = await response.text();
-      expect(html).toContain("link_invalid");
-      expect(html).toContain("email_mismatch");
+      expectErrorRedirect(
+        response,
+        "link_invalid",
+        "email_mismatch",
+        "alice@example.com",
+      );
     });
 
     it("maps invite_revoked to link_invalid label", async () => {
@@ -342,9 +394,12 @@ describe("magic link verify handler - T3 contract", () => {
         }),
       );
 
-      const html = await response.text();
-      expect(html).toContain("link_invalid");
-      expect(html).toContain("invite_revoked");
+      expectErrorRedirect(
+        response,
+        "link_invalid",
+        "invite_revoked",
+        "alice@example.com",
+      );
     });
 
     it("maps not_invited to link_invalid label", async () => {
@@ -375,9 +430,12 @@ describe("magic link verify handler - T3 contract", () => {
         }),
       );
 
-      const html = await response.text();
-      expect(html).toContain("link_invalid");
-      expect(html).toContain("not_invited");
+      expectErrorRedirect(
+        response,
+        "link_invalid",
+        "not_invited",
+        "alice@example.com",
+      );
     });
   });
 
@@ -406,9 +464,12 @@ describe("magic link verify handler - T3 contract", () => {
         }),
       );
 
-      const html = await response.text();
-      expect(html).toContain("Request a new link");
-      expect(html).toContain('href="/sign-in?email=alice%40example.com"');
+      expectErrorRedirect(
+        response,
+        "link_expired",
+        "token_expired",
+        "alice@example.com",
+      );
     });
 
     it("falls back to plain /sign-in when no email is known", async () => {
@@ -424,9 +485,7 @@ describe("magic link verify handler - T3 contract", () => {
         }),
       );
 
-      const html = await response.text();
-      expect(html).toContain("Request a new link");
-      expect(html).toContain('href="/sign-in"');
+      expectErrorRedirect(response, "link_invalid", "invalid_token");
     });
   });
 
@@ -481,10 +540,12 @@ describe("magic link verify handler - T3 contract", () => {
         }),
       );
 
-      expect(response.status).toBe(400);
-      const html = await response.text();
-      expect(html).toContain("link_used");
-      expect(html).toContain("invite_already_accepted");
+      expectErrorRedirect(
+        response,
+        "link_used",
+        "invite_already_accepted",
+        "alice@example.com",
+      );
     });
 
     it("does NOT accept the invite when session insert fails", async () => {
@@ -539,8 +600,123 @@ describe("magic link verify handler - T3 contract", () => {
         }),
       );
 
-      expect(response.status).toBe(500);
+      expectErrorRedirect(response, "link_invalid", "server_error");
       expect(mockInviteRepo.accept).not.toHaveBeenCalled();
     });
+  });
+
+  it("creates a session for an active existing User token and rejects replay", async () => {
+    const now = new Date("2026-07-15T00:00:00.000Z");
+    const issuer = createMagicLinkTokenIssuer({
+      clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
+      baseUrl: "https://slotmerge.example.com",
+      secret: "test-secret",
+    });
+    const token = issuer.issueMagicLinkToken({
+      userId: "user-1",
+      email: "alice@example.com",
+      expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      generation: 1,
+    });
+    const inviteRepo = createMockInviteRepository();
+    const userRepo = createMockUserRepository();
+    const activeUser = {
+      id: "user-1",
+      email: "alice@example.com",
+      role: "user",
+      status: "active",
+      magicLinkGeneration: 2,
+    };
+    userRepo.claimMagicLink
+      .mockResolvedValueOnce(activeUser)
+      .mockResolvedValueOnce(null);
+    userRepo.findById.mockResolvedValue(activeUser);
+    const sessionRepo = createMockSessionRepository();
+    sessionRepo.create.mockResolvedValue({ id: "session-1" });
+    const { POST } = createMagicLinkVerifyHandlers({
+      clock: { now: () => now },
+      magicLinkSecret: "test-secret",
+      inviteRepository: inviteRepo,
+      userRepository: userRepo,
+      sessionRepository: sessionRepo,
+      transaction: createTransaction(sessionRepo, inviteRepo, userRepo),
+    });
+    const request = () =>
+      new Request("http://localhost/auth/magic-link/verify", {
+        method: "POST",
+        body: new URLSearchParams({ token: token.token }),
+      });
+
+    const success = await POST(request());
+    const replay = await POST(request());
+
+    expect(success.status).toBe(303);
+    expect(success.headers.get("Location")).toMatch(/\/$/);
+    expectErrorRedirect(
+      replay,
+      "link_used",
+      "magic_link_already_used",
+      "alice@example.com",
+    );
+    expect(userRepo.claimMagicLink).toHaveBeenCalledWith({
+      id: "user-1",
+      email: "alice@example.com",
+      generation: 1,
+      now,
+    });
+    expect(sessionRepo.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an invite token when a concurrent resend changes its generation", async () => {
+    const issuer = createMagicLinkTokenIssuer({
+      clock: { now: () => new Date("2026-07-12T00:00:00.000Z") },
+      baseUrl: "https://slotmerge.example.com",
+      secret: "test-secret",
+    });
+    const token = issuer.issueMagicLinkToken({
+      inviteId: "invite-1",
+      email: "alice@example.com",
+      expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      generation: 0,
+    });
+    const staleInvite = {
+      id: "invite-1",
+      email: "alice@example.com",
+      role: "user",
+      status: "pending" as const,
+      invitedByAdminId: "admin-1",
+      expiresAt: new Date("2026-08-11T00:00:00.000Z"),
+      magicLinkGeneration: 1,
+    };
+    const inviteRepo = {
+      ...createMockInviteRepository(),
+      claim: vi.fn().mockResolvedValue(null),
+    };
+    inviteRepo.findById.mockResolvedValue(staleInvite);
+    const userRepo = createMockUserRepository();
+    const sessionRepo = createMockSessionRepository();
+    const { POST } = createMagicLinkVerifyHandlers({
+      clock: { now: () => new Date("2026-07-15T00:00:00.000Z") },
+      magicLinkSecret: "test-secret",
+      inviteRepository: inviteRepo,
+      userRepository: userRepo,
+      sessionRepository: sessionRepo,
+      transaction: createTransaction(sessionRepo, inviteRepo, userRepo),
+    });
+
+    const response = await POST(
+      new Request("http://localhost/auth/magic-link/verify", {
+        method: "POST",
+        body: new URLSearchParams({ token: token.token }),
+      }),
+    );
+
+    expectErrorRedirect(
+      response,
+      "link_invalid",
+      "invalid_token",
+      "alice@example.com",
+    );
+    expect(sessionRepo.create).not.toHaveBeenCalled();
   });
 });

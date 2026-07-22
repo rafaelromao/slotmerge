@@ -159,12 +159,13 @@ describe("E2E: magic link is rejected after expiration", () => {
         }),
       );
 
-      expect(verifyResponse.status).toBe(400);
+      expect(verifyResponse.status).toBe(303);
       expect(verifyResponse.headers.get("Set-Cookie")).toBeNull();
-      const html = await verifyResponse.text();
-      expect(html).toContain("token_expired");
-      expect(html).toContain("Send a new link");
-      expect(html).toContain('action="/auth/magic-link/resend"');
+      const verifyUrl = new URL(verifyResponse.headers.get("Location")!);
+      expect(verifyUrl.pathname).toBe("/sign-in/verify");
+      expect(verifyUrl.searchParams.get("error")).toBe("link_expired");
+      expect(verifyUrl.searchParams.get("reason")).toBe("token_expired");
+      expect(verifyUrl.searchParams.get("token")).toBe(magicLinkToken);
 
       expect(await countSessions()).toBe(sessionsBefore);
     },

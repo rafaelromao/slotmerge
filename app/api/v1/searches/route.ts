@@ -1,8 +1,8 @@
 import {
   getSessionFromRequest,
   isOrganizerOrAdminSession,
-} from "../../src/auth/session";
-import { getSearchRepository } from "../../src/search/repository";
+} from "../../../../src/auth/session";
+import { getSearchRepository } from "../../../../src/search/repository";
 
 export async function GET(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);

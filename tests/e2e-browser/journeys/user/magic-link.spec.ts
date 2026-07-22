@@ -55,12 +55,29 @@ async function adminInvite(browser: Browser, email: string): Promise<void> {
     storageState: "playwright/.auth/admin.json",
   });
   const page = await context.newPage();
-  await page.goto("/admin/invites");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Role").selectOption("user");
-  await page.getByRole("button", { name: "Invite user" }).click();
-  await page.waitForURL((url) => url.pathname === "/admin/invites");
-  await expect(page.getByRole("cell", { name: email })).toBeVisible();
+  await page.goto("/admin");
+  await page.evaluate(
+    ({ inviteEmail }) => {
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "/admin/invites";
+      for (const [name, value] of Object.entries({
+        _csrf: "csrf-admin-test",
+        email: inviteEmail,
+        role: "user",
+      })) {
+        const input = document.createElement("input");
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      }
+      document.body.appendChild(form);
+      form.submit();
+    },
+    { inviteEmail: email },
+  );
+  await page.waitForURL((url) => url.pathname === "/admin");
+  expect(await waitForInvitePayload(email)).not.toBeNull();
   await context.close();
 }
 

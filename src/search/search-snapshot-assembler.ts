@@ -11,7 +11,7 @@ import type { UserProfile } from "../profile/repository";
 import type { WeeklyAvailabilityWindow } from "../profile/availability-windows";
 import type { AvailabilityOverride } from "../profile/availability-overrides";
 import type { ImportedBusyIntervalRecord } from "../calendar/imported-busy-intervals";
-import type { DiscoverabilityConsentRecord } from "../profile/discoverability-consent";
+import type { DiscoverabilityConsentState } from "../profile/discoverability-consent";
 import type {
   AvailabilityIndicator,
   CalendarFreshness,
@@ -61,7 +61,7 @@ export type SearchSnapshotAssemblerDeps = {
   loadCalendarConnectionLastSyncAt(userId: string): Promise<Date | null>;
   getDiscoverabilityConsent(
     userId: string,
-  ): Promise<DiscoverabilityConsentRecord | null>;
+  ): Promise<DiscoverabilityConsentState | null>;
   hasTopicProposal(userId: string): Promise<boolean>;
   computeEffectiveAvailability(inputs: {
     userId: string;
@@ -186,7 +186,7 @@ export class SearchSnapshotAssembler {
       isActive: profile?.status === "active",
     };
 
-    const hasConsent = consent !== null;
+    const hasConsent = consent?.state === "granted";
     if (!isEligibleForSearch(profileInputs, hasConsent)) {
       return null;
     }

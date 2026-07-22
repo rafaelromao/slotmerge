@@ -324,8 +324,11 @@ async function buildMeResponse(
   calendarConnections: CalendarConnection[],
 ): Promise<Response> {
   const consent = await getDiscoverabilityConsent(profile.id);
-  const consented = consent !== null;
-  const grantedAtIso = consented ? consent.grantedAt.toISOString() : null;
+  const consented = consent?.state === "granted";
+  const grantedAtIso =
+    consented && consent.state === "granted"
+      ? consent.grantedAt.toISOString()
+      : null;
 
   const setup = computeSetupCompleteness(
     profile,

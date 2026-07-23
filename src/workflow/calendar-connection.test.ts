@@ -217,4 +217,51 @@ describe("calendarConnectionWorkflow.startOAuth", () => {
       returnTo: "/me/calendar-connections",
     });
   });
+
+  it("atomically replaces an owned prior connection for reconnect", async () => {
+    const replacements: Array<{
+      previousId: string;
+      userId: string;
+      provider: string;
+      pending: CalendarConnectionRecord;
+    }> = [];
+    const testRepository = repository([]);
+    testRepository.replaceWithPending = (input) => {
+      replacements.push(input);
+      return Promise.resolve(input.pending);
+    };
+    const workflow = createCalendarConnectionWorkflow({
+      repository: testRepository,
+      clock: { now: () => new Date("2026-07-12T12:00:00.000Z") },
+      listProviderCalendars: () => Promise.resolve([]),
+      oauth: {
+        baseUrl: "http://localhost:3000",
+        clientIds: { google: "google-client-id", microsoft: "ms-client-id" },
+        csrfToken: "csrf-token-1",
+        sessionId: "session-1",
+        sessionSecret: "0123456789abcdef0123456789abcdef",
+        generateId: () => "replacement-connection-id",
+      },
+    });
+
+    const result = await workflow.startOAuth({
+      userId: "user-1",
+      provider: "google",
+      connectionId: "connection-to-replace",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(replacements).toHaveLength(1);
+    expect(replacements[0]).toMatchObject({
+      previousId: "connection-to-replace",
+      userId: "user-1",
+      provider: "google",
+      pending: {
+        id: "replacement-connection-id",
+        userId: "user-1",
+        provider: "google",
+        status: "pending",
+      },
+    });
+  });
 });

@@ -167,17 +167,32 @@ export function createCalendarConnectionWorkflow(
       }
     },
 
-    async startOAuth({ userId, provider }) {
+    async startOAuth({ userId, provider, connectionId }) {
       const oauth = deps.oauth;
       const clientId = oauth?.clientIds[provider];
       if (!oauth || !clientId) {
         return err({ code: "oauth_not_configured" });
       }
+      if (connectionId && !deps.repository.replaceWithPending) {
+        return err({ code: "oauth_start_failed" });
+      }
 
       try {
+        const repository = connectionId
+          ? {
+              ...deps.repository,
+              createPending: (pending: CalendarConnectionRecord) =>
+                deps.repository.replaceWithPending!({
+                  previousId: connectionId,
+                  userId,
+                  provider,
+                  pending,
+                }),
+            }
+          : deps.repository;
         const started = await startCalendarConnection({
           provider: getCalendarProvider(provider),
-          repository: deps.repository,
+          repository,
           baseUrl: oauth.baseUrl,
           clientId,
           csrfToken: oauth.csrfToken,

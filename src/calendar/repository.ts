@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { calendarConnections } from "../db/schema";
@@ -124,6 +124,55 @@ export function createPostgresCalendarConnectionRepository(
 
       return row ?? null;
     },
+    replaceWithPending: async ({ previousId, userId, provider, pending }) =>
+      getDb().transaction(async (tx) => {
+        const [previous] = await tx
+          .update(calendarConnections)
+          .set({
+            status: "disconnected",
+            refreshTokenEncrypted: null,
+            accessTokenEncrypted: null,
+            accessTokenExpiresAt: null,
+            updatedAt: clock.now(),
+          })
+          .where(
+            and(
+              eq(calendarConnections.id, previousId),
+              eq(calendarConnections.userId, userId),
+              eq(calendarConnections.provider, provider),
+              ne(calendarConnections.status, "pending"),
+              ne(calendarConnections.status, "disconnected"),
+            ),
+          )
+          .returning({ id: calendarConnections.id });
+
+        if (!previous) {
+          throw new Error("Calendar Connection cannot be replaced");
+        }
+
+        const [row] = await tx
+          .insert(calendarConnections)
+          .values({
+            id: pending.id,
+            userId: pending.userId,
+            provider: pending.provider,
+            providerAccountKey: pending.providerAccountKey,
+            accountIdentifier: pending.accountIdentifier,
+            scopes: pending.scopes,
+            status: pending.status,
+            refreshTokenEncrypted: pending.refreshTokenEncrypted,
+            accessTokenEncrypted: pending.accessTokenEncrypted,
+            accessTokenExpiresAt: pending.accessTokenExpiresAt,
+            contributingCalendarIds: pending.contributingCalendarIds,
+          })
+          .returning(calendarConnectionSelectColumns);
+
+        if (!row) {
+          throw new Error("Replacement Calendar Connection was not created");
+        }
+
+        return row;
+      }),
     claimPending: async ({ id, userId, provider }) => {
       const [row] = await getDb()
         .update(calendarConnections)

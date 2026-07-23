@@ -11,18 +11,13 @@ import { getCalendarConnectionRepository } from "../../../../src/calendar/reposi
 import { getCalendarProvider } from "../../../../src/calendar/providers";
 import { loadRuntimeConfig } from "../../../../src/config/runtime";
 import { enqueueSyncCalendarConnectionJob } from "../../../../src/worker/sync";
-import {
-  revokeCalendarConnection,
-  startCalendarConnection,
-} from "../../../../src/calendar/connection";
+import { revokeCalendarConnection } from "../../../../src/calendar/connection";
 import { decryptCalendarToken } from "../../../../src/calendar/token-encryption";
-import type { CalendarProvider as CalendarProviderId } from "../../../../src/db/schema";
 import { createProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
 import { CsrfError, assertCsrfFromFormData } from "../../../../src/lib/csrf";
 import { listProviderCalendarsForProvider } from "../../../../src/calendar/providers";
 
-export type CalendarConnectionFormIntent =
-  "save" | "refresh" | "disconnect" | "reconnect";
+export type CalendarConnectionFormIntent = "save" | "refresh" | "disconnect";
 
 export type CalendarConnectionFormErrorCode =
   | "csrf_error"
@@ -253,49 +248,6 @@ async function runDisconnect(args: {
   redirect("/me/calendar-connections?oauth=disconnected");
 }
 
-async function runReconnect(args: {
-  formData: FormData;
-  session: Session;
-  baseUrl: string;
-}): Promise<void> {
-  const { formData, session } = args;
-  const connectionId = extractFieldString(formData, "connectionId");
-  const providerValue = extractFieldString(formData, "provider");
-  if (
-    !connectionId ||
-    (providerValue !== "google" && providerValue !== "microsoft")
-  ) {
-    redirect(buildErrorRedirect("reconnect", "invalid_input"));
-  }
-  const providerId: CalendarProviderId = providerValue;
-  const repository = getCalendarConnectionRepository();
-  const connection = await repository.findById(connectionId);
-  if (!connection || connection.userId !== session.user.id) {
-    redirect(buildErrorRedirect("reconnect", "forbidden", connectionId));
-  }
-  const clientId =
-    providerId === "google"
-      ? process.env.GOOGLE_OAUTH_CLIENT_ID
-      : process.env.MICROSOFT_OAUTH_CLIENT_ID;
-  if (!clientId) {
-    redirect(buildErrorRedirect("reconnect", "missing_oauth_configuration"));
-  }
-
-  const provider = getCalendarProvider(providerId);
-  await startCalendarConnection({
-    provider,
-    repository,
-    baseUrl: args.baseUrl,
-    clientId,
-    csrfToken: session.csrfToken,
-    sessionId: "reconnect",
-    sessionSecret: process.env.SESSION_SECRET ?? "",
-    userId: session.user.id,
-  });
-
-  redirect("/me/calendar-connections?reconnect_attempted=1");
-}
-
 async function runDispatch(args: {
   formData: FormData;
   intent: CalendarConnectionFormIntent;
@@ -325,10 +277,8 @@ async function runDispatch(args: {
     await runSave({ formData, session });
   } else if (intent === "refresh") {
     await runRefresh({ formData, session });
-  } else if (intent === "disconnect") {
-    await runDisconnect({ formData, session });
   } else {
-    await runReconnect({ formData, session, baseUrl: args.origin });
+    await runDisconnect({ formData, session });
   }
   redirect("/me/calendar-connections");
 }
@@ -336,48 +286,6 @@ async function runDispatch(args: {
 async function buildRequestProxy(): Promise<Request> {
   const { request } = await loadCurrentRequest();
   return request;
-}
-
-async function runDispatchConnect(args: {
-  formData: FormData;
-  provider: CalendarProviderId;
-  origin: string;
-}): Promise<void> {
-  const { formData, provider } = args;
-  const session = await loadSessionForRequest(await buildRequestProxy());
-  if (!session) {
-    redirect("/sign-in");
-  }
-  try {
-    assertCsrfFromFormData(formData, session);
-  } catch (error) {
-    if (error instanceof CsrfError) {
-      redirect(buildErrorRedirect("save", "csrf_error"));
-    }
-    throw error;
-  }
-
-  const clientId =
-    provider === "google"
-      ? process.env.GOOGLE_OAUTH_CLIENT_ID
-      : process.env.MICROSOFT_OAUTH_CLIENT_ID;
-  if (!clientId) {
-    redirect(buildErrorRedirect("save", "missing_oauth_configuration"));
-  }
-
-  const providerModule = getCalendarProvider(provider);
-  const repository = getCalendarConnectionRepository();
-  const started = await startCalendarConnection({
-    provider: providerModule,
-    repository,
-    baseUrl: args.origin,
-    clientId,
-    csrfToken: session.csrfToken,
-    sessionId: "stub",
-    sessionSecret: process.env.SESSION_SECRET ?? "",
-    userId: session.user.id,
-  });
-  redirect(started.authorizationUrl);
 }
 
 export async function saveCalendarsAction(formData: FormData): Promise<void> {
@@ -397,23 +305,4 @@ export async function disconnectConnectionAction(
 ): Promise<void> {
   const { origin } = await loadCurrentRequest();
   await runDispatch({ formData, intent: "disconnect", origin });
-}
-
-export async function reconnectConnectionAction(
-  formData: FormData,
-): Promise<void> {
-  const { origin } = await loadCurrentRequest();
-  await runDispatch({ formData, intent: "reconnect", origin });
-}
-
-export async function connectGoogleAction(formData: FormData): Promise<void> {
-  const { origin } = await loadCurrentRequest();
-  await runDispatchConnect({ formData, provider: "google", origin });
-}
-
-export async function connectMicrosoftAction(
-  formData: FormData,
-): Promise<void> {
-  const { origin } = await loadCurrentRequest();
-  await runDispatchConnect({ formData, provider: "microsoft", origin });
 }

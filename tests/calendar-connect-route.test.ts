@@ -91,4 +91,56 @@ describe("POST /me/calendar-connections/connect/google", () => {
       "http://localhost:3000/me/calendar-connections/callback",
     );
   });
+
+  it("replaces an owned connection and redirects with state bound to the active session", async () => {
+    const replacements: Array<{
+      previousId: string;
+      userId: string;
+      provider: string;
+      pending: CalendarConnectionRecord;
+    }> = [];
+    setSessionRepositoryForTests({
+      findById: (id) => Promise.resolve(id === "session-1" ? session() : null),
+    });
+    setCalendarConnectionRepositoryForTests({
+      createPending: () =>
+        Promise.reject(new Error("unexpected direct create")),
+      replaceWithPending: (input) => {
+        replacements.push(input);
+        return Promise.resolve(input.pending);
+      },
+      listByUserId: () => Promise.resolve([]),
+      findById: () => Promise.resolve(null),
+      updateById: () => Promise.resolve(null),
+    });
+    const cookie = await sealSessionCookie({ sessionId: "session-1" });
+
+    const response = await POST(
+      new Request(
+        "http://localhost:3000/me/calendar-connections/connect/google",
+        {
+          method: "POST",
+          headers: {
+            cookie,
+            origin: "http://localhost:3000",
+            "sec-fetch-site": "same-origin",
+            "content-type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            _csrf: "csrf-token-1",
+            connectionId: "connection-to-replace",
+          }),
+        },
+      ),
+    );
+
+    expect(response.status).toBe(303);
+    expect(replacements).toHaveLength(1);
+    expect(replacements[0]).toMatchObject({
+      previousId: "connection-to-replace",
+      userId: "user-1",
+      provider: "google",
+      pending: { userId: "user-1", provider: "google", status: "pending" },
+    });
+  });
 });

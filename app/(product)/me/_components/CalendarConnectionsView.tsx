@@ -14,9 +14,6 @@ export type CalendarConnectionsViewProps = {
   saveAction: (formData: FormData) => void | Promise<void>;
   refreshAction: (formData: FormData) => void | Promise<void>;
   disconnectAction: (formData: FormData) => void | Promise<void>;
-  connectGoogleAction: (formData: FormData) => void | Promise<void>;
-  connectMicrosoftAction: (formData: FormData) => void | Promise<void>;
-  reconnectAction: (formData: FormData) => void | Promise<void>;
 };
 
 const STATUS_LABELS: Record<CalendarConnectionDisplayStatus, string> = {
@@ -86,9 +83,6 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
     saveAction,
     refreshAction,
     disconnectAction,
-    connectGoogleAction,
-    connectMicrosoftAction,
-    reconnectAction,
   } = props;
   const banner = outcomeBanner(outcome);
   const connections = pageState?.connections ?? [];
@@ -128,7 +122,7 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
         <div className="calendar-connection-connect-grid">
           <form
             method="POST"
-            action={connectGoogleAction}
+            action="/me/calendar-connections/connect/google"
             className="calendar-connection-connect-form"
             data-testid="calendar-connection-connect-google-form"
           >
@@ -143,7 +137,7 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
           </form>
           <form
             method="POST"
-            action={connectMicrosoftAction}
+            action="/me/calendar-connections/connect/microsoft"
             className="calendar-connection-connect-form"
             data-testid="calendar-connection-connect-microsoft-form"
           >
@@ -197,7 +191,6 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
                 saveAction={saveAction}
                 refreshAction={refreshAction}
                 disconnectAction={disconnectAction}
-                reconnectAction={reconnectAction}
               />
             ))}
           </ul>
@@ -213,14 +206,12 @@ function CalendarConnectionCard({
   saveAction,
   refreshAction,
   disconnectAction,
-  reconnectAction,
 }: {
   connection: CalendarConnectionPageItem;
   csrfToken: string;
   saveAction: CalendarConnectionsViewProps["saveAction"];
   refreshAction: CalendarConnectionsViewProps["refreshAction"];
   disconnectAction: CalendarConnectionsViewProps["disconnectAction"];
-  reconnectAction: CalendarConnectionsViewProps["reconnectAction"];
 }) {
   const providerLabel = PROVIDER_LABELS[connection.provider];
   const statusLabel = STATUS_LABELS[connection.displayStatus];
@@ -269,7 +260,7 @@ function CalendarConnectionCard({
       connection.displayStatus === "unsupported" ? (
         <form
           method="POST"
-          action={reconnectAction}
+          action={`/me/calendar-connections/connect/${connection.provider}`}
           className="calendar-connection-reconnect-form"
           data-testid={`calendar-connection-reconnect-form-${connection.id}`}
         >

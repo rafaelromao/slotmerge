@@ -51,6 +51,12 @@ export type CalendarConnectionRepository = {
     id: string,
     patch: Partial<Omit<CalendarConnectionRecord, "id" | "userId">>,
   ): Promise<CalendarConnectionRecord | null>;
+  replaceWithPending?(input: {
+    previousId: string;
+    userId: string;
+    provider: CalendarProviderId;
+    pending: CalendarConnectionRecord;
+  }): Promise<CalendarConnectionRecord>;
   claimPending?(input: {
     id: string;
     userId: string;

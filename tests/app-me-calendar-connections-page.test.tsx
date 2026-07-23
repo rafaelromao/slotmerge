@@ -102,9 +102,6 @@ const baseProps: CalendarConnectionsViewProps = {
   saveAction: noopAction,
   refreshAction: noopAction,
   disconnectAction: noopAction,
-  connectGoogleAction: noopAction,
-  connectMicrosoftAction: noopAction,
-  reconnectAction: noopAction,
 };
 
 describe("/me/calendar-connections (Calendar Connections page)", () => {
@@ -146,8 +143,12 @@ describe("/me/calendar-connections (Calendar Connections page)", () => {
     expect(html).toContain("Connect Google Calendar");
     expect(html).toContain("Connect Microsoft Calendar");
     expect(html).toContain('data-testid="calendar-connection-connect-google"');
+    expect(html).toContain('action="/me/calendar-connections/connect/google"');
     expect(html).toContain(
       'data-testid="calendar-connection-connect-microsoft"',
+    );
+    expect(html).toContain(
+      'action="/me/calendar-connections/connect/microsoft"',
     );
   });
 
@@ -298,6 +299,7 @@ describe("/me/calendar-connections (Calendar Connections page)", () => {
     expect(html).toContain(
       'data-testid="calendar-connection-reconnect-needs-reconnect"',
     );
+    expect(html).toContain('action="/me/calendar-connections/connect/google"');
     expect(html).not.toContain(
       'data-testid="calendar-connection-save-needs-reconnect"',
     );

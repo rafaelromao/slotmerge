@@ -28,6 +28,12 @@ export function createCalendarConnectPost(provider: CalendarProvider) {
       throw error;
     }
 
+    const formData = await request.formData();
+    const connectionIdValue = formData.get("connectionId");
+    const connectionId =
+      typeof connectionIdValue === "string" && connectionIdValue.length > 0
+        ? connectionIdValue
+        : undefined;
     const workflow = createCalendarConnectionWorkflow({
       repository: getCalendarConnectionRepository(),
       clock: systemClock(),
@@ -46,6 +52,7 @@ export function createCalendarConnectPost(provider: CalendarProvider) {
     const result = await workflow.startOAuth({
       userId: session.user.id,
       provider,
+      connectionId,
     });
 
     if (!result.ok) {

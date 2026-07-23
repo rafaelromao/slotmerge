@@ -1,5 +1,11 @@
 import { requirePageContext } from "../../../../src/lib/page-context";
 import { getCalendarConnectionRepository } from "../../../../src/calendar/repository";
+import {
+  getCalendarProvider,
+  listProviderCalendarsForProvider,
+} from "../../../../src/calendar/providers";
+import { decryptCalendarToken } from "../../../../src/calendar/token-encryption";
+import { createProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
 import { systemClock } from "../../../../src/system/clock";
 import {
   createCalendarConnectionWorkflow,
@@ -10,10 +16,7 @@ import {
   type CalendarConnectionsViewProps,
 } from "../_components/CalendarConnectionsView";
 import {
-  connectGoogleAction,
-  connectMicrosoftAction,
   disconnectConnectionAction,
-  reconnectConnectionAction,
   refreshConnectionAction,
   saveCalendarsAction,
 } from "../_actions/calendar-connections";
@@ -43,6 +46,15 @@ function isSafeRequestId(value: string | null): string | undefined {
   return value;
 }
 
+function providerFetchImpl(): typeof fetch {
+  const isLocalOrTest =
+    process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
+  const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
+  return isLocalOrTest && overrideUrl
+    ? createProviderFetchImpl(fetch, overrideUrl)
+    : fetch;
+}
+
 export default async function CalendarConnectionsPage({
   searchParams,
 }: {
@@ -67,7 +79,21 @@ export default async function CalendarConnectionsPage({
   const workflow = createCalendarConnectionWorkflow({
     repository: getCalendarConnectionRepository(),
     clock: systemClock(),
-    listProviderCalendars: () => Promise.resolve([]),
+    listProviderCalendars: async (connection) => {
+      const tokenEncryptionKey = process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
+      if (!tokenEncryptionKey || !connection.accessTokenEncrypted) {
+        throw new Error("Calendar provider token is unavailable");
+      }
+      const accessToken = decryptCalendarToken({
+        ciphertext: connection.accessTokenEncrypted,
+        key: tokenEncryptionKey,
+      });
+      return listProviderCalendarsForProvider(
+        getCalendarProvider(connection.provider),
+        accessToken,
+        providerFetchImpl(),
+      );
+    },
   });
 
   let pageState: CalendarConnectionPageState | null = null;
@@ -88,9 +114,6 @@ export default async function CalendarConnectionsPage({
       saveAction={saveCalendarsAction}
       refreshAction={refreshConnectionAction}
       disconnectAction={disconnectConnectionAction}
-      reconnectAction={reconnectConnectionAction}
-      connectGoogleAction={connectGoogleAction}
-      connectMicrosoftAction={connectMicrosoftAction}
     />
   );
 }

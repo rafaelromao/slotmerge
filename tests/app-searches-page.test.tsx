@@ -112,6 +112,8 @@ const plainProfile: UserProfile = {
 
 describe("/searches page", () => {
   beforeEach(() => {
+    vi.stubEnv("APP_ENV", "test");
+    vi.stubEnv("FIXTURE_DATE", "2026-07-08T15:00:00.000Z");
     vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue({
       user: organizerProfile,
       csrfToken: "csrf-token-organizer",
@@ -143,6 +145,7 @@ describe("/searches page", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
     setProfileRepositoryForTests(null);
     setDiscoverableUserRepositoryForTests(null);
     setSearchResultRepositoryForTests(null);
@@ -162,6 +165,25 @@ describe("/searches page", () => {
     expect(html).toContain('name="durationMinutes"');
     expect(html).toContain('name="organizerTimezone"');
     expect(html).toContain("Users must have all selected active Topics.");
+  });
+
+  it("formats week defaults in the Organizer timezone", async () => {
+    const tokyoProfile = {
+      ...organizerProfile,
+      profileTimezone: "Asia/Tokyo",
+    };
+    vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue({
+      user: tokyoProfile,
+      csrfToken: "csrf-token-organizer",
+    });
+    setProfileRepositoryForTests(new StubProfileRepository(tokyoProfile));
+
+    const { default: SearchesPage } =
+      await import("../app/(product)/searches/page");
+    const html = renderToString(await SearchesPage({}));
+
+    expect(html).toContain('value="2026-07-06"');
+    expect(html).toContain('value="2026-08-10"');
   });
 
   it("throws NEXT_NOT_FOUND for a plain user", async () => {

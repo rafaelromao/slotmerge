@@ -174,6 +174,20 @@ describe("searchWorkflow.run", () => {
     );
   });
 
+  it("returns minimum_out_of_range when the matching pool has fewer than 2 Users", async () => {
+    const { workflow } = buildWorkflow({ discoverableUserIds: ["user-1"] });
+    const result = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw({ minimumMatchingUsers: 2 }),
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected validation failure");
+    expect(result.fieldErrors.minimumMatchingUsers).toBe(
+      "minimum_out_of_range",
+    );
+  });
+
   it("returns minimum_out_of_range when minimumMatchingUsers exceeds the matching pool", async () => {
     const { workflow } = buildWorkflow({
       discoverableUserIds: ["user-1", "user-2"],

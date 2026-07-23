@@ -48,10 +48,18 @@ const FIELD_ERROR_MESSAGES: Record<FieldErrorCode, string> = {
     "Set your profile timezone before running a Search.",
 };
 
-function formatDateForInput(date: Date): string {
+function formatDateForInput(date: Date, timezone: string): string {
   if (Number.isNaN(date.getTime())) return "";
-  const iso = date.toISOString();
-  return iso.slice(0, 10);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  return year && month && day ? `${year}-${month}-${day}` : "";
 }
 
 function parseFieldErrorCode(raw: string | undefined): FieldErrorCode | null {
@@ -128,12 +136,12 @@ export default async function SearchesPage({
 
   const dateRangeStartInput = errorCode
     ? (readFirstString(params.dateRangeStart) ??
-      formatDateForInput(defaults.dateRangeStart))
-    : formatDateForInput(defaults.dateRangeStart);
+      formatDateForInput(defaults.dateRangeStart, defaults.organizerTimezone))
+    : formatDateForInput(defaults.dateRangeStart, defaults.organizerTimezone);
   const dateRangeEndInput = errorCode
     ? (readFirstString(params.dateRangeEnd) ??
-      formatDateForInput(defaults.dateRangeEnd))
-    : formatDateForInput(defaults.dateRangeEnd);
+      formatDateForInput(defaults.dateRangeEnd, defaults.organizerTimezone))
+    : formatDateForInput(defaults.dateRangeEnd, defaults.organizerTimezone);
   const minimumMatchingUsersInput = errorCode
     ? (readFirstString(params.minimumMatchingUsers) ??
       String(defaults.minimumMatchingUsers))
@@ -169,24 +177,18 @@ export default async function SearchesPage({
         </p>
       ) : null}
 
-      {isTimezoneError ? (
-        <p
-          className="form-error-banner"
-          role="alert"
-          data-testid="searches-timezone-error"
-        >
-          {FIELD_ERROR_MESSAGES.organizer_timezone_required}{" "}
-          <a href="/me/profile">Set timezone</a>
-        </p>
-      ) : null}
-
       <p
         className="searches-defaults-summary"
         data-testid="searches-defaults-summary"
       >
-        Snapshot range: {defaults.dateRangeStart.toISOString().slice(0, 10)} →{" "}
-        {defaults.dateRangeEnd.toISOString().slice(0, 10)} (
-        {defaults.organizerTimezone})
+        Snapshot range:{" "}
+        {formatDateForInput(
+          defaults.dateRangeStart,
+          defaults.organizerTimezone,
+        )}{" "}
+        →{" "}
+        {formatDateForInput(defaults.dateRangeEnd, defaults.organizerTimezone)}{" "}
+        ({defaults.organizerTimezone})
       </p>
 
       <form
@@ -200,6 +202,7 @@ export default async function SearchesPage({
         <fieldset
           className="searches-fieldset"
           data-testid="searches-topics-fieldset"
+          aria-invalid={errorField === "selectedTopics"}
           aria-describedby={
             errorField === "selectedTopics" ? "selectedTopics-error" : undefined
           }

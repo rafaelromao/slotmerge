@@ -280,7 +280,6 @@ async function runDispatch(args: {
   } else {
     await runDisconnect({ formData, session });
   }
-  redirect("/me/calendar-connections");
 }
 
 async function buildRequestProxy(): Promise<Request> {

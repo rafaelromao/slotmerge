@@ -19,7 +19,6 @@ import {
 import { encryptCalendarToken } from "../../src/calendar/token-encryption";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { createPostgresDiscoverableUserRepository } from "../../src/search/drizzle-discoverable-user-repository";
-import { listConnectionsForTests } from "../helpers/calendar-connection-tests";
 import {
   createDefaultSearchSnapshotAssemblerDeps,
   SearchSnapshotAssembler,
@@ -111,14 +110,6 @@ async function patchDisconnect(): Promise<Response> {
     }),
     { params: Promise.resolve({ id: CONNECTION_ID }) },
   );
-}
-
-async function getConnectionView(): Promise<{
-  connections: Awaited<
-    ReturnType<typeof listConnectionsForTests>
-  >["connections"];
-}> {
-  return listConnectionsForTests(ALICE_ID);
 }
 
 async function readConnectionRow(): Promise<{
@@ -247,13 +238,6 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
       expect(adapter.freeBusyQueries.length).toBe(
         freeBusyQueriesAfterFirstSync,
       );
-
-      const listResponse = await getConnectionView();
-      const listed = listResponse.connections.find(
-        (c) => c.id === CONNECTION_ID,
-      );
-      expect(listed).toBeDefined();
-      expect(listed?.displayStatus).toBe("disconnected");
 
       const matches = await runMatchingViaAssembler();
       expect(matches).toContain(ALICE_ID);

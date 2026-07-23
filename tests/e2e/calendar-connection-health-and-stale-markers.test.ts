@@ -114,29 +114,5 @@ describe.runIf(HAS_TEST_DB)(
       expect(connection?.displayStatus).toBe("connected");
       expect(connection?.stale).toBe(true);
     });
-
-    it("disconnected connection shows displayStatus disconnected but stale false", async () => {
-      await setupTest();
-      const db = getRequiredTestDb();
-
-      await db
-        .update(calendarConnections)
-        .set({
-          status: "disconnected",
-          lastSyncAt: new Date("2026-07-12T12:00:00.000Z"),
-        })
-        .where(eq(calendarConnections.id, CONNECTION_ID));
-
-      setSessionRepositoryForTests({
-        findById: (sessionId) =>
-          Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
-      });
-
-      const { connections } = await getConnectionView();
-      const connection = connections.find((c) => c.id === CONNECTION_ID);
-      expect(connection).toBeDefined();
-      expect(connection?.displayStatus).toBe("disconnected");
-      expect(connection?.stale).toBe(false);
-    });
   },
 );

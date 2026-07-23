@@ -22,7 +22,7 @@ test.describe("Calendar Connection page journey", () => {
       page.getByTestId("calendar-connection-connect-microsoft"),
     ).toBeVisible();
 
-    const card = page.getByTestId("calendar-connection-card-connection-google");
+    const card = page.locator('[data-provider="google"]').first();
     await expect(card).toBeVisible();
     await expect(card).toHaveAttribute("data-status", "connected");
     await captureState(page, "calendar-connections", "loaded");
@@ -84,9 +84,12 @@ test.describe("Calendar Connection page journey", () => {
       '[data-testid^="calendar-connection-disconnect-form-"]',
     );
     await expect(disconnectForm).toHaveCount(1);
+    const accountIdentifier = await disconnectForm
+      .locator('[id^="calendar-connection-disconnect-hint-"]')
+      .innerText();
     await disconnectForm
       .locator('[data-testid^="calendar-connection-disconnect-confirm-"]')
-      .fill("mock-google-account");
+      .fill(accountIdentifier.trim());
     await disconnectForm
       .locator('[data-testid^="calendar-connection-disconnect-"]')
       .click();

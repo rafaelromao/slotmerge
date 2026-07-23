@@ -68,6 +68,7 @@ function buildWorkflowSpy(): WorkflowSpy {
   const propose = vi.fn();
   const loadPageState = vi.fn();
   const workflow: TopicWorkflow = {
+    listActive: vi.fn(),
     loadPageState,
     saveSelection,
     propose,

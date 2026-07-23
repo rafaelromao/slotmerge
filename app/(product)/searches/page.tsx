@@ -121,15 +121,11 @@ export default async function SearchesPage({
     clock: systemClock(),
   });
 
-  const [formState, pageStateResult] = await Promise.all([
+  const [formState, activeTopics] = await Promise.all([
     workflow.buildForm({ userId: context.user.id }),
-    topicWorkflow.loadPageState({ userId: context.user.id }),
+    topicWorkflow.listActive(),
   ]);
 
-  if (!pageStateResult.ok) {
-    throw new Error("loadPageState unexpectedly returned error: never");
-  }
-  const activeTopics = pageStateResult.value.catalogue;
   const hasActiveTopics = activeTopics.length > 0;
   const defaults = formState.defaults;
 

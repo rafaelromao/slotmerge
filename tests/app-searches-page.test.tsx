@@ -5,11 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as sessionModule from "../src/auth/session";
 import { InMemorySearchRepository } from "../src/search/in-memory-repository";
 import { setSearchRepositoryForTests } from "../src/search/repository";
-import {
-  setSearchResultRepositoryForTests,
-  type SearchResultRepository,
-  type SearchResultRecord,
-} from "../src/search/search-result-repository";
+import { InMemorySearchResultRepository } from "../src/search/search-result-in-memory-repository";
+import { setSearchResultRepositoryForTests } from "../src/search/search-result-repository";
 import {
   setDiscoverableUserRepositoryForTests,
   type DiscoverableUserRepository,
@@ -78,21 +75,6 @@ class StubDiscoverableRepository implements DiscoverableUserRepository {
   }
 }
 
-class StubSearchResultRepository implements SearchResultRepository {
-  async save(record: SearchResultRecord): Promise<SearchResultRecord> {
-    await Promise.resolve();
-    return { ...record, id: record.id ?? "sr-1" };
-  }
-  async findById() {
-    await Promise.resolve();
-    return null;
-  }
-  async findBySearchId() {
-    await Promise.resolve();
-    return null;
-  }
-}
-
 const organizerProfile: UserProfile = {
   id: "user-1",
   email: "organizer@example.com",
@@ -128,7 +110,7 @@ describe("/searches page", () => {
         "user-5",
       ]),
     );
-    setSearchResultRepositoryForTests(new StubSearchResultRepository());
+    setSearchResultRepositoryForTests(new InMemorySearchResultRepository());
     setSearchRepositoryForTests(new InMemorySearchRepository());
     setTopicsPageCatalogueRepositoryForTests({
       listActive: () =>

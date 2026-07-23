@@ -1,12 +1,10 @@
 import type { UserProfile } from "../../src/profile/repository";
 import type { Clock } from "../../src/system/clock";
 
+export { InMemorySearchResultRepository } from "../../src/search/search-result-in-memory-repository";
+
 import type { SearchSnapshotAssemblerDeps } from "../../src/search/search-snapshot-assembler";
 import type { DiscoverableUserRepository } from "../../src/search/discoverable-user-repository";
-import type {
-  SearchResultRecord,
-  SearchResultRepository,
-} from "../../src/search/search-result-repository";
 
 import type {
   ActiveTopicsRepository,
@@ -36,29 +34,6 @@ export class InMemoryProfileRepository implements ProfileRepository {
     if (!this.profile) return null;
     if (this.profile.id !== userId) return null;
     return this.profile;
-  }
-}
-
-export class InMemorySearchResultRepository implements SearchResultRepository {
-  private readonly records: SearchResultRecord[] = [];
-
-  async save(record: SearchResultRecord): Promise<SearchResultRecord> {
-    await Promise.resolve();
-    const stored = structuredClone({ ...record, id: record.id ?? "sr-1" });
-    this.records.push(stored);
-    return structuredClone(stored);
-  }
-  async findById(id: string): Promise<SearchResultRecord | null> {
-    await Promise.resolve();
-    const record = this.records.find((candidate) => candidate.id === id);
-    return record ? structuredClone(record) : null;
-  }
-  async findBySearchId(searchId: string): Promise<SearchResultRecord | null> {
-    await Promise.resolve();
-    const record = this.records.find(
-      (candidate) => candidate.searchId === searchId,
-    );
-    return record ? structuredClone(record) : null;
   }
 }
 

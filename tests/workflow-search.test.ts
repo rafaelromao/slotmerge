@@ -143,7 +143,9 @@ describe("searchWorkflow.run", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected validation failure");
-    expect(result.fieldErrors.selectedTopics).toBe("selected_topics_required");
+    expect(result.error.fieldErrors.selectedTopics).toBe(
+      "selected_topics_required",
+    );
   });
 
   it("returns topic_retired when a selected topic is no longer active", async () => {
@@ -157,7 +159,7 @@ describe("searchWorkflow.run", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected validation failure");
-    expect(result.fieldErrors.selectedTopics).toBe("topic_retired");
+    expect(result.error.fieldErrors.selectedTopics).toBe("topic_retired");
   });
 
   it("returns minimum_out_of_range when minimumMatchingUsers is below 2", async () => {
@@ -169,7 +171,7 @@ describe("searchWorkflow.run", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected validation failure");
-    expect(result.fieldErrors.minimumMatchingUsers).toBe(
+    expect(result.error.fieldErrors.minimumMatchingUsers).toBe(
       "minimum_out_of_range",
     );
   });
@@ -183,7 +185,7 @@ describe("searchWorkflow.run", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected validation failure");
-    expect(result.fieldErrors.minimumMatchingUsers).toBe(
+    expect(result.error.fieldErrors.minimumMatchingUsers).toBe(
       "minimum_out_of_range",
     );
   });
@@ -199,7 +201,7 @@ describe("searchWorkflow.run", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected validation failure");
-    expect(result.fieldErrors.minimumMatchingUsers).toBe(
+    expect(result.error.fieldErrors.minimumMatchingUsers).toBe(
       "minimum_out_of_range",
     );
   });
@@ -213,7 +215,9 @@ describe("searchWorkflow.run", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected validation failure");
-    expect(result.fieldErrors.durationMinutes).toBe("duration_out_of_range");
+    expect(result.error.fieldErrors.durationMinutes).toBe(
+      "duration_out_of_range",
+    );
   });
 
   it("returns duration_out_of_range when durationMinutes is above 240", async () => {
@@ -225,7 +229,9 @@ describe("searchWorkflow.run", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected validation failure");
-    expect(result.fieldErrors.durationMinutes).toBe("duration_out_of_range");
+    expect(result.error.fieldErrors.durationMinutes).toBe(
+      "duration_out_of_range",
+    );
   });
 
   it("returns date_range_invalid when end is not after start", async () => {
@@ -240,7 +246,7 @@ describe("searchWorkflow.run", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected validation failure");
-    expect(result.fieldErrors.dateRangeEnd).toBe("date_range_invalid");
+    expect(result.error.fieldErrors.dateRangeEnd).toBe("date_range_invalid");
   });
 
   it("returns organizer_timezone_required when the profile has no timezone and none was supplied", async () => {
@@ -259,7 +265,7 @@ describe("searchWorkflow.run", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected validation failure");
-    expect(result.fieldErrors.organizerTimezone).toBe(
+    expect(result.error.fieldErrors.organizerTimezone).toBe(
       "organizer_timezone_required",
     );
   });
@@ -275,10 +281,10 @@ describe("searchWorkflow.run", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("expected success");
-    expect(result.searchId).toMatch(/.+/);
-    const stored = await searchRepo.findById(result.searchId);
+    expect(result.value.searchId).toMatch(/.+/);
+    const stored = await searchRepo.findById(result.value.searchId);
     expect(stored?.selectedTopicIds).toEqual(["topic-1"]);
-    const storedResult = await resultRepo.findBySearchId(result.searchId);
+    const storedResult = await resultRepo.findBySearchId(result.value.searchId);
     expect(storedResult?.snapshotJson.generatedAt).toBe(
       "2026-07-08T15:00:00.000Z",
     );

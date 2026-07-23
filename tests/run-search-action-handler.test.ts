@@ -2,10 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { UserProfile } from "../src/profile/repository";
 import { InMemorySearchRepository } from "../src/search/in-memory-repository";
-import type {
-  SearchResultRepository,
-  SearchResultRecord,
-} from "../src/search/search-result-repository";
+import { InMemorySearchResultRepository } from "../src/search/search-result-in-memory-repository";
 
 import {
   InMemoryActiveTopicsRepository,
@@ -19,21 +16,6 @@ import {
 import { buildSearchActionHandler } from "../app/(product)/searches/_actions/run-search-handler";
 import { createSearchWorkflow } from "../src/workflow/search";
 import { setSearchRepositoryForTests } from "../src/search/repository";
-
-class StubSearchResultRepository implements SearchResultRepository {
-  async save(record: SearchResultRecord): Promise<SearchResultRecord> {
-    await Promise.resolve();
-    return { ...record, id: record.id ?? "sr-1" };
-  }
-  async findById() {
-    await Promise.resolve();
-    return null;
-  }
-  async findBySearchId() {
-    await Promise.resolve();
-    return null;
-  }
-}
 
 function buildHandlerAndDeps(
   overrides: {
@@ -54,7 +36,7 @@ function buildHandlerAndDeps(
     overrides.profile !== undefined ? overrides.profile : organizerProfile;
   const searchRepo = new InMemorySearchRepository();
   setSearchRepositoryForTests(searchRepo);
-  const resultRepo = new StubSearchResultRepository();
+  const resultRepo = new InMemorySearchResultRepository();
   const discoverableRepo = new InMemoryDiscoverableUserRepository(
     overrides.discoverableUserIds ?? [
       "user-1",

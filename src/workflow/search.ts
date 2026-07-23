@@ -6,6 +6,7 @@ import {
   type SearchInput,
   type SearchInputOverrides,
 } from "../search/search-input";
+import type { Result } from "../lib/result";
 import type { SearchResultRepository } from "../search/search-result-repository";
 import type { SearchSnapshotAssemblerDeps } from "../search/search-snapshot-assembler";
 import type { DiscoverableUserRepository } from "../search/discoverable-user-repository";
@@ -41,9 +42,10 @@ export type SearchFieldErrors = {
   organizerTimezone?: "organizer_timezone_required";
 };
 
-export type RunSearchOutcome =
-  | { ok: true; searchId: string }
-  | { ok: false; fieldErrors: SearchFieldErrors };
+export type RunSearchOutcome = Result<
+  { searchId: string },
+  { fieldErrors: SearchFieldErrors }
+>;
 
 export type SearchWorkflow = {
   buildForm(input: { userId: string }): Promise<SearchFormState>;
@@ -107,7 +109,7 @@ export function createSearchWorkflow(
     async run({ userId, raw }) {
       const rawErrors = validateRaw(raw);
       if (Object.keys(rawErrors).length > 0) {
-        return { ok: false, fieldErrors: rawErrors };
+        return { ok: false, error: { fieldErrors: rawErrors } };
       }
 
       const activeTopics = await activeTopicsRepository.listActive();
@@ -119,7 +121,7 @@ export function createSearchWorkflow(
       if (missingFromActive.length > 0) {
         return {
           ok: false,
-          fieldErrors: { selectedTopics: "topic_retired" },
+          error: { fieldErrors: { selectedTopics: "topic_retired" } },
         };
       }
 
@@ -132,8 +134,10 @@ export function createSearchWorkflow(
       if (matchingPoolSize < MINIMUM_MATCHING_USERS_MIN) {
         return {
           ok: false,
-          fieldErrors: {
-            minimumMatchingUsers: "minimum_out_of_range",
+          error: {
+            fieldErrors: {
+              minimumMatchingUsers: "minimum_out_of_range",
+            },
           },
         };
       }
@@ -141,8 +145,10 @@ export function createSearchWorkflow(
       if (raw.minimumMatchingUsers > matchingPoolSize) {
         return {
           ok: false,
-          fieldErrors: {
-            minimumMatchingUsers: "minimum_out_of_range",
+          error: {
+            fieldErrors: {
+              minimumMatchingUsers: "minimum_out_of_range",
+            },
           },
         };
       }
@@ -163,8 +169,10 @@ export function createSearchWorkflow(
       if (!organizerTimezone) {
         return {
           ok: false,
-          fieldErrors: {
-            organizerTimezone: "organizer_timezone_required",
+          error: {
+            fieldErrors: {
+              organizerTimezone: "organizer_timezone_required",
+            },
           },
         };
       }
@@ -186,20 +194,14 @@ export function createSearchWorkflow(
 
       if (!submitResult.ok) {
         const fieldErrors = mapValidationErrors(submitResult.errors);
-        return { ok: false, fieldErrors };
+        return { ok: false, error: { fieldErrors } };
       }
 
       const searchId = submitResult.search.id;
       if (!searchId) {
-        return {
-          ok: false,
-          fieldErrors: {
-            selectedTopics: "selected_topics_required",
-          },
-        };
+        throw new Error("Persisted Search is missing its id.");
       }
-
-      return { ok: true, searchId };
+      return { ok: true, value: { searchId } };
     },
   };
 }

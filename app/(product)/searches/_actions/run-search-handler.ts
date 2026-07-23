@@ -184,10 +184,10 @@ export function buildSearchActionHandler(
       const result = await workflow.run({ userId: session.user.id, raw });
 
       if (result.ok) {
-        return { kind: "redirect", to: `/searches/${result.searchId}` };
+        return { kind: "redirect", to: `/searches/${result.value.searchId}` };
       }
 
-      const first = firstFieldError(result.fieldErrors);
+      const first = firstFieldError(result.error.fieldErrors);
       if (!first) {
         return {
           kind: "form-error",

@@ -24,6 +24,7 @@ export type SearchActionResult =
       kind: "form-error";
       fieldErrors: SearchFieldErrors;
       values: SearchFormValues;
+      csrfToken: string;
     }
   | { kind: "csrf-error" };
 
@@ -39,6 +40,10 @@ export type SearchActionHandler = {
 export type CreateSearchActionHandlerDeps = {
   workflow: SearchWorkflow;
   loadSession: (request: Request) => Promise<Session | null>;
+  fetchCsrfToken?: (
+    formData: FormData,
+    session: { csrfToken: string },
+  ) => string;
 };
 
 function originMatches(request: Request): boolean {
@@ -71,7 +76,7 @@ function readDateField(
 
 function parseCalendarDateInTimezone(value: string, timezone: string): Date {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return new Date(value);
+  if (!match) return new Date(NaN);
   const [, yearStr, monthStr, dayStr] = match;
   const year = Number(yearStr);
   const month = Number(monthStr);
@@ -79,36 +84,77 @@ function parseCalendarDateInTimezone(value: string, timezone: string): Date {
   if (
     !Number.isInteger(year) ||
     !Number.isInteger(month) ||
-    !Number.isInteger(day)
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
   ) {
     return new Date(NaN);
   }
-  if (!timezone) {
-    return new Date(Date.UTC(year, month - 1, day));
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  if (
+    probe.getUTCFullYear() !== year ||
+    probe.getUTCMonth() !== month - 1 ||
+    probe.getUTCDate() !== day
+  ) {
+    return new Date(NaN);
   }
-  const offset = getTimezoneOffsetMinutes(year, month, day, timezone);
-  return new Date(Date.UTC(year, month - 1, day) - offset * 60_000);
+  if (!isValidIanaTimezone(timezone)) {
+    return new Date(NaN);
+  }
+  return zonedTimeToUtc(year, month - 1, day, timezone);
 }
 
-function getTimezoneOffsetMinutes(
+function isValidIanaTimezone(value: string): boolean {
+  if (!value) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).resolvedOptions();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function zonedTimeToUtc(
   year: number,
-  month: number,
+  monthIndex: number,
   day: number,
   timezone: string,
-): number {
-  const utcDate = new Date(Date.UTC(year, month - 1, day, 12));
+): Date {
+  for (let hour = 0; hour < 24; hour++) {
+    const candidate = new Date(Date.UTC(year, monthIndex, day, hour));
+    if (
+      formatDateInTimezone(candidate, timezone) ===
+      formatDateParts(year, monthIndex, day)
+    ) {
+      return candidate;
+    }
+  }
+  return new Date(NaN);
+}
+
+function formatDateInTimezone(date: Date, timezone: string): string {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
-    timeZoneName: "shortOffset",
-  }).formatToParts(utcDate);
-  const offset = parts.find((part) => part.type === "timeZoneName")?.value;
-  if (!offset) return 0;
-  const match = /GMT([+-])(\d{1,2})(?::?(\d{2}))?/.exec(offset);
-  if (!match) return 0;
-  const [, sign, hourStr, minStr] = match;
-  const hours = Number(hourStr);
-  const minutes = minStr ? Number(minStr) : 0;
-  return (sign === "-" ? -1 : 1) * (hours * 60 + minutes);
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value ?? "0000";
+  const month = parts.find((part) => part.type === "month")?.value ?? "01";
+  const day = parts.find((part) => part.type === "day")?.value ?? "01";
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateParts(
+  year: number,
+  monthIndex: number,
+  day: number,
+): string {
+  const month = String(monthIndex + 1).padStart(2, "0");
+  const dayStr = String(day).padStart(2, "0");
+  return `${year}-${month}-${dayStr}`;
 }
 
 function parseTopicIds(formData: FormData): string[] {
@@ -158,7 +204,7 @@ function readRawFromForm(
 export function buildSearchActionHandler(
   deps: CreateSearchActionHandlerDeps,
 ): SearchActionHandler {
-  const { workflow, loadSession } = deps;
+  const { workflow, loadSession, fetchCsrfToken } = deps;
 
   return {
     async runSearch({ formData, request }) {
@@ -181,6 +227,10 @@ export function buildSearchActionHandler(
         throw error;
       }
 
+      const csrfToken = (fetchCsrfToken ?? defaultFetchCsrfToken)(
+        formData,
+        session,
+      );
       const values = readFormValues(formData);
       const raw = readRawFromForm(formData, values);
       const result = await workflow.run({ userId: session.user.id, raw });
@@ -193,7 +243,19 @@ export function buildSearchActionHandler(
         kind: "form-error",
         fieldErrors: result.error.fieldErrors,
         values,
+        csrfToken,
       };
     },
   };
+}
+
+function defaultFetchCsrfToken(
+  formData: FormData,
+  session: { csrfToken: string },
+): string {
+  const fromForm = formData.get("_csrf");
+  if (typeof fromForm === "string" && fromForm) {
+    return fromForm;
+  }
+  return session.csrfToken;
 }

@@ -140,9 +140,9 @@ describe("runSearchAction handler", () => {
       result.to.replace("/searches/", ""),
     );
     expect(stored?.dateRangeStart.toISOString()).toBe(
-      "2026-07-05T15:00:00.000Z",
+      "2026-07-06T00:00:00.000Z",
     );
-    expect(stored?.dateRangeEnd.toISOString()).toBe("2026-08-09T15:00:00.000Z");
+    expect(stored?.dateRangeEnd.toISOString()).toBe("2026-08-10T00:00:00.000Z");
     void profile;
   });
 

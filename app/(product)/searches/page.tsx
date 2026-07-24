@@ -152,26 +152,24 @@ export default async function SearchesPage({
   const defaults = formState.defaults;
   const displayTimezone = defaults.organizerTimezone || "UTC";
   const fb = feedbackValues;
-  const fbStart = fb?.dateRangeStart ?? "";
-  const fbEnd = fb?.dateRangeEnd ?? "";
-  const fbMin = fb?.minimumMatchingUsers ?? "";
-  const fbDuration = fb?.durationMinutes ?? "";
-  const fbTimezone = fb?.organizerTimezone ?? "";
+  const hasFeedback = fb !== undefined;
 
-  const dateRangeStartInput = fb
-    ? fbStart || formatDateForInput(defaults.dateRangeStart, displayTimezone)
+  const dateRangeStartInput = hasFeedback
+    ? (fb?.dateRangeStart ??
+      formatDateForInput(defaults.dateRangeStart, displayTimezone))
     : formatDateForInput(defaults.dateRangeStart, displayTimezone);
-  const dateRangeEndInput = fb
-    ? fbEnd || formatDateForInput(defaults.dateRangeEnd, displayTimezone)
+  const dateRangeEndInput = hasFeedback
+    ? (fb?.dateRangeEnd ??
+      formatDateForInput(defaults.dateRangeEnd, displayTimezone))
     : formatDateForInput(defaults.dateRangeEnd, displayTimezone);
-  const minimumMatchingUsersInput = fb
-    ? fbMin || String(defaults.minimumMatchingUsers)
+  const minimumMatchingUsersInput = hasFeedback
+    ? (fb?.minimumMatchingUsers ?? String(defaults.minimumMatchingUsers))
     : String(defaults.minimumMatchingUsers);
-  const durationMinutesInput = fb
-    ? fbDuration || String(defaults.durationMinutes)
+  const durationMinutesInput = hasFeedback
+    ? (fb?.durationMinutes ?? String(defaults.durationMinutes))
     : String(defaults.durationMinutes);
-  const organizerTimezoneInput = fb
-    ? fbTimezone || defaults.organizerTimezone
+  const organizerTimezoneInput = hasFeedback
+    ? (fb?.organizerTimezone ?? defaults.organizerTimezone)
     : defaults.organizerTimezone;
   const selectedTopicIds = new Set(fb?.selectedTopicIds ?? []);
   const errorMessage =

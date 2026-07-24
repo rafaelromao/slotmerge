@@ -57,7 +57,7 @@ async function buildRequest(url: string): Promise<Request> {
 
 async function handleResult(
   result: SearchActionResult,
-  context: { csrfToken: string; path: string },
+  context: { path: string },
 ): Promise<never> {
   if (result.kind === "redirect") {
     redirect(result.to);
@@ -71,7 +71,7 @@ async function handleResult(
     values: result.values,
     formId: SEARCH_FORM_ID,
     path: context.path,
-    csrfTokenHash: createHash("sha256").update(context.csrfToken).digest("hex"),
+    csrfTokenHash: createHash("sha256").update(result.csrfToken).digest("hex"),
     issuedAt: Date.now(),
   });
   redirect(`/searches?feedback=${encodeURIComponent(sealed)}`);
@@ -86,11 +86,10 @@ export async function runSearchAction(formData: FormData): Promise<void> {
   });
 
   const headerList = await headers();
-  const csrfToken = headerList.get("x-csrf-token") ?? "";
   const path = headerList.get("x-pathname") ?? "/searches";
   const request = await buildRequest("http://localhost/searches/run");
   const result = await handler.runSearch({ formData, request });
-  await handleResult(result, { csrfToken, path });
+  await handleResult(result, { path });
   throw new Error("runSearchAction should not reach this line");
 }
 export { buildSearchActionHandler };

@@ -87,7 +87,10 @@ export default async function SearchesPage({
   const params = (await searchParams) ?? {};
   const feedbackSealed = readFirstString(params.feedback);
   const feedbackToken = feedbackSealed
-    ? await unsealSearchFeedbackToken(feedbackSealed)
+    ? await unsealSearchFeedbackToken(feedbackSealed, {
+        csrfToken: context.csrfToken,
+        path: "/searches",
+      })
     : null;
   const decoded = feedbackToken ? feedbackToFieldErrors(feedbackToken) : null;
   const errorCode =
@@ -130,6 +133,7 @@ export default async function SearchesPage({
 
   const hasActiveTopics = activeTopics.length > 0;
   const defaults = formState.defaults;
+  const displayTimezone = defaults.organizerTimezone || "UTC";
   const fb = feedbackValues;
   const fbStart = fb?.dateRangeStart ?? "";
   const fbEnd = fb?.dateRangeEnd ?? "";
@@ -138,13 +142,11 @@ export default async function SearchesPage({
   const fbTimezone = fb?.organizerTimezone ?? "";
 
   const dateRangeStartInput = fb
-    ? fbStart ||
-      formatDateForInput(defaults.dateRangeStart, defaults.organizerTimezone)
-    : formatDateForInput(defaults.dateRangeStart, defaults.organizerTimezone);
+    ? fbStart || formatDateForInput(defaults.dateRangeStart, displayTimezone)
+    : formatDateForInput(defaults.dateRangeStart, displayTimezone);
   const dateRangeEndInput = fb
-    ? fbEnd ||
-      formatDateForInput(defaults.dateRangeEnd, defaults.organizerTimezone)
-    : formatDateForInput(defaults.dateRangeEnd, defaults.organizerTimezone);
+    ? fbEnd || formatDateForInput(defaults.dateRangeEnd, displayTimezone)
+    : formatDateForInput(defaults.dateRangeEnd, displayTimezone);
   const minimumMatchingUsersInput = fb
     ? fbMin || String(defaults.minimumMatchingUsers)
     : String(defaults.minimumMatchingUsers);
@@ -184,13 +186,9 @@ export default async function SearchesPage({
         data-testid="searches-defaults-summary"
       >
         Snapshot range:{" "}
-        {formatDateForInput(
-          defaults.dateRangeStart,
-          defaults.organizerTimezone,
-        )}{" "}
-        →{" "}
-        {formatDateForInput(defaults.dateRangeEnd, defaults.organizerTimezone)}{" "}
-        ({defaults.organizerTimezone})
+        {formatDateForInput(defaults.dateRangeStart, displayTimezone)} →{" "}
+        {formatDateForInput(defaults.dateRangeEnd, displayTimezone)} (
+        {defaults.organizerTimezone || "not set"})
       </p>
 
       <form

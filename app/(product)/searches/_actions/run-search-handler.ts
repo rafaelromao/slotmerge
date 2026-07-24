@@ -62,10 +62,56 @@ function extractFieldString(formData: FormData, key: string): string {
   return typeof value === "string" ? value : "";
 }
 
-function readDateField(formData: FormData, key: string): Date {
+function readDateField(
+  formData: FormData,
+  key: string,
+  timezone: string,
+): Date {
   const raw = extractFieldString(formData, key);
   if (!raw) return new Date(NaN);
-  return new Date(raw);
+  return parseCalendarDateInTimezone(raw, timezone);
+}
+
+function parseCalendarDateInTimezone(value: string, timezone: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return new Date(value);
+  const [, yearStr, monthStr, dayStr] = match;
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return new Date(NaN);
+  }
+  if (!timezone) {
+    return new Date(Date.UTC(year, month - 1, day));
+  }
+  const offset = getTimezoneOffsetMinutes(year, month, day, timezone);
+  return new Date(Date.UTC(year, month - 1, day) - offset * 60_000);
+}
+
+function getTimezoneOffsetMinutes(
+  year: number,
+  month: number,
+  day: number,
+  timezone: string,
+): number {
+  const utcDate = new Date(Date.UTC(year, month - 1, day, 12));
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    timeZoneName: "shortOffset",
+  }).formatToParts(utcDate);
+  const offset = parts.find((part) => part.type === "timeZoneName")?.value;
+  if (!offset) return 0;
+  const match = /GMT([+-])(\d{1,2})(?::?(\d{2}))?/.exec(offset);
+  if (!match) return 0;
+  const [, sign, hourStr, minStr] = match;
+  const hours = Number(hourStr);
+  const minutes = minStr ? Number(minStr) : 0;
+  return (sign === "-" ? -1 : 1) * (hours * 60 + minutes);
 }
 
 function parseTopicIds(formData: FormData): string[] {
@@ -98,8 +144,9 @@ function readRawFromForm(
   formData: FormData,
   values: SearchFormValues,
 ): SearchFormDefaults {
-  const dateRangeStart = readDateField(formData, "dateRangeStart");
-  const dateRangeEnd = readDateField(formData, "dateRangeEnd");
+  const timezone = values.organizerTimezone.trim() || "UTC";
+  const dateRangeStart = readDateField(formData, "dateRangeStart", timezone);
+  const dateRangeEnd = readDateField(formData, "dateRangeEnd", timezone);
 
   return {
     selectedTopicIds: values.selectedTopicIds,

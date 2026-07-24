@@ -8,6 +8,10 @@ import { setSearchRepositoryForTests } from "../src/search/repository";
 import { InMemorySearchResultRepository } from "../src/search/search-result-in-memory-repository";
 import { setSearchResultRepositoryForTests } from "../src/search/search-result-repository";
 import { sealSearchFeedbackToken } from "../src/workflow/search-feedback";
+import { createHash } from "node:crypto";
+
+const hashCsrfToken = (token: string): string =>
+  createHash("sha256").update(token).digest("hex");
 import {
   setDiscoverableUserRepositoryForTests,
   type DiscoverableUserRepository,
@@ -209,6 +213,10 @@ describe("/searches page", () => {
         dateRangeEnd: "2026-08-11",
         organizerTimezone: "",
       },
+      formId: "searches/run",
+      path: "/searches",
+      csrfTokenHash: hashCsrfToken("csrf-token-organizer"),
+      issuedAt: Date.now(),
     });
     const html = renderToString(
       await SearchesPage({
@@ -236,6 +244,10 @@ describe("/searches page", () => {
         dateRangeEnd: "2026-08-11",
         organizerTimezone: "America/Los_Angeles",
       },
+      formId: "searches/run",
+      path: "/searches",
+      csrfTokenHash: hashCsrfToken("csrf-token-organizer"),
+      issuedAt: Date.now(),
     });
     const html = renderToString(
       await SearchesPage({
@@ -245,6 +257,26 @@ describe("/searches page", () => {
 
     expect(html).toContain("searches-field-error-selectedTopics");
     expect(html).toContain("Select at least one active Topic.");
+  });
+
+  it("renders safely for a profile with no timezone instead of throwing on Intl", async () => {
+    const noTimezoneProfile = {
+      ...organizerProfile,
+      profileTimezone: null,
+    };
+    vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue({
+      user: noTimezoneProfile,
+      csrfToken: "csrf-token-organizer",
+    });
+    setProfileRepositoryForTests(new StubProfileRepository(noTimezoneProfile));
+
+    const { default: SearchesPage } =
+      await import("../app/(product)/searches/page");
+    const html = renderToString(await SearchesPage({}));
+
+    expect(html).toContain('value="2026-07-06"');
+    expect(html).toContain('value="2026-08-10"');
+    expect(html).toContain('value=""');
   });
 
   it("preserves submitted values when rendering an inline validation error", async () => {
@@ -261,6 +293,10 @@ describe("/searches page", () => {
         dateRangeEnd: "2026-08-11",
         organizerTimezone: "Europe/Lisbon",
       },
+      formId: "searches/run",
+      path: "/searches",
+      csrfTokenHash: hashCsrfToken("csrf-token-organizer"),
+      issuedAt: Date.now(),
     });
     const html = renderToString(
       await SearchesPage({
@@ -291,6 +327,10 @@ describe("/searches page", () => {
         dateRangeEnd: "2026-08-11",
         organizerTimezone: "America/Los_Angeles",
       },
+      formId: "searches/run",
+      path: "/searches",
+      csrfTokenHash: hashCsrfToken("csrf-token-organizer"),
+      issuedAt: Date.now(),
     });
     const html = renderToString(
       await SearchesPage({

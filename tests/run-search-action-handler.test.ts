@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { UserProfile } from "../src/profile/repository";
 import { InMemorySearchRepository } from "../src/search/in-memory-repository";
+import type { UserProfile } from "../src/profile/repository";
 import { InMemorySearchResultRepository } from "../src/search/search-result-in-memory-repository";
 
 import {
@@ -35,6 +35,7 @@ function buildHandlerAndDeps(
   const profile =
     overrides.profile !== undefined ? overrides.profile : organizerProfile;
   const searchRepo = new InMemorySearchRepository();
+  InMemorySearchRepository.lastInstance = searchRepo;
   setSearchRepositoryForTests(searchRepo);
   const resultRepo = new InMemorySearchResultRepository();
   const discoverableRepo = new InMemoryDiscoverableUserRepository(
@@ -112,6 +113,36 @@ describe("runSearchAction handler", () => {
     expect(result.kind).toBe("redirect");
     if (result.kind !== "redirect") throw new Error("expected redirect");
     expect(result.to).toMatch(/^\/searches\/.+/);
+    void profile;
+  });
+
+  it("parses calendar dates in the selected IANA timezone", async () => {
+    const { handler, profile } = buildHandlerAndDeps();
+    const formData = makeFormData({
+      topicIds: ["topic-1"],
+      minimumMatchingUsers: "2",
+      durationMinutes: "60",
+      dateRangeStart: "2026-07-06",
+      dateRangeEnd: "2026-08-10",
+      organizerTimezone: "Asia/Tokyo",
+    });
+
+    const result = await handler.runSearch({
+      formData,
+      request: makeRequest(),
+    });
+
+    expect(result.kind).toBe("redirect");
+    if (result.kind !== "redirect") throw new Error("expected redirect");
+    const searchRepo = InMemorySearchRepository.lastInstance;
+    expect(searchRepo).toBeTruthy();
+    const stored = await searchRepo?.findById(
+      result.to.replace("/searches/", ""),
+    );
+    expect(stored?.dateRangeStart.toISOString()).toBe(
+      "2026-07-05T15:00:00.000Z",
+    );
+    expect(stored?.dateRangeEnd.toISOString()).toBe("2026-08-09T15:00:00.000Z");
     void profile;
   });
 

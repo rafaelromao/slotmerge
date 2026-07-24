@@ -1,5 +1,7 @@
 "use server";
 
+import { createHash } from "node:crypto";
+
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -10,7 +12,10 @@ import { getSearchResultRepository } from "../../../../src/search/search-result-
 import { getDiscoverableUserRepository } from "../../../../src/search/discoverable-user-repository";
 import { getProfileByUserId } from "../../../../src/profile/repository";
 import { systemClock } from "../../../../src/system/clock";
-import { sealSearchFeedbackToken } from "../../../../src/workflow/search-feedback";
+import {
+  SEARCH_FORM_ID,
+  sealSearchFeedbackToken,
+} from "../../../../src/workflow/search-feedback";
 import { createSearchWorkflow } from "../../../../src/workflow/search";
 import {
   buildSearchActionHandler,
@@ -50,7 +55,10 @@ async function buildRequest(url: string): Promise<Request> {
   });
 }
 
-async function handleResult(result: SearchActionResult): Promise<never> {
+async function handleResult(
+  result: SearchActionResult,
+  context: { csrfToken: string; path: string },
+): Promise<never> {
   if (result.kind === "redirect") {
     redirect(result.to);
     throw new Error("redirect() should not return");
@@ -62,6 +70,10 @@ async function handleResult(result: SearchActionResult): Promise<never> {
     code: result.code,
     field: result.field,
     values: result.values,
+    formId: SEARCH_FORM_ID,
+    path: context.path,
+    csrfTokenHash: createHash("sha256").update(context.csrfToken).digest("hex"),
+    issuedAt: Date.now(),
   });
   redirect(`/searches?feedback=${encodeURIComponent(sealed)}`);
   throw new Error("redirect() should not return");
@@ -74,9 +86,12 @@ export async function runSearchAction(formData: FormData): Promise<void> {
     loadSession: async (request) => getSessionFromRequest(request),
   });
 
+  const headerList = await headers();
+  const csrfToken = headerList.get("x-csrf-token") ?? "";
+  const path = headerList.get("x-pathname") ?? "/searches";
   const request = await buildRequest("http://localhost/searches/run");
   const result = await handler.runSearch({ formData, request });
-  await handleResult(result);
+  await handleResult(result, { csrfToken, path });
   throw new Error("runSearchAction should not reach this line");
 }
 export { buildSearchActionHandler };

@@ -3,28 +3,21 @@ import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as sessionModule from "../src/auth/session";
+import type { UserProfile } from "../src/profile/repository";
+import { setProfileRepositoryForTests } from "../src/profile/repository";
 import { InMemorySearchRepository } from "../src/search/in-memory-repository";
 import { setSearchRepositoryForTests } from "../src/search/repository";
 import { InMemorySearchResultRepository } from "../src/search/search-result-in-memory-repository";
 import { setSearchResultRepositoryForTests } from "../src/search/search-result-repository";
-import { sealSearchFeedbackToken } from "../src/workflow/search-feedback";
-import { createHash } from "node:crypto";
-
-const hashCsrfToken = (token: string): string =>
-  createHash("sha256").update(token).digest("hex");
-import {
-  setDiscoverableUserRepositoryForTests,
-  type DiscoverableUserRepository,
-} from "../src/search/discoverable-user-repository";
-import {
-  setProfileRepositoryForTests,
-  type ProfileRepository,
-  type UserProfile,
-} from "../src/profile/repository";
+import type { DiscoverableUserRepository } from "../src/search/discoverable-user-repository";
+import { setDiscoverableUserRepositoryForTests } from "../src/search/discoverable-user-repository";
 import {
   setTopicsPageCatalogueRepositoryForTests,
   setTopicsPageProposalsRepositoryForTests,
 } from "../src/topics/page-repositories";
+import { createHash } from "node:crypto";
+
+import { sealSearchFeedbackToken } from "../src/workflow/search-feedback";
 
 vi.mock("../src/auth/session", async () => {
   const actual = await vi.importActual<typeof import("../src/auth/session")>(
@@ -36,24 +29,42 @@ vi.mock("../src/auth/session", async () => {
   };
 });
 
-vi.mock("next/headers", () => {
-  const obj = {
-    headers: () => ({ forEach: () => undefined }),
-    cookies: () => ({ toString: () => "" }),
-  };
-  return obj;
-});
-
 vi.mock("next/navigation", () => ({
-  notFound: () => {
-    throw new Error("NEXT_NOT_FOUND");
-  },
   redirect: (url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`);
   },
+  notFound: () => {
+    throw new Error("NEXT_NOT_FOUND");
+  },
 }));
 
-class StubProfileRepository implements ProfileRepository {
+vi.mock("next/headers", () => ({
+  headers: () => {
+    const map = new Map<string, string>();
+    map.set("x-csrf-token", "csrf-token-organizer");
+    map.set("x-pathname", "/searches");
+    return {
+      get: (name: string) => map.get(name.toLowerCase()) ?? null,
+      has: (name: string) => map.has(name.toLowerCase()),
+      forEach: (cb: (value: string, key: string) => void) =>
+        map.forEach((value, key) => cb(value, key)),
+      entries: () => map.entries(),
+      keys: () => map.keys(),
+      values: () => map.values(),
+      [Symbol.iterator]: () => map.entries(),
+    };
+  },
+  cookies: () => ({
+    get: (name: string) => {
+      if (name === "slotmerge_session") {
+        return { value: "sealed-session-fixture" };
+      }
+      return undefined;
+    },
+  }),
+}));
+
+class StubProfileRepository {
   constructor(private readonly profile: UserProfile | null) {}
 
   async findByUserId(userId: string): Promise<UserProfile | null> {
@@ -79,6 +90,9 @@ class StubDiscoverableRepository implements DiscoverableUserRepository {
     return [...this.userIds];
   }
 }
+
+const hashCsrfToken = (token: string): string =>
+  createHash("sha256").update(token).digest("hex");
 
 const organizerProfile: UserProfile = {
   id: "user-1",
@@ -173,6 +187,26 @@ describe("/searches page", () => {
     expect(html).toContain('value="2026-08-10"');
   });
 
+  it("renders safely for a profile with no timezone instead of throwing on Intl", async () => {
+    const noTimezoneProfile = {
+      ...organizerProfile,
+      profileTimezone: null,
+    };
+    vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue({
+      user: noTimezoneProfile,
+      csrfToken: "csrf-token-organizer",
+    });
+    setProfileRepositoryForTests(new StubProfileRepository(noTimezoneProfile));
+
+    const { default: SearchesPage } =
+      await import("../app/(product)/searches/page");
+    const html = renderToString(await SearchesPage({}));
+
+    expect(html).toContain('value="2026-07-06"');
+    expect(html).toContain('value="2026-08-10"');
+    expect(html).toContain('value=""');
+  });
+
   it("throws NEXT_NOT_FOUND for a plain user", async () => {
     vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue({
       user: plainProfile,
@@ -203,8 +237,7 @@ describe("/searches page", () => {
     const { default: SearchesPage } =
       await import("../app/(product)/searches/page");
     const sealed = await sealSearchFeedbackToken({
-      code: "organizer_timezone_required",
-      field: "organizerTimezone",
+      fieldErrors: { organizerTimezone: "organizer_timezone_required" },
       values: {
         selectedTopicIds: [],
         minimumMatchingUsers: "2",
@@ -234,8 +267,7 @@ describe("/searches page", () => {
     const { default: SearchesPage } =
       await import("../app/(product)/searches/page");
     const sealed = await sealSearchFeedbackToken({
-      code: "selected_topics_required",
-      field: "selectedTopics",
+      fieldErrors: { selectedTopics: "selected_topics_required" },
       values: {
         selectedTopicIds: [],
         minimumMatchingUsers: "2",
@@ -259,32 +291,11 @@ describe("/searches page", () => {
     expect(html).toContain("Select at least one active Topic.");
   });
 
-  it("renders safely for a profile with no timezone instead of throwing on Intl", async () => {
-    const noTimezoneProfile = {
-      ...organizerProfile,
-      profileTimezone: null,
-    };
-    vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue({
-      user: noTimezoneProfile,
-      csrfToken: "csrf-token-organizer",
-    });
-    setProfileRepositoryForTests(new StubProfileRepository(noTimezoneProfile));
-
-    const { default: SearchesPage } =
-      await import("../app/(product)/searches/page");
-    const html = renderToString(await SearchesPage({}));
-
-    expect(html).toContain('value="2026-07-06"');
-    expect(html).toContain('value="2026-08-10"');
-    expect(html).toContain('value=""');
-  });
-
   it("preserves submitted values when rendering an inline validation error", async () => {
     const { default: SearchesPage } =
       await import("../app/(product)/searches/page");
     const sealed = await sealSearchFeedbackToken({
-      code: "duration_out_of_range",
-      field: "durationMinutes",
+      fieldErrors: { durationMinutes: "duration_out_of_range" },
       values: {
         selectedTopicIds: ["topic-1", "topic-2"],
         minimumMatchingUsers: "4",
@@ -317,8 +328,7 @@ describe("/searches page", () => {
     const { default: SearchesPage } =
       await import("../app/(product)/searches/page");
     const sealed = await sealSearchFeedbackToken({
-      code: "topic_retired",
-      field: "selectedTopics",
+      fieldErrors: { selectedTopics: "topic_retired" },
       values: {
         selectedTopicIds: ["topic-1", "topic-retired"],
         minimumMatchingUsers: "2",
@@ -340,5 +350,38 @@ describe("/searches page", () => {
 
     expect(html).toContain("searches-field-error-selectedTopics");
     expect(html).toContain("no longer active");
+  });
+
+  it("renders every populated field error for a multi-invalid submission", async () => {
+    const { default: SearchesPage } =
+      await import("../app/(product)/searches/page");
+    const sealed = await sealSearchFeedbackToken({
+      fieldErrors: {
+        selectedTopics: "selected_topics_required",
+        durationMinutes: "duration_out_of_range",
+        organizerTimezone: "organizer_timezone_required",
+      },
+      values: {
+        selectedTopicIds: [],
+        minimumMatchingUsers: "2",
+        durationMinutes: "10",
+        dateRangeStart: "2026-07-07",
+        dateRangeEnd: "2026-08-11",
+        organizerTimezone: "",
+      },
+      formId: "searches/run",
+      path: "/searches",
+      csrfTokenHash: hashCsrfToken("csrf-token-organizer"),
+      issuedAt: Date.now(),
+    });
+    const html = renderToString(
+      await SearchesPage({
+        searchParams: Promise.resolve({ feedback: sealed }),
+      }),
+    );
+
+    expect(html).toContain("searches-field-error-selectedTopics");
+    expect(html).toContain("searches-field-error-durationMinutes");
+    expect(html).toContain("searches-field-error-organizerTimezone");
   });
 });

@@ -234,6 +234,21 @@ describe("searchWorkflow.run", () => {
     );
   });
 
+  it("returns date_range_too_long when the date range exceeds 90 days", async () => {
+    const { workflow } = buildWorkflow();
+    const result = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw({
+        dateRangeStart: new Date("2026-07-06T00:00:00.000Z"),
+        dateRangeEnd: new Date("2026-10-15T00:00:00.000Z"),
+      }),
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected validation failure");
+    expect(result.error.fieldErrors.dateRangeEnd).toBe("date_range_too_long");
+  });
+
   it("returns date_range_invalid when end is not after start", async () => {
     const { workflow } = buildWorkflow();
     const result = await workflow.run({

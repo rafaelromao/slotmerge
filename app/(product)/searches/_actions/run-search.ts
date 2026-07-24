@@ -67,8 +67,7 @@ async function handleResult(
     throw new CsrfError();
   }
   const sealed = await sealSearchFeedbackToken({
-    code: result.code,
-    field: result.field,
+    fieldErrors: result.fieldErrors,
     values: result.values,
     formId: SEARCH_FORM_ID,
     path: context.path,

@@ -3,13 +3,12 @@ import { assertCsrfFromFormData, CsrfError } from "../../../../src/lib/csrf";
 import { loadRuntimeConfig } from "../../../../src/config/runtime";
 import type {
   SearchFieldErrors,
-  SearchFieldErrorCode,
   SearchFormDefaults,
   SearchWorkflow,
 } from "../../../../src/workflow/search";
-import type { SearchFieldName } from "../../../../src/workflow/search-feedback";
+import type { SearchFeedbackFieldName } from "../../../../src/workflow/search-feedback";
 
-export type SearchFormErrorField = SearchFieldName;
+export type SearchFormErrorField = SearchFeedbackFieldName;
 
 export type SearchFormValues = {
   selectedTopicIds: string[];
@@ -24,8 +23,7 @@ export type SearchActionResult =
   | { kind: "redirect"; to: string }
   | {
       kind: "form-error";
-      code: SearchFieldErrorCode;
-      field: SearchFormErrorField;
+      fieldErrors: SearchFieldErrors;
       values: SearchFormValues;
     }
   | { kind: "csrf-error" };
@@ -158,42 +156,6 @@ function readRawFromForm(
   };
 }
 
-function firstFieldError(
-  errors: SearchFieldErrors,
-): { code: SearchFieldErrorCode; field: SearchFormErrorField } | null {
-  if (errors.selectedTopics) {
-    return {
-      code: errors.selectedTopics,
-      field: "selectedTopics",
-    };
-  }
-  if (errors.minimumMatchingUsers) {
-    return {
-      code: errors.minimumMatchingUsers,
-      field: "minimumMatchingUsers",
-    };
-  }
-  if (errors.durationMinutes) {
-    return {
-      code: errors.durationMinutes,
-      field: "durationMinutes",
-    };
-  }
-  if (errors.dateRangeEnd) {
-    return {
-      code: errors.dateRangeEnd,
-      field: "dateRangeEnd",
-    };
-  }
-  if (errors.organizerTimezone) {
-    return {
-      code: errors.organizerTimezone,
-      field: "organizerTimezone",
-    };
-  }
-  return null;
-}
-
 export function buildSearchActionHandler(
   deps: CreateSearchActionHandlerDeps,
 ): SearchActionHandler {
@@ -228,19 +190,9 @@ export function buildSearchActionHandler(
         return { kind: "redirect", to: `/searches/${result.value.searchId}` };
       }
 
-      const first = firstFieldError(result.error.fieldErrors);
-      if (!first) {
-        return {
-          kind: "form-error",
-          code: "selected_topics_required",
-          field: "selectedTopics",
-          values,
-        };
-      }
       return {
         kind: "form-error",
-        code: first.code,
-        field: first.field,
+        fieldErrors: result.error.fieldErrors,
         values,
       };
     },

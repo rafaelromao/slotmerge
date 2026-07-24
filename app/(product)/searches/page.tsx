@@ -10,7 +10,6 @@ import { createSearchWorkflow } from "../../../src/workflow/search";
 import {
   feedbackToFieldErrors,
   unsealSearchFeedbackToken,
-  type SearchFieldName,
 } from "../../../src/workflow/search-feedback";
 import { runSearchAction } from "./_actions/run-search";
 
@@ -24,6 +23,7 @@ type FieldErrorCode =
   | "minimum_out_of_range"
   | "duration_out_of_range"
   | "date_range_invalid"
+  | "date_range_too_long"
   | "organizer_timezone_required";
 
 const VALID_FIELD_ERROR_CODES = new Set<FieldErrorCode>([
@@ -32,6 +32,7 @@ const VALID_FIELD_ERROR_CODES = new Set<FieldErrorCode>([
   "minimum_out_of_range",
   "duration_out_of_range",
   "date_range_invalid",
+  "date_range_too_long",
   "organizer_timezone_required",
 ]);
 
@@ -43,6 +44,7 @@ const FIELD_ERROR_MESSAGES: Record<FieldErrorCode, string> = {
     "Minimum matching Users must be at least 2 and not exceed the matching pool.",
   duration_out_of_range: "Meeting duration must be between 15 and 240 minutes.",
   date_range_invalid: "Date range end must be after the start.",
+  date_range_too_long: "Date range must be 90 days or less.",
   organizer_timezone_required:
     "Set your profile timezone before running a Search.",
 };
@@ -93,11 +95,26 @@ export default async function SearchesPage({
       })
     : null;
   const decoded = feedbackToken ? feedbackToFieldErrors(feedbackToken) : null;
-  const errorCode =
-    decoded && decoded.fieldErrors[decoded.field]
-      ? parseFieldErrorCode(decoded.fieldErrors[decoded.field])
-      : null;
-  const errorField: SearchFieldName | undefined = decoded?.field;
+  const fieldErrors = decoded?.fieldErrors ?? {};
+  const selectedErrorField: keyof typeof fieldErrors | null =
+    fieldErrors.selectedTopics
+      ? "selectedTopics"
+      : fieldErrors.minimumMatchingUsers
+        ? "minimumMatchingUsers"
+        : fieldErrors.durationMinutes
+          ? "durationMinutes"
+          : fieldErrors.dateRangeEnd
+            ? "dateRangeEnd"
+            : fieldErrors.organizerTimezone
+              ? "organizerTimezone"
+              : null;
+  const selectedErrorCode = selectedErrorField
+    ? fieldErrors[selectedErrorField]
+    : null;
+  const errorCode = selectedErrorCode
+    ? parseFieldErrorCode(selectedErrorCode)
+    : null;
+  const errorField = selectedErrorField ?? undefined;
   const feedbackValues = decoded?.values;
 
   const workflow = createSearchWorkflow({
@@ -254,17 +271,14 @@ export default async function SearchesPage({
             Users must have all selected active Topics.
           </p>
 
-          {errorCode &&
-          (errorCode === "selected_topics_required" ||
-            errorCode === "topic_retired") &&
-          errorField === "selectedTopics" ? (
+          {fieldErrors.selectedTopics ? (
             <p
               id="selectedTopics-error"
               className="form-field-error"
               role="alert"
               data-testid="searches-field-error-selectedTopics"
             >
-              {FIELD_ERROR_MESSAGES[errorCode]}
+              {FIELD_ERROR_MESSAGES[fieldErrors.selectedTopics]}
             </p>
           ) : null}
         </fieldset>
@@ -285,8 +299,7 @@ export default async function SearchesPage({
             }
             data-testid="searches-minimum-input"
           />
-          {errorCode === "minimum_out_of_range" &&
-          errorField === "minimumMatchingUsers" ? (
+          {fieldErrors.minimumMatchingUsers ? (
             <p
               id="minimumMatchingUsers-error"
               className="form-field-error"
@@ -316,8 +329,7 @@ export default async function SearchesPage({
             }
             data-testid="searches-duration-input"
           />
-          {errorCode === "duration_out_of_range" &&
-          errorField === "durationMinutes" ? (
+          {fieldErrors.durationMinutes ? (
             <p
               id="durationMinutes-error"
               className="form-field-error"
@@ -350,15 +362,14 @@ export default async function SearchesPage({
             }
             data-testid="searches-daterange-end"
           />
-          {errorCode === "date_range_invalid" &&
-          errorField === "dateRangeEnd" ? (
+          {fieldErrors.dateRangeEnd ? (
             <p
               id="dateRangeEnd-error"
               className="form-field-error"
               role="alert"
               data-testid="searches-field-error-dateRangeEnd"
             >
-              {FIELD_ERROR_MESSAGES.date_range_invalid}
+              {FIELD_ERROR_MESSAGES[fieldErrors.dateRangeEnd]}
             </p>
           ) : null}
         </div>
@@ -370,13 +381,15 @@ export default async function SearchesPage({
             type="text"
             name="organizerTimezone"
             defaultValue={organizerTimezoneInput}
-            aria-invalid={isTimezoneError}
+            aria-invalid={isTimezoneError || !!fieldErrors.organizerTimezone}
             aria-describedby={
-              isTimezoneError ? "organizerTimezone-error" : undefined
+              isTimezoneError || fieldErrors.organizerTimezone
+                ? "organizerTimezone-error"
+                : undefined
             }
             data-testid="searches-timezone-input"
           />
-          {isTimezoneError ? (
+          {fieldErrors.organizerTimezone ? (
             <p
               id="organizerTimezone-error"
               className="form-field-error"

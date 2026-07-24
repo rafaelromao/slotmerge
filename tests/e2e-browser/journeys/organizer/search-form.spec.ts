@@ -152,6 +152,25 @@ test.describe("Search form journey", () => {
     await captureState(page, "search-form", "date-range-invalid");
   });
 
+  test("failure path: date range over 90 days renders date_range_too_long", async ({
+    page,
+  }) => {
+    await page.clock.install({ time: FIXTURE_DATE });
+    await page.goto("/searches");
+
+    const topicCheckboxes = page.getByTestId(/^searches-topic-checkbox-/);
+    await topicCheckboxes.nth(0).check();
+    await page.getByTestId("searches-daterange-start").fill("2026-07-06");
+    await page.getByTestId("searches-daterange-end").fill("2026-10-15");
+    await page.getByTestId("searches-run-button").click();
+
+    await page.waitForURL(/\/searches\?feedback=/);
+    await expect(
+      page.getByTestId("searches-field-error-dateRangeEnd"),
+    ).toContainText("90 days or less");
+    await captureState(page, "search-form", "date-range-too-long");
+  });
+
   test("failure path: empty organizerTimezone renders organizer_timezone_required banner", async ({
     page,
   }) => {

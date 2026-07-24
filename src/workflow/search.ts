@@ -32,13 +32,14 @@ export type SearchFieldErrorCode =
   | "minimum_out_of_range"
   | "duration_out_of_range"
   | "date_range_invalid"
+  | "date_range_too_long"
   | "organizer_timezone_required";
 
 export type SearchFieldErrors = {
   selectedTopics?: "selected_topics_required" | "topic_retired";
   minimumMatchingUsers?: "minimum_out_of_range";
   durationMinutes?: "duration_out_of_range";
-  dateRangeEnd?: "date_range_invalid";
+  dateRangeEnd?: "date_range_invalid" | "date_range_too_long";
   organizerTimezone?: "organizer_timezone_required";
 };
 
@@ -239,7 +240,7 @@ function validateRaw(raw: SearchFormDefaults): SearchFieldErrors {
   } else if (end.getTime() <= start.getTime()) {
     errors.dateRangeEnd = "date_range_invalid";
   } else if (end.getTime() - start.getTime() > DATE_RANGE_MAX_MS) {
-    errors.dateRangeEnd = "date_range_invalid";
+    errors.dateRangeEnd = "date_range_too_long";
   }
 
   const organizerTimezone =

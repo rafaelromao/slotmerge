@@ -5,13 +5,7 @@ import { getSessionSecret } from "../auth/session";
 import type { SearchFieldErrorCode, SearchFieldErrors } from "./search";
 
 export type SearchFeedbackTokenPayload = {
-  code: SearchFieldErrorCode;
-  field:
-    | "selectedTopics"
-    | "minimumMatchingUsers"
-    | "durationMinutes"
-    | "dateRangeEnd"
-    | "organizerTimezone";
+  fieldErrors: SearchFieldErrors;
   values: {
     selectedTopicIds: string[];
     minimumMatchingUsers: string;
@@ -27,7 +21,7 @@ export type SearchFeedbackTokenPayload = {
 };
 
 export type SearchFormValues = SearchFeedbackTokenPayload["values"];
-export type SearchFieldName = SearchFeedbackTokenPayload["field"];
+export type SearchFeedbackFieldName = keyof SearchFieldErrors;
 
 export const SEARCH_FORM_ID = "searches/run";
 export const SEARCH_FEEDBACK_TTL_MS = 5 * 60_000;
@@ -89,26 +83,50 @@ function isValidFeedbackPayload(
   if (!value || typeof value !== "object") return false;
   const candidate = value as Record<string, unknown>;
   return (
-    typeof candidate.code === "string" &&
-    typeof candidate.field === "string" &&
     typeof candidate.formId === "string" &&
     typeof candidate.path === "string" &&
     typeof candidate.csrfTokenHash === "string" &&
     typeof candidate.issuedAt === "number" &&
+    typeof candidate.fieldErrors === "object" &&
+    candidate.fieldErrors !== null &&
     typeof candidate.values === "object" &&
     candidate.values !== null
   );
 }
 
 export function feedbackToFieldErrors(payload: SearchFeedbackTokenPayload): {
-  field: SearchFieldName;
   fieldErrors: SearchFieldErrors;
   values: SearchFormValues;
 } {
-  const fieldErrors: SearchFieldErrors = { [payload.field]: payload.code };
   return {
-    field: payload.field,
-    fieldErrors,
+    fieldErrors: payload.fieldErrors,
     values: payload.values,
   };
+}
+
+export function selectFirstError(
+  fieldErrors: SearchFieldErrors,
+): { field: SearchFeedbackFieldName; code: SearchFieldErrorCode } | null {
+  if (fieldErrors.selectedTopics) {
+    return { field: "selectedTopics", code: fieldErrors.selectedTopics };
+  }
+  if (fieldErrors.minimumMatchingUsers) {
+    return {
+      field: "minimumMatchingUsers",
+      code: fieldErrors.minimumMatchingUsers,
+    };
+  }
+  if (fieldErrors.durationMinutes) {
+    return { field: "durationMinutes", code: fieldErrors.durationMinutes };
+  }
+  if (fieldErrors.dateRangeEnd) {
+    return { field: "dateRangeEnd", code: fieldErrors.dateRangeEnd };
+  }
+  if (fieldErrors.organizerTimezone) {
+    return {
+      field: "organizerTimezone",
+      code: fieldErrors.organizerTimezone,
+    };
+  }
+  return null;
 }

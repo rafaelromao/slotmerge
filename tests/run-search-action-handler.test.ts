@@ -163,8 +163,7 @@ describe("runSearchAction handler", () => {
 
     expect(result.kind).toBe("form-error");
     if (result.kind !== "form-error") throw new Error("expected form-error");
-    expect(result.code).toBe("selected_topics_required");
-    expect(result.field).toBe("selectedTopics");
+    expect(result.fieldErrors.selectedTopics).toBe("selected_topics_required");
   });
 
   it("returns form-error topic_retired when an active Topic was retired", async () => {
@@ -185,8 +184,7 @@ describe("runSearchAction handler", () => {
 
     expect(result.kind).toBe("form-error");
     if (result.kind !== "form-error") throw new Error("expected form-error");
-    expect(result.code).toBe("topic_retired");
-    expect(result.field).toBe("selectedTopics");
+    expect(result.fieldErrors.selectedTopics).toBe("topic_retired");
   });
 
   it("returns form-error minimum_out_of_range when minimumMatchingUsers is 1", async () => {
@@ -207,8 +205,9 @@ describe("runSearchAction handler", () => {
 
     expect(result.kind).toBe("form-error");
     if (result.kind !== "form-error") throw new Error("expected form-error");
-    expect(result.code).toBe("minimum_out_of_range");
-    expect(result.field).toBe("minimumMatchingUsers");
+    expect(result.fieldErrors.minimumMatchingUsers).toBe(
+      "minimum_out_of_range",
+    );
   });
 
   it("returns form-error duration_out_of_range when duration is below 15", async () => {
@@ -229,8 +228,7 @@ describe("runSearchAction handler", () => {
 
     expect(result.kind).toBe("form-error");
     if (result.kind !== "form-error") throw new Error("expected form-error");
-    expect(result.code).toBe("duration_out_of_range");
-    expect(result.field).toBe("durationMinutes");
+    expect(result.fieldErrors.durationMinutes).toBe("duration_out_of_range");
     expect(result.values).toEqual({
       selectedTopicIds: ["topic-1"],
       minimumMatchingUsers: "2",
@@ -259,8 +257,7 @@ describe("runSearchAction handler", () => {
 
     expect(result.kind).toBe("form-error");
     if (result.kind !== "form-error") throw new Error("expected form-error");
-    expect(result.code).toBe("date_range_invalid");
-    expect(result.field).toBe("dateRangeEnd");
+    expect(result.fieldErrors.dateRangeEnd).toBe("date_range_invalid");
   });
 
   it("returns csrf-error when origin does not match", async () => {

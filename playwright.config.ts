@@ -14,7 +14,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [
-    ["html", { outputFolder: "playwright/.artifacts/test-results" }],
+    ["html", { outputFolder: "playwright/.artifacts/html-report" }],
     ["list"],
   ],
   outputDir: "playwright/.artifacts/test-results",

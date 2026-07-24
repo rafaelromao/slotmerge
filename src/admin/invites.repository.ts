@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import {
@@ -7,6 +7,8 @@ import {
   type InviteRole,
   type InviteStatus,
 } from "../db/schema";
+
+export type { InviteRole, InviteStatus };
 
 export type InviteListItem = {
   id: string;
@@ -25,8 +27,28 @@ export type InviteRecord = InviteListItem & {
 export type CreateInviteResult =
   { ok: true; invite: InviteRecord } | { ok: false; reason: "duplicate" };
 
+export type RefreshInviteInput = {
+  inviteId: string;
+  now: Date;
+  expiresAt: Date;
+};
+
+export type RefreshInviteResult =
+  | { ok: true; invite: InviteRecord }
+  | { ok: false; reason: "not_found" | "user_already_active" };
+
+export type InviteListItemWithExpiry = InviteListItem & {
+  expiresAt: Date;
+  magicLinkGeneration: number;
+};
+
 export type InviteRepository = {
   listInvites(): Promise<InviteListItem[]>;
+  listRecentInvites(limit: number): Promise<InviteListItemWithExpiry[]>;
+  findPendingInviteByEmail?(email: string): Promise<InviteListItem | null>;
+  findInviteById?(inviteId: string): Promise<InviteListItemWithExpiry | null>;
+  revokeInvite?(inviteId: string, now: Date): Promise<void>;
+  refreshInvite?(input: RefreshInviteInput): Promise<RefreshInviteResult>;
   createInvite(input: {
     email: string;
     role: InviteRole;
@@ -62,6 +84,169 @@ export function createPostgresInviteRepository(db = getDb()): InviteRepository {
         .orderBy(desc(invites.createdAt));
 
       return rows;
+    },
+
+    async listRecentInvites(limit) {
+      const rows = await db
+        .select({
+          id: invites.id,
+          email: invites.email,
+          role: invites.role,
+          status: invites.status,
+          invitedByAdminId: invites.invitedByAdminId,
+          invitedByAdminEmail: users.email,
+          magicLinkGeneration: invites.magicLinkGeneration,
+          expiresAt: invites.expiresAt,
+        })
+        .from(invites)
+        .leftJoin(users, eq(invites.invitedByAdminId, users.id))
+        .orderBy(desc(invites.createdAt))
+        .limit(limit);
+
+      return rows.map((row) => ({
+        id: row.id,
+        email: row.email,
+        role: row.role,
+        status: row.status,
+        invitedByAdminId: row.invitedByAdminId,
+        invitedByAdminEmail: row.invitedByAdminEmail,
+        magicLinkGeneration: row.magicLinkGeneration,
+        expiresAt: row.expiresAt,
+      }));
+    },
+
+    async findInviteById(inviteId) {
+      const [row] = await db
+        .select({
+          id: invites.id,
+          email: invites.email,
+          role: invites.role,
+          status: invites.status,
+          invitedByAdminId: invites.invitedByAdminId,
+          invitedByAdminEmail: users.email,
+          magicLinkGeneration: invites.magicLinkGeneration,
+          expiresAt: invites.expiresAt,
+        })
+        .from(invites)
+        .leftJoin(users, eq(invites.invitedByAdminId, users.id))
+        .where(eq(invites.id, inviteId))
+        .limit(1);
+
+      if (!row) {
+        return null;
+      }
+
+      return {
+        id: row.id,
+        email: row.email,
+        role: row.role,
+        status: row.status,
+        invitedByAdminId: row.invitedByAdminId,
+        invitedByAdminEmail: row.invitedByAdminEmail,
+        magicLinkGeneration: row.magicLinkGeneration,
+        expiresAt: row.expiresAt,
+      };
+    },
+
+    async revokeInvite(inviteId, now) {
+      await db
+        .update(invites)
+        .set({ status: "revoked", updatedAt: now })
+        .where(eq(invites.id, inviteId));
+    },
+
+    async refreshInvite({ inviteId, now, expiresAt }) {
+      const [existing] = await db
+        .select({
+          id: invites.id,
+          email: invites.email,
+          role: invites.role,
+          status: invites.status,
+          invitedByAdminId: invites.invitedByAdminId,
+          magicLinkGeneration: invites.magicLinkGeneration,
+          expiresAt: invites.expiresAt,
+        })
+        .from(invites)
+        .where(eq(invites.id, inviteId))
+        .limit(1);
+
+      if (!existing) {
+        return { ok: false, reason: "not_found" } as const;
+      }
+
+      const [activeUser] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.email, existing.email), eq(users.status, "active")))
+        .limit(1);
+
+      if (activeUser) {
+        return { ok: false, reason: "user_already_active" } as const;
+      }
+
+      const nextGeneration = existing.magicLinkGeneration + 1;
+
+      const [updated] = await db
+        .update(invites)
+        .set({
+          status: "pending",
+          expiresAt,
+          magicLinkGeneration: nextGeneration,
+          updatedAt: now,
+        })
+        .where(eq(invites.id, inviteId))
+        .returning({
+          id: invites.id,
+          email: invites.email,
+          role: invites.role,
+          status: invites.status,
+          invitedByAdminId: invites.invitedByAdminId,
+          magicLinkGeneration: invites.magicLinkGeneration,
+          expiresAt: invites.expiresAt,
+        });
+
+      if (!updated) {
+        return { ok: false, reason: "not_found" } as const;
+      }
+
+      const [admin] = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, updated.invitedByAdminId ?? ""))
+        .limit(1);
+
+      return {
+        ok: true,
+        invite: {
+          id: updated.id,
+          email: updated.email,
+          role: updated.role,
+          status: updated.status,
+          invitedByAdminId: updated.invitedByAdminId,
+          invitedByAdminEmail: admin?.email ?? "",
+          expiresAt: updated.expiresAt,
+          magicLinkGeneration: updated.magicLinkGeneration,
+        },
+      } as const;
+    },
+
+    async findPendingInviteByEmail(email) {
+      const [row] = await db
+        .select({
+          id: invites.id,
+          email: invites.email,
+          role: invites.role,
+          status: invites.status,
+          invitedByAdminId: invites.invitedByAdminId,
+          invitedByAdminEmail: users.email,
+          magicLinkGeneration: invites.magicLinkGeneration,
+        })
+        .from(invites)
+        .leftJoin(users, eq(invites.invitedByAdminId, users.id))
+        .where(and(eq(invites.email, email), eq(invites.status, "pending")))
+        .limit(1);
+
+      return row ?? null;
     },
 
     async createInvite(input: CreateInvitePersistenceInput) {

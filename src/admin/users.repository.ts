@@ -23,6 +23,7 @@ export type ReinstateResult =
 
 export type AdminUserRepository = {
   listUsers(): Promise<UserListItem[]>;
+  findActiveUserByEmail(email: string): Promise<UserListItem | null>;
   changeRole(input: {
     userId: string;
     actingAdminId: string;
@@ -58,6 +59,22 @@ export function createPostgresAdminUserRepository(
         .orderBy(asc(users.createdAt));
 
       return rows;
+    },
+
+    async findActiveUserByEmail(email) {
+      const [row] = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          displayName: users.displayName,
+          role: users.role,
+          status: users.status,
+        })
+        .from(users)
+        .where(and(eq(users.email, email), eq(users.status, "active")))
+        .limit(1);
+
+      return row ?? null;
     },
 
     async changeRole({ userId, actingAdminId, role, now }) {

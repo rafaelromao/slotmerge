@@ -103,6 +103,7 @@ export class SearchSnapshotAssembler {
     const discoverableUserIds =
       await this.deps.discoverableUserRepository.listDiscoverableUserIds(
         input.selectedTopicIds,
+        { excludeUserId: input.organizerId, requireAllTopics: true },
       );
 
     const slots = generateHourlySlots(

@@ -22,6 +22,7 @@ import {
   type SearchWorkflow,
 } from "../src/workflow/search";
 import type { ActiveTopicsRepository } from "../src/search/search-input";
+import type { DiscoverableUserRepository } from "../src/search/discoverable-user-repository";
 import { setSearchRepositoryForTests } from "../src/search/repository";
 import { setSearchResultRepositoryForTests } from "../src/search/search-result-repository";
 import { setDiscoverableUserRepositoryForTests } from "../src/search/discoverable-user-repository";
@@ -33,6 +34,7 @@ function buildWorkflow(
     clockIso?: string;
     profile?: UserProfile | null;
     discoverableUserIds?: string[];
+    discoverableUserRepository?: DiscoverableUserRepository;
   } = {},
 ): {
   workflow: SearchWorkflow;
@@ -53,6 +55,8 @@ function buildWorkflow(
   const discoverableRepo = new InMemoryDiscoverableUserRepository(
     overrides.discoverableUserIds ?? [],
   );
+  const workflowDiscoverableRepo =
+    overrides.discoverableUserRepository ?? discoverableRepo;
   setSearchRepositoryForTests(searchRepo);
   setSearchResultRepositoryForTests(resultRepo);
   setDiscoverableUserRepositoryForTests(discoverableRepo);
@@ -62,7 +66,7 @@ function buildWorkflow(
     activeTopicsRepository:
       overrides.activeTopicsRepository ??
       new InMemoryActiveTopicsRepository(activeTopics),
-    discoverableUserRepository: discoverableRepo,
+    discoverableUserRepository: workflowDiscoverableRepo,
     searchResultRepository: resultRepo,
     assemblerDependencies: mockAssemblerDeps,
   });
@@ -193,6 +197,40 @@ describe("searchWorkflow.run", () => {
     expect(result.error.fieldErrors.minimumMatchingUsers).toBe(
       "minimum_out_of_range",
     );
+  });
+
+  it("counts only all-topic matches and excludes the Organizer", async () => {
+    const calls: Array<{
+      selectedTopicIds: string[];
+      options?: {
+        excludeUserId?: string;
+        requireAllTopics?: boolean;
+      };
+    }> = [];
+    const discoverableUserRepository: DiscoverableUserRepository = {
+      listDiscoverableUserIds(selectedTopicIds, options) {
+        calls.push({ selectedTopicIds, options });
+        return Promise.resolve(["user-with-all-topics"]);
+      },
+    };
+    const { workflow } = buildWorkflow({ discoverableUserRepository });
+
+    const result = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw({ minimumMatchingUsers: 2 }),
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected validation failure");
+    expect(result.error.fieldErrors.minimumMatchingUsers).toBe(
+      "minimum_out_of_range",
+    );
+    expect(calls).toEqual([
+      {
+        selectedTopicIds: ["topic-1"],
+        options: { excludeUserId: "organizer-1", requireAllTopics: true },
+      },
+    ]);
   });
 
   it("returns minimum_out_of_range when minimumMatchingUsers exceeds the matching pool", async () => {

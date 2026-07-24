@@ -139,6 +139,7 @@ export function createSearchWorkflow(
       const matchingPoolUserIds =
         await discoverableUserRepository.listDiscoverableUserIds(
           selectedTopicIds,
+          { excludeUserId: userId, requireAllTopics: true },
         );
       const matchingPoolSize = matchingPoolUserIds.length;
 

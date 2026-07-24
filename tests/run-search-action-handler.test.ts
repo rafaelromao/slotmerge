@@ -204,6 +204,52 @@ describe("runSearchAction handler", () => {
     void profile;
   });
 
+  it("parses Sydney DST transition dates at local midnight", async () => {
+    const spring = buildHandlerAndDeps();
+    const springResult = await spring.handler.runSearch({
+      formData: makeFormData({
+        topicIds: ["topic-1"],
+        minimumMatchingUsers: "2",
+        durationMinutes: "60",
+        dateRangeStart: "2026-10-04",
+        dateRangeEnd: "2026-10-11",
+        organizerTimezone: "Australia/Sydney",
+      }),
+      request: makeRequest(),
+    });
+
+    expect(springResult.kind).toBe("redirect");
+    if (springResult.kind !== "redirect") throw new Error("expected redirect");
+    const springStored = await InMemorySearchRepository.lastInstance?.findById(
+      springResult.to.replace("/searches/", ""),
+    );
+    expect(springStored?.dateRangeStart.toISOString()).toBe(
+      "2026-10-03T14:00:00.000Z",
+    );
+
+    const fall = buildHandlerAndDeps();
+    const fallResult = await fall.handler.runSearch({
+      formData: makeFormData({
+        topicIds: ["topic-1"],
+        minimumMatchingUsers: "2",
+        durationMinutes: "60",
+        dateRangeStart: "2026-04-05",
+        dateRangeEnd: "2026-04-12",
+        organizerTimezone: "Australia/Sydney",
+      }),
+      request: makeRequest(),
+    });
+
+    expect(fallResult.kind).toBe("redirect");
+    if (fallResult.kind !== "redirect") throw new Error("expected redirect");
+    const fallStored = await InMemorySearchRepository.lastInstance?.findById(
+      fallResult.to.replace("/searches/", ""),
+    );
+    expect(fallStored?.dateRangeStart.toISOString()).toBe(
+      "2026-04-04T13:00:00.000Z",
+    );
+  });
+
   it("rejects an unparseable IANA timezone", async () => {
     const { handler, profile } = buildHandlerAndDeps();
     const formData = makeFormData({

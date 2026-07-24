@@ -1,11 +1,16 @@
 import {
-  startOfWeekInTimezone,
   submitSearch,
   type ActiveTopicsRepository,
   type ProfileRepository,
   type SearchInput,
   type SearchInputOverrides,
 } from "../search/search-input";
+import {
+  addCivilDays,
+  calendarDayNumber,
+  isValidIanaTimezone,
+  startOfWeekInTimezone,
+} from "../search/timezone";
 import type { Result } from "../lib/result";
 import type { SearchResultRepository } from "../search/search-result-repository";
 import type { SearchSnapshotAssemblerDeps } from "../search/search-snapshot-assembler";
@@ -91,8 +96,10 @@ export function createSearchWorkflow(
       const start = profile?.profileTimezone
         ? startOfWeekInTimezone(clock.now(), profile.profileTimezone)
         : startOfWeekInTimezone(clock.now(), "UTC");
-      const end = new Date(
-        start.getTime() + DATE_RANGE_WEEKS * 7 * 24 * 60 * 60 * 1000,
+      const end = addCivilDays(
+        start,
+        DATE_RANGE_WEEKS * 7,
+        profile?.profileTimezone ?? "UTC",
       );
       const organizerTimezone = profile?.profileTimezone ?? "";
 
@@ -183,12 +190,15 @@ export function createSearchWorkflow(
 
       const submitDeps: Parameters<typeof submitSearch>[0] = {
         organizerId: userId,
-        activeTopicsRepository,
+        activeTopicsRepository: {
+          listActive: () => Promise.resolve(activeTopics),
+        },
         profileRepository,
         discoverableUserRepository,
         searchResultRepository,
         clock,
         matchingPoolSize,
+        activeTopicsSnapshot: activeTopics,
       };
       if (assemblerDependencies !== undefined) {
         submitDeps.assemblerDependencies = assemblerDependencies;
@@ -212,6 +222,10 @@ export function createSearchWorkflow(
 
 function validateRaw(raw: SearchFormDefaults): SearchFieldErrors {
   const errors: SearchFieldErrors = {};
+  const organizerTimezone =
+    typeof raw.organizerTimezone === "string"
+      ? raw.organizerTimezone.trim()
+      : "";
   const selectedTopicIds = Array.isArray(raw.selectedTopicIds)
     ? raw.selectedTopicIds.filter((id): id is string => typeof id === "string")
     : [];
@@ -244,14 +258,15 @@ function validateRaw(raw: SearchFormDefaults): SearchFieldErrors {
     errors.dateRangeEnd = "date_range_invalid";
   } else if (end.getTime() <= start.getTime()) {
     errors.dateRangeEnd = "date_range_invalid";
-  } else if (end.getTime() - start.getTime() > DATE_RANGE_MAX_MS) {
+  } else if (
+    isValidIanaTimezone(organizerTimezone) &&
+    calendarDayNumber(end, organizerTimezone) -
+      calendarDayNumber(start, organizerTimezone) >
+      DATE_RANGE_MAX_DAYS
+  ) {
     errors.dateRangeEnd = "date_range_too_long";
   }
 
-  const organizerTimezone =
-    typeof raw.organizerTimezone === "string"
-      ? raw.organizerTimezone.trim()
-      : "";
   if (!organizerTimezone) {
     errors.organizerTimezone = "organizer_timezone_required";
   }

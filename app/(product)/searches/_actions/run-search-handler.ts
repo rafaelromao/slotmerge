@@ -6,6 +6,7 @@ import type {
   SearchFormDefaults,
   SearchWorkflow,
 } from "../../../../src/workflow/search";
+import { zonedTimeToUtc } from "../../../../src/search/timezone";
 
 export type SearchFormValues = {
   selectedTopicIds: string[];
@@ -112,36 +113,6 @@ function isValidIanaTimezone(value: string): boolean {
   } catch {
     return false;
   }
-}
-
-function zonedTimeToUtc(
-  year: number,
-  monthIndex: number,
-  day: number,
-  timezone: string,
-): Date {
-  const reference = new Date(Date.UTC(year, monthIndex, day, 0, 0, 0));
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).formatToParts(reference);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  const tzYear = Number(get("year"));
-  const tzMonth = Number(get("month"));
-  const tzDay = Number(get("day"));
-  const tzHour = Number(get("hour"));
-  const tzMinute = Number(get("minute"));
-  const tzSecond = Number(get("second"));
-  const offsetMs =
-    Date.UTC(tzYear, tzMonth - 1, tzDay, tzHour, tzMinute, tzSecond) -
-    reference.getTime();
-  return new Date(Date.UTC(year, monthIndex, day, 0, 0, 0) - offsetMs);
 }
 
 function parseTopicIds(formData: FormData): string[] {

@@ -21,6 +21,7 @@ import {
   type SearchFormDefaults,
   type SearchWorkflow,
 } from "../src/workflow/search";
+import type { ActiveTopicsRepository } from "../src/search/search-input";
 import { setSearchRepositoryForTests } from "../src/search/repository";
 import { setSearchResultRepositoryForTests } from "../src/search/search-result-repository";
 import { setDiscoverableUserRepositoryForTests } from "../src/search/discoverable-user-repository";
@@ -28,6 +29,8 @@ import { setDiscoverableUserRepositoryForTests } from "../src/search/discoverabl
 function buildWorkflow(
   overrides: {
     activeTopics?: Array<{ id: string; name: string }>;
+    activeTopicsRepository?: ActiveTopicsRepository;
+    clockIso?: string;
     profile?: UserProfile | null;
     discoverableUserIds?: string[];
   } = {},
@@ -38,7 +41,7 @@ function buildWorkflow(
   resultRepo: InMemorySearchResultRepository;
   discoverableRepo: InMemoryDiscoverableUserRepository;
 } {
-  const clock = pinnedClock("2026-07-08T15:00:00.000Z");
+  const clock = pinnedClock(overrides.clockIso ?? "2026-07-08T15:00:00.000Z");
   const activeTopics =
     overrides.activeTopics !== undefined
       ? overrides.activeTopics
@@ -56,7 +59,9 @@ function buildWorkflow(
   const workflow = createSearchWorkflow({
     clock,
     profileRepository: new InMemoryProfileRepository(profile),
-    activeTopicsRepository: new InMemoryActiveTopicsRepository(activeTopics),
+    activeTopicsRepository:
+      overrides.activeTopicsRepository ??
+      new InMemoryActiveTopicsRepository(activeTopics),
     discoverableUserRepository: discoverableRepo,
     searchResultRepository: resultRepo,
     assemblerDependencies: mockAssemblerDeps,
@@ -299,6 +304,22 @@ describe("searchWorkflow.run", () => {
     expect(result.error.fieldErrors.dateRangeEnd).toBe("date_range_too_long");
   });
 
+  it("measures the maximum range in civil days across fall-back", async () => {
+    const { workflow } = buildWorkflow({
+      discoverableUserIds: ["user-1", "user-2"],
+    });
+    const result = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw({
+        organizerTimezone: "America/New_York",
+        dateRangeStart: new Date("2026-08-04T04:00:00.000Z"),
+        dateRangeEnd: new Date("2026-11-02T05:00:00.000Z"),
+      }),
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
   it("returns date_range_invalid when end is not after start", async () => {
     const { workflow } = buildWorkflow();
     const result = await workflow.run({
@@ -333,6 +354,47 @@ describe("searchWorkflow.run", () => {
     expect(result.error.fieldErrors.organizerTimezone).toBe(
       "organizer_timezone_required",
     );
+  });
+
+  it("uses civil dates for defaults across fall-back", async () => {
+    const { workflow } = buildWorkflow({
+      clockIso: "2026-10-14T12:00:00.000Z",
+      profile: { ...organizerProfile, profileTimezone: "America/New_York" },
+    });
+    const state = await workflow.buildForm({ userId: "organizer-1" });
+
+    expect(state.defaults.dateRangeStart.toISOString()).toBe(
+      "2026-10-12T04:00:00.000Z",
+    );
+    expect(state.defaults.dateRangeEnd.toISOString()).toBe(
+      "2026-11-16T05:00:00.000Z",
+    );
+  });
+
+  it("uses one active-Topic snapshot for validation and persistence", async () => {
+    let calls = 0;
+    const activeTopicsRepository: ActiveTopicsRepository = {
+      listActive() {
+        calls += 1;
+        return Promise.resolve(
+          calls === 1
+            ? [{ id: "topic-1", name: "Product strategy", status: "active" }]
+            : [],
+        );
+      },
+    };
+    const { workflow } = buildWorkflow({
+      activeTopicsRepository,
+      discoverableUserIds: ["user-1", "user-2"],
+    });
+
+    const result = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw(),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls).toBe(1);
   });
 
   it("persists a Search and immutable Search Result on valid input", async () => {

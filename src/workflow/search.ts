@@ -235,7 +235,12 @@ function validateRaw(raw: SearchFormDefaults): SearchFieldErrors {
 
   const start = raw.dateRangeStart instanceof Date ? raw.dateRangeStart : null;
   const end = raw.dateRangeEnd instanceof Date ? raw.dateRangeEnd : null;
-  if (!start || !end) {
+  if (
+    !start ||
+    !end ||
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime())
+  ) {
     errors.dateRangeEnd = "date_range_invalid";
   } else if (end.getTime() <= start.getTime()) {
     errors.dateRangeEnd = "date_range_invalid";

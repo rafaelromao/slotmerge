@@ -234,6 +234,56 @@ describe("searchWorkflow.run", () => {
     );
   });
 
+  it("parses a DST spring-forward date in the selected IANA timezone", async () => {
+    const { workflow } = buildWorkflow({
+      discoverableUserIds: ["user-1", "user-2"],
+    });
+    const result = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw({
+        organizerTimezone: "America/New_York",
+        dateRangeStart: new Date("2026-03-08T05:00:00.000Z"),
+        dateRangeEnd: new Date("2026-03-22T04:00:00.000Z"),
+      }),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected success");
+  });
+
+  it("parses a DST fall-back date in the selected IANA timezone", async () => {
+    const { workflow } = buildWorkflow({
+      discoverableUserIds: ["user-1", "user-2"],
+    });
+    const result = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw({
+        organizerTimezone: "America/New_York",
+        dateRangeStart: new Date("2026-11-01T05:00:00.000Z"),
+        dateRangeEnd: new Date("2026-11-15T05:00:00.000Z"),
+      }),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected success");
+  });
+
+  it("returns date_range_invalid for an invalid Date object", async () => {
+    const { workflow } = buildWorkflow();
+    const result = await workflow.run({
+      userId: "organizer-1",
+      raw: {
+        ...defaultRaw(),
+        dateRangeStart: new Date(NaN),
+        dateRangeEnd: new Date("2026-03-15T03:00:00.000Z"),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected validation failure");
+    expect(result.error.fieldErrors.dateRangeEnd).toBe("date_range_invalid");
+  });
+
   it("returns date_range_too_long when the date range exceeds 90 days", async () => {
     const { workflow } = buildWorkflow();
     const result = await workflow.run({

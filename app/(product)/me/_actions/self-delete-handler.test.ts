@@ -54,7 +54,7 @@ describe("selfDeleteAction", () => {
     const action = createSelfDeleteActionHandler({
       workflow,
       loadSession: () => Promise.resolve(session),
-      expectedOrigin: "http://localhost",
+      expectedOrigin: () => "http://localhost",
     });
 
     const response = await action(

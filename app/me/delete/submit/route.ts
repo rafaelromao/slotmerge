@@ -1,15 +1,24 @@
-import { createPostgresAccountRepository } from "../../../../src/account/repository";
+import { getAccountRepository } from "../../../../src/account/repository";
 import { getSessionFromRequest } from "../../../../src/auth/session";
 import { loadRuntimeConfig } from "../../../../src/config/runtime";
-import { createAccountWorkflow } from "../../../../src/workflow/account";
+import {
+  createAccountWorkflow,
+  type AccountWorkflow,
+} from "../../../../src/workflow/account";
 import { createSelfDeleteActionHandler } from "../../../(product)/me/_actions/self-delete-handler";
 
+const accountWorkflow: AccountWorkflow = {
+  selfDelete(input) {
+    return createAccountWorkflow({
+      repository: getAccountRepository(),
+    }).selfDelete(input);
+  },
+};
+
 export const selfDeleteAction = createSelfDeleteActionHandler({
-  workflow: createAccountWorkflow({
-    repository: createPostgresAccountRepository(),
-  }),
+  workflow: accountWorkflow,
   loadSession: getSessionFromRequest,
-  expectedOrigin: new URL(loadRuntimeConfig().appPublicUrl).origin,
+  expectedOrigin: () => new URL(loadRuntimeConfig().appPublicUrl).origin,
 });
 
 export const POST = selfDeleteAction;

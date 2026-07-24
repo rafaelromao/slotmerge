@@ -7,19 +7,23 @@ export type SelfDeleteAction = (request: Request) => Promise<Response>;
 export function createSelfDeleteActionHandler(deps: {
   workflow: AccountWorkflow;
   loadSession: (request: Request) => Promise<Session | null>;
-  expectedOrigin: string;
+  expectedOrigin: string | (() => string);
 }): SelfDeleteAction {
   return async function selfDeleteAction(request) {
+    const expectedOrigin =
+      typeof deps.expectedOrigin === "function"
+        ? deps.expectedOrigin()
+        : deps.expectedOrigin;
     const session = await deps.loadSession(request);
     if (!session) {
-      return redirectResponse(deps.expectedOrigin, "/sign-in");
+      return redirectResponse(expectedOrigin, "/sign-in");
     }
 
     if (
-      request.headers.get("origin") !== deps.expectedOrigin ||
+      request.headers.get("origin") !== expectedOrigin ||
       request.headers.get("sec-fetch-site") === "cross-site"
     ) {
-      return redirectResponse(deps.expectedOrigin, "/me/delete?error=csrf");
+      return redirectResponse(expectedOrigin, "/me/delete?error=csrf");
     }
 
     const formData = await request.formData();
@@ -27,7 +31,7 @@ export function createSelfDeleteActionHandler(deps: {
       assertCsrfFromFormData(formData, session);
     } catch (error) {
       if (error instanceof CsrfError) {
-        return redirectResponse(deps.expectedOrigin, "/me/delete?error=csrf");
+        return redirectResponse(expectedOrigin, "/me/delete?error=csrf");
       }
       throw error;
     }
@@ -37,15 +41,15 @@ export function createSelfDeleteActionHandler(deps: {
         confirmation === null || confirmation === ""
           ? "confirm_required"
           : "confirm_mismatch";
-      return redirectResponse(deps.expectedOrigin, `/me/delete?error=${error}`);
+      return redirectResponse(expectedOrigin, `/me/delete?error=${error}`);
     }
 
     const result = await deps.workflow.selfDelete({ userId: session.user.id });
     if (!result.ok) {
-      return redirectResponse(deps.expectedOrigin, "/sign-in");
+      return redirectResponse(expectedOrigin, "/sign-in");
     }
 
-    return redirectResponse(deps.expectedOrigin, "/sign-in?reason=deleted", {
+    return redirectResponse(expectedOrigin, "/sign-in?reason=deleted", {
       "Set-Cookie": clearSessionCookie(),
     });
   };

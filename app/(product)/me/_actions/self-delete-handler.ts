@@ -12,14 +12,14 @@ export function createSelfDeleteActionHandler(deps: {
   return async function selfDeleteAction(request) {
     const session = await deps.loadSession(request);
     if (!session) {
-      return redirectResponse(request, "/sign-in");
+      return redirectResponse(deps.expectedOrigin, "/sign-in");
     }
 
     if (
       request.headers.get("origin") !== deps.expectedOrigin ||
       request.headers.get("sec-fetch-site") === "cross-site"
     ) {
-      return redirectResponse(request, "/me/delete?error=csrf");
+      return redirectResponse(deps.expectedOrigin, "/me/delete?error=csrf");
     }
 
     const formData = await request.formData();
@@ -27,7 +27,7 @@ export function createSelfDeleteActionHandler(deps: {
       assertCsrfFromFormData(formData, session);
     } catch (error) {
       if (error instanceof CsrfError) {
-        return redirectResponse(request, "/me/delete?error=csrf");
+        return redirectResponse(deps.expectedOrigin, "/me/delete?error=csrf");
       }
       throw error;
     }
@@ -37,22 +37,22 @@ export function createSelfDeleteActionHandler(deps: {
         confirmation === null || confirmation === ""
           ? "confirm_required"
           : "confirm_mismatch";
-      return redirectResponse(request, `/me/delete?error=${error}`);
+      return redirectResponse(deps.expectedOrigin, `/me/delete?error=${error}`);
     }
 
     const result = await deps.workflow.selfDelete({ userId: session.user.id });
     if (!result.ok) {
-      return redirectResponse(request, "/sign-in");
+      return redirectResponse(deps.expectedOrigin, "/sign-in");
     }
 
-    return redirectResponse(request, "/sign-in?reason=deleted", {
+    return redirectResponse(deps.expectedOrigin, "/sign-in?reason=deleted", {
       "Set-Cookie": clearSessionCookie(),
     });
   };
 }
 
 function redirectResponse(
-  request: Request,
+  baseUrl: string,
   path: string,
   headers: Record<string, string> = {},
 ): Response {
@@ -60,7 +60,7 @@ function redirectResponse(
     status: 303,
     headers: {
       ...headers,
-      Location: new URL(path, request.url).toString(),
+      Location: new URL(path, baseUrl).toString(),
     },
   });
 }

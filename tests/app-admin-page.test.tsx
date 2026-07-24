@@ -174,6 +174,23 @@ describe("Admin page", () => {
     expect(html).not.toContain("data-testid=\"invite-banner\"");
   });
 
+  it("renders the empty-state gate when the user list is empty", async () => {
+    const { default: AdminPage } = await import("../app/(product)/admin/page");
+    const html = renderToString(await AdminPage());
+    expect(html).toContain('data-testid="users-empty-state"');
+    expect(html).toContain('data-testid="users-empty-state-cta"');
+    expect(html).toContain('href="#invite-form"');
+    expect(html).toContain("No users yet");
+  });
+
+  it("renders matching fragment IDs on the three admin sections", async () => {
+    const { default: AdminPage } = await import("../app/(product)/admin/page");
+    const html = renderToString(await AdminPage());
+    expect(html).toMatch(/<details[^>]*\bid="users"[^>]*\bopen[^>]*>/);
+    expect(html).toMatch(/<details[^>]*\bid="topics"[^>]*>/);
+    expect(html).toMatch(/<details[^>]*\bid="status"[^>]*>/);
+  });
+
   it("renders one row per user with role dropdown and Save button", async () => {
     const { createAdminUsersWorkflow } = await import(
       "../src/workflow/admin-users"

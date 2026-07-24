@@ -124,6 +124,27 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+// Conservative server-side syntax check: require non-empty local-part,
+// a single '@', a non-empty domain, a dot in the domain, and only
+// characters that the magic-link verifier and the SMTP transport both
+// accept. The same shape is what `<input type="email">` enforces in the
+// browser, so this turns the server-side guard into a typed
+// `invalid_email` Result branch instead of letting `not-an-email` slip
+// through to `createInvite`.
+const EMAIL_SYNTAX = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
+
+export function isValidInviteeEmail(email: string): boolean {
+  if (email.length === 0 || email.length > 254) return false;
+  if (!EMAIL_SYNTAX.test(email)) return false;
+  const at = email.indexOf("@");
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  if (local.length > 64) return false;
+  if (local.startsWith(".") || local.endsWith(".")) return false;
+  if (local.includes("..")) return false;
+  return domain.includes(".");
+}
+
 export function computeInviteExpiresAt(now: Date): Date {
   return new Date(now.getTime() + inviteLifetimeDays * 24 * 60 * 60 * 1000);
 }
@@ -173,7 +194,7 @@ export function createAdminUsersWorkflow(
       const normalizedEmail = normalizeEmail(email);
       const normalizedActorEmail = normalizeEmail(actorEmail);
 
-      if (normalizedEmail.length === 0) {
+      if (!isValidInviteeEmail(normalizedEmail)) {
         return err("invalid_email");
       }
 

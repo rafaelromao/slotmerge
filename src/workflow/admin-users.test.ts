@@ -414,6 +414,78 @@ describe("adminUsersWorkflow", () => {
     });
   });
 
+  describe("inviteUser email validation", () => {
+    it("rejects input shaped like 'not-an-email' with invalid_email", async () => {
+      const userRepository = buildUserRepository();
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository();
+      const emailDeliveryService = { sendEmail: vi.fn() };
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        emailDeliveryService,
+        magicLinkTokenIssuer: { issueMagicLinkToken: vi.fn() },
+        clock: fixedClock,
+      });
+
+      const result = await workflow.inviteUser({
+        actorId: "admin-1",
+        actorEmail: "admin@example.com",
+        email: "not-an-email",
+        role: "user",
+      });
+
+      expect(expectErr(result)).toBe("invalid_email");
+      expect(emailDeliveryService.sendEmail).not.toHaveBeenCalled();
+    });
+
+    it("rejects emails with double dots in the local part", async () => {
+      const userRepository = buildUserRepository();
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository();
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.inviteUser({
+        actorId: "admin-1",
+        actorEmail: "admin@example.com",
+        email: "alice..bob@example.com",
+        role: "user",
+      });
+
+      expect(expectErr(result)).toBe("invalid_email");
+    });
+
+    it("rejects emails whose domain has no dot", async () => {
+      const userRepository = buildUserRepository();
+      const inviteRepository = buildInviteRepository();
+      const sessionRepository = buildSessionRepository();
+
+      const workflow = createAdminUsersWorkflow({
+        userRepository,
+        inviteRepository,
+        sessionRepository,
+        clock: fixedClock,
+      });
+
+      const result = await workflow.inviteUser({
+        actorId: "admin-1",
+        actorEmail: "admin@example.com",
+        email: "bob@localhost",
+        role: "user",
+      });
+
+      expect(expectErr(result)).toBe("invalid_email");
+    });
+  });
+
   describe("resendInvite", () => {
     const now = new Date("2026-07-12T12:00:00.000Z");
     const fixedClock = { now: () => now };

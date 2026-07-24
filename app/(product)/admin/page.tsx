@@ -14,6 +14,7 @@ import {
   suspendAction,
 } from "./_actions/users";
 import { SuspendTypedConfirm } from "./_components/SuspendTypedConfirm";
+import { SectionDeepLink } from "./_components/SectionDeepLink";
 import type { UserListItem } from "../../../src/admin/users.repository";
 import type { UserRole, UserStatus } from "../../../src/db/schema";
 import type { AdminUsersRecentInvite } from "../../../src/workflow/admin-users";
@@ -75,6 +76,13 @@ export default async function AdminPage({
   return (
     <main className="app-container">
       <h1>Admin</h1>
+      <SectionDeepLink
+        sections={[
+          { id: "users", targetIds: ["users", "invites"] },
+          { id: "topics", targetIds: ["topics", "topic-proposals"] },
+          { id: "status" },
+        ]}
+      />
 
       {invitedEmail ? (
         <p
@@ -142,7 +150,7 @@ export default async function AdminPage({
         </p>
       ) : null}
 
-      <details className="admin-section" open>
+      <details id="users" className="admin-section" open>
         <summary
           className="admin-section-summary"
           data-testid="admin-users-summary"
@@ -155,6 +163,7 @@ export default async function AdminPage({
         </summary>
         <div className="admin-section-body" data-testid="admin-users-body">
           <form
+            id="invite-form"
             className="invite-form"
             data-testid="invite-form"
             action={inviteUserAction}
@@ -216,6 +225,27 @@ export default async function AdminPage({
             </tbody>
           </table>
 
+          {users.users.length === 0 ? (
+            <div
+              className="empty-state"
+              role="status"
+              data-testid="users-empty-state"
+            >
+              <p className="empty-state-title">No users yet</p>
+              <p className="empty-state-message">
+                Invite a teammate to grant them access. The invitee receives
+                an email with a single-use magic link.
+              </p>
+              <a
+                className="btn btn-primary"
+                href="#invite-form"
+                data-testid="users-empty-state-cta"
+              >
+                Invite a user
+              </a>
+            </div>
+          ) : null}
+
           <section className="recent-invites" data-testid="recent-invites">
             <h3 className="recent-invites-heading">Recent invites</h3>
             {users.recentInvites.length === 0 ? (
@@ -250,7 +280,7 @@ export default async function AdminPage({
         </div>
       </details>
 
-      <details className="admin-section">
+      <details id="topics" className="admin-section">
         <summary
           className="admin-section-summary"
           data-testid="admin-topics-summary"
@@ -265,7 +295,7 @@ export default async function AdminPage({
         </div>
       </details>
 
-      <details className="admin-section">
+      <details id="status" className="admin-section">
         <summary
           className="admin-section-summary"
           data-testid="admin-status-summary"

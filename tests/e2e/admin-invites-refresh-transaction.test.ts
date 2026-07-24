@@ -92,7 +92,12 @@ describe("E2E: Postgres invite repository transactional refreshInvite", () => {
       expect(row?.id).toBe(inviteId);
       expect(row?.status).toBe("pending");
       expect(row?.magicLinkGeneration).toBe(2);
-      expect(row?.expiresAt.toISOString()).toBe(freshExpiry.toISOString());
+      const expiresAt = row?.expiresAt;
+      const expiresMs =
+        expiresAt instanceof Date
+          ? expiresAt.getTime()
+          : new Date(String(expiresAt)).getTime();
+      expect(expiresMs).toBe(freshExpiry.getTime());
     },
   );
 

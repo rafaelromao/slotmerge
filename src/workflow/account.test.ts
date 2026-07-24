@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  createAccountWorkflow,
-  type AccountRepository,
-} from "./account";
+import { createAccountWorkflow, type AccountRepository } from "./account";
 
 class InMemoryAccountRepository implements AccountRepository {
   constructor(private readonly userIds: Set<string>) {}

@@ -5,6 +5,18 @@ import { getDb, type AppDb } from "../db/client";
 import { calendarConnections, emailEvents, users } from "../db/schema";
 import type { AccountRepository } from "../workflow/account";
 
+let repositoryOverride: AccountRepository | null = null;
+
+export function setAccountRepositoryForTests(
+  repository: AccountRepository | null,
+) {
+  repositoryOverride = repository;
+}
+
+export function getAccountRepository(): AccountRepository {
+  return repositoryOverride ?? createPostgresAccountRepository();
+}
+
 export function createPostgresAccountRepository(
   db: AppDb = getDb(),
 ): AccountRepository {

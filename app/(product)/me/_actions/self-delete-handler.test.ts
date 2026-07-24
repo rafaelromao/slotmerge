@@ -34,12 +34,14 @@ function requestWith(
   });
 }
 
-function createAction(selfDelete = vi.fn(async () => ok(undefined))) {
+function createAction(
+  selfDelete = vi.fn(() => Promise.resolve(ok(undefined))),
+) {
   return {
     selfDelete,
     action: createSelfDeleteActionHandler({
       workflow: { selfDelete },
-      loadSession: async () => session,
+      loadSession: () => Promise.resolve(session),
       expectedOrigin: "http://localhost",
     }),
   };
@@ -47,11 +49,11 @@ function createAction(selfDelete = vi.fn(async () => ok(undefined))) {
 
 describe("selfDeleteAction", () => {
   it("deletes the authenticated User and returns a 303 that clears the session cookie", async () => {
-    const selfDelete = vi.fn(async () => ok(undefined));
+    const selfDelete = vi.fn(() => Promise.resolve(ok(undefined)));
     const workflow: AccountWorkflow = { selfDelete };
     const action = createSelfDeleteActionHandler({
       workflow,
-      loadSession: async () => session,
+      loadSession: () => Promise.resolve(session),
       expectedOrigin: "http://localhost",
     });
 
@@ -119,10 +121,10 @@ describe("selfDeleteAction", () => {
   });
 
   it("redirects an unauthenticated request to sign-in without deleting", async () => {
-    const selfDelete = vi.fn(async () => ok(undefined));
+    const selfDelete = vi.fn(() => Promise.resolve(ok(undefined)));
     const action = createSelfDeleteActionHandler({
       workflow: { selfDelete },
-      loadSession: async () => null,
+      loadSession: () => Promise.resolve(null),
       expectedOrigin: "http://localhost",
     });
 

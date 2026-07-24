@@ -28,7 +28,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const BODY =
-  "This removes your display name, profile, Topics, Availability, Discoverability, and Calendar Connections. You will not appear in Organizer Searches. Audit records that are not personal are kept. To delete, type `DELETE` below.";
+  "This removes your display name, profile, Topics, Availability, Discoverability, and Calendar Connections. You will not appear in Organizer Searches. Audit records that are not personal are kept. To delete, type DELETE below.";
 
 describe("/me/delete", () => {
   beforeEach(() => {

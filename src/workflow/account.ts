@@ -7,9 +7,7 @@ export type AccountRepository = {
 };
 
 export type AccountWorkflow = {
-  selfDelete(input: {
-    userId: string;
-  }): Promise<Result<void, AccountError>>;
+  selfDelete(input: { userId: string }): Promise<Result<void, AccountError>>;
 };
 
 export function createAccountWorkflow(deps: {

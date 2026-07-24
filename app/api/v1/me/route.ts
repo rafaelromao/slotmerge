@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
-import { createPostgresAccountRepository } from "../../../../src/account/repository";
+import { getAccountRepository } from "../../../../src/account/repository";
 import {
   clearSessionCookie,
   getSessionFromRequest,
@@ -396,7 +396,7 @@ export async function DELETE(request: Request): Promise<Response> {
   }
 
   const accountWorkflow = createAccountWorkflow({
-    repository: createPostgresAccountRepository(),
+    repository: getAccountRepository(),
   });
   const result = await accountWorkflow.selfDelete({
     userId: session.user.id,

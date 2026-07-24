@@ -1959,3 +1959,82 @@ button {
     flex-direction: column;
   }
 }
+
+.btn-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--text-inverse);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--danger) 85%, black);
+  border-color: color-mix(in oklch, var(--danger) 85%, black);
+}
+
+.sign-in-success {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--success);
+  border-radius: var(--radius-md);
+  background: var(--success-soft);
+  color: var(--text-primary);
+}
+
+.delete-account-page {
+  width: min(100%, var(--container-narrow));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.delete-account-page > .btn {
+  align-self: flex-start;
+}
+
+.delete-account-warning {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.delete-account-banner {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+}
+
+.delete-account-form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.delete-account-form label {
+  font-weight: var(--weight-semibold);
+}
+
+.delete-account-form input[type="text"] {
+  width: min(100%, 28rem);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.delete-account-form input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+@media (max-width: 767px) {
+  .delete-account-form .btn,
+  .delete-account-page > .btn {
+    width: 100%;
+  }
+}

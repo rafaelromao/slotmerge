@@ -3,6 +3,7 @@ import { signInRequestMagicLinkAction } from "./_actions";
 type SearchParams = Promise<{
   error?: string | string[];
   email?: string | string[];
+  reason?: string | string[];
   returnTo?: string | string[];
 }>;
 
@@ -14,11 +15,23 @@ export default async function SignInPage({
   const params = (await searchParams) ?? {};
   const errorCode = firstString(params.error);
   const prefilledEmail = firstString(params.email) ?? "";
+  const reason = firstString(params.reason);
   const returnTo = firstString(params.returnTo) ?? "";
 
   return (
     <main className="app-container">
       <h1>Sign in</h1>
+      {reason === "deleted" ? (
+        <p
+          className="sign-in-success"
+          role="status"
+          aria-live="polite"
+          data-testid="sign-in-deleted-notice"
+        >
+          Your account has been deleted. The audit log retains your role and
+          invite history.
+        </p>
+      ) : null}
       <p className="sign-in-help">
         We will email you a sign-in link. Calendar access is separate and is
         connected later.

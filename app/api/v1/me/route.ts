@@ -1,13 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
+import { getAccountRepository } from "../../../../src/account/repository";
 import {
   clearSessionCookie,
   getSessionFromRequest,
 } from "../../../../src/auth/session";
 import { getDiscoverabilityConsent } from "../../../../src/profile/discoverability-consent";
 import {
-  deleteProfileByUserId,
   getProfileByUserId,
   updateProfileByUserId,
 } from "../../../../src/profile/repository";
@@ -16,6 +16,7 @@ import {
   type ProfileInputs,
 } from "../../../../src/search/search-snapshot-assembler";
 import { type TopicProposalStatus } from "../../../../src/db/schema";
+import { createAccountWorkflow } from "../../../../src/workflow/account";
 
 const supportedTimeZones = new Set(Intl.supportedValuesOf("timeZone"));
 
@@ -394,9 +395,14 @@ export async function DELETE(request: Request): Promise<Response> {
     return Response.json({ error: "invalid_csrf" }, { status: 403 });
   }
 
-  const deleted = await deleteProfileByUserId(session.user.id);
+  const accountWorkflow = createAccountWorkflow({
+    repository: getAccountRepository(),
+  });
+  const result = await accountWorkflow.selfDelete({
+    userId: session.user.id,
+  });
 
-  if (!deleted) {
+  if (!result.ok) {
     return Response.json({ error: "user_not_found" }, { status: 404 });
   }
 

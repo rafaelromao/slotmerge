@@ -10,6 +10,7 @@ import {
   listAvailabilityWindowsForUserInTests,
   listCalendarConnectionsForUserInTests,
 } from "../app/api/v1/me/route";
+import { setAccountRepositoryForTests } from "../src/account/repository";
 import { getProfileByUserId } from "../src/profile/repository";
 import {
   sealSessionCookie,
@@ -52,6 +53,16 @@ function setProfileStateForTests(profileState: ProfileStateBox) {
 
       profileState.current = null as unknown as ProfileState;
 
+      return Promise.resolve(true);
+    },
+  });
+  setAccountRepositoryForTests({
+    selfDelete: (userId) => {
+      if (!profileState.current || userId !== profileState.current.id) {
+        return Promise.resolve(false);
+      }
+
+      profileState.current = null as unknown as ProfileState;
       return Promise.resolve(true);
     },
   });
@@ -783,6 +794,10 @@ describe("PATCH /me", () => {
 });
 
 describe("DELETE /me", () => {
+  afterEach(() => {
+    setAccountRepositoryForTests(null);
+  });
+
   it("rejects requests without a valid session", async () => {
     const response = await DELETE(new Request("http://localhost/me"));
 
@@ -915,6 +930,9 @@ describe("DELETE /me", () => {
       findByUserId: () => Promise.resolve(null),
       updateByUserId: () => Promise.resolve(null),
       deleteByUserId: () => Promise.resolve(false),
+    });
+    setAccountRepositoryForTests({
+      selfDelete: () => Promise.resolve(false),
     });
     setSessionRepositoryForTests({
       findById: (sessionId) =>

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createAdminTopicsHandlers } from "./topics";
+import type { TopicAdminRepository } from "../topics/repository";
 
 describe("admin topics", () => {
   const mockActiveTopic = {
@@ -28,7 +29,7 @@ describe("admin topics", () => {
       topicRepository: {
         listActiveAdminTopics: vi.fn().mockResolvedValue([mockActiveTopic]),
         retire: vi.fn(),
-      },
+      } as unknown as TopicAdminRepository,
     });
 
     const response = await GET(new Request("http://localhost/admin/topics"));
@@ -60,7 +61,7 @@ describe("admin topics", () => {
       topicRepository: {
         listActiveAdminTopics: vi.fn().mockResolvedValue([]),
         retire: vi.fn(),
-      },
+      } as unknown as TopicAdminRepository,
     });
 
     const response = await GET(new Request("http://localhost/admin/topics"));
@@ -89,7 +90,7 @@ describe("admin topics", () => {
       topicRepository: {
         listActiveAdminTopics: vi.fn().mockResolvedValue([mockActiveTopic]),
         retire,
-      },
+      } as unknown as TopicAdminRepository,
     });
 
     const response = await POST(
@@ -139,7 +140,7 @@ describe("admin topics", () => {
       topicRepository: {
         listActiveAdminTopics: vi.fn().mockResolvedValue([mockActiveTopic]),
         retire,
-      },
+      } as unknown as TopicAdminRepository,
     });
 
     const response = await POST(
@@ -183,7 +184,7 @@ describe("admin topics", () => {
       topicRepository: {
         listActiveAdminTopics: vi.fn().mockResolvedValue([mockActiveTopic]),
         retire,
-      },
+      } as unknown as TopicAdminRepository,
     });
 
     const response = await POST(
@@ -224,7 +225,7 @@ describe("admin topics", () => {
       topicRepository: {
         listActiveAdminTopics: vi.fn().mockResolvedValue([mockActiveTopic]),
         retire,
-      },
+      } as unknown as TopicAdminRepository,
     });
 
     const response = await POST(
@@ -262,7 +263,7 @@ describe("admin topics", () => {
       topicRepository: {
         listActiveAdminTopics: vi.fn().mockResolvedValue([]),
         retire: vi.fn(),
-      },
+      } as unknown as TopicAdminRepository,
     });
 
     const getResponse = await GET(new Request("http://localhost/admin/topics"));
@@ -282,7 +283,7 @@ describe("admin topics", () => {
       topicRepository: {
         listActiveAdminTopics: vi.fn().mockResolvedValue([]),
         retire: vi.fn(),
-      },
+      } as unknown as TopicAdminRepository,
     });
 
     const getResponse = await GET(new Request("http://localhost/admin/topics"));

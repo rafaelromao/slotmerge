@@ -38,10 +38,24 @@ export type ApproveResult =
 export type RejectResult =
   { ok: true } | { ok: false; reason: "already_processed" };
 
+export type DecideProposalStatus = "approved" | "rejected";
+
+export type DecideProposalResult =
+  | { ok: true; topicId: string | null }
+  | {
+      ok: false;
+      reason: "proposal_not_found" | "proposal_already_decided";
+    };
+
 export type TopicProposalAdminRepository = {
   listPending(): Promise<TopicProposalListItem[]>;
   approve(input: { id: string; now: Date }): Promise<ApproveResult>;
   reject(input: { id: string; now: Date }): Promise<RejectResult>;
+  decideProposal(input: {
+    id: string;
+    status: DecideProposalStatus;
+    now: Date;
+  }): Promise<DecideProposalResult>;
 };
 
 export type TopicProposalUserRepository = {
@@ -152,6 +166,54 @@ export function createPostgresTopicProposalRepository(
         .where(eq(topicProposals.id, id));
 
       return { ok: true };
+    },
+
+    async decideProposal({ id, status, now }) {
+      const result = await db.transaction(async (tx) => {
+        const [proposal] = await tx
+          .select({
+            id: topicProposals.id,
+            candidateName: topicProposals.candidateName,
+            proposedByUserId: topicProposals.proposedByUserId,
+            status: topicProposals.status,
+          })
+          .from(topicProposals)
+          .where(eq(topicProposals.id, id))
+          .limit(1);
+
+        if (!proposal) {
+          return { ok: false, reason: "proposal_not_found" } as const;
+        }
+
+        if (proposal.status !== "pending") {
+          return { ok: false, reason: "proposal_already_decided" } as const;
+        }
+
+        let createdTopicId: string | null = null;
+
+        if (status === "approved") {
+          const [topic] = await tx
+            .insert(topics)
+            .values({
+              name: proposal.candidateName,
+              status: "active",
+              proposedByUserId: proposal.proposedByUserId,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning({ id: topics.id });
+          createdTopicId = topic?.id ?? null;
+        }
+
+        await tx
+          .update(topicProposals)
+          .set({ status, updatedAt: now })
+          .where(eq(topicProposals.id, id));
+
+        return { ok: true, topicId: createdTopicId } as const;
+      });
+
+      return result;
     },
 
     async findPendingByUserAndName(userId, candidateName) {

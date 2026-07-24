@@ -214,6 +214,9 @@ export const topics = pgTable("topics", {
   name: text("name").notNull().unique(),
   status: text("status").$type<TopicStatus>().notNull().default("pending"),
   retiredAt: timestamp("retired_at", { withTimezone: true }),
+  proposedByUserId: uuid("proposed_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

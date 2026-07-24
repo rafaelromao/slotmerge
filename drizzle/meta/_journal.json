@@ -148,6 +148,13 @@
       "when": 1784721600014,
       "tag": "0014_user_magic_link_generation",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784721600015,
+      "tag": "0015_topics_proposed_by_user_id",
+      "breakpoints": true
     }
   ]
 }

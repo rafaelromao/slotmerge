@@ -2,8 +2,10 @@ import { and, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import {
+  topicProposals,
   topics,
   userTopics,
+  users,
   type TopicAssociationStatus,
   type TopicStatus,
 } from "../db/schema";
@@ -19,11 +21,24 @@ export type AdminTopicListItem = {
   name: string;
   status: TopicStatus;
   retiredAt: Date | null;
+  proposedByUserId: string | null;
+  createdAt: Date;
+};
+
+export type AdminTopicProposalListItem = {
+  id: string;
+  candidateName: string;
+  proposedByUserId: string | null;
+  proposedByUserEmail: string | null;
   createdAt: Date;
 };
 
 export type RetireResult =
   { ok: true } | { ok: false; reason: "not_found" | "already_retired" };
+
+export type AdminRetireTopicResult =
+  | { ok: true }
+  | { ok: false; reason: "not_found" | "already_retired" };
 
 export type TopicAssociation = {
   topicId: string;
@@ -43,7 +58,13 @@ export type TopicCatalogueRepository = {
 
 export type TopicAdminRepository = {
   listActiveAdminTopics(): Promise<AdminTopicListItem[]>;
+  listPendingTopicProposals(): Promise<AdminTopicProposalListItem[]>;
+  findAdminTopicById(id: string): Promise<AdminTopicListItem | null>;
   retire(input: { id: string; now: Date }): Promise<RetireResult>;
+  retireTopic(input: {
+    id: string;
+    now: Date;
+  }): Promise<AdminRetireTopicResult>;
 };
 
 export type TopicCatalogueAndAdminRepository = TopicCatalogueRepository &
@@ -129,11 +150,42 @@ export function createPostgresTopicCatalogueRepository(
           name: topics.name,
           status: topics.status,
           retiredAt: topics.retiredAt,
+          proposedByUserId: topics.proposedByUserId,
           createdAt: topics.createdAt,
         })
         .from(topics)
         .where(eq(topics.status, "active"))
         .orderBy(desc(topics.createdAt)),
+    listPendingTopicProposals: async () => {
+      const rows = await db
+        .select({
+          id: topicProposals.id,
+          candidateName: topicProposals.candidateName,
+          proposedByUserId: topicProposals.proposedByUserId,
+          proposedByUserEmail: users.email,
+          createdAt: topicProposals.createdAt,
+        })
+        .from(topicProposals)
+        .leftJoin(users, eq(topicProposals.proposedByUserId, users.id))
+        .where(eq(topicProposals.status, "pending"))
+        .orderBy(desc(topicProposals.createdAt));
+      return rows;
+    },
+    findAdminTopicById: async (id) => {
+      const [row] = await db
+        .select({
+          id: topics.id,
+          name: topics.name,
+          status: topics.status,
+          retiredAt: topics.retiredAt,
+          proposedByUserId: topics.proposedByUserId,
+          createdAt: topics.createdAt,
+        })
+        .from(topics)
+        .where(eq(topics.id, id))
+        .limit(1);
+      return row ?? null;
+    },
     retire: async ({ id, now }) => {
       const [topic] = await db
         .select({ status: topics.status })
@@ -155,6 +207,42 @@ export function createPostgresTopicCatalogueRepository(
         .where(eq(topics.id, id));
 
       return { ok: true };
+    },
+    retireTopic: async ({ id, now }) => {
+      const result = await db.transaction(async (tx) => {
+        const [topic] = await tx
+          .select({ status: topics.status })
+          .from(topics)
+          .where(eq(topics.id, id))
+          .limit(1);
+
+        if (!topic) {
+          return { ok: false, reason: "not_found" } as const;
+        }
+
+        if (topic.status === "retired") {
+          return { ok: false, reason: "already_retired" } as const;
+        }
+
+        await tx
+          .update(topics)
+          .set({ status: "retired", retiredAt: now, updatedAt: now })
+          .where(eq(topics.id, id));
+
+        await tx
+          .update(userTopics)
+          .set({ status: "historical", updatedAt: now })
+          .where(
+            and(
+              eq(userTopics.topicId, id),
+              eq(userTopics.status, "active"),
+            ),
+          );
+
+        return { ok: true } as const;
+      });
+
+      return result;
     },
   };
 }

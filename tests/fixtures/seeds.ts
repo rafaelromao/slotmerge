@@ -1,6 +1,7 @@
 import {
   users,
   topics,
+  topicProposals,
   availabilityWindows,
   availabilityOverrides,
   calendarConnections,
@@ -48,21 +49,52 @@ export const TOPIC_FIXTURES = [
     id: "00000000-0000-0000-0000-000000000010",
     name: "Product strategy",
     status: "active" as const,
+    proposedByUserId: null,
   },
   {
     id: "00000000-0000-0000-0000-000000000011",
     name: "AI engineering",
     status: "active" as const,
+    proposedByUserId: null,
   },
   {
     id: "00000000-0000-0000-0000-000000000012",
     name: "Design systems",
     status: "pending" as const,
+    proposedByUserId: null,
   },
   {
     id: "00000000-0000-0000-0000-000000000013",
     name: "Legacy codebase",
     status: "retired" as const,
+    proposedByUserId: null,
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000014",
+    name: "Identity and access",
+    status: "active" as const,
+    proposedByUserId: USER_FIXTURES[2].id,
+  },
+];
+
+export const TOPIC_PROPOSAL_FIXTURES = [
+  {
+    id: "00000000-0000-0000-0000-000000000060",
+    proposedByUserId: USER_FIXTURES[2].id,
+    candidateName: "Engineering management",
+    status: "pending" as const,
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000061",
+    proposedByUserId: USER_FIXTURES[0].id,
+    candidateName: "Distributed tracing",
+    status: "pending" as const,
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000062",
+    proposedByUserId: USER_FIXTURES[2].id,
+    candidateName: "Identity and access",
+    status: "approved" as const,
   },
 ];
 
@@ -237,6 +269,7 @@ export async function seedAll(db: AppDb): Promise<void> {
         name: topic.name,
         status: topic.status,
         retiredAt: topic.status === "retired" ? now : null,
+        proposedByUserId: topic.proposedByUserId ?? null,
         createdAt: now,
         updatedAt: now,
       })
@@ -246,6 +279,29 @@ export async function seedAll(db: AppDb): Promise<void> {
           name: topic.name,
           status: topic.status,
           retiredAt: topic.status === "retired" ? now : null,
+          proposedByUserId: topic.proposedByUserId ?? null,
+          updatedAt: now,
+        },
+      });
+  }
+
+  for (const proposal of TOPIC_PROPOSAL_FIXTURES) {
+    await db
+      .insert(topicProposals)
+      .values({
+        id: proposal.id,
+        proposedByUserId: proposal.proposedByUserId,
+        candidateName: proposal.candidateName,
+        status: proposal.status,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: topicProposals.id,
+        set: {
+          proposedByUserId: proposal.proposedByUserId,
+          candidateName: proposal.candidateName,
+          status: proposal.status,
           updatedAt: now,
         },
       });

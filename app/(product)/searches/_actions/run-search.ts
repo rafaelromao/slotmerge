@@ -10,6 +10,7 @@ import { getSearchResultRepository } from "../../../../src/search/search-result-
 import { getDiscoverableUserRepository } from "../../../../src/search/discoverable-user-repository";
 import { getProfileByUserId } from "../../../../src/profile/repository";
 import { systemClock } from "../../../../src/system/clock";
+import { sealSearchFeedbackToken } from "../../../../src/workflow/search-feedback";
 import { createSearchWorkflow } from "../../../../src/workflow/search";
 import {
   buildSearchActionHandler,
@@ -49,34 +50,24 @@ async function buildRequest(url: string): Promise<Request> {
   });
 }
 
-function handleResult(result: SearchActionResult): never {
-  switch (result.kind) {
-    case "redirect":
-      redirect(result.to);
-      break;
-    case "csrf-error":
-      throw new CsrfError();
-      break;
-    case "form-error": {
-      const params = new URLSearchParams({
-        error: result.code,
-        field: result.field,
-        minimumMatchingUsers: result.values.minimumMatchingUsers,
-        durationMinutes: result.values.durationMinutes,
-        dateRangeStart: result.values.dateRangeStart,
-        dateRangeEnd: result.values.dateRangeEnd,
-        organizerTimezone: result.values.organizerTimezone,
-      });
-      for (const topicId of result.values.selectedTopicIds) {
-        params.append("topicIds", topicId);
-      }
-      redirect(`/searches?${params.toString()}`);
-      break;
-    }
+async function handleResult(result: SearchActionResult): Promise<never> {
+  if (result.kind === "redirect") {
+    redirect(result.to);
+    throw new Error("redirect() should not return");
   }
+  if (result.kind === "csrf-error") {
+    throw new CsrfError();
+  }
+  const sealed = await sealSearchFeedbackToken({
+    code: result.code,
+    field: result.field,
+    values: result.values,
+  });
+  redirect(`/searches?feedback=${encodeURIComponent(sealed)}`);
+  throw new Error("redirect() should not return");
 }
 
-export async function runSearchAction(formData: FormData): Promise<never> {
+export async function runSearchAction(formData: FormData): Promise<void> {
   const workflow = buildWorkflow();
   const handler = buildSearchActionHandler({
     workflow,
@@ -85,7 +76,7 @@ export async function runSearchAction(formData: FormData): Promise<never> {
 
   const request = await buildRequest("http://localhost/searches/run");
   const result = await handler.runSearch({ formData, request });
-  handleResult(result);
+  await handleResult(result);
+  throw new Error("runSearchAction should not reach this line");
 }
-
 export { buildSearchActionHandler };

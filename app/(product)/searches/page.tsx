@@ -7,17 +7,15 @@ import { getProfileByUserId } from "../../../src/profile/repository";
 import { getSearchResultRepository } from "../../../src/search/search-result-repository";
 import { systemClock } from "../../../src/system/clock";
 import { createSearchWorkflow } from "../../../src/workflow/search";
+import {
+  feedbackToFieldErrors,
+  unsealSearchFeedbackToken,
+  type SearchFieldName,
+} from "../../../src/workflow/search-feedback";
 import { runSearchAction } from "./_actions/run-search";
 
 type SearchParams = Promise<{
-  error?: string | string[];
-  field?: string | string[];
-  topicIds?: string | string[];
-  minimumMatchingUsers?: string | string[];
-  durationMinutes?: string | string[];
-  dateRangeStart?: string | string[];
-  dateRangeEnd?: string | string[];
-  organizerTimezone?: string | string[];
+  feedback?: string | string[];
 }>;
 
 type FieldErrorCode =
@@ -77,11 +75,6 @@ function readFirstString(
   return value;
 }
 
-function readStringArray(value: string | string[] | undefined): string[] {
-  if (Array.isArray(value)) return value;
-  return value ? [value] : [];
-}
-
 export default async function SearchesPage({
   searchParams,
 }: {
@@ -92,8 +85,17 @@ export default async function SearchesPage({
   });
 
   const params = (await searchParams) ?? {};
-  const errorCode = parseFieldErrorCode(readFirstString(params.error));
-  const errorField = readFirstString(params.field);
+  const feedbackSealed = readFirstString(params.feedback);
+  const feedbackToken = feedbackSealed
+    ? await unsealSearchFeedbackToken(feedbackSealed)
+    : null;
+  const decoded = feedbackToken ? feedbackToFieldErrors(feedbackToken) : null;
+  const errorCode =
+    decoded && decoded.fieldErrors[decoded.field]
+      ? parseFieldErrorCode(decoded.fieldErrors[decoded.field])
+      : null;
+  const errorField: SearchFieldName | undefined = decoded?.field;
+  const feedbackValues = decoded?.values;
 
   const workflow = createSearchWorkflow({
     clock: systemClock(),
@@ -128,30 +130,35 @@ export default async function SearchesPage({
 
   const hasActiveTopics = activeTopics.length > 0;
   const defaults = formState.defaults;
+  const fb = feedbackValues;
+  const fbStart = fb?.dateRangeStart ?? "";
+  const fbEnd = fb?.dateRangeEnd ?? "";
+  const fbMin = fb?.minimumMatchingUsers ?? "";
+  const fbDuration = fb?.durationMinutes ?? "";
+  const fbTimezone = fb?.organizerTimezone ?? "";
 
-  const dateRangeStartInput = errorCode
-    ? (readFirstString(params.dateRangeStart) ??
-      formatDateForInput(defaults.dateRangeStart, defaults.organizerTimezone))
+  const dateRangeStartInput = fb
+    ? fbStart ||
+      formatDateForInput(defaults.dateRangeStart, defaults.organizerTimezone)
     : formatDateForInput(defaults.dateRangeStart, defaults.organizerTimezone);
-  const dateRangeEndInput = errorCode
-    ? (readFirstString(params.dateRangeEnd) ??
-      formatDateForInput(defaults.dateRangeEnd, defaults.organizerTimezone))
+  const dateRangeEndInput = fb
+    ? fbEnd ||
+      formatDateForInput(defaults.dateRangeEnd, defaults.organizerTimezone)
     : formatDateForInput(defaults.dateRangeEnd, defaults.organizerTimezone);
-  const minimumMatchingUsersInput = errorCode
-    ? (readFirstString(params.minimumMatchingUsers) ??
-      String(defaults.minimumMatchingUsers))
+  const minimumMatchingUsersInput = fb
+    ? fbMin || String(defaults.minimumMatchingUsers)
     : String(defaults.minimumMatchingUsers);
-  const durationMinutesInput = errorCode
-    ? (readFirstString(params.durationMinutes) ??
-      String(defaults.durationMinutes))
+  const durationMinutesInput = fb
+    ? fbDuration || String(defaults.durationMinutes)
     : String(defaults.durationMinutes);
-  const organizerTimezoneInput = errorCode
-    ? (readFirstString(params.organizerTimezone) ?? defaults.organizerTimezone)
+  const organizerTimezoneInput = fb
+    ? fbTimezone || defaults.organizerTimezone
     : defaults.organizerTimezone;
-  const selectedTopicIds = new Set(
-    errorCode ? readStringArray(params.topicIds) : defaults.selectedTopicIds,
-  );
-  const errorMessage = errorCode ? FIELD_ERROR_MESSAGES[errorCode] : null;
+  const selectedTopicIds = new Set(fb?.selectedTopicIds ?? []);
+  const errorMessage =
+    errorCode === "organizer_timezone_required"
+      ? FIELD_ERROR_MESSAGES.organizer_timezone_required
+      : null;
   const isTimezoneError =
     errorCode === "organizer_timezone_required" &&
     errorField === "organizerTimezone";
@@ -160,7 +167,7 @@ export default async function SearchesPage({
     <main className="app-container" data-testid="searches-page">
       <h1 data-testid="searches-page-heading">Run a Search</h1>
 
-      {errorMessage && errorField !== "form" ? (
+      {errorMessage ? (
         <p
           className="form-error-banner"
           role="alert"
@@ -168,7 +175,7 @@ export default async function SearchesPage({
           data-field={errorField ?? ""}
           data-code={errorCode ?? ""}
         >
-          {errorMessage}
+          {errorMessage} <a href="/me/profile">Set timezone</a>
         </p>
       ) : null}
 
@@ -339,18 +346,14 @@ export default async function SearchesPage({
             type="date"
             name="dateRangeEnd"
             defaultValue={dateRangeEndInput}
-            aria-invalid={
-              errorField === "dateRangeEnd" || errorField === "dateRangeStart"
-            }
+            aria-invalid={errorField === "dateRangeEnd"}
             aria-describedby={
-              errorField === "dateRangeEnd" || errorField === "dateRangeStart"
-                ? "dateRangeEnd-error"
-                : undefined
+              errorField === "dateRangeEnd" ? "dateRangeEnd-error" : undefined
             }
             data-testid="searches-daterange-end"
           />
           {errorCode === "date_range_invalid" &&
-          (errorField === "dateRangeEnd" || errorField === "dateRangeStart") ? (
+          errorField === "dateRangeEnd" ? (
             <p
               id="dateRangeEnd-error"
               className="form-field-error"

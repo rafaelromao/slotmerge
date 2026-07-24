@@ -106,11 +106,11 @@ describe("searchWorkflow.buildForm", () => {
     expect(state.profileTimezone).toBe("America/Sao_Paulo");
   });
 
-  it("falls back to UTC when the profile has no timezone", async () => {
+  it("falls back to UTC for the date range when the profile has no timezone", async () => {
     const { workflow } = buildWorkflow({ profile: utcProfile });
     const state = await workflow.buildForm({ userId: "organizer-2" });
 
-    expect(state.defaults.organizerTimezone).toBe("UTC");
+    expect(state.defaults.organizerTimezone).toBe("");
     expect(state.profileTimezone).toBeNull();
     expect(state.defaults.dateRangeStart.toISOString()).toBe(
       "2026-07-06T00:00:00.000Z",

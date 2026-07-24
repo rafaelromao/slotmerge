@@ -68,6 +68,8 @@ export const MINIMUM_MATCHING_USERS_MIN = 2;
 export const DURATION_MIN_MINUTES = 15;
 export const DURATION_MAX_MINUTES = 240;
 export const DATE_RANGE_WEEKS = 5;
+export const DATE_RANGE_MAX_DAYS = 90;
+export const DATE_RANGE_MAX_MS = DATE_RANGE_MAX_DAYS * 24 * 60 * 60 * 1000;
 
 export function createSearchWorkflow(
   deps: CreateSearchWorkflowDeps,
@@ -85,12 +87,13 @@ export function createSearchWorkflow(
     async buildForm({ userId }) {
       const profile = await profileRepository.findByUserId(userId);
       const profileTimezone = profile?.profileTimezone ?? null;
-      const organizerTimezone = profileTimezone ?? "UTC";
-
-      const start = startOfWeekInTimezone(clock.now(), organizerTimezone);
+      const start = profile?.profileTimezone
+        ? startOfWeekInTimezone(clock.now(), profile.profileTimezone)
+        : startOfWeekInTimezone(clock.now(), "UTC");
       const end = new Date(
         start.getTime() + DATE_RANGE_WEEKS * 7 * 24 * 60 * 60 * 1000,
       );
+      const organizerTimezone = profile?.profileTimezone ?? "";
 
       const state: SearchFormState = {
         defaults: {
@@ -234,6 +237,8 @@ function validateRaw(raw: SearchFormDefaults): SearchFieldErrors {
   if (!start || !end) {
     errors.dateRangeEnd = "date_range_invalid";
   } else if (end.getTime() <= start.getTime()) {
+    errors.dateRangeEnd = "date_range_invalid";
+  } else if (end.getTime() - start.getTime() > DATE_RANGE_MAX_MS) {
     errors.dateRangeEnd = "date_range_invalid";
   }
 

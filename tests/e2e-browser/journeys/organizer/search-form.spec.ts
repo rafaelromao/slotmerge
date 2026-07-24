@@ -58,7 +58,7 @@ test.describe("Search form journey", () => {
     await expect(page.getByTestId("searches-form")).toBeVisible();
     await page.getByTestId("searches-run-button").click();
 
-    await page.waitForURL(/\/searches\?error=selected_topics_required/);
+    await page.waitForURL(/\/searches\?feedback=/);
     await expect(
       page.getByTestId("searches-field-error-selectedTopics"),
     ).toBeVisible();
@@ -87,7 +87,7 @@ test.describe("Search form journey", () => {
     await firstCheckbox.check();
     await page.getByTestId("searches-run-button").click();
 
-    await page.waitForURL(/\/searches\?error=topic_retired/);
+    await page.waitForURL(/\/searches\?feedback=/);
     await expect(
       page.getByTestId("searches-field-error-selectedTopics"),
     ).toBeVisible();
@@ -108,7 +108,7 @@ test.describe("Search form journey", () => {
     await page.getByTestId("searches-minimum-input").fill("1");
     await page.getByTestId("searches-run-button").click();
 
-    await page.waitForURL(/\/searches\?error=minimum_out_of_range/);
+    await page.waitForURL(/\/searches\?feedback=/);
     await expect(
       page.getByTestId("searches-field-error-minimumMatchingUsers"),
     ).toBeVisible();
@@ -126,7 +126,7 @@ test.describe("Search form journey", () => {
     await page.getByTestId("searches-duration-input").fill("10");
     await page.getByTestId("searches-run-button").click();
 
-    await page.waitForURL(/\/searches\?error=duration_out_of_range/);
+    await page.waitForURL(/\/searches\?feedback=/);
     await expect(
       page.getByTestId("searches-field-error-durationMinutes"),
     ).toBeVisible();
@@ -145,7 +145,7 @@ test.describe("Search form journey", () => {
     await page.getByTestId("searches-daterange-end").fill("2026-07-06");
     await page.getByTestId("searches-run-button").click();
 
-    await page.waitForURL(/\/searches\?error=date_range_invalid/);
+    await page.waitForURL(/\/searches\?feedback=/);
     await expect(
       page.getByTestId("searches-field-error-dateRangeEnd"),
     ).toBeVisible();
@@ -163,7 +163,7 @@ test.describe("Search form journey", () => {
     await page.getByTestId("searches-timezone-input").fill("");
     await page.getByTestId("searches-run-button").click();
 
-    await page.waitForURL(/\/searches\?error=organizer_timezone_required/);
+    await page.waitForURL(/\/searches\?feedback=/);
     await expect(page.getByTestId("searches-error-banner")).toBeVisible();
     await expect(page.getByTestId("searches-error-banner")).toContainText(
       "Set your profile timezone",

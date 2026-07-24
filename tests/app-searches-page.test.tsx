@@ -7,6 +7,7 @@ import { InMemorySearchRepository } from "../src/search/in-memory-repository";
 import { setSearchRepositoryForTests } from "../src/search/repository";
 import { InMemorySearchResultRepository } from "../src/search/search-result-in-memory-repository";
 import { setSearchResultRepositoryForTests } from "../src/search/search-result-repository";
+import { sealSearchFeedbackToken } from "../src/workflow/search-feedback";
 import {
   setDiscoverableUserRepositoryForTests,
   type DiscoverableUserRepository,
@@ -194,15 +195,24 @@ describe("/searches page", () => {
     expect(html).toMatch(/disabled[^>]*title="No active Topics available\."/);
   });
 
-  it("renders the inline organizer_timezone_required banner when error query is set", async () => {
+  it("renders the inline organizer_timezone_required banner when feedback token decodes", async () => {
     const { default: SearchesPage } =
       await import("../app/(product)/searches/page");
+    const sealed = await sealSearchFeedbackToken({
+      code: "organizer_timezone_required",
+      field: "organizerTimezone",
+      values: {
+        selectedTopicIds: [],
+        minimumMatchingUsers: "2",
+        durationMinutes: "60",
+        dateRangeStart: "2026-07-07",
+        dateRangeEnd: "2026-08-11",
+        organizerTimezone: "",
+      },
+    });
     const html = renderToString(
       await SearchesPage({
-        searchParams: Promise.resolve({
-          error: "organizer_timezone_required",
-          field: "organizerTimezone",
-        }),
+        searchParams: Promise.resolve({ feedback: sealed }),
       }),
     );
 
@@ -215,12 +225,21 @@ describe("/searches page", () => {
   it("renders the inline selected_topics_required error next to the topic list", async () => {
     const { default: SearchesPage } =
       await import("../app/(product)/searches/page");
+    const sealed = await sealSearchFeedbackToken({
+      code: "selected_topics_required",
+      field: "selectedTopics",
+      values: {
+        selectedTopicIds: [],
+        minimumMatchingUsers: "2",
+        durationMinutes: "60",
+        dateRangeStart: "2026-07-07",
+        dateRangeEnd: "2026-08-11",
+        organizerTimezone: "America/Los_Angeles",
+      },
+    });
     const html = renderToString(
       await SearchesPage({
-        searchParams: Promise.resolve({
-          error: "selected_topics_required",
-          field: "selectedTopics",
-        }),
+        searchParams: Promise.resolve({ feedback: sealed }),
       }),
     );
 
@@ -231,18 +250,21 @@ describe("/searches page", () => {
   it("preserves submitted values when rendering an inline validation error", async () => {
     const { default: SearchesPage } =
       await import("../app/(product)/searches/page");
+    const sealed = await sealSearchFeedbackToken({
+      code: "duration_out_of_range",
+      field: "durationMinutes",
+      values: {
+        selectedTopicIds: ["topic-1", "topic-2"],
+        minimumMatchingUsers: "4",
+        durationMinutes: "10",
+        dateRangeStart: "2026-07-07",
+        dateRangeEnd: "2026-08-11",
+        organizerTimezone: "Europe/Lisbon",
+      },
+    });
     const html = renderToString(
       await SearchesPage({
-        searchParams: Promise.resolve({
-          error: "duration_out_of_range",
-          field: "durationMinutes",
-          topicIds: ["topic-1", "topic-2"],
-          minimumMatchingUsers: "4",
-          durationMinutes: "10",
-          dateRangeStart: "2026-07-07",
-          dateRangeEnd: "2026-08-11",
-          organizerTimezone: "Europe/Lisbon",
-        }),
+        searchParams: Promise.resolve({ feedback: sealed }),
       }),
     );
 
@@ -258,12 +280,21 @@ describe("/searches page", () => {
   it("renders the topic_retired error when a topic id is no longer active", async () => {
     const { default: SearchesPage } =
       await import("../app/(product)/searches/page");
+    const sealed = await sealSearchFeedbackToken({
+      code: "topic_retired",
+      field: "selectedTopics",
+      values: {
+        selectedTopicIds: ["topic-1", "topic-retired"],
+        minimumMatchingUsers: "2",
+        durationMinutes: "60",
+        dateRangeStart: "2026-07-07",
+        dateRangeEnd: "2026-08-11",
+        organizerTimezone: "America/Los_Angeles",
+      },
+    });
     const html = renderToString(
       await SearchesPage({
-        searchParams: Promise.resolve({
-          error: "topic_retired",
-          field: "selectedTopics",
-        }),
+        searchParams: Promise.resolve({ feedback: sealed }),
       }),
     );
 

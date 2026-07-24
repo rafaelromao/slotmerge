@@ -1,21 +1,15 @@
 import type { Session } from "../../../../src/auth/session";
 import { assertCsrfFromFormData, CsrfError } from "../../../../src/lib/csrf";
-import {
-  type SearchFormDefaults,
-  type SearchFieldErrorCode,
-  type SearchFieldErrors,
-  type SearchWorkflow,
-} from "../../../../src/workflow/search";
 import { loadRuntimeConfig } from "../../../../src/config/runtime";
+import type {
+  SearchFieldErrors,
+  SearchFieldErrorCode,
+  SearchFormDefaults,
+  SearchWorkflow,
+} from "../../../../src/workflow/search";
+import type { SearchFieldName } from "../../../../src/workflow/search-feedback";
 
-export type SearchFormErrorField =
-  | "selectedTopics"
-  | "minimumMatchingUsers"
-  | "durationMinutes"
-  | "dateRangeStart"
-  | "dateRangeEnd"
-  | "organizerTimezone"
-  | "form";
+export type SearchFormErrorField = SearchFieldName;
 
 export type SearchFormValues = {
   selectedTopicIds: string[];

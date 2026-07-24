@@ -16,7 +16,14 @@ export function buildGoogleCalendarAuthorizationUrl({
   codeChallenge,
   state,
 }: GoogleCalendarAuthorizationUrlInput): string {
-  const url = new URL(GOOGLE_AUTHORIZATION_ENDPOINT);
+  const mockBrowserUrl = process.env.LOCAL_PROVIDER_BROWSER_URL;
+  const useMock =
+    (process.env.APP_ENV === "local" || process.env.APP_ENV === "test") &&
+    process.env.CALENDAR_PROVIDER_MODE === "mock" &&
+    Boolean(mockBrowserUrl);
+  const url = useMock
+    ? new URL("/google/authorize", mockBrowserUrl)
+    : new URL(GOOGLE_AUTHORIZATION_ENDPOINT);
   url.searchParams.set("client_id", clientId);
   url.searchParams.set(
     "redirect_uri",

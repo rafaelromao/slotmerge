@@ -72,8 +72,11 @@ export async function handleSyncCalendarConnectionJob(
   let connectionLookup: CalendarConnectionUserLookup;
 
   try {
+    if (!connection.accessTokenEncrypted) {
+      throw new Error("Calendar connection has no access token");
+    }
     accessToken = decryptCalendarToken({
-      ciphertext: connection.accessTokenEncrypted ?? "",
+      ciphertext: connection.accessTokenEncrypted,
       key: tokenEncryptionKey,
     });
 
@@ -123,7 +126,9 @@ export async function handleSyncCalendarConnectionJob(
     process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
   const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
   const fetchImpl =
-    isLocalOrTest && overrideUrl
+    isLocalOrTest &&
+    process.env.CALENDAR_PROVIDER_MODE === "mock" &&
+    overrideUrl
       ? createProviderFetchImpl(fetch, overrideUrl)
       : fetch;
 

@@ -99,6 +99,7 @@ const baseProps: CalendarConnectionsViewProps = {
   csrfToken: "csrf-token-1",
   pageState: null,
   outcome: { kind: "none" },
+  mutationOutcome: { kind: "none" },
   saveAction: noopAction,
   refreshAction: noopAction,
   disconnectAction: noopAction,
@@ -285,6 +286,41 @@ describe("/me/calendar-connections (Calendar Connections page)", () => {
     expect(html).toContain(
       'data-testid="calendar-connection-disconnect-confirm-connected"',
     );
+  });
+
+  it("renders a typed mutation error on the owning row", () => {
+    const pageState: CalendarConnectionPageState = {
+      connections: [
+        {
+          id: "connected",
+          provider: "google",
+          accountIdentifier: "user@gmail.com",
+          displayStatus: "connected",
+          lastSyncAt: systemClock().now(),
+          stale: false,
+          calendars: [],
+          calendarsError: true,
+        },
+      ],
+    };
+    const html = renderToString(
+      <CalendarConnectionsView
+        {...baseProps}
+        pageState={pageState}
+        mutationOutcome={{
+          kind: "error",
+          intent: "disconnect",
+          connectionId: "connected",
+          errorCode: "invalid_confirmation",
+        }}
+      />,
+    );
+
+    expect(html).toContain(
+      'data-testid="calendar-connection-mutation-error-connected"',
+    );
+    expect(html).toContain("The account identifier does not match.");
+    expect(html).toContain('role="alert"');
   });
 
   it("renders a Reconnect action instead of Save/Refresh/Disconnect when needs_reconnect", () => {

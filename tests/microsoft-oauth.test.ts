@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildMicrosoftCalendarAuthorizationUrl,
@@ -6,6 +6,10 @@ import {
 } from "../src/calendar/microsoft-oauth";
 
 describe("Microsoft Calendar OAuth", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("returns the Calendars.ReadBasic scope string with offline_access", () => {
     expect(getMicrosoftCalendarScopes()).toBe(
       "offline_access Calendars.ReadBasic",
@@ -36,5 +40,26 @@ describe("Microsoft Calendar OAuth", () => {
     expect(url.searchParams.get("code_challenge")).toBe("code-challenge");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("state")).toBe("sealed-state");
+  });
+
+  it("uses the browser-visible provider mock only behind both local gates", () => {
+    vi.stubEnv("APP_ENV", "local");
+    vi.stubEnv("CALENDAR_PROVIDER_MODE", "mock");
+    vi.stubEnv("LOCAL_PROVIDER_BROWSER_URL", "http://localhost:3001");
+
+    const url = new URL(
+      buildMicrosoftCalendarAuthorizationUrl({
+        baseUrl: "http://localhost:3000",
+        clientId: "microsoft-client-id",
+        codeChallenge: "code-challenge",
+        state: "sealed-state",
+      }),
+    );
+
+    expect(url.origin).toBe("http://localhost:3001");
+    expect(url.pathname).toBe("/microsoft/authorize");
+    expect(url.searchParams.get("redirect_uri")).toBe(
+      "http://localhost:3000/me/calendar-connections/callback",
+    );
   });
 });

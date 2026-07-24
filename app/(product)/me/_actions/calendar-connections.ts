@@ -16,6 +16,11 @@ import { decryptCalendarToken } from "../../../../src/calendar/token-encryption"
 import { createProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
 import { CsrfError, assertCsrfFromFormData } from "../../../../src/lib/csrf";
 import { listProviderCalendarsForProvider } from "../../../../src/calendar/providers";
+import { systemClock } from "../../../../src/system/clock";
+import {
+  createCalendarConnectionWorkflow,
+  type CalendarConnectionMutationError,
+} from "../../../../src/workflow/calendar-connection";
 
 export type CalendarConnectionFormIntent = "save" | "refresh" | "disconnect";
 
@@ -101,72 +106,89 @@ function providerFetchImpl(): typeof fetch {
   const isLocalOrTest =
     process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
   const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
-  return isLocalOrTest && overrideUrl
+  return isLocalOrTest &&
+    process.env.CALENDAR_PROVIDER_MODE === "mock" &&
+    overrideUrl
     ? createProviderFetchImpl(fetch, overrideUrl)
     : fetch;
+}
+
+function createMutationWorkflow() {
+  const repository = getCalendarConnectionRepository();
+  return createCalendarConnectionWorkflow({
+    repository,
+    clock: systemClock(),
+    listProviderCalendars: async (connection) => {
+      const tokenEncryptionKey = process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
+      if (!tokenEncryptionKey || !connection.accessTokenEncrypted) {
+        throw new Error("Calendar provider token is unavailable");
+      }
+      const accessToken = decryptCalendarToken({
+        ciphertext: connection.accessTokenEncrypted,
+        key: tokenEncryptionKey,
+      });
+      return listProviderCalendarsForProvider(
+        getCalendarProvider(connection.provider),
+        accessToken,
+        providerFetchImpl(),
+      );
+    },
+    enqueueRefresh: async (connectionId) => {
+      await enqueueSyncCalendarConnectionJob(
+        connectionId,
+        loadRuntimeConfig().databaseUrl,
+      );
+    },
+    revokeConnection: async (connection) => {
+      const tokenEncryptionKey = process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
+      if (!tokenEncryptionKey) {
+        throw new Error("Calendar OAuth is not configured");
+      }
+      await revokeCalendarConnection({
+        provider: getCalendarProvider(connection.provider),
+        repository,
+        connectionId: connection.id,
+        fetchImpl: providerFetchImpl(),
+        tokenEncryptionKey,
+      });
+    },
+  });
+}
+
+function mutationErrorCode(
+  error: CalendarConnectionMutationError,
+): CalendarConnectionFormErrorCode {
+  return {
+    not_found: "forbidden",
+    invalid_calendars: "invalid_input",
+    provider_unavailable: "provider_request_failed",
+    enqueue_failed: "enqueue_failed",
+    invalid_confirmation: "invalid_confirmation",
+    disconnect_failed: "provider_request_failed",
+  }[error.code] as CalendarConnectionFormErrorCode;
 }
 
 async function runSave(args: {
   formData: FormData;
   session: Session;
 }): Promise<void> {
-  const { formData, session } = args;
-  const connectionId = extractFieldString(formData, "connectionId");
+  const connectionId = extractFieldString(args.formData, "connectionId");
   if (!connectionId) {
     redirect(buildErrorRedirect("save", "missing_connection"));
   }
-  const calendarIds = extractFieldStrings(formData, "calendarIds");
-
-  const repository = getCalendarConnectionRepository();
-  const connection = await repository.findById(connectionId);
-  if (!connection || connection.userId !== session.user.id) {
-    redirect(buildErrorRedirect("save", "forbidden", connectionId));
-  }
-
-  const tokenEncryptionKey = process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
-  if (!tokenEncryptionKey || !connection.accessTokenEncrypted) {
-    redirect(
-      buildErrorRedirect("save", "missing_calendar_token", connectionId),
-    );
-  }
-
-  const provider = getCalendarProvider(connection.provider);
-  const accessToken = decryptCalendarToken({
-    ciphertext: connection.accessTokenEncrypted,
-    key: tokenEncryptionKey,
+  const result = await createMutationWorkflow().mutateConnection({
+    kind: "save",
+    userId: args.session.user.id,
+    connectionId,
+    calendarIds: extractFieldStrings(args.formData, "calendarIds"),
   });
-  const fetchImpl = providerFetchImpl();
-
-  const providerCalendars =
-    connection.provider === "google"
-      ? [{ id: "primary", name: "Primary calendar", isPrimary: true }]
-      : await listProviderCalendarsForProvider(
-          provider,
-          accessToken,
-          fetchImpl,
-        );
-
-  const validIds = new Set(providerCalendars.map((c) => c.id));
-  const filtered = calendarIds.filter((id) => validIds.has(id));
-  if (filtered.length === 0) {
-    const primary = providerCalendars.find((c) => c.isPrimary);
-    filtered.push(
-      primary ? primary.id : (providerCalendars[0]?.id ?? "primary"),
-    );
-  }
-
-  try {
-    await repository.updateById(connectionId, {
-      contributingCalendarIds: filtered,
-    });
-  } catch {
+  if (!result.ok) {
     redirect(
-      buildErrorRedirect("save", "provider_request_failed", connectionId),
+      buildErrorRedirect("save", mutationErrorCode(result.error), connectionId),
     );
   }
-
   redirect(
-    `/me/calendar-connections?oauth=connected&connectionId=${encodeURIComponent(connectionId)}`,
+    `/me/calendar-connections?intent=save&success=1&connectionId=${encodeURIComponent(connectionId)}`,
   );
 }
 
@@ -174,78 +196,54 @@ async function runRefresh(args: {
   formData: FormData;
   session: Session;
 }): Promise<void> {
-  const { formData, session } = args;
-  const connectionId = extractFieldString(formData, "connectionId");
+  const connectionId = extractFieldString(args.formData, "connectionId");
   if (!connectionId) {
     redirect(buildErrorRedirect("refresh", "missing_connection"));
   }
-  const repository = getCalendarConnectionRepository();
-  const connection = await repository.findById(connectionId);
-  if (!connection || connection.userId !== session.user.id) {
-    redirect(buildErrorRedirect("refresh", "forbidden", connectionId));
+  const result = await createMutationWorkflow().mutateConnection({
+    kind: "refresh",
+    userId: args.session.user.id,
+    connectionId,
+  });
+  if (!result.ok) {
+    redirect(
+      buildErrorRedirect(
+        "refresh",
+        mutationErrorCode(result.error),
+        connectionId,
+      ),
+    );
   }
-  const config = loadRuntimeConfig();
-  try {
-    await enqueueSyncCalendarConnectionJob(connectionId, config.databaseUrl);
-  } catch {
-    redirect(buildErrorRedirect("refresh", "enqueue_failed", connectionId));
-  }
-  redirect("/me/calendar-connections?refreshed=1");
+  redirect(
+    `/me/calendar-connections?intent=refresh&success=1&connectionId=${encodeURIComponent(connectionId)}`,
+  );
 }
 
 async function runDisconnect(args: {
   formData: FormData;
   session: Session;
 }): Promise<void> {
-  const { formData, session } = args;
-  const connectionId = extractFieldString(formData, "connectionId");
+  const connectionId = extractFieldString(args.formData, "connectionId");
   if (!connectionId) {
     redirect(buildErrorRedirect("disconnect", "missing_connection"));
   }
-  const confirmAccountIdentifier = extractFieldString(
-    formData,
-    "confirmAccountIdentifier",
-  );
-  const repository = getCalendarConnectionRepository();
-  const connection = await repository.findById(connectionId);
-  if (!connection || connection.userId !== session.user.id) {
-    redirect(buildErrorRedirect("disconnect", "forbidden", connectionId));
-  }
-  const expected = connection.accountIdentifier ?? "";
-  if (confirmAccountIdentifier !== expected) {
-    redirect(
-      buildErrorRedirect("disconnect", "invalid_confirmation", connectionId),
-    );
-  }
-  const tokenEncryptionKey = process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
-  if (!tokenEncryptionKey) {
+  const result = await createMutationWorkflow().mutateConnection({
+    kind: "disconnect",
+    userId: args.session.user.id,
+    connectionId,
+    confirmAccountIdentifier:
+      extractFieldString(args.formData, "confirmAccountIdentifier") ?? "",
+  });
+  if (!result.ok) {
     redirect(
       buildErrorRedirect(
         "disconnect",
-        "missing_oauth_configuration",
+        mutationErrorCode(result.error),
         connectionId,
       ),
     );
   }
-  const provider = getCalendarProvider(connection.provider);
-  const fetchImpl = providerFetchImpl();
-  try {
-    await revokeCalendarConnection({
-      provider,
-      repository,
-      connectionId,
-      fetchImpl,
-      tokenEncryptionKey,
-    });
-  } catch {
-    await repository.updateById(connectionId, {
-      status: "disconnected",
-      refreshTokenEncrypted: null,
-      accessTokenEncrypted: null,
-      accessTokenExpiresAt: null,
-    });
-  }
-  redirect("/me/calendar-connections?oauth=disconnected");
+  redirect("/me/calendar-connections?intent=disconnect&success=1");
 }
 
 async function runDispatch(args: {

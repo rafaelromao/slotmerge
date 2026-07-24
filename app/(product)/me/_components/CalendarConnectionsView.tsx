@@ -11,6 +11,13 @@ export type CalendarConnectionsViewProps = {
     kind: "connected" | "denied" | "unsupported" | "failed" | "none";
     requestId?: string;
   };
+  mutationOutcome: {
+    kind: "none" | "success" | "error";
+    intent?: "save" | "refresh" | "disconnect";
+    connectionId?: string;
+    errorCode?: string;
+  };
+  mockOAuthScenario?: "connected" | "denied" | "expired" | "personal";
   saveAction: (formData: FormData) => void | Promise<void>;
   refreshAction: (formData: FormData) => void | Promise<void>;
   disconnectAction: (formData: FormData) => void | Promise<void>;
@@ -75,16 +82,59 @@ function outcomeBanner(
   };
 }
 
+function mutationMessage(
+  outcome: CalendarConnectionsViewProps["mutationOutcome"],
+): string | null {
+  if (outcome.kind === "none") return null;
+  if (outcome.kind === "success") {
+    return {
+      save: "Contributing calendars saved.",
+      refresh: "Calendar refresh queued.",
+      disconnect: "Calendar disconnected.",
+    }[outcome.intent ?? "save"];
+  }
+  return (
+    {
+      csrf_error:
+        "Your session could not be verified. Refresh the page and try again.",
+      missing_connection: "The Calendar Connection was not provided.",
+      forbidden: "That Calendar Connection is no longer available.",
+      missing_calendar_token:
+        "Reconnect this calendar before changing its calendars.",
+      missing_oauth_configuration:
+        "Calendar connections are temporarily unavailable.",
+      provider_request_failed:
+        "The calendar provider could not complete this request.",
+      enqueue_failed: "The calendar refresh could not be queued.",
+      invalid_confirmation: "The account identifier does not match.",
+      invalid_provider: "The calendar provider is not supported.",
+      invalid_input: "Choose only calendars available from this provider.",
+    }[outcome.errorCode ?? "invalid_input"] ??
+    "The Calendar Connection could not be updated."
+  );
+}
+
+function connectAction(
+  provider: "google" | "microsoft",
+  scenario: CalendarConnectionsViewProps["mockOAuthScenario"],
+): string {
+  const path = `/me/calendar-connections/connect/${provider}`;
+  return scenario ? `${path}?scenario=${scenario}` : path;
+}
+
 export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
   const {
     csrfToken,
     pageState,
     outcome,
+    mutationOutcome,
+    mockOAuthScenario,
     saveAction,
     refreshAction,
     disconnectAction,
   } = props;
   const banner = outcomeBanner(outcome);
+  const mutationBanner = mutationMessage(mutationOutcome);
   const connections = pageState?.connections ?? [];
   const hasConnections = connections.length > 0;
 
@@ -113,6 +163,18 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
         </div>
       ) : null}
 
+      {mutationBanner &&
+      (mutationOutcome.kind === "success" || !mutationOutcome.connectionId) ? (
+        <div
+          className={`calendar-connection-banner calendar-connection-banner-${mutationOutcome.kind === "error" ? "error" : "success"}`}
+          role={mutationOutcome.kind === "error" ? "alert" : "status"}
+          aria-live={mutationOutcome.kind === "error" ? "assertive" : "polite"}
+          data-testid={`calendar-connection-mutation-${mutationOutcome.kind}`}
+        >
+          <p>{mutationBanner}</p>
+        </div>
+      ) : null}
+
       <section
         className="calendar-connection-section"
         aria-labelledby="calendar-connection-connect-heading"
@@ -122,7 +184,7 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
         <div className="calendar-connection-connect-grid">
           <form
             method="POST"
-            action="/me/calendar-connections/connect/google"
+            action={connectAction("google", mockOAuthScenario)}
             className="calendar-connection-connect-form"
             data-testid="calendar-connection-connect-google-form"
           >
@@ -137,7 +199,7 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
           </form>
           <form
             method="POST"
-            action="/me/calendar-connections/connect/microsoft"
+            action={connectAction("microsoft", mockOAuthScenario)}
             className="calendar-connection-connect-form"
             data-testid="calendar-connection-connect-microsoft-form"
           >
@@ -191,6 +253,8 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
                 saveAction={saveAction}
                 refreshAction={refreshAction}
                 disconnectAction={disconnectAction}
+                mutationOutcome={mutationOutcome}
+                mockOAuthScenario={mockOAuthScenario}
               />
             ))}
           </ul>
@@ -206,16 +270,25 @@ function CalendarConnectionCard({
   saveAction,
   refreshAction,
   disconnectAction,
+  mutationOutcome,
+  mockOAuthScenario,
 }: {
   connection: CalendarConnectionPageItem;
   csrfToken: string;
   saveAction: CalendarConnectionsViewProps["saveAction"];
   refreshAction: CalendarConnectionsViewProps["refreshAction"];
   disconnectAction: CalendarConnectionsViewProps["disconnectAction"];
+  mutationOutcome: CalendarConnectionsViewProps["mutationOutcome"];
+  mockOAuthScenario: CalendarConnectionsViewProps["mockOAuthScenario"];
 }) {
   const providerLabel = PROVIDER_LABELS[connection.provider];
   const statusLabel = STATUS_LABELS[connection.displayStatus];
   const lastSync = lastSyncLabel(connection.lastSyncAt, connection.stale);
+  const rowMutationMessage =
+    mutationOutcome.kind === "error" &&
+    mutationOutcome.connectionId === connection.id
+      ? mutationMessage(mutationOutcome)
+      : null;
   const showCalendars =
     connection.calendars.length > 0 || connection.calendarsError;
   const allowEdit =
@@ -256,11 +329,22 @@ function CalendarConnectionCard({
 
       <p className="calendar-connection-last-sync">{lastSync}</p>
 
+      {rowMutationMessage ? (
+        <p
+          className="calendar-connection-row-error"
+          role="alert"
+          aria-live="assertive"
+          data-testid={`calendar-connection-mutation-error-${connection.id}`}
+        >
+          {rowMutationMessage}
+        </p>
+      ) : null}
+
       {connection.displayStatus === "needs_reconnect" ||
       connection.displayStatus === "unsupported" ? (
         <form
           method="POST"
-          action={`/me/calendar-connections/connect/${connection.provider}`}
+          action={connectAction(connection.provider, mockOAuthScenario)}
           className="calendar-connection-reconnect-form"
           data-testid={`calendar-connection-reconnect-form-${connection.id}`}
         >

@@ -24,6 +24,11 @@ import {
 type SearchParams = Promise<{
   oauth?: string | string[];
   requestId?: string | string[];
+  intent?: string | string[];
+  error?: string | string[];
+  success?: string | string[];
+  connectionId?: string | string[];
+  scenario?: string | string[];
 }>;
 
 const VALID_OUTCOMES = new Set([
@@ -31,6 +36,25 @@ const VALID_OUTCOMES = new Set([
   "denied",
   "unsupported",
   "failed",
+]);
+const VALID_INTENTS = new Set(["save", "refresh", "disconnect"]);
+const VALID_MUTATION_ERRORS = new Set([
+  "csrf_error",
+  "missing_connection",
+  "forbidden",
+  "missing_calendar_token",
+  "missing_oauth_configuration",
+  "provider_request_failed",
+  "enqueue_failed",
+  "invalid_confirmation",
+  "invalid_provider",
+  "invalid_input",
+]);
+const VALID_MOCK_SCENARIOS = new Set([
+  "connected",
+  "denied",
+  "expired",
+  "personal",
 ]);
 
 function firstString(value: string | string[] | undefined): string | null {
@@ -50,7 +74,9 @@ function providerFetchImpl(): typeof fetch {
   const isLocalOrTest =
     process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
   const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
-  return isLocalOrTest && overrideUrl
+  return isLocalOrTest &&
+    process.env.CALENDAR_PROVIDER_MODE === "mock" &&
+    overrideUrl
     ? createProviderFetchImpl(fetch, overrideUrl)
     : fetch;
 }
@@ -75,6 +101,34 @@ export default async function CalendarConnectionsPage({
           requestId: isSafeRequestId(requestId),
         }
       : { kind: "none" };
+  const intentValue = firstString(params.intent);
+  const errorValue = firstString(params.error);
+  const successValue = firstString(params.success);
+  const connectionId = isSafeRequestId(firstString(params.connectionId));
+  const intent =
+    intentValue && VALID_INTENTS.has(intentValue)
+      ? (intentValue as "save" | "refresh" | "disconnect")
+      : undefined;
+  const mutationOutcome: CalendarConnectionsViewProps["mutationOutcome"] =
+    intent && errorValue && VALID_MUTATION_ERRORS.has(errorValue)
+      ? {
+          kind: "error",
+          intent,
+          connectionId,
+          errorCode: errorValue,
+        }
+      : intent && successValue === "1"
+        ? { kind: "success", intent, connectionId }
+        : { kind: "none" };
+  const scenarioValue = firstString(params.scenario);
+  const mockEnabled =
+    (process.env.APP_ENV === "local" || process.env.APP_ENV === "test") &&
+    process.env.CALENDAR_PROVIDER_MODE === "mock" &&
+    Boolean(process.env.LOCAL_PROVIDER_OVERRIDE_URL);
+  const mockOAuthScenario =
+    mockEnabled && scenarioValue && VALID_MOCK_SCENARIOS.has(scenarioValue)
+      ? (scenarioValue as "connected" | "denied" | "expired" | "personal")
+      : undefined;
 
   const workflow = createCalendarConnectionWorkflow({
     repository: getCalendarConnectionRepository(),
@@ -111,6 +165,8 @@ export default async function CalendarConnectionsPage({
       csrfToken={context.csrfToken}
       pageState={pageState}
       outcome={outcome}
+      mutationOutcome={mutationOutcome}
+      mockOAuthScenario={mockOAuthScenario}
       saveAction={saveCalendarsAction}
       refreshAction={refreshConnectionAction}
       disconnectAction={disconnectConnectionAction}

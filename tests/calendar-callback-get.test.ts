@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { GET } from "../app/me/calendar-connections/callback/route";
+import {
+  GET,
+  resetCalendarOAuthCallbackRateLimitForTests,
+} from "../app/me/calendar-connections/callback/route";
 import { setSessionRepositoryForTests } from "../src/auth/session";
 import { setCalendarConnectionRepositoryForTests } from "../src/calendar/repository";
 import {
@@ -49,6 +52,7 @@ function newConnectionRecord(
 }
 
 beforeEach(() => {
+  resetCalendarOAuthCallbackRateLimitForTests();
   process.env.SESSION_SECRET = "0123456789abcdef0123456789abcdef";
   process.env.CALENDAR_TOKEN_ENCRYPTION_KEY =
     "0123456789abcdef0123456789abcdef";
@@ -169,6 +173,26 @@ describe("GET /me/calendar-connections/callback", () => {
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(
       "http://localhost/me/calendar-connections?oauth=denied",
+    );
+  });
+
+  it("rate limits callback attempts before state processing", async () => {
+    let response: Response | null = null;
+    for (let attempt = 0; attempt <= 30; attempt += 1) {
+      response = await GET(
+        new Request("http://localhost/me/calendar-connections/callback", {
+          headers: {
+            "x-forwarded-for": "192.0.2.44",
+            "x-request-id": `rate-limit-${attempt}`,
+          },
+        }),
+      );
+    }
+
+    expect(response?.status).toBe(303);
+    expect(response?.headers.get("retry-after")).toBe("60");
+    expect(response?.headers.get("location")).toBe(
+      "http://localhost/me/calendar-connections?oauth=failed&requestId=rate-limit-30",
     );
   });
 });

@@ -1,19 +1,53 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+import { eq } from "drizzle-orm";
+
+import { getDb } from "../../../../src/db/client";
+import {
+  calendarConnections,
+  importedBusyIntervals,
+} from "../../../../src/db/schema";
+import { FIXTURE_DATE, USER_FIXTURES, seedAll } from "../../../fixtures/seeds";
 import { captureState } from "../../../helpers/playwright/screenshot-helper";
 
-const FIXTURE_DATE = new Date("2026-07-12T12:00:00.000Z");
+const FIXED_DATE = new Date(FIXTURE_DATE);
+const USER_ID = USER_FIXTURES[0].id;
+
+async function resetCalendarState(): Promise<void> {
+  const db = getDb();
+  await db
+    .delete(importedBusyIntervals)
+    .where(eq(importedBusyIntervals.userId, USER_ID));
+  await db
+    .delete(calendarConnections)
+    .where(eq(calendarConnections.userId, USER_ID));
+  await seedAll(db);
+}
+
+function connectedMockGoogleCard(page: Page) {
+  return page
+    .locator('[data-provider="google"]')
+    .filter({ hasText: "google:" });
+}
 
 test.describe("Calendar Connection page journey", () => {
+  test.describe.configure({ mode: "serial" });
   test.use({ storageState: "playwright/.auth/user.json" });
+
+  test.beforeEach(async () => {
+    await resetCalendarState();
+  });
 
   test("renders the heading, two connect CTAs, and the seeded Google connection card", async ({
     page,
   }) => {
-    await page.clock.install({ time: FIXTURE_DATE });
+    await page.clock.install({ time: FIXED_DATE });
     await page.goto("/me/calendar-connections");
 
     await expect(
-      page.getByRole("heading", { name: "Calendar connections" }),
+      page.getByRole("heading", {
+        name: "Calendar connections",
+        exact: true,
+      }),
     ).toHaveCount(1);
     await expect(
       page.getByTestId("calendar-connection-connect-google"),
@@ -28,20 +62,13 @@ test.describe("Calendar Connection page journey", () => {
     await captureState(page, "calendar-connections", "loaded");
   });
 
-  test("happy path: connect, see connected banner, save calendars, refresh, disconnect, reconnect, needs_reconnect", async ({
+  test("connects, selects calendars, refreshes, disconnects, reconnects, and handles token expiry", async ({
     page,
   }) => {
-    await page.clock.install({ time: FIXTURE_DATE });
+    await page.clock.install({ time: FIXED_DATE });
     await page.goto("/me/calendar-connections");
 
-    await expect(
-      page.getByRole("heading", { name: "Calendar connections" }),
-    ).toBeVisible();
-    await captureState(page, "calendar-connections", "loaded");
-
-    // Connect Google.
     await page.getByTestId("calendar-connection-connect-google").click();
-    // The mock sidecar's authorizeUrl returns a 303 to the local callback.
     await page.waitForURL(
       /\/me\/calendar-connections\?oauth=connected(?:&|$)/,
       { timeout: 10_000 },
@@ -51,66 +78,101 @@ test.describe("Calendar Connection page journey", () => {
     ).toBeVisible();
     await captureState(page, "calendar-connections", "connected");
 
-    // The first calendar connection card should reflect the new connection
-    // with a Connected pill.
-    const newCard = page
-      .locator('[data-testid^="calendar-connection-card-"]')
-      .first();
+    const newCard = connectedMockGoogleCard(page);
+    await expect(newCard).toHaveCount(1);
     await expect(newCard).toHaveAttribute("data-status", "connected");
 
-    // The Save button is shown because the seed has at least one calendar
-    // available. Click it to confirm the server action accepts the submit.
-    const save = newCard.locator('[data-testid^="calendar-connection-save-"]');
-    if ((await save.count()) > 0) {
-      await save.first().click();
-      await page.waitForURL(/\/me\/calendar-connections/, { timeout: 10_000 });
-    }
+    const checkbox = newCard.locator('input[name="calendarIds"]').first();
+    await expect(checkbox).toBeVisible();
+    await checkbox.uncheck();
+    await checkbox.check();
+    const save = newCard.locator(
+      'button[data-testid^="calendar-connection-save-"]',
+    );
+    await expect(save).toBeVisible();
+    await save.click();
+    await page.waitForURL(/\?intent=save&success=1/, { timeout: 10_000 });
     await captureState(page, "calendar-connections", "after-save");
 
-    // Click Refresh now; the server action enqueues a sync job and
-    // redirects back to the same page.
     const refresh = newCard.locator(
-      '[data-testid^="calendar-connection-refresh-"]',
+      'button[data-testid^="calendar-connection-refresh-"]',
     );
-    if ((await refresh.count()) > 0) {
-      await refresh.first().click();
-      await page.waitForURL(/\/me\/calendar-connections/, { timeout: 10_000 });
-    }
+    await expect(refresh).toBeVisible();
+    await refresh.click();
+    await page.waitForURL(/\?intent=refresh&success=1/, { timeout: 10_000 });
     await captureState(page, "calendar-connections", "after-refresh");
 
-    // Disconnect by typing the account identifier into the confirmation
-    // input before submitting.
     const disconnectForm = newCard.locator(
-      '[data-testid^="calendar-connection-disconnect-form-"]',
+      'form[data-testid^="calendar-connection-disconnect-form-"]',
     );
-    await expect(disconnectForm).toHaveCount(1);
     const accountIdentifier = await disconnectForm
       .locator('[id^="calendar-connection-disconnect-hint-"]')
       .innerText();
     await disconnectForm
-      .locator('[data-testid^="calendar-connection-disconnect-confirm-"]')
+      .locator('input[data-testid^="calendar-connection-disconnect-confirm-"]')
       .fill(accountIdentifier.trim());
     await disconnectForm
-      .locator('[data-testid^="calendar-connection-disconnect-"]')
+      .locator('button[data-testid^="calendar-connection-disconnect-"]')
       .click();
-    await page.waitForURL(/\/me\/calendar-connections/, { timeout: 10_000 });
+    await page.waitForURL(/\?intent=disconnect&success=1/, {
+      timeout: 10_000,
+    });
+    await expect(newCard).toHaveCount(0);
     await captureState(page, "calendar-connections", "after-disconnect");
 
-    // Reconnect: clicking the seeded Google card's Reconnect button is a
-    // happy path step (only available once the row transitions to
-    // needs_reconnect). For this test we trigger that by visiting the page
-    // after the disconnect cleared the tokens.
-    await page.goto("/me/calendar-connections");
-    await expect(
-      page.locator('[data-testid^="calendar-connection-disconnect-form-"]'),
-    ).toHaveCount(0);
+    await page.goto("/me/calendar-connections?scenario=expired");
+    await page.getByTestId("calendar-connection-connect-google").click();
+    await page.waitForURL(
+      /\/me\/calendar-connections\?oauth=connected(?:&|$)/,
+      { timeout: 10_000 },
+    );
+    const expiredCard = connectedMockGoogleCard(page);
+    await expect(expiredCard).toHaveCount(1);
+    await expiredCard
+      .locator('button[data-testid^="calendar-connection-refresh-"]')
+      .click();
+    await expect
+      .poll(
+        async () => {
+          await page.reload();
+          return expiredCard.getAttribute("data-status");
+        },
+        { timeout: 20_000 },
+      )
+      .toBe("needs_reconnect");
+    await captureState(page, "calendar-connections", "needs-reconnect");
+
+    await page.goto("/me/calendar-connections?scenario=expired");
+    const reconnect = expiredCard.locator(
+      'button[data-testid^="calendar-connection-reconnect-"]',
+    );
+    await expect(reconnect).toBeVisible();
+    await reconnect.click();
+    await page.waitForURL(
+      /\/me\/calendar-connections\?oauth=connected(?:&|$)/,
+      { timeout: 10_000 },
+    );
+    const replacementCard = connectedMockGoogleCard(page);
+    await replacementCard
+      .locator('button[data-testid^="calendar-connection-refresh-"]')
+      .click();
+    await expect
+      .poll(
+        async () => {
+          await page.reload();
+          return replacementCard.getAttribute("data-status");
+        },
+        { timeout: 20_000 },
+      )
+      .toBe("needs_reconnect");
+    await captureState(page, "calendar-connections", "reconnected-expired");
   });
 
   test("Microsoft personal account returns the unsupported outcome", async ({
     page,
   }) => {
-    await page.clock.install({ time: FIXTURE_DATE });
-    await page.goto("/me/calendar-connections");
+    await page.clock.install({ time: FIXED_DATE });
+    await page.goto("/me/calendar-connections?scenario=personal");
 
     await page.getByTestId("calendar-connection-connect-microsoft").click();
     await page.waitForURL(
@@ -126,8 +188,8 @@ test.describe("Calendar Connection page journey", () => {
   test("denied consent returns the denied outcome without provider internals", async ({
     page,
   }) => {
-    await page.clock.install({ time: FIXTURE_DATE });
-    await page.goto("/me/calendar-connections");
+    await page.clock.install({ time: FIXED_DATE });
+    await page.goto("/me/calendar-connections?scenario=denied");
 
     await page.getByTestId("calendar-connection-connect-google").click();
     await page.waitForURL(/\/me\/calendar-connections\?oauth=denied(?:&|$)/, {
@@ -143,21 +205,21 @@ test.describe("Calendar Connection page journey", () => {
     await captureState(page, "calendar-connections", "denied");
   });
 
-  test("empty state shows the canonical empty-state copy when no connections exist", async ({
-    page,
-  }) => {
-    await page.clock.install({ time: FIXTURE_DATE });
+  test("empty state shows the canonical empty-state copy", async ({ page }) => {
+    const db = getDb();
+    await db
+      .delete(importedBusyIntervals)
+      .where(eq(importedBusyIntervals.userId, USER_ID));
+    await db
+      .delete(calendarConnections)
+      .where(eq(calendarConnections.userId, USER_ID));
+    await page.clock.install({ time: FIXED_DATE });
     await page.goto("/me/calendar-connections");
 
-    // The happy-path exercises remove existing connections; here we just
-    // verify the heading and connect CTAs are present in either state
-    // and the empty-state primitive is reachable.
-    await expect(
-      page.getByRole("heading", { name: "Calendar connections" }),
-    ).toBeVisible();
+    await expect(page.getByTestId("calendar-connection-empty")).toBeVisible();
     await expect(
       page.getByTestId("calendar-connection-connect-google"),
     ).toBeVisible();
-    await captureState(page, "calendar-connections", "loaded-or-empty");
+    await captureState(page, "calendar-connections", "empty");
   });
 });

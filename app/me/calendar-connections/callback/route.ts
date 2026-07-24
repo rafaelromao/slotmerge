@@ -23,6 +23,11 @@ type OAuthConfiguration = {
   missingError: string;
 };
 
+type CallbackRateLimitEntry = { count: number; resetAt: number };
+const CALLBACK_RATE_LIMIT_MAX = 30;
+const CALLBACK_RATE_LIMIT_WINDOW_MS = 60_000;
+const callbackRateLimits = new Map<string, CallbackRateLimitEntry>();
+
 export async function POST(request: Request): Promise<Response> {
   const formData = await request.formData();
   return handleCallback({
@@ -58,14 +63,20 @@ async function handleCallback({
   state: string | null | undefined;
   request: Request;
 }): Promise<Response> {
-  const requestId = safeRequestId(request);
+  const requestContext = requestContextFromRequest(request);
+  const requestId = safeRequestId(requestContext.requestId);
+  const now = systemClock().now();
+  if (!takeCallbackRateLimit(requestContext.ipHash, now)) {
+    return redirectOutcome(request, "failed", requestId, {
+      "Retry-After": String(CALLBACK_RATE_LIMIT_WINDOW_MS / 1000),
+    });
+  }
 
   try {
     if (typeof state !== "string" || !state) {
       throw new Error("Calendar OAuth state is missing.");
     }
 
-    const now = systemClock().now();
     const payload = await unsealCalendarConnectionState({
       state,
       secret: getSessionSecret(),
@@ -126,14 +137,16 @@ async function handleCallback({
       process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
     const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
     const fetchImpl =
-      isLocalOrTest && overrideUrl
+      isLocalOrTest &&
+      process.env.CALENDAR_PROVIDER_MODE === "mock" &&
+      overrideUrl
         ? createProviderFetchImpl(fetch, overrideUrl)
         : fetch;
     const result = await completeClaimedCalendarConnection({
       provider,
       repository,
       connection: claimed,
-      baseUrl: new URL(request.url).origin,
+      baseUrl: process.env.APP_PUBLIC_URL ?? new URL(request.url).origin,
       clientId: configuration.clientId,
       clientSecret: configuration.clientSecret,
       code,
@@ -160,22 +173,48 @@ function hashesMatch(actual: string, expected: string): boolean {
   );
 }
 
-function safeRequestId(request: Request): string {
-  const requestId = requestContextFromRequest(request).requestId;
+function safeRequestId(requestId: string): string {
   return /^[A-Za-z0-9_-]{1,100}$/.test(requestId) ? requestId : randomUUID();
+}
+
+function takeCallbackRateLimit(key: string, now: Date): boolean {
+  const current = callbackRateLimits.get(key);
+  if (!current || current.resetAt <= now.getTime()) {
+    callbackRateLimits.set(key, {
+      count: 1,
+      resetAt: now.getTime() + CALLBACK_RATE_LIMIT_WINDOW_MS,
+    });
+    return true;
+  }
+  if (current.count >= CALLBACK_RATE_LIMIT_MAX) {
+    return false;
+  }
+  current.count += 1;
+  return true;
+}
+
+export function resetCalendarOAuthCallbackRateLimitForTests(): void {
+  callbackRateLimits.clear();
 }
 
 function redirectOutcome(
   request: Request,
   outcome: "connected" | "denied" | "unsupported" | "failed",
   requestId?: string,
+  headers?: Record<string, string>,
 ): Response {
-  const target = new URL("/me/calendar-connections", request.url);
+  const target = new URL(
+    "/me/calendar-connections",
+    process.env.APP_PUBLIC_URL ?? request.url,
+  );
   target.searchParams.set("oauth", outcome);
   if (outcome === "failed" && requestId) {
     target.searchParams.set("requestId", requestId);
   }
-  return Response.redirect(target, 303);
+  return new Response(null, {
+    status: 303,
+    headers: { Location: target.toString(), ...headers },
+  });
 }
 
 function getOAuthConfiguration(

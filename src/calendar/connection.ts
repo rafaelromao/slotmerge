@@ -273,9 +273,7 @@ export async function claimCalendarOAuthAttempt({
         userId,
         provider: payload.provider,
       })
-    : ((await repository.updateById(connection.id, {
-        status: "disconnected",
-      })) ?? { ...connection, status: "disconnected" });
+    : ((await repository.updateById(connection.id, {})) ?? connection);
   if (!claimed) {
     throw new Error("Calendar OAuth attempt was already consumed.");
   }

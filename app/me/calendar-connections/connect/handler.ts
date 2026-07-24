@@ -39,7 +39,7 @@ export function createCalendarConnectPost(provider: CalendarProvider) {
       clock: systemClock(),
       listProviderCalendars: () => Promise.resolve([]),
       oauth: {
-        baseUrl: new URL(request.url).origin,
+        baseUrl: process.env.APP_PUBLIC_URL ?? new URL(request.url).origin,
         clientIds: {
           google: process.env.GOOGLE_OAUTH_CLIENT_ID,
           microsoft: process.env.MICROSOFT_OAUTH_CLIENT_ID,
@@ -59,6 +59,27 @@ export function createCalendarConnectPost(provider: CalendarProvider) {
       return Response.json({ error: "oauth_start_failed" }, { status: 503 });
     }
 
-    return Response.redirect(result.value.authorizeUrl, 303);
+    return Response.redirect(
+      withMockScenario(result.value.authorizeUrl, request),
+      303,
+    );
   };
+}
+
+function withMockScenario(authorizeUrl: string, request: Request): string {
+  const enabled =
+    (process.env.APP_ENV === "local" || process.env.APP_ENV === "test") &&
+    process.env.CALENDAR_PROVIDER_MODE === "mock" &&
+    Boolean(process.env.LOCAL_PROVIDER_OVERRIDE_URL);
+  if (!enabled) return authorizeUrl;
+  const scenario = new URL(request.url).searchParams.get("scenario");
+  if (
+    !scenario ||
+    !["connected", "denied", "expired", "personal"].includes(scenario)
+  ) {
+    return authorizeUrl;
+  }
+  const target = new URL(authorizeUrl);
+  target.searchParams.set("scenario", scenario);
+  return target.toString();
 }

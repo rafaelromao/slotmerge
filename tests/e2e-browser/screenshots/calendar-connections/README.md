@@ -10,6 +10,8 @@ following states:
 - `after-save`
 - `after-refresh`
 - `after-disconnect`
+- `needs-reconnect`
+- `reconnected-expired`
 - `unsupported`
 - `denied`
-- `loaded-or-empty`
+- `empty`

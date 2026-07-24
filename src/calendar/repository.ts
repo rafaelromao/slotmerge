@@ -177,7 +177,6 @@ export function createPostgresCalendarConnectionRepository(
       const [row] = await getDb()
         .update(calendarConnections)
         .set({
-          status: "disconnected",
           updatedAt: clock.now(),
         })
         .where(

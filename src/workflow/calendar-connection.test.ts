@@ -265,3 +265,164 @@ describe("calendarConnectionWorkflow.startOAuth", () => {
     });
   });
 });
+
+describe("calendarConnectionWorkflow.mutateConnection", () => {
+  function mutableRepository(initial: CalendarConnectionRecord) {
+    let current = initial;
+    const testRepository = repository([current]);
+    testRepository.findById = (id) =>
+      Promise.resolve(id === current.id ? current : null);
+    testRepository.updateById = (id, patch) => {
+      if (id !== current.id) return Promise.resolve(null);
+      current = { ...current, ...patch };
+      return Promise.resolve(current);
+    };
+    return { testRepository, current: () => current };
+  }
+
+  it("saves only provider-validated contributing calendars", async () => {
+    const state = mutableRepository(connection());
+    const workflow = createCalendarConnectionWorkflow({
+      repository: state.testRepository,
+      clock: { now: () => new Date("2026-07-12T12:00:00.000Z") },
+      listProviderCalendars: () =>
+        Promise.resolve([
+          { id: "primary", name: "Primary", isPrimary: true },
+          { id: "team", name: "Team", isPrimary: false },
+        ]),
+    });
+
+    await expect(
+      workflow.mutateConnection({
+        kind: "save",
+        userId: "user-1",
+        connectionId: "connection-1",
+        calendarIds: ["team"],
+      }),
+    ).resolves.toEqual({ ok: true, value: { kind: "saved" } });
+    expect(state.current().contributingCalendarIds).toEqual(["team"]);
+
+    await expect(
+      workflow.mutateConnection({
+        kind: "save",
+        userId: "user-1",
+        connectionId: "connection-1",
+        calendarIds: ["provider-internal-id"],
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: { code: "invalid_calendars" },
+    });
+    expect(state.current().contributingCalendarIds).toEqual(["team"]);
+  });
+
+  it("returns a typed provider error when calendars cannot be listed", async () => {
+    const state = mutableRepository(connection());
+    const workflow = createCalendarConnectionWorkflow({
+      repository: state.testRepository,
+      clock: { now: () => new Date("2026-07-12T12:00:00.000Z") },
+      listProviderCalendars: () => Promise.reject(new Error("provider detail")),
+    });
+
+    await expect(
+      workflow.mutateConnection({
+        kind: "save",
+        userId: "user-1",
+        connectionId: "connection-1",
+        calendarIds: ["primary"],
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: { code: "provider_unavailable" },
+    });
+  });
+
+  it("queues refresh through the injected boundary", async () => {
+    const queued: string[] = [];
+    const state = mutableRepository(connection());
+    const workflow = createCalendarConnectionWorkflow({
+      repository: state.testRepository,
+      clock: { now: () => new Date("2026-07-12T12:00:00.000Z") },
+      listProviderCalendars: () => Promise.resolve([]),
+      enqueueRefresh: (connectionId) => {
+        queued.push(connectionId);
+        return Promise.resolve();
+      },
+    });
+
+    await expect(
+      workflow.mutateConnection({
+        kind: "refresh",
+        userId: "user-1",
+        connectionId: "connection-1",
+      }),
+    ).resolves.toEqual({ ok: true, value: { kind: "refresh_queued" } });
+    expect(queued).toEqual(["connection-1"]);
+  });
+
+  it("returns typed refresh and ownership errors", async () => {
+    const state = mutableRepository(connection());
+    const workflow = createCalendarConnectionWorkflow({
+      repository: state.testRepository,
+      clock: { now: () => new Date("2026-07-12T12:00:00.000Z") },
+      listProviderCalendars: () => Promise.resolve([]),
+    });
+
+    await expect(
+      workflow.mutateConnection({
+        kind: "refresh",
+        userId: "user-1",
+        connectionId: "connection-1",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: { code: "enqueue_failed" },
+    });
+    await expect(
+      workflow.mutateConnection({
+        kind: "refresh",
+        userId: "user-2",
+        connectionId: "connection-1",
+      }),
+    ).resolves.toEqual({ ok: false, error: { code: "not_found" } });
+  });
+
+  it("disconnects locally when provider revocation fails", async () => {
+    const state = mutableRepository(connection());
+    const workflow = createCalendarConnectionWorkflow({
+      repository: state.testRepository,
+      clock: { now: () => new Date("2026-07-12T12:00:00.000Z") },
+      listProviderCalendars: () => Promise.resolve([]),
+      revokeConnection: () => Promise.reject(new Error("provider detail")),
+    });
+
+    await expect(
+      workflow.mutateConnection({
+        kind: "disconnect",
+        userId: "user-1",
+        connectionId: "connection-1",
+        confirmAccountIdentifier: "wrong@example.com",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: { code: "invalid_confirmation" },
+    });
+    await expect(
+      workflow.mutateConnection({
+        kind: "disconnect",
+        userId: "user-1",
+        connectionId: "connection-1",
+        confirmAccountIdentifier: "user@example.com",
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      value: { kind: "disconnected", revocationFailed: true },
+    });
+    expect(state.current()).toMatchObject({
+      status: "disconnected",
+      refreshTokenEncrypted: null,
+      accessTokenEncrypted: null,
+      accessTokenExpiresAt: null,
+    });
+  });
+});

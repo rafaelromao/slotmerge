@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requirePageContext } from "../../../src/lib/page-context";
 import { buildTopicsPageRepositories } from "../../../src/topics/page-repositories";
 import { listActiveTopics } from "../../../src/topics/repository";
@@ -256,9 +257,9 @@ export default async function SearchesPage({
             >
               <p className="empty-state-title">No active Topics yet.</p>
               <p>An Admin must curate Topics before a Search can run.</p>
-              <a className="btn btn-primary" href="/me">
+              <Link className="btn btn-primary" href="/">
                 Back to setup
-              </a>
+              </Link>
             </div>
           )}
 

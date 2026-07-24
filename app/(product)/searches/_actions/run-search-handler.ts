@@ -120,39 +120,28 @@ function zonedTimeToUtc(
   day: number,
   timezone: string,
 ): Date {
-  for (let hour = 0; hour < 24; hour++) {
-    const candidate = new Date(Date.UTC(year, monthIndex, day, hour));
-    if (
-      formatDateInTimezone(candidate, timezone) ===
-      formatDateParts(year, monthIndex, day)
-    ) {
-      return candidate;
-    }
-  }
-  return new Date(NaN);
-}
-
-function formatDateInTimezone(date: Date, timezone: string): string {
+  const reference = new Date(Date.UTC(year, monthIndex, day, 0, 0, 0));
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
+    hour12: false,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).formatToParts(date);
-  const year = parts.find((part) => part.type === "year")?.value ?? "0000";
-  const month = parts.find((part) => part.type === "month")?.value ?? "01";
-  const day = parts.find((part) => part.type === "day")?.value ?? "01";
-  return `${year}-${month}-${day}`;
-}
-
-function formatDateParts(
-  year: number,
-  monthIndex: number,
-  day: number,
-): string {
-  const month = String(monthIndex + 1).padStart(2, "0");
-  const dayStr = String(day).padStart(2, "0");
-  return `${year}-${month}-${dayStr}`;
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(reference);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const tzYear = Number(get("year"));
+  const tzMonth = Number(get("month"));
+  const tzDay = Number(get("day"));
+  const tzHour = Number(get("hour"));
+  const tzMinute = Number(get("minute"));
+  const tzSecond = Number(get("second"));
+  const offsetMs =
+    Date.UTC(tzYear, tzMonth - 1, tzDay, tzHour, tzMinute, tzSecond) -
+    reference.getTime();
+  return new Date(Date.UTC(year, monthIndex, day, 0, 0, 0) - offsetMs);
 }
 
 function parseTopicIds(formData: FormData): string[] {

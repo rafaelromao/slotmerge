@@ -230,6 +230,7 @@ describe("/searches page", () => {
     expect(html).toContain("searches-topics-empty");
     expect(html).toContain("No active Topics yet");
     expect(html).toMatch(/disabled[^>]*title="No active Topics available\."/);
+    expect(html).toContain('href="/"');
   });
 
   it("renders the inline organizer_timezone_required banner when feedback token decodes", async () => {

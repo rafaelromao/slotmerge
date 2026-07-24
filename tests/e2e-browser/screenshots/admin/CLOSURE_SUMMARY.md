@@ -2,7 +2,7 @@
 
 This is the closure summary for issue #302 and PR #323. Each entry
 maps an acceptance criterion to the evidence on the current head
-(`bf3226a2`) and identifies the remaining workflow-only artifacts.
+(`b4ce58f2`) and identifies the remaining workflow-only artifacts.
 
 ## Rendered-screen completion gates (AGENTS.md)
 

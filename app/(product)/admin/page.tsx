@@ -233,8 +233,8 @@ export default async function AdminPage({
             >
               <p className="empty-state-title">No users yet</p>
               <p className="empty-state-message">
-                Invite a teammate to grant them access. The invitee receives
-                an email with a single-use magic link.
+                Invite a teammate to grant them access. The invitee receives an
+                email with a single-use magic link.
               </p>
               <a
                 className="btn btn-primary"

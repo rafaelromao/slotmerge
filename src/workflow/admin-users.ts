@@ -131,7 +131,8 @@ export function normalizeEmail(email: string): string {
 // browser, so this turns the server-side guard into a typed
 // `invalid_email` Result branch instead of letting `not-an-email` slip
 // through to `createInvite`.
-const EMAIL_SYNTAX = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
+const EMAIL_SYNTAX =
+  /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
 export function isValidInviteeEmail(email: string): boolean {
   if (email.length === 0 || email.length > 254) return false;

@@ -38,8 +38,7 @@ export function SectionDeepLink({ sections }: SectionDeepLinkProps) {
       if (!hash) return;
       const match = sections.find(
         (section) =>
-          section.id === hash ||
-          (section.targetIds ?? []).includes(hash),
+          section.id === hash || (section.targetIds ?? []).includes(hash),
       );
       if (!match) return;
       openSection(match.id);

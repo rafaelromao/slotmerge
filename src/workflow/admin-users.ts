@@ -1,13 +1,18 @@
+import { err, ok, type Result } from "../lib/result";
 import type { Clock } from "../system/clock";
 
-import type { AdminUserRepository, UserListItem } from "./users.repository";
+import type {
+  AdminUserRepository,
+  UserListItem,
+} from "../admin/users.repository";
 import type {
   InviteListItemWithExpiry,
   InviteRecord,
   InviteRepository,
   InviteRole,
   InviteStatus,
-} from "./invites.repository";
+  RefreshInviteResult,
+} from "../admin/invites.repository";
 import type { SessionRepository } from "../auth/session";
 import type { MagicLinkTokenIssuer } from "../auth/magic-link";
 import type { EmailDeliveryService } from "../email/service";
@@ -21,26 +26,29 @@ export type AdminUsersRecentInvite = InviteListItemWithExpiry & {
 };
 
 export type AdminUserInviteError =
-  "self_invite" | "email_already_invited" | "internal_error";
+  | "self_invite"
+  | "email_already_invited"
+  | "invalid_email"
+  | "invalid_role"
+  | "active_user"
+  | "internal_error";
 
-export type AdminUserInviteResult =
-  | { ok: true; maskedEmail: string; inviteId: string }
-  | { ok: false; reason: AdminUserInviteError };
+export type AdminUserInviteOk = {
+  maskedEmail: string;
+  inviteId: string;
+};
 
 export type AdminUserChangeRoleError =
-  "self_role_change" | "user_not_found" | "internal_error";
-
-export type AdminUserChangeRoleResult =
-  { ok: true } | { ok: false; reason: AdminUserChangeRoleError };
+  "self_role_change" | "user_not_found" | "invalid_role" | "internal_error";
 
 export type AdminUserSuspendError =
   | "self_suspend"
   | "user_not_found"
   | "user_already_suspended"
+  | "confirm_email_mismatch"
+  | "confirm_email_required"
+  | "user_not_eligible"
   | "internal_error";
-
-export type AdminUserSuspendResult =
-  { ok: true } | { ok: false; reason: AdminUserSuspendError };
 
 export type AdminUserReinstateError =
   | "self_reinstate"
@@ -48,45 +56,45 @@ export type AdminUserReinstateError =
   | "user_already_active"
   | "internal_error";
 
-export type AdminUserReinstateResult =
-  { ok: true } | { ok: false; reason: AdminUserReinstateError };
+export type AdminUserResendInviteError =
+  "invite_not_found" | "user_already_active" | "internal_error";
 
-export type AdminUserResendInviteError = "invite_not_found" | "internal_error";
+export type AdminUserResendInviteOk = {
+  maskedEmail: string;
+  inviteId: string;
+};
 
-export type AdminUserResendInviteResult =
-  | { ok: true; maskedEmail: string; inviteId: string }
-  | { ok: false; reason: AdminUserResendInviteError };
-
-export type AdminUsersLoadResult = {
+export type AdminUsersLoadOk = {
   users: UserListItem[];
   recentInvites: AdminUsersRecentInvite[];
 };
 
 export type AdminUsersWorkflow = {
-  load(): Promise<AdminUsersLoadResult>;
+  load(): Promise<Result<AdminUsersLoadOk, never>>;
   inviteUser(input: {
     actorId: string;
     actorEmail: string;
     email: string;
     role: InviteRole;
-  }): Promise<AdminUserInviteResult>;
+  }): Promise<Result<AdminUserInviteOk, AdminUserInviteError>>;
   changeRole(input: {
     actorId: string;
     targetUserId: string;
     role: UserListItem["role"];
-  }): Promise<AdminUserChangeRoleResult>;
+  }): Promise<Result<void, AdminUserChangeRoleError>>;
   suspend(input: {
     actorId: string;
     targetUserId: string;
-  }): Promise<AdminUserSuspendResult>;
+    confirmEmail: string | null;
+  }): Promise<Result<void, AdminUserSuspendError>>;
   reinstate(input: {
     actorId: string;
     targetUserId: string;
-  }): Promise<AdminUserReinstateResult>;
+  }): Promise<Result<void, AdminUserReinstateError>>;
   resendInvite(input: {
     actorId: string;
     inviteId: string;
-  }): Promise<AdminUserResendInviteResult>;
+  }): Promise<Result<AdminUserResendInviteOk, AdminUserResendInviteError>>;
 };
 
 export type AdminUsersWorkflowDependencies = {
@@ -99,7 +107,7 @@ export type AdminUsersWorkflowDependencies = {
 };
 
 export function maskEmail(email: string): string {
-  const normalized = email.trim().toLowerCase();
+  const normalized = normalizeEmail(email);
   const at = normalized.indexOf("@");
   if (at <= 0) {
     return "***";
@@ -143,7 +151,7 @@ export function createAdminUsersWorkflow(
   } = deps;
 
   return {
-    async load() {
+    async load(): Promise<Result<AdminUsersLoadOk, never>> {
       const users = await userRepository.listUsers();
       const recentInvitesRaw = await inviteRepository.listRecentInvites(20);
       const now = clock.now();
@@ -153,24 +161,36 @@ export function createAdminUsersWorkflow(
           effectiveStatus: deriveInviteStatus(invite, now),
         }),
       );
-      return { users, recentInvites };
+      return ok({ users, recentInvites });
     },
 
-    async inviteUser({ actorId, actorEmail, email, role }) {
+    async inviteUser({
+      actorId,
+      actorEmail,
+      email,
+      role,
+    }): Promise<Result<AdminUserInviteOk, AdminUserInviteError>> {
       const normalizedEmail = normalizeEmail(email);
       const normalizedActorEmail = normalizeEmail(actorEmail);
 
-      if (normalizedEmail === normalizedActorEmail) {
-        return { ok: false, reason: "self_invite" } as const;
+      if (normalizedEmail.length === 0) {
+        return err("invalid_email");
       }
 
-      const [activeUser, pendingInvite] = await Promise.all([
-        userRepository.findActiveUserByEmail(normalizedEmail),
-        inviteRepository.findPendingInviteByEmail?.(normalizedEmail),
-      ]);
+      if (normalizedEmail === normalizedActorEmail) {
+        return err("self_invite");
+      }
 
-      if (activeUser || pendingInvite) {
-        return { ok: false, reason: "email_already_invited" } as const;
+      const activeUser =
+        await userRepository.findActiveUserByEmail(normalizedEmail);
+      if (activeUser) {
+        return err("email_already_invited");
+      }
+
+      const pendingInvite =
+        await inviteRepository.findPendingInviteByEmail?.(normalizedEmail);
+      if (pendingInvite) {
+        return err("email_already_invited");
       }
 
       const now = clock.now();
@@ -186,9 +206,9 @@ export function createAdminUsersWorkflow(
 
       if (!createResult.ok) {
         if (createResult.reason === "duplicate") {
-          return { ok: false, reason: "email_already_invited" } as const;
+          return err("email_already_invited");
         }
-        return { ok: false, reason: "internal_error" } as const;
+        return err("internal_error");
       }
 
       if (emailDeliveryService && magicLinkTokenIssuer) {
@@ -216,16 +236,19 @@ export function createAdminUsersWorkflow(
         });
       }
 
-      return {
-        ok: true,
+      return ok({
         maskedEmail: maskEmail(normalizedEmail),
         inviteId: createResult.invite.id,
-      } as const;
+      });
     },
 
-    async changeRole({ actorId, targetUserId, role }) {
+    async changeRole({
+      actorId,
+      targetUserId,
+      role,
+    }): Promise<Result<void, AdminUserChangeRoleError>> {
       if (actorId === targetUserId) {
-        return { ok: false, reason: "self_role_change" } as const;
+        return err("self_role_change");
       }
 
       const result = await userRepository.changeRole({
@@ -237,17 +260,40 @@ export function createAdminUsersWorkflow(
 
       if (!result.ok) {
         if (result.reason === "self") {
-          return { ok: false, reason: "self_role_change" } as const;
+          return err("self_role_change");
         }
-        return { ok: false, reason: "user_not_found" } as const;
+        return err("user_not_found");
       }
 
-      return { ok: true } as const;
+      return ok(undefined);
     },
 
-    async suspend({ actorId, targetUserId }) {
+    async suspend({
+      actorId,
+      targetUserId,
+      confirmEmail,
+    }): Promise<Result<void, AdminUserSuspendError>> {
       if (actorId === targetUserId) {
-        return { ok: false, reason: "self_suspend" } as const;
+        return err("self_suspend");
+      }
+
+      const target = await userRepository.listUsers();
+      const targetUser = target.find((u) => u.id === targetUserId);
+      if (!targetUser) {
+        return err("user_not_found");
+      }
+
+      if (targetUser.status !== "active") {
+        return err("user_not_found");
+      }
+
+      const normalizedConfirm = normalizeEmail(confirmEmail ?? "");
+      if (normalizedConfirm.length === 0) {
+        return err("confirm_email_required");
+      }
+
+      if (normalizedConfirm !== targetUser.email) {
+        return err("confirm_email_mismatch");
       }
 
       const result = await userRepository.suspend({
@@ -259,25 +305,25 @@ export function createAdminUsersWorkflow(
       if (!result.ok) {
         switch (result.reason) {
           case "self":
-            return { ok: false, reason: "self_suspend" } as const;
+            return err("self_suspend");
           case "already_suspended":
-            return {
-              ok: false,
-              reason: "user_already_suspended",
-            } as const;
+            return err("user_already_suspended");
           case "not_found":
           default:
-            return { ok: false, reason: "user_not_found" } as const;
+            return err("user_not_found");
         }
       }
 
       await sessionRepository.deleteByUserId?.(targetUserId);
-      return { ok: true } as const;
+      return ok(undefined);
     },
 
-    async reinstate({ actorId, targetUserId }) {
+    async reinstate({
+      actorId,
+      targetUserId,
+    }): Promise<Result<void, AdminUserReinstateError>> {
       if (actorId === targetUserId) {
-        return { ok: false, reason: "self_reinstate" } as const;
+        return err("self_reinstate");
       }
 
       const result = await userRepository.reinstate({
@@ -289,57 +335,67 @@ export function createAdminUsersWorkflow(
       if (!result.ok) {
         switch (result.reason) {
           case "self":
-            return { ok: false, reason: "self_reinstate" } as const;
+            return err("self_reinstate");
           case "already_active":
-            return { ok: false, reason: "user_already_active" } as const;
+            return err("user_already_active");
           case "not_found":
           default:
-            return { ok: false, reason: "user_not_found" } as const;
+            return err("user_not_found");
         }
       }
 
-      return { ok: true } as const;
+      return ok(undefined);
     },
 
-    async resendInvite({ actorId, inviteId }) {
+    async resendInvite({
+      actorId,
+      inviteId,
+    }): Promise<Result<AdminUserResendInviteOk, AdminUserResendInviteError>> {
       const original = await inviteRepository.findInviteById?.(inviteId);
       if (!original) {
-        return { ok: false, reason: "invite_not_found" } as const;
+        return err("invite_not_found");
       }
 
       const now = clock.now();
-      await inviteRepository.revokeInvite?.(original.id, now);
       const expiresAt = computeInviteExpiresAt(now);
-      const createResult = await inviteRepository.createInvite({
-        email: original.email,
-        role: original.role,
-        invitedByAdminId: actorId,
-        now,
-        expiresAt,
-      });
 
-      if (!createResult.ok) {
-        return { ok: false, reason: "internal_error" } as const;
+      const refreshResult: RefreshInviteResult | null | undefined =
+        await inviteRepository.refreshInvite?.({
+          inviteId: original.id,
+          now,
+          expiresAt,
+        });
+
+      if (!refreshResult) {
+        return err("internal_error");
       }
 
+      if (!refreshResult.ok) {
+        if (refreshResult.reason === "not_found") {
+          return err("invite_not_found");
+        }
+        return err(refreshResult.reason);
+      }
+
+      const refreshed = refreshResult.invite;
+
       if (emailDeliveryService && magicLinkTokenIssuer) {
-        const invite: InviteRecord = createResult.invite;
         const magicLink = magicLinkTokenIssuer.issueMagicLinkToken({
-          inviteId: invite.id,
-          email: invite.email,
-          expiresAt: invite.expiresAt,
-          generation: invite.magicLinkGeneration ?? 0,
+          inviteId: refreshed.id,
+          email: refreshed.email,
+          expiresAt: refreshed.expiresAt,
+          generation: refreshed.magicLinkGeneration ?? 0,
         });
 
         await emailDeliveryService.sendEmail({
-          recipient: invite.email,
+          recipient: refreshed.email,
           type: "invite",
           payload: {
-            inviteId: invite.id,
-            email: invite.email,
-            role: invite.role,
-            invitedByAdminId: invite.invitedByAdminId,
-            magicLinkGeneration: invite.magicLinkGeneration ?? 0,
+            inviteId: refreshed.id,
+            email: refreshed.email,
+            role: refreshed.role,
+            invitedByAdminId: actorId,
+            magicLinkGeneration: refreshed.magicLinkGeneration ?? 0,
             magicLinkUrl: magicLink.magicLinkUrl,
             magicLinkToken: magicLink.token,
             expiresAt: magicLink.expiresAt.toISOString(),
@@ -348,21 +404,10 @@ export function createAdminUsersWorkflow(
         });
       }
 
-      return {
-        ok: true,
-        maskedEmail: maskEmail(original.email),
-        inviteId: createResult.invite.id,
-      } as const;
+      return ok({
+        maskedEmail: maskEmail(refreshed.email),
+        inviteId: refreshed.id,
+      });
     },
   };
 }
-
-// Re-export the session deleteByUserId hook so the workflow can revoke all
-// sessions for a suspended user in the same operation.
-export type AdminUsersSessionRepository = Pick<
-  SessionRepository,
-  "deleteByUserId"
->;
-
-// Re-export the seam type for clarity when invoking the workflow.
-export type AdminUsersClock = Clock;

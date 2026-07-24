@@ -3,15 +3,15 @@
 import { redirect } from "next/navigation";
 
 import { getServerSession } from "../../../../src/auth/session";
-import { CsrfError, csrfErrorResponse } from "../../../../src/lib/csrf";
+import { assertCsrfFromFormData, CsrfError } from "../../../../src/lib/csrf";
 import {
   createAdminUsersWorkflow,
-  type AdminUserChangeRoleResult,
-  type AdminUserInviteResult,
-  type AdminUserReinstateResult,
-  type AdminUserResendInviteResult,
-  type AdminUserSuspendResult,
-} from "../../../../src/admin/users.workflow";
+  type AdminUserChangeRoleError,
+  type AdminUserInviteError,
+  type AdminUserReinstateError,
+  type AdminUserResendInviteError,
+  type AdminUserSuspendError,
+} from "../../../../src/workflow/admin-users";
 import { createPostgresAdminUserRepository } from "../../../../src/admin/users.repository";
 import { createPostgresInviteRepository } from "../../../../src/admin/invites.repository";
 import { getSessionRepository } from "../../../../src/auth/session";
@@ -43,22 +43,35 @@ function buildAdminWorkflow() {
   });
 }
 
+type SessionLike = NonNullable<Awaited<ReturnType<typeof getServerSession>>>;
+
+function csrfRedirect(): never {
+  redirect("/admin?csrf=failed");
+}
+
+function assertCsrfForAction(formData: FormData, session: SessionLike): void {
+  // The CSRF helper throws CsrfError on mismatch. The Server Action path
+  // does NOT want a 403 — instead it surfaces the failure via the
+  // /admin?csrf=failed query-string banner so the per-section banner is
+  // shown instead of the segment-level error boundary.
+  try {
+    assertCsrfFromFormData(formData, session);
+  } catch (error) {
+    if (error instanceof CsrfError) {
+      csrfRedirect();
+    }
+    throw error;
+  }
+}
+
 async function assertAdminAndCsrf(formData: FormData): Promise<{
-  session: NonNullable<Awaited<ReturnType<typeof getServerSession>>>;
+  session: SessionLike;
 }> {
   const session = await getServerSession();
   if (!session || session.user.role !== "admin") {
     redirect("/sign-in?returnTo=%2Fadmin");
   }
-  try {
-    const { assertCsrfFromFormData } = await import("../../../../src/lib/csrf");
-    assertCsrfFromFormData(formData, session);
-  } catch (error) {
-    if (error instanceof CsrfError) {
-      csrfErrorResponse();
-    }
-    throw error;
-  }
+  assertCsrfForAction(formData, session);
   return { session };
 }
 
@@ -108,7 +121,7 @@ export async function suspendAction(formData: FormData): Promise<void> {
 
   const targetUserId = readUserId(formData);
   const confirmEmail = readConfirmEmail(formData);
-  if (!targetUserId || !confirmEmail) {
+  if (!targetUserId) {
     redirect("/admin?error=invalid_suspend");
   }
 
@@ -117,6 +130,7 @@ export async function suspendAction(formData: FormData): Promise<void> {
   const result = await workflow.suspend({
     actorId: session.user.id,
     targetUserId,
+    confirmEmail,
   });
 
   redirect(redirectTargetForSuspend(result));
@@ -205,83 +219,135 @@ function readConfirmEmail(formData: FormData): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function redirectTargetForInvite(result: AdminUserInviteResult): string {
+function redirectTargetForInvite(
+  result: Awaited<
+    ReturnType<ReturnType<typeof buildAdminWorkflow>["inviteUser"]>
+  >,
+): string {
   if (result.ok) {
-    return `/admin?invited=${encodeURIComponent(result.maskedEmail)}`;
+    return `/admin?invited=${encodeURIComponent(result.value.maskedEmail)}`;
   }
-  switch (result.reason) {
-    case "self_invite":
-      return "/admin?error=self_invite";
-    case "email_already_invited":
-      return "/admin?error=email_already_invited";
-    case "internal_error":
-    default:
-      return "/admin?error=invite_failed";
-  }
+  const errorCode = inviteErrorToCode(result.error);
+  return `/admin?error=${errorCode}`;
 }
 
 function redirectTargetForChangeRole(
-  result: AdminUserChangeRoleResult,
+  result: Awaited<
+    ReturnType<ReturnType<typeof buildAdminWorkflow>["changeRole"]>
+  >,
 ): string {
   if (result.ok) {
     return "/admin?role_change=saved";
   }
-  switch (result.reason) {
-    case "self_role_change":
-      return "/admin?error=self_role_change";
-    case "user_not_found":
-      return "/admin?error=user_not_found";
-    case "internal_error":
-    default:
-      return "/admin?error=role_change_failed";
-  }
+  const errorCode = changeRoleErrorToCode(result.error);
+  return `/admin?error=${errorCode}`;
 }
 
-function redirectTargetForSuspend(result: AdminUserSuspendResult): string {
+function redirectTargetForSuspend(
+  result: Awaited<ReturnType<ReturnType<typeof buildAdminWorkflow>["suspend"]>>,
+): string {
   if (result.ok) {
     return "/admin?action=suspended";
   }
-  switch (result.reason) {
-    case "self_suspend":
-      return "/admin?error=self_suspend";
-    case "user_already_suspended":
-      return "/admin?error=user_already_suspended";
-    case "user_not_found":
-      return "/admin?error=user_not_found";
-    case "internal_error":
-    default:
-      return "/admin?error=suspend_failed";
-  }
+  const errorCode = suspendErrorToCode(result.error);
+  return `/admin?error=${errorCode}`;
 }
 
-function redirectTargetForReinstate(result: AdminUserReinstateResult): string {
+function redirectTargetForReinstate(
+  result: Awaited<
+    ReturnType<ReturnType<typeof buildAdminWorkflow>["reinstate"]>
+  >,
+): string {
   if (result.ok) {
     return "/admin?action=reinstated";
   }
-  switch (result.reason) {
-    case "self_reinstate":
-      return "/admin?error=self_reinstate";
-    case "user_already_active":
-      return "/admin?error=user_already_active";
-    case "user_not_found":
-      return "/admin?error=user_not_found";
-    case "internal_error":
-    default:
-      return "/admin?error=reinstate_failed";
-  }
+  const errorCode = reinstateErrorToCode(result.error);
+  return `/admin?error=${errorCode}`;
 }
 
 function redirectTargetForResendInvite(
-  result: AdminUserResendInviteResult,
+  result: Awaited<
+    ReturnType<ReturnType<typeof buildAdminWorkflow>["resendInvite"]>
+  >,
 ): string {
   if (result.ok) {
-    return `/admin?invited=${encodeURIComponent(result.maskedEmail)}`;
+    return `/admin?invited=${encodeURIComponent(result.value.maskedEmail)}`;
   }
-  switch (result.reason) {
-    case "invite_not_found":
-      return "/admin?error=invite_not_found";
+  const errorCode = resendInviteErrorToCode(result.error);
+  return `/admin?error=${errorCode}`;
+}
+
+function inviteErrorToCode(error: AdminUserInviteError): string {
+  switch (error) {
+    case "self_invite":
+      return "self_invite";
+    case "email_already_invited":
+      return "email_already_invited";
+    case "invalid_email":
+    case "invalid_role":
+      return "invalid_invite";
+    case "active_user":
     case "internal_error":
     default:
-      return "/admin?error=resend_failed";
+      return "invite_failed";
+  }
+}
+
+function changeRoleErrorToCode(error: AdminUserChangeRoleError): string {
+  switch (error) {
+    case "self_role_change":
+      return "self_role_change";
+    case "user_not_found":
+      return "user_not_found";
+    case "invalid_role":
+      return "invalid_role_change";
+    case "internal_error":
+    default:
+      return "role_change_failed";
+  }
+}
+
+function suspendErrorToCode(error: AdminUserSuspendError): string {
+  switch (error) {
+    case "self_suspend":
+      return "self_suspend";
+    case "user_already_suspended":
+      return "user_already_suspended";
+    case "user_not_found":
+      return "user_not_found";
+    case "confirm_email_mismatch":
+      return "invalid_suspend";
+    case "confirm_email_required":
+      return "invalid_suspend";
+    case "user_not_eligible":
+    case "internal_error":
+    default:
+      return "suspend_failed";
+  }
+}
+
+function reinstateErrorToCode(error: AdminUserReinstateError): string {
+  switch (error) {
+    case "self_reinstate":
+      return "self_reinstate";
+    case "user_already_active":
+      return "user_already_active";
+    case "user_not_found":
+      return "user_not_found";
+    case "internal_error":
+    default:
+      return "reinstate_failed";
+  }
+}
+
+function resendInviteErrorToCode(error: AdminUserResendInviteError): string {
+  switch (error) {
+    case "invite_not_found":
+      return "invite_not_found";
+    case "user_already_active":
+      return "email_already_invited";
+    case "internal_error":
+    default:
+      return "resend_failed";
   }
 }

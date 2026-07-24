@@ -29,7 +29,7 @@ vi.mock("../../../../src/auth/session", async () => {
   };
 });
 
-vi.mock("../../../../src/admin/users.workflow", () => ({
+vi.mock("../../../../src/workflow/admin-users", () => ({
   createAdminUsersWorkflow: vi.fn(),
 }));
 
@@ -65,7 +65,7 @@ vi.mock("../../../../src/config/runtime", () => ({
 }));
 
 import * as sessionModule from "../../../../src/auth/session";
-import { createAdminUsersWorkflow } from "../../../../src/admin/users.workflow";
+import { createAdminUsersWorkflow } from "../../../../src/workflow/admin-users";
 
 async function importAction() {
   const mod = await import("./users");
@@ -98,6 +98,19 @@ function setSession(role: "admin" | "user" | null) {
       bufferMinutes: 0,
     },
     csrfToken: "csrf-admin-1",
+  });
+}
+
+function mockWorkflowOk(
+  result: { ok: true; value: unknown } | { ok: false; error: string },
+) {
+  vi.mocked(createAdminUsersWorkflow).mockReturnValue({
+    load: vi.fn(),
+    inviteUser: vi.fn().mockResolvedValue(result),
+    changeRole: vi.fn(),
+    suspend: vi.fn(),
+    reinstate: vi.fn(),
+    resendInvite: vi.fn(),
   });
 }
 
@@ -137,7 +150,7 @@ describe("inviteUserAction", () => {
     expect(digest).toContain("/sign-in");
   });
 
-  it("rejects the request with a CSRF failure when the token does not match", async () => {
+  it("redirects to /admin?csrf=failed when the token does not match", async () => {
     const action = await importAction();
 
     let digest = "";
@@ -146,21 +159,13 @@ describe("inviteUserAction", () => {
     } catch (error) {
       digest = (error as Error & { digest?: string }).digest ?? "";
     }
-    expect(digest).toBe("");
+    expect(digest).toContain("NEXT_REDIRECT;303;/admin?csrf=failed;");
   });
 
   it("redirects with the masked email on success", async () => {
-    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
-      load: vi.fn(),
-      inviteUser: vi.fn().mockResolvedValue({
-        ok: true,
-        maskedEmail: "ne***@example.com",
-        inviteId: "invite-1",
-      }),
-      changeRole: vi.fn(),
-      suspend: vi.fn(),
-      reinstate: vi.fn(),
-      resendInvite: vi.fn(),
+    mockWorkflowOk({
+      ok: true,
+      value: { maskedEmail: "ne***@example.com", inviteId: "invite-1" },
     });
 
     const action = await importAction();
@@ -182,17 +187,7 @@ describe("inviteUserAction", () => {
   });
 
   it("redirects to /admin?error=self_invite when the workflow returns self_invite", async () => {
-    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
-      load: vi.fn(),
-      inviteUser: vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "self_invite",
-      }),
-      changeRole: vi.fn(),
-      suspend: vi.fn(),
-      reinstate: vi.fn(),
-      resendInvite: vi.fn(),
-    });
+    mockWorkflowOk({ ok: false, error: "self_invite" });
 
     const action = await importAction();
     let digest = "";
@@ -211,17 +206,7 @@ describe("inviteUserAction", () => {
   });
 
   it("redirects to /admin?error=email_already_invited when the workflow returns that", async () => {
-    vi.mocked(createAdminUsersWorkflow).mockReturnValue({
-      load: vi.fn(),
-      inviteUser: vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "email_already_invited",
-      }),
-      changeRole: vi.fn(),
-      suspend: vi.fn(),
-      reinstate: vi.fn(),
-      resendInvite: vi.fn(),
-    });
+    mockWorkflowOk({ ok: false, error: "email_already_invited" });
 
     const action = await importAction();
     let digest = "";
@@ -274,7 +259,7 @@ describe("changeRoleAction", () => {
     vi.mocked(createAdminUsersWorkflow).mockReturnValue({
       load: vi.fn(),
       inviteUser: vi.fn(),
-      changeRole: vi.fn().mockResolvedValue({ ok: true }),
+      changeRole: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
       suspend: vi.fn(),
       reinstate: vi.fn(),
       resendInvite: vi.fn(),
@@ -300,10 +285,9 @@ describe("changeRoleAction", () => {
     vi.mocked(createAdminUsersWorkflow).mockReturnValue({
       load: vi.fn(),
       inviteUser: vi.fn(),
-      changeRole: vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "self_role_change",
-      }),
+      changeRole: vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: "self_role_change" }),
       suspend: vi.fn(),
       reinstate: vi.fn(),
       resendInvite: vi.fn(),
@@ -362,7 +346,7 @@ describe("suspendAction", () => {
       load: vi.fn(),
       inviteUser: vi.fn(),
       changeRole: vi.fn(),
-      suspend: vi.fn().mockResolvedValue({ ok: true }),
+      suspend: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
       reinstate: vi.fn(),
       resendInvite: vi.fn(),
     });
@@ -388,10 +372,7 @@ describe("suspendAction", () => {
       load: vi.fn(),
       inviteUser: vi.fn(),
       changeRole: vi.fn(),
-      suspend: vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "self_suspend",
-      }),
+      suspend: vi.fn().mockResolvedValue({ ok: false, error: "self_suspend" }),
       reinstate: vi.fn(),
       resendInvite: vi.fn(),
     });
@@ -417,10 +398,9 @@ describe("suspendAction", () => {
       load: vi.fn(),
       inviteUser: vi.fn(),
       changeRole: vi.fn(),
-      suspend: vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "user_already_suspended",
-      }),
+      suspend: vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: "user_already_suspended" }),
       reinstate: vi.fn(),
       resendInvite: vi.fn(),
     });
@@ -477,7 +457,7 @@ describe("reinstateAction", () => {
       inviteUser: vi.fn(),
       changeRole: vi.fn(),
       suspend: vi.fn(),
-      reinstate: vi.fn().mockResolvedValue({ ok: true }),
+      reinstate: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
       resendInvite: vi.fn(),
     });
 
@@ -502,10 +482,9 @@ describe("reinstateAction", () => {
       inviteUser: vi.fn(),
       changeRole: vi.fn(),
       suspend: vi.fn(),
-      reinstate: vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "self_reinstate",
-      }),
+      reinstate: vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: "self_reinstate" }),
       resendInvite: vi.fn(),
     });
 
@@ -530,10 +509,9 @@ describe("reinstateAction", () => {
       inviteUser: vi.fn(),
       changeRole: vi.fn(),
       suspend: vi.fn(),
-      reinstate: vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "user_already_active",
-      }),
+      reinstate: vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: "user_already_active" }),
       resendInvite: vi.fn(),
     });
 
@@ -588,8 +566,7 @@ describe("resendInviteAction", () => {
       reinstate: vi.fn(),
       resendInvite: vi.fn().mockResolvedValue({
         ok: true,
-        maskedEmail: "ne***@example.com",
-        inviteId: "invite-2",
+        value: { maskedEmail: "ne***@example.com", inviteId: "invite-2" },
       }),
     });
 
@@ -617,10 +594,9 @@ describe("resendInviteAction", () => {
       changeRole: vi.fn(),
       suspend: vi.fn(),
       reinstate: vi.fn(),
-      resendInvite: vi.fn().mockResolvedValue({
-        ok: false,
-        reason: "invite_not_found",
-      }),
+      resendInvite: vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: "invite_not_found" }),
     });
 
     const action = await importResendInviteAction();

@@ -47,9 +47,9 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-vi.mock("../src/admin/users.workflow", () => ({
+vi.mock("../src/workflow/admin-users", () => ({
   createAdminUsersWorkflow: vi.fn(() => ({
-    load: vi.fn().mockResolvedValue({ users: [], recentInvites: [] }),
+    load: vi.fn().mockResolvedValue({ ok: true, value: { users: [], recentInvites: [] } }),
     inviteUser: vi.fn(),
     changeRole: vi.fn(),
     suspend: vi.fn(),
@@ -176,27 +176,30 @@ describe("Admin page", () => {
 
   it("renders one row per user with role dropdown and Save button", async () => {
     const { createAdminUsersWorkflow } = await import(
-      "../src/admin/users.workflow"
+      "../src/workflow/admin-users"
     );
     vi.mocked(createAdminUsersWorkflow).mockReturnValue({
       load: vi.fn().mockResolvedValue({
-        users: [
-          {
-            id: "u-1",
-            email: "ada@example.com",
-            displayName: "Ada",
-            role: "user",
-            status: "active",
-          },
-          {
-            id: "admin-1",
-            email: "admin@example.com",
-            displayName: "Carol Admin",
-            role: "admin",
-            status: "active",
-          },
-        ],
-        recentInvites: [],
+        ok: true,
+        value: {
+          users: [
+            {
+              id: "u-1",
+              email: "ada@example.com",
+              displayName: "Ada",
+              role: "user",
+              status: "active",
+            },
+            {
+              id: "admin-1",
+              email: "admin@example.com",
+              displayName: "Carol Admin",
+              role: "admin",
+              status: "active",
+            },
+          ],
+          recentInvites: [],
+        },
       }),
       inviteUser: vi.fn(),
       changeRole: vi.fn(),
@@ -214,47 +217,61 @@ describe("Admin page", () => {
     expect(html).toContain('data-testid="users-row-admin-1"');
     expect(html).toContain('data-self="true"');
     expect(html).toContain("You cannot change your own role.");
+    // Self row has all mutation controls suppressed
+    expect(html).not.toContain(
+      'data-testid="suspend-confirm-input-admin-1"',
+    );
+    expect(html).toContain(
+      'data-testid="users-self-actions-admin-1"',
+    );
+    expect(html).toContain("You cannot suspend or reinstate yourself.");
   });
 
   it("renders the Recent invites list with Resend / Re-invite actions", async () => {
     const { createAdminUsersWorkflow } = await import(
-      "../src/admin/users.workflow"
+      "../src/workflow/admin-users"
     );
     vi.mocked(createAdminUsersWorkflow).mockReturnValue({
       load: vi.fn().mockResolvedValue({
-        users: [],
-        recentInvites: [
-          {
-            id: "invite-1",
-            email: "fresh@example.com",
-            role: "user",
-            status: "pending",
-            invitedByAdminId: "admin-1",
-            invitedByAdminEmail: "admin@example.com",
-            expiresAt: new Date("2026-08-11T12:00:00.000Z"),
-            effectiveStatus: "pending",
-          },
-          {
-            id: "invite-2",
-            email: "expired@example.com",
-            role: "organizer",
-            status: "pending",
-            invitedByAdminId: "admin-1",
-            invitedByAdminEmail: "admin@example.com",
-            expiresAt: new Date("2026-06-01T12:00:00.000Z"),
-            effectiveStatus: "expired",
-          },
-          {
-            id: "invite-3",
-            email: "revoked@example.com",
-            role: "user",
-            status: "revoked",
-            invitedByAdminId: "admin-1",
-            invitedByAdminEmail: "admin@example.com",
-            expiresAt: new Date("2026-08-01T12:00:00.000Z"),
-            effectiveStatus: "revoked",
-          },
-        ],
+        ok: true,
+        value: {
+          users: [],
+          recentInvites: [
+            {
+              id: "invite-1",
+              email: "fresh@example.com",
+              role: "user",
+              status: "pending",
+              invitedByAdminId: "admin-1",
+              invitedByAdminEmail: "admin@example.com",
+              expiresAt: new Date("2026-08-11T12:00:00.000Z"),
+              magicLinkGeneration: 0,
+              effectiveStatus: "pending",
+            },
+            {
+              id: "invite-2",
+              email: "expired@example.com",
+              role: "organizer",
+              status: "pending",
+              invitedByAdminId: "admin-1",
+              invitedByAdminEmail: "admin@example.com",
+              expiresAt: new Date("2026-06-01T12:00:00.000Z"),
+              magicLinkGeneration: 0,
+              effectiveStatus: "expired",
+            },
+            {
+              id: "invite-3",
+              email: "revoked@example.com",
+              role: "user",
+              status: "revoked",
+              invitedByAdminId: "admin-1",
+              invitedByAdminEmail: "admin@example.com",
+              expiresAt: new Date("2026-08-01T12:00:00.000Z"),
+              magicLinkGeneration: 0,
+              effectiveStatus: "revoked",
+            },
+          ],
+        },
       }),
       inviteUser: vi.fn(),
       changeRole: vi.fn(),

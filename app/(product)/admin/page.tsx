@@ -1,5 +1,5 @@
 import { requirePageContext } from "../../../src/lib/page-context";
-import { createAdminUsersWorkflow } from "../../../src/admin/users.workflow";
+import { createAdminUsersWorkflow } from "../../../src/workflow/admin-users";
 import { createPostgresAdminUserRepository } from "../../../src/admin/users.repository";
 import { createPostgresInviteRepository } from "../../../src/admin/invites.repository";
 import { getSessionRepository } from "../../../src/auth/session";
@@ -16,11 +16,12 @@ import {
 import { SuspendTypedConfirm } from "./_components/SuspendTypedConfirm";
 import type { UserListItem } from "../../../src/admin/users.repository";
 import type { UserRole, UserStatus } from "../../../src/db/schema";
-import type { AdminUsersRecentInvite } from "../../../src/admin/users.workflow";
+import type { AdminUsersRecentInvite } from "../../../src/workflow/admin-users";
 
 type SearchParams = Promise<{
   invited?: string | string[];
   error?: string | string[];
+  csrf?: string | string[];
   role_change?: string | string[];
   action?: string | string[];
 }>;
@@ -55,6 +56,12 @@ export default async function AdminPage({
     statusWorkflow.load(),
   ]);
 
+  if (!usersResult.ok) {
+    throw new Error("Admin users load failed");
+  }
+
+  const users = usersResult.value;
+
   const params = (await searchParams) ?? {};
   const invitedEmail = firstString(params.invited);
   const errorCode = firstString(params.error);
@@ -88,6 +95,17 @@ export default async function AdminPage({
           data-testid="admin-error-banner"
         >
           {errorMessageFor(errorCode)}
+        </p>
+      ) : null}
+
+      {firstString(params.csrf) === "failed" ? (
+        <p
+          className="admin-error-banner"
+          role="alert"
+          aria-live="polite"
+          data-testid="admin-csrf-banner"
+        >
+          Your session token was invalid. Refresh and try again.
         </p>
       ) : null}
 
@@ -131,8 +149,8 @@ export default async function AdminPage({
         >
           <h2 className="admin-section-heading">Users</h2>
           <span className="admin-section-summary-line">
-            {usersResult.users.length} user
-            {usersResult.users.length === 1 ? "" : "s"}
+            {users.users.length} user
+            {users.users.length === 1 ? "" : "s"}
           </span>
         </summary>
         <div className="admin-section-body" data-testid="admin-users-body">
@@ -187,7 +205,7 @@ export default async function AdminPage({
               </tr>
             </thead>
             <tbody>
-              {usersResult.users.map((u) => (
+              {users.users.map((u) => (
                 <UserRow
                   key={u.id}
                   user={u}
@@ -200,7 +218,7 @@ export default async function AdminPage({
 
           <section className="recent-invites" data-testid="recent-invites">
             <h3 className="recent-invites-heading">Recent invites</h3>
-            {usersResult.recentInvites.length === 0 ? (
+            {users.recentInvites.length === 0 ? (
               <p
                 className="recent-invites-empty"
                 data-testid="recent-invites-empty"
@@ -218,7 +236,7 @@ export default async function AdminPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {usersResult.recentInvites.map((invite) => (
+                  {users.recentInvites.map((invite) => (
                     <InviteRow
                       key={invite.id}
                       invite={invite}
@@ -267,11 +285,14 @@ export default async function AdminPage({
   );
 }
 
-function firstString(value: string | string[] | undefined): string | null {
+function firstString(
+  value: string | string[] | null | undefined,
+): string | null {
   if (Array.isArray(value)) {
-    return value[0] ?? null;
+    const first = value[0];
+    return typeof first === "string" ? first : null;
   }
-  return value ?? null;
+  return typeof value === "string" ? value : null;
 }
 
 function errorMessageFor(code: string): string {
@@ -395,7 +416,15 @@ function UserRow({
         {labelUserStatus(user.status)}
       </td>
       <td>
-        {user.status === "active" ? (
+        {isSelf ? (
+          <span
+            className="users-self-help users-self-actions"
+            role="note"
+            data-testid={`users-self-actions-${user.id}`}
+          >
+            You cannot suspend or reinstate yourself.
+          </span>
+        ) : user.status === "active" ? (
           <SuspendTypedConfirm
             userId={user.id}
             userEmail={user.email}

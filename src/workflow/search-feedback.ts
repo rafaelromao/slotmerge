@@ -2,7 +2,7 @@ import * as Iron from "@hapi/iron";
 import { createHash } from "node:crypto";
 
 import { getSessionSecret } from "../auth/session";
-import type { SearchFieldErrorCode, SearchFieldErrors } from "./search";
+import type { SearchFieldErrors } from "./search";
 
 export type SearchFeedbackTokenPayload = {
   fieldErrors: SearchFieldErrors;
@@ -21,7 +21,6 @@ export type SearchFeedbackTokenPayload = {
 };
 
 export type SearchFormValues = SearchFeedbackTokenPayload["values"];
-export type SearchFeedbackFieldName = keyof SearchFieldErrors;
 
 export const SEARCH_FORM_ID = "searches/run";
 export const SEARCH_FEEDBACK_TTL_MS = 5 * 60_000;
@@ -102,31 +101,4 @@ export function feedbackToFieldErrors(payload: SearchFeedbackTokenPayload): {
     fieldErrors: payload.fieldErrors,
     values: payload.values,
   };
-}
-
-export function selectFirstError(
-  fieldErrors: SearchFieldErrors,
-): { field: SearchFeedbackFieldName; code: SearchFieldErrorCode } | null {
-  if (fieldErrors.selectedTopics) {
-    return { field: "selectedTopics", code: fieldErrors.selectedTopics };
-  }
-  if (fieldErrors.minimumMatchingUsers) {
-    return {
-      field: "minimumMatchingUsers",
-      code: fieldErrors.minimumMatchingUsers,
-    };
-  }
-  if (fieldErrors.durationMinutes) {
-    return { field: "durationMinutes", code: fieldErrors.durationMinutes };
-  }
-  if (fieldErrors.dateRangeEnd) {
-    return { field: "dateRangeEnd", code: fieldErrors.dateRangeEnd };
-  }
-  if (fieldErrors.organizerTimezone) {
-    return {
-      field: "organizerTimezone",
-      code: fieldErrors.organizerTimezone,
-    };
-  }
-  return null;
 }

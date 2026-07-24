@@ -6,9 +6,8 @@ import type {
   SearchFormDefaults,
   SearchWorkflow,
 } from "../../../../src/workflow/search";
-import type { SearchFeedbackFieldName } from "../../../../src/workflow/search-feedback";
 
-export type SearchFormErrorField = SearchFeedbackFieldName;
+export type SearchFormErrorField = keyof SearchFieldErrors;
 
 export type SearchFormValues = {
   selectedTopicIds: string[];

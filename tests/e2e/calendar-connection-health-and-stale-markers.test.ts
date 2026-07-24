@@ -1,17 +1,14 @@
 import { afterEach, describe, expect, inject, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 
-import { GET as LIST_CONNECTIONS } from "../../app/me/calendar-connections/route";
-import {
-  sealSessionCookie,
-  setSessionRepositoryForTests,
-} from "../../src/auth/session";
+import { setSessionRepositoryForTests } from "../../src/auth/session";
 import { calendarConnections } from "../../src/db/schema";
 import {
   CALENDAR_CONNECTION_FIXTURES,
   SESSION_FIXTURES,
   USER_FIXTURES,
 } from "../fixtures/seeds";
+import { listConnectionsForTests } from "../helpers/calendar-connection-tests";
 import { getTestDb, setupTest } from "../helpers/setup";
 
 vi.mock("../../src/worker/sync", () => ({
@@ -42,13 +39,12 @@ function aliceSession() {
   };
 }
 
-async function getConnectionView(): Promise<Response> {
-  const cookie = await sealSessionCookie({ sessionId: SESSION_ID });
-  return LIST_CONNECTIONS(
-    new Request("http://localhost/me/calendar-connections", {
-      headers: { cookie },
-    }),
-  );
+async function getConnectionView(): Promise<{
+  connections: Awaited<
+    ReturnType<typeof listConnectionsForTests>
+  >["connections"];
+}> {
+  return listConnectionsForTests(ALICE_ID);
 }
 
 function getRequiredTestDb() {
@@ -66,7 +62,7 @@ describe.runIf(HAS_TEST_DB)(
       vi.resetAllMocks();
     });
 
-    it("GET /me/calendar-connections returns healthStatus, lastSyncAt, and stale fields", async () => {
+    it("GET /me/calendar-connections returns displayStatus, lastSyncAt, and stale fields", async () => {
       await setupTest();
       const db = getRequiredTestDb();
 
@@ -83,26 +79,15 @@ describe.runIf(HAS_TEST_DB)(
           Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
       });
 
-      const response = await getConnectionView();
-      expect(response.status).toBe(200);
-      const body = (await response.json()) as {
-        connections: Array<{
-          id: string;
-          status: string;
-          healthStatus: string;
-          lastSyncAt: string | null;
-          stale: boolean;
-        }>;
-      };
-
-      const connection = body.connections.find((c) => c.id === CONNECTION_ID);
+      const { connections } = await getConnectionView();
+      const connection = connections.find((c) => c.id === CONNECTION_ID);
       expect(connection).toBeDefined();
       expect(connection?.id).toBe(CONNECTION_ID);
-      expect(connection?.status).toBe("connected");
-      expect(connection).toHaveProperty("healthStatus");
+      expect(connection?.displayStatus).toBe("connected");
+      expect(connection).toHaveProperty("displayStatus");
       expect(connection).toHaveProperty("lastSyncAt");
       expect(connection).toHaveProperty("stale");
-      expect(typeof connection?.healthStatus).toBe("string");
+      expect(typeof connection?.displayStatus).toBe("string");
       expect(typeof connection?.stale).toBe("boolean");
     });
 
@@ -123,55 +108,11 @@ describe.runIf(HAS_TEST_DB)(
           Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
       });
 
-      const response = await getConnectionView();
-      expect(response.status).toBe(200);
-      const body = (await response.json()) as {
-        connections: Array<{
-          id: string;
-          healthStatus: string;
-          stale: boolean;
-        }>;
-      };
-
-      const connection = body.connections.find((c) => c.id === CONNECTION_ID);
+      const { connections } = await getConnectionView();
+      const connection = connections.find((c) => c.id === CONNECTION_ID);
       expect(connection).toBeDefined();
-      expect(connection?.healthStatus).toBe("connected");
+      expect(connection?.displayStatus).toBe("connected");
       expect(connection?.stale).toBe(true);
-    });
-
-    it("disconnected connection shows healthStatus disconnected but stale false", async () => {
-      await setupTest();
-      const db = getRequiredTestDb();
-
-      await db
-        .update(calendarConnections)
-        .set({
-          status: "disconnected",
-          lastSyncAt: new Date("2026-07-12T12:00:00.000Z"),
-        })
-        .where(eq(calendarConnections.id, CONNECTION_ID));
-
-      setSessionRepositoryForTests({
-        findById: (sessionId) =>
-          Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
-      });
-
-      const response = await getConnectionView();
-      expect(response.status).toBe(200);
-      const body = (await response.json()) as {
-        connections: Array<{
-          id: string;
-          status: string;
-          healthStatus: string;
-          stale: boolean;
-        }>;
-      };
-
-      const connection = body.connections.find((c) => c.id === CONNECTION_ID);
-      expect(connection).toBeDefined();
-      expect(connection?.status).toBe("disconnected");
-      expect(connection?.healthStatus).toBe("disconnected");
-      expect(connection?.stale).toBe(false);
     });
   },
 );

@@ -90,9 +90,7 @@ async function updateConnectionErrorMetadata(
   input: RecordCalendarConnectionSyncFailureInput,
 ): Promise<void> {
   const needsReconnect =
-    input.code === "invalid_grant" ||
-    input.code === "token_revoked" ||
-    input.code === "AUTH_ERROR";
+    input.code === "invalid_grant" || input.code === "token_revoked";
 
   await getCalendarConnectionRepository().updateById(input.connectionId, {
     lastErrorCode: input.code,

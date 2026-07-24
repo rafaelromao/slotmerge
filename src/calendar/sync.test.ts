@@ -142,7 +142,7 @@ describe("syncCalendarConnection", () => {
     expect(intervals[0]?.status).toBe("busy");
   });
 
-  it("calls recordFailure with AUTH_ERROR on 401 for Google", async () => {
+  it("calls recordFailure with invalid_grant on 401 for Google", async () => {
     const upsertBatch = vi.fn();
     const recordFailure = vi.fn();
 
@@ -166,12 +166,12 @@ describe("syncCalendarConnection", () => {
 
     expect(upsertBatch).not.toHaveBeenCalled();
     expect(recordFailure).toHaveBeenCalledWith({
-      code: "AUTH_ERROR",
+      code: "invalid_grant",
       message: "Google authentication failed",
     });
   });
 
-  it("calls recordFailure with AUTH_ERROR on 401 for Microsoft", async () => {
+  it("calls recordFailure with invalid_grant on 401 for Microsoft", async () => {
     const upsertBatch = vi.fn();
     const recordFailure = vi.fn();
 
@@ -195,7 +195,7 @@ describe("syncCalendarConnection", () => {
 
     expect(upsertBatch).not.toHaveBeenCalled();
     expect(recordFailure).toHaveBeenCalledWith({
-      code: "AUTH_ERROR",
+      code: "invalid_grant",
       message: "Microsoft authentication failed",
     });
   });

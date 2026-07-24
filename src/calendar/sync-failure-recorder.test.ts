@@ -358,7 +358,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
-  it("sets status to needs_reconnect for AUTH_ERROR", async () => {
+  it("sets status to needs_reconnect for invalid_grant", async () => {
     let storedStatus = "connected";
     const updated: Record<string, unknown> = {};
     const sendEmail = vi.fn().mockResolvedValue({
@@ -399,7 +399,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
       {
         connectionId: "connection-1",
         provider: "google",
-        code: "AUTH_ERROR",
+        code: "invalid_grant",
         message: "Google authentication failed",
       },
       {
@@ -413,7 +413,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
     );
 
     expect(result).toMatchObject({ status: "sent", skipped: false });
-    expect(updated.lastErrorCode).toBe("AUTH_ERROR");
+    expect(updated.lastErrorCode).toBe("invalid_grant");
     expect(storedStatus).toBe("needs_reconnect");
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });

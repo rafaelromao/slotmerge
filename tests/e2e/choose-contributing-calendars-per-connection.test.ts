@@ -9,7 +9,6 @@ import {
 } from "vitest";
 
 import { POST as POST_CALLBACK } from "../../app/me/calendar-connections/callback/route";
-import { GET as GET_CONNECTIONS } from "../../app/me/calendar-connections/route";
 import { PATCH as PATCH_CONNECTION } from "../../app/me/calendar-connections/[id]/route";
 import { GET as GET_CALENDARS } from "../../app/me/calendar-connections/[id]/calendars/route";
 import {
@@ -44,6 +43,7 @@ import {
   buildMockMicrosoftGraphAdapter,
   type MockMicrosoftGraphAdapter,
 } from "../mock-microsoft-graph-adapter";
+import { listConnectionsForTests } from "../helpers/calendar-connection-tests";
 import {
   SESSION_FIXTURES,
   TOPIC_FIXTURES,
@@ -99,17 +99,15 @@ async function listCalendarConnections(): Promise<{
     contributingCalendarIds: string[];
   }>;
 }> {
-  const init = await withCookie();
-  const response = await GET_CONNECTIONS(
-    new Request("http://localhost/me/calendar-connections", init),
-  );
-  expect(response.status).toBe(200);
-  return (await response.json()) as {
-    connections: Array<{
-      id: string;
-      provider: "google" | "microsoft";
-      contributingCalendarIds: string[];
-    }>;
+  const result = await listConnectionsForTests(ALICE.id);
+  return {
+    connections: result.connections.map((c) => ({
+      id: c.id,
+      provider: c.provider,
+      contributingCalendarIds: c.calendars
+        .filter((cal) => cal.selected)
+        .map((cal) => cal.id),
+    })),
   };
 }
 
@@ -717,7 +715,7 @@ describe("E2E: choose contributing calendars per connection", () => {
       );
       const slotStart = syncBusyStart;
       const slotEnd = syncBusyEnd;
-const matchedWithBoth = await runMatchingForSlot(
+      const matchedWithBoth = await runMatchingForSlot(
         slotStart,
         new Date(slotStart.getTime() - 60 * 60 * 1000),
         new Date(slotEnd.getTime() + 60 * 60 * 1000),

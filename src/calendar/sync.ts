@@ -74,7 +74,7 @@ export async function syncCalendarConnection(
     await busyIntervalRepository.upsertBatch(records);
   } catch (error) {
     if (error instanceof FreeBusyAuthError) {
-      await recordFailure({ code: "AUTH_ERROR", message: error.message });
+      await recordFailure({ code: "invalid_grant", message: error.message });
       return;
     }
 

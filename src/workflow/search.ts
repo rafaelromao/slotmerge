@@ -13,7 +13,11 @@ import {
 } from "../search/timezone";
 import type { Result } from "../lib/result";
 import type { SearchResultRepository } from "../search/search-result-repository";
-import type { SearchSnapshotAssemblerDeps } from "../search/search-snapshot-assembler";
+import {
+  createDefaultSearchSnapshotAssemblerDeps,
+  SearchSnapshotAssembler,
+  type SearchSnapshotAssemblerDeps,
+} from "../search/search-snapshot-assembler";
 import type { DiscoverableUserRepository } from "../search/discoverable-user-repository";
 import type { Clock } from "../system/clock";
 
@@ -136,35 +140,6 @@ export function createSearchWorkflow(
         };
       }
 
-      const matchingPoolUserIds =
-        await discoverableUserRepository.listDiscoverableUserIds(
-          selectedTopicIds,
-          { excludeUserId: userId, requireAllTopics: true },
-        );
-      const matchingPoolSize = matchingPoolUserIds.length;
-
-      if (matchingPoolSize < MINIMUM_MATCHING_USERS_MIN) {
-        return {
-          ok: false,
-          error: {
-            fieldErrors: {
-              minimumMatchingUsers: "minimum_out_of_range",
-            },
-          },
-        };
-      }
-
-      if (raw.minimumMatchingUsers > matchingPoolSize) {
-        return {
-          ok: false,
-          error: {
-            fieldErrors: {
-              minimumMatchingUsers: "minimum_out_of_range",
-            },
-          },
-        };
-      }
-
       const overrides: SearchInputOverrides = {
         selectedTopicIds,
         minimumMatchingUsers: raw.minimumMatchingUsers,
@@ -189,6 +164,48 @@ export function createSearchWorkflow(
         };
       }
 
+      const effectiveAssemblerDependencies =
+        assemblerDependencies ??
+        createDefaultSearchSnapshotAssemblerDeps({
+          discoverableUserRepository,
+          topicRepository: {
+            listActive: () => Promise.resolve(activeTopics),
+          },
+          profileRepository,
+        });
+      const matchingPoolUserIds = assemblerDependencies
+        ? await discoverableUserRepository.listDiscoverableUserIds(
+            selectedTopicIds,
+            { excludeUserId: userId, requireAllTopics: true },
+          )
+        : await new SearchSnapshotAssembler(
+            effectiveAssemblerDependencies,
+          ).listEligibleUserIds({
+            organizerId: userId,
+            selectedTopicIds,
+            minimumMatchingUsers: raw.minimumMatchingUsers,
+            durationMinutes: raw.durationMinutes,
+            dateRangeStart: raw.dateRangeStart,
+            dateRangeEnd: raw.dateRangeEnd,
+            organizerTimezone,
+            now: clock.now(),
+          });
+      const matchingPoolSize = matchingPoolUserIds.length;
+
+      if (
+        matchingPoolSize < MINIMUM_MATCHING_USERS_MIN ||
+        raw.minimumMatchingUsers > matchingPoolSize
+      ) {
+        return {
+          ok: false,
+          error: {
+            fieldErrors: {
+              minimumMatchingUsers: "minimum_out_of_range",
+            },
+          },
+        };
+      }
+
       const submitDeps: Parameters<typeof submitSearch>[0] = {
         organizerId: userId,
         activeTopicsRepository: {
@@ -201,9 +218,7 @@ export function createSearchWorkflow(
         matchingPoolSize,
         activeTopicsSnapshot: activeTopics,
       };
-      if (assemblerDependencies !== undefined) {
-        submitDeps.assemblerDependencies = assemblerDependencies;
-      }
+      submitDeps.assemblerDependencies = effectiveAssemblerDependencies;
 
       const submitResult = await submitSearch(submitDeps, overrides);
 

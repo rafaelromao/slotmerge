@@ -96,6 +96,26 @@ export type MatchPreparation = {
 export class SearchSnapshotAssembler {
   constructor(private readonly deps: SearchSnapshotAssemblerDeps) {}
 
+  async listEligibleUserIds(
+    input: SearchSnapshotAssemblerInput,
+  ): Promise<string[]> {
+    const activeTopics = await this.deps.topicRepository.listActive();
+    const topicMap = new Map(activeTopics.map((t) => [t.id, t]));
+    const discoverableUserIds =
+      await this.deps.discoverableUserRepository.listDiscoverableUserIds(
+        input.selectedTopicIds,
+        { excludeUserId: input.organizerId, requireAllTopics: true },
+      );
+    const prepared = await Promise.all(
+      discoverableUserIds
+        .filter((userId) => userId !== input.organizerId)
+        .map((userId) => this.prepareMatch(userId, input, topicMap)),
+    );
+    return prepared
+      .filter((match): match is MatchPreparation => match !== null)
+      .map((match) => match.userId);
+  }
+
   async assemble(input: SearchSnapshotAssemblerInput): Promise<SearchSnapshot> {
     const activeTopics = await this.deps.topicRepository.listActive();
     const topicMap = new Map(activeTopics.map((t) => [t.id, t]));

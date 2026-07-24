@@ -146,6 +146,86 @@ describe("runSearchAction handler", () => {
     void profile;
   });
 
+  it("parses DST spring-forward and fall-back dates in America/New_York", async () => {
+    const { handler, profile } = buildHandlerAndDeps();
+    const formData = makeFormData({
+      topicIds: ["topic-1"],
+      minimumMatchingUsers: "2",
+      durationMinutes: "60",
+      dateRangeStart: "2026-03-08",
+      dateRangeEnd: "2026-03-15",
+      organizerTimezone: "America/New_York",
+    });
+
+    const result = await handler.runSearch({
+      formData,
+      request: makeRequest(),
+    });
+
+    expect(result.kind).toBe("redirect");
+    if (result.kind !== "redirect") throw new Error("expected redirect");
+    const searchRepo = InMemorySearchRepository.lastInstance;
+    expect(searchRepo).toBeTruthy();
+    const stored = await searchRepo?.findById(
+      result.to.replace("/searches/", ""),
+    );
+    expect(stored?.dateRangeStart.toISOString()).toBe(
+      "2026-03-08T05:00:00.000Z",
+    );
+    void profile;
+  });
+
+  it("parses DST fall-back dates in America/New_York", async () => {
+    const { handler, profile } = buildHandlerAndDeps();
+    const formData = makeFormData({
+      topicIds: ["topic-1"],
+      minimumMatchingUsers: "2",
+      durationMinutes: "60",
+      dateRangeStart: "2026-11-01",
+      dateRangeEnd: "2026-11-08",
+      organizerTimezone: "America/New_York",
+    });
+
+    const result = await handler.runSearch({
+      formData,
+      request: makeRequest(),
+    });
+
+    expect(result.kind).toBe("redirect");
+    if (result.kind !== "redirect") throw new Error("expected redirect");
+    const searchRepo = InMemorySearchRepository.lastInstance;
+    expect(searchRepo).toBeTruthy();
+    const stored = await searchRepo?.findById(
+      result.to.replace("/searches/", ""),
+    );
+    expect(stored?.dateRangeStart.toISOString()).toBe(
+      "2026-11-01T04:00:00.000Z",
+    );
+    void profile;
+  });
+
+  it("rejects an unparseable IANA timezone", async () => {
+    const { handler, profile } = buildHandlerAndDeps();
+    const formData = makeFormData({
+      topicIds: ["topic-1"],
+      minimumMatchingUsers: "2",
+      durationMinutes: "60",
+      dateRangeStart: "2026-07-06",
+      dateRangeEnd: "2026-08-10",
+      organizerTimezone: "Mars/Olympus",
+    });
+
+    const result = await handler.runSearch({
+      formData,
+      request: makeRequest(),
+    });
+
+    expect(result.kind).toBe("form-error");
+    if (result.kind !== "form-error") throw new Error("expected form-error");
+    expect(result.fieldErrors.dateRangeEnd).toBe("date_range_invalid");
+    void profile;
+  });
+
   it("returns form-error selected_topics_required when zero topics", async () => {
     const { handler } = buildHandlerAndDeps();
     const formData = makeFormData({

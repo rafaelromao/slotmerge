@@ -7,8 +7,6 @@ import type {
   SearchWorkflow,
 } from "../../../../src/workflow/search";
 
-export type SearchFormErrorField = keyof SearchFieldErrors;
-
 export type SearchFormValues = {
   selectedTopicIds: string[];
   minimumMatchingUsers: string;

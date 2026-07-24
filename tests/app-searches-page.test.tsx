@@ -41,7 +41,6 @@ vi.mock("next/navigation", () => ({
 vi.mock("next/headers", () => ({
   headers: () => {
     const map = new Map<string, string>();
-    map.set("x-csrf-token", "csrf-token-organizer");
     map.set("x-pathname", "/searches");
     return {
       get: (name: string) => map.get(name.toLowerCase()) ?? null,

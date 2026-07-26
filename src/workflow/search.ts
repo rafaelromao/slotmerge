@@ -15,7 +15,6 @@ import type { Result } from "../lib/result";
 import type { SearchResultRepository } from "../search/search-result-repository";
 import {
   createDefaultSearchSnapshotAssemblerDeps,
-  SearchSnapshotAssembler,
   type SearchSnapshotAssemblerDeps,
 } from "../search/search-snapshot-assembler";
 import type { DiscoverableUserRepository } from "../search/discoverable-user-repository";

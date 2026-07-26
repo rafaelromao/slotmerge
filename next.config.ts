@@ -10,6 +10,7 @@ type WebpackConfig = {
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  turbopack: {},
   webpack: (config: WebpackConfig, { dev }: { dev: boolean }) => {
     if (dev) {
       const watchOptions = config.watchOptions ?? {};

@@ -1,6 +1,6 @@
 # Search Form Capture
 
-Captured from GitHub Actions run `30220250854` for `tests/e2e-browser/journeys/organizer/search-form.spec.ts`.
+Captured from GitHub Actions run `30222248451` for `tests/e2e-browser/journeys/organizer/search-form.spec.ts`.
 
 ## Baselines
 
@@ -13,13 +13,14 @@ Captured from GitHub Actions run `30220250854` for `tests/e2e-browser/journeys/o
 - `date-range-invalid.png`
 - `date-range-too-long.png`
 - `timezone-required.png`
+- `after-run.png`
 
 ## Links
 
 - Issue: https://github.com/rafaelromao/slotmerge/issues/297
 - PR: https://github.com/rafaelromao/slotmerge/pull/325
-- Workflow run: https://github.com/rafaelromao/slotmerge/actions/runs/30220250854
-- Screenshot artifact: https://github.com/rafaelromao/slotmerge/actions/runs/30220250854/artifacts/8636907128
+- Workflow run: https://github.com/rafaelromao/slotmerge/actions/runs/30222248451
+- Screenshot artifact: https://github.com/rafaelromao/slotmerge/actions/runs/30222248451/artifacts/8637560299
 
 ## Notes
 

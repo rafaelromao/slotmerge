@@ -164,33 +164,12 @@ export function createSearchWorkflow(
         };
       }
 
-      const effectiveAssemblerDependencies =
-        assemblerDependencies ??
-        createDefaultSearchSnapshotAssemblerDeps({
-          discoverableUserRepository,
-          topicRepository: {
-            listActive: () => Promise.resolve(activeTopics),
-          },
-          profileRepository,
-        });
-      const matchingPoolUserIds = assemblerDependencies
-        ? await discoverableUserRepository.listDiscoverableUserIds(
-            selectedTopicIds,
-            { excludeUserId: userId, requireAllTopics: true },
-          )
-        : await new SearchSnapshotAssembler(
-            effectiveAssemblerDependencies,
-          ).listEligibleUserIds({
-            organizerId: userId,
-            selectedTopicIds,
-            minimumMatchingUsers: raw.minimumMatchingUsers,
-            durationMinutes: raw.durationMinutes,
-            dateRangeStart: raw.dateRangeStart,
-            dateRangeEnd: raw.dateRangeEnd,
-            organizerTimezone,
-            now: clock.now(),
-          });
-      const matchingPoolSize = matchingPoolUserIds.length;
+      const matchingPoolSize = (
+        await discoverableUserRepository.listDiscoverableUserIds(
+          selectedTopicIds,
+          { excludeUserId: userId, requireAllTopics: true },
+        )
+      ).length;
 
       if (
         matchingPoolSize < MINIMUM_MATCHING_USERS_MIN ||
@@ -218,6 +197,15 @@ export function createSearchWorkflow(
         matchingPoolSize,
         activeTopicsSnapshot: activeTopics,
       };
+      const effectiveAssemblerDependencies =
+        assemblerDependencies ??
+        createDefaultSearchSnapshotAssemblerDeps({
+          discoverableUserRepository,
+          topicRepository: {
+            listActive: () => Promise.resolve(activeTopics),
+          },
+          profileRepository,
+        });
       submitDeps.assemblerDependencies = effectiveAssemblerDependencies;
 
       const submitResult = await submitSearch(submitDeps, overrides);

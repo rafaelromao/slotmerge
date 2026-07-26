@@ -85,7 +85,7 @@ describe("setDiscoverabilityAction", () => {
         method: "POST",
         headers: {
           cookie: "slotmerge_session=dummy",
-          origin: "http://localhost",
+          origin: "http://localhost:3000",
           "x-csrf-token": "csrf-token-1",
         },
       }),
@@ -116,7 +116,7 @@ describe("setDiscoverabilityAction", () => {
         method: "POST",
         headers: {
           cookie: "slotmerge_session=dummy",
-          origin: "http://localhost",
+          origin: "http://localhost:3000",
           "x-csrf-token": "csrf-token-1",
         },
       }),
@@ -146,7 +146,7 @@ describe("setDiscoverabilityAction", () => {
         method: "POST",
         headers: {
           cookie: "slotmerge_session=dummy",
-          origin: "http://localhost",
+          origin: "http://localhost:3000",
           "x-csrf-token": "csrf-token-1",
         },
       }),
@@ -182,7 +182,7 @@ describe("setDiscoverabilityAction", () => {
         method: "POST",
         headers: {
           cookie: "slotmerge_session=dummy",
-          origin: "http://localhost",
+          origin: "http://localhost:3000",
           "x-csrf-token": "csrf-token-1",
         },
       }),
@@ -210,7 +210,7 @@ describe("setDiscoverabilityAction", () => {
         method: "POST",
         headers: {
           cookie: "slotmerge_session=dummy",
-          origin: "http://localhost",
+          origin: "http://localhost:3000",
         },
       }),
     });
@@ -238,7 +238,7 @@ describe("setDiscoverabilityAction", () => {
         method: "POST",
         headers: {
           cookie: "slotmerge_session=dummy",
-          origin: "http://localhost",
+          origin: "http://localhost:3000",
           "x-csrf-token": "csrf-token-1",
         },
       }),
@@ -270,7 +270,7 @@ describe("setDiscoverabilityAction", () => {
         method: "POST",
         headers: {
           cookie: "slotmerge_session=dummy",
-          origin: "http://localhost",
+          origin: "http://localhost:3000",
           "x-csrf-token": "csrf-token-1",
         },
       }),
@@ -302,7 +302,7 @@ describe("setDiscoverabilityAction", () => {
         method: "POST",
         headers: {
           cookie: "slotmerge_session=dummy",
-          origin: "http://localhost",
+          origin: "http://localhost:3000",
           "x-csrf-token": "csrf-token-1",
         },
       }),

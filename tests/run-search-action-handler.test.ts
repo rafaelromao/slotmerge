@@ -69,11 +69,11 @@ function buildHandlerAndDeps(
 }
 
 function makeRequest(): Request {
-  return new Request("http://localhost/searches/run", {
+  return new Request("http://localhost:3000/searches/run", {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      origin: "http://localhost",
+      origin: "http://localhost:3000",
     },
   });
 }

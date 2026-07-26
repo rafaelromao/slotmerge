@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 type WatchOptions = {
-  ignored?: Array<string | RegExp>;
+  ignored?: string | RegExp | Array<string | RegExp>;
 };
 
 type WebpackConfig = {
@@ -14,10 +14,15 @@ const nextConfig: NextConfig = {
   webpack: (config: WebpackConfig, { dev }: { dev: boolean }) => {
     if (dev) {
       const watchOptions = config.watchOptions ?? {};
+      const ignored = Array.isArray(watchOptions.ignored)
+        ? watchOptions.ignored
+        : watchOptions.ignored
+          ? [watchOptions.ignored]
+          : [];
       config.watchOptions = {
         ...watchOptions,
         ignored: [
-          ...(watchOptions.ignored ?? []),
+          ...ignored,
           "**/tests/e2e-browser/screenshots/**",
           "**/playwright/.artifacts/**",
         ],

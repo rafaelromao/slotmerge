@@ -13,16 +13,8 @@ const nextConfig: NextConfig = {
   turbopack: {},
   webpack: (config: WebpackConfig, { dev }: { dev: boolean }) => {
     if (dev) {
-      const watchOptions = config.watchOptions ?? {};
-      const ignored = Array.isArray(watchOptions.ignored)
-        ? watchOptions.ignored
-        : watchOptions.ignored
-          ? [watchOptions.ignored]
-          : [];
       config.watchOptions = {
-        ...watchOptions,
         ignored: [
-          ...ignored,
           "**/tests/e2e-browser/screenshots/**",
           "**/playwright/.artifacts/**",
         ],

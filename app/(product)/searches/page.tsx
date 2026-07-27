@@ -117,6 +117,11 @@ export default async function SearchesPage({
     : null;
   const errorField = selectedErrorField ?? undefined;
   const feedbackValues = decoded?.values;
+  const selectedTopicsError = fieldErrors.selectedTopics;
+  const minimumMatchingUsersError = fieldErrors.minimumMatchingUsers;
+  const durationMinutesError = fieldErrors.durationMinutes;
+  const dateRangeEndError = fieldErrors.dateRangeEnd;
+  const organizerTimezoneError = fieldErrors.organizerTimezone;
 
   const workflow = createSearchWorkflow({
     clock: systemClock(),
@@ -177,9 +182,6 @@ export default async function SearchesPage({
     errorCode === "organizer_timezone_required"
       ? FIELD_ERROR_MESSAGES.organizer_timezone_required
       : null;
-  const isTimezoneError =
-    errorCode === "organizer_timezone_required" &&
-    errorField === "organizerTimezone";
 
   return (
     <main className="app-container" data-testid="searches-page">
@@ -218,9 +220,9 @@ export default async function SearchesPage({
         <fieldset
           className="searches-fieldset"
           data-testid="searches-topics-fieldset"
-          aria-invalid={errorField === "selectedTopics"}
+          aria-invalid={!!selectedTopicsError}
           aria-describedby={
-            errorField === "selectedTopics" ? "selectedTopics-error" : undefined
+            selectedTopicsError ? "selectedTopics-error" : undefined
           }
         >
           <legend>Topics</legend>
@@ -270,14 +272,14 @@ export default async function SearchesPage({
             Users must have all selected active Topics.
           </p>
 
-          {fieldErrors.selectedTopics ? (
+          {selectedTopicsError ? (
             <p
               id="selectedTopics-error"
               className="form-field-error"
               role="alert"
               data-testid="searches-field-error-selectedTopics"
             >
-              {FIELD_ERROR_MESSAGES[fieldErrors.selectedTopics]}
+              {FIELD_ERROR_MESSAGES[selectedTopicsError]}
             </p>
           ) : null}
         </fieldset>
@@ -290,15 +292,15 @@ export default async function SearchesPage({
             name="minimumMatchingUsers"
             min={2}
             defaultValue={minimumMatchingUsersInput}
-            aria-invalid={errorField === "minimumMatchingUsers"}
+            aria-invalid={!!minimumMatchingUsersError}
             aria-describedby={
-              errorField === "minimumMatchingUsers"
+              minimumMatchingUsersError
                 ? "minimumMatchingUsers-error"
                 : undefined
             }
             data-testid="searches-minimum-input"
           />
-          {fieldErrors.minimumMatchingUsers ? (
+          {minimumMatchingUsersError ? (
             <p
               id="minimumMatchingUsers-error"
               className="form-field-error"
@@ -320,15 +322,13 @@ export default async function SearchesPage({
             max={240}
             step={5}
             defaultValue={durationMinutesInput}
-            aria-invalid={errorField === "durationMinutes"}
+            aria-invalid={!!durationMinutesError}
             aria-describedby={
-              errorField === "durationMinutes"
-                ? "durationMinutes-error"
-                : undefined
+              durationMinutesError ? "durationMinutes-error" : undefined
             }
             data-testid="searches-duration-input"
           />
-          {fieldErrors.durationMinutes ? (
+          {durationMinutesError ? (
             <p
               id="durationMinutes-error"
               className="form-field-error"
@@ -355,20 +355,20 @@ export default async function SearchesPage({
             type="date"
             name="dateRangeEnd"
             defaultValue={dateRangeEndInput}
-            aria-invalid={errorField === "dateRangeEnd"}
+            aria-invalid={!!dateRangeEndError}
             aria-describedby={
-              errorField === "dateRangeEnd" ? "dateRangeEnd-error" : undefined
+              dateRangeEndError ? "dateRangeEnd-error" : undefined
             }
             data-testid="searches-daterange-end"
           />
-          {fieldErrors.dateRangeEnd ? (
+          {dateRangeEndError ? (
             <p
               id="dateRangeEnd-error"
               className="form-field-error"
               role="alert"
               data-testid="searches-field-error-dateRangeEnd"
             >
-              {FIELD_ERROR_MESSAGES[fieldErrors.dateRangeEnd]}
+              {FIELD_ERROR_MESSAGES[dateRangeEndError]}
             </p>
           ) : null}
         </div>
@@ -380,15 +380,13 @@ export default async function SearchesPage({
             type="text"
             name="organizerTimezone"
             defaultValue={organizerTimezoneInput}
-            aria-invalid={isTimezoneError || !!fieldErrors.organizerTimezone}
+            aria-invalid={!!organizerTimezoneError}
             aria-describedby={
-              isTimezoneError || fieldErrors.organizerTimezone
-                ? "organizerTimezone-error"
-                : undefined
+              organizerTimezoneError ? "organizerTimezone-error" : undefined
             }
             data-testid="searches-timezone-input"
           />
-          {fieldErrors.organizerTimezone ? (
+          {organizerTimezoneError ? (
             <p
               id="organizerTimezone-error"
               className="form-field-error"

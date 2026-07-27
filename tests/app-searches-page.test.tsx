@@ -383,5 +383,11 @@ describe("/searches page", () => {
     expect(html).toContain("searches-field-error-selectedTopics");
     expect(html).toContain("searches-field-error-durationMinutes");
     expect(html).toContain("searches-field-error-organizerTimezone");
+    expect(html).toMatch(
+      /id="durationMinutes"[^>]*aria-invalid="true"[^>]*aria-describedby="durationMinutes-error"/,
+    );
+    expect(html).toMatch(
+      /id="organizerTimezone"[^>]*aria-invalid="true"[^>]*aria-describedby="organizerTimezone-error"/,
+    );
   });
 });

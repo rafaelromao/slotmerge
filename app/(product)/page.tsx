@@ -1,18 +1,53 @@
 import Link from "next/link";
-import { and, eq, count, isNotNull } from "drizzle-orm";
+
 import { getServerSession } from "../../src/auth/session";
-import { getDb } from "../../src/db/client";
-import {
-  discoverabilityConsents,
-  userTopics,
-  availabilityWindows,
-} from "../../src/db/schema";
+import { createProductionSetupHomeWorkflow } from "../../src/workflow/setup-home-production";
 import { requestMagicLinkAction } from "./_actions/request-magic-link";
 
 type SearchParams = Promise<{
   error?: string | string[];
   sent?: string | string[];
 }>;
+
+type SetupCardConfig = {
+  key: string;
+  title: string;
+  description: string;
+  href: string;
+};
+
+const SETUP_CARDS: ReadonlyArray<SetupCardConfig> = [
+  {
+    key: "profile",
+    title: "Profile",
+    description: "Set your display name, timezone, and preferences",
+    href: "/me/profile",
+  },
+  {
+    key: "discoverability",
+    title: "Discoverability",
+    description: "Control who can find you in searches",
+    href: "/me/discoverability",
+  },
+  {
+    key: "topics",
+    title: "Topics",
+    description: "Select topics you're interested in meeting about",
+    href: "/me/topics",
+  },
+  {
+    key: "availability",
+    title: "Availability",
+    description: "Set your weekly availability windows",
+    href: "/me/availability",
+  },
+  {
+    key: "calendarConnection",
+    title: "Calendar Connection",
+    description: "Connect your calendar to import busy times",
+    href: "/me/calendar-connections",
+  },
+];
 
 export default async function SetupHomePage({
   searchParams,
@@ -72,37 +107,11 @@ export default async function SetupHomePage({
     );
   }
 
-  const db = getDb();
-  const userId = session.user.id;
+  const summary = await createProductionSetupHomeWorkflow().loadSummary({
+    userId: session.user.id,
+  });
 
-  const [discoverabilityRow] = await db
-    .select({ count: count() })
-    .from(discoverabilityConsents)
-    .where(
-      and(
-        eq(discoverabilityConsents.userId, userId),
-        isNotNull(discoverabilityConsents.grantedAt),
-      ),
-    )
-    .limit(1);
-
-  const [topicsRow] = await db
-    .select({ count: count() })
-    .from(userTopics)
-    .where(eq(userTopics.userId, userId))
-    .limit(1);
-
-  const [availabilityRow] = await db
-    .select({ count: count() })
-    .from(availabilityWindows)
-    .where(eq(availabilityWindows.userId, userId))
-    .limit(1);
-
-  const profileStatus = session.user.displayName ? "complete" : "pending";
-  const discoverabilityStatus =
-    discoverabilityRow.count > 0 ? "complete" : "pending";
-  const topicsStatus = topicsRow.count > 0 ? "complete" : "pending";
-  const availabilityStatus = availabilityRow.count > 0 ? "complete" : "pending";
+  const itemsByKey = new Map(summary.items.map((item) => [item.key, item]));
 
   return (
     <div className="setup-checklist">
@@ -110,36 +119,23 @@ export default async function SetupHomePage({
       <p>Complete your profile setup to get started.</p>
 
       <div className="setup-cards">
-        <SetupCard
-          title="Profile"
-          description="Set your display name, timezone, and preferences"
-          href="/me/profile"
-          status={profileStatus}
-        />
-        <SetupCard
-          title="Discoverability"
-          description="Control who can find you in searches"
-          href="/me/discoverability"
-          status={discoverabilityStatus}
-        />
-        <SetupCard
-          title="Topics"
-          description="Select topics you're interested in meeting about"
-          href="/me/topics"
-          status={topicsStatus}
-        />
-        <SetupCard
-          title="Availability"
-          description="Set your weekly availability windows"
-          href="/me/availability"
-          status={availabilityStatus}
-        />
-        <SetupCard
-          title="Calendar Connection"
-          description="Connect your calendar to import busy times"
-          href="/me/calendar-connections"
-          status="optional"
-        />
+        {SETUP_CARDS.map((card) => {
+          const item = itemsByKey.get(card.key);
+          const status: "complete" | "pending" | "optional" = item?.complete
+            ? "complete"
+            : item?.required
+              ? "pending"
+              : "optional";
+          return (
+            <SetupCard
+              key={card.key}
+              title={card.title}
+              description={card.description}
+              href={card.href}
+              status={status}
+            />
+          );
+        })}
       </div>
     </div>
   );

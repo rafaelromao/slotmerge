@@ -41,6 +41,9 @@ describe("SearchResultClient click-to-open flow", () => {
       <SearchResultClient
         snapshot={snapshot}
         organizerTimezone="America/New_York"
+        weekStart={new Date(snapshot.dateRangeStart)}
+        weekEnd={new Date(snapshot.dateRangeEnd)}
+        slots={snapshot.slots}
       />,
     );
 
@@ -53,6 +56,9 @@ describe("SearchResultClient click-to-open flow", () => {
       <SearchResultClient
         snapshot={snapshot}
         organizerTimezone="America/New_York"
+        weekStart={new Date(snapshot.dateRangeStart)}
+        weekEnd={new Date(snapshot.dateRangeEnd)}
+        slots={snapshot.slots}
       />,
     );
 
@@ -68,6 +74,9 @@ describe("SearchResultClient click-to-open flow", () => {
       <SearchResultClient
         snapshot={snapshot}
         organizerTimezone="America/New_York"
+        weekStart={new Date(snapshot.dateRangeStart)}
+        weekEnd={new Date(snapshot.dateRangeEnd)}
+        slots={snapshot.slots}
       />,
     );
 
@@ -92,6 +101,9 @@ describe("SearchResultClient click-to-open flow", () => {
       <SearchResultClient
         snapshot={staleSnapshot}
         organizerTimezone="America/New_York"
+        weekStart={new Date(staleSnapshot.dateRangeStart)}
+        weekEnd={new Date(staleSnapshot.dateRangeEnd)}
+        slots={staleSnapshot.slots}
       />,
     );
 
@@ -117,6 +129,9 @@ describe("SearchResultClient click-to-open flow", () => {
       <SearchResultClient
         snapshot={staleSnapshot}
         organizerTimezone="America/New_York"
+        weekStart={new Date(staleSnapshot.dateRangeStart)}
+        weekEnd={new Date(staleSnapshot.dateRangeEnd)}
+        slots={staleSnapshot.slots}
       />,
     );
 
@@ -130,6 +145,9 @@ describe("SearchResultClient click-to-open flow", () => {
       <SearchResultClient
         snapshot={snapshot}
         organizerTimezone="America/New_York"
+        weekStart={new Date(snapshot.dateRangeStart)}
+        weekEnd={new Date(snapshot.dateRangeEnd)}
+        slots={snapshot.slots}
       />,
     );
 
@@ -155,6 +173,9 @@ describe("SearchResultClient click-to-open flow", () => {
       <SearchResultClient
         snapshot={staleSnapshot}
         organizerTimezone="America/New_York"
+        weekStart={new Date(staleSnapshot.dateRangeStart)}
+        weekEnd={new Date(staleSnapshot.dateRangeEnd)}
+        slots={staleSnapshot.slots}
       />,
     );
 
@@ -166,6 +187,9 @@ describe("SearchResultClient click-to-open flow", () => {
       <SearchResultClient
         snapshot={snapshot}
         organizerTimezone="America/New_York"
+        weekStart={new Date(snapshot.dateRangeStart)}
+        weekEnd={new Date(snapshot.dateRangeEnd)}
+        slots={snapshot.slots}
       />,
     );
 

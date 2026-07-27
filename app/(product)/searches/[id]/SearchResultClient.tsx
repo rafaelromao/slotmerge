@@ -11,20 +11,20 @@ type WeeklyDay = {
 };
 
 function buildWeeklyGrid(
-  snapshot: SearchSnapshot,
+  weekStart: Date,
+  weekEnd: Date,
+  slots: Slot[],
   formatters: {
     dayFormatter: Intl.DateTimeFormat;
     dayKeyFormatter: Intl.DateTimeFormat;
   },
 ): WeeklyDay[] {
-  const start = new Date(snapshot.dateRangeStart);
-  const end = new Date(snapshot.dateRangeEnd);
   const days: WeeklyDay[] = [];
 
-  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+  for (let d = new Date(weekStart); d <= weekEnd; d.setUTCDate(d.getUTCDate() + 1)) {
     const dayDate = new Date(d);
     const dayKey = formatters.dayKeyFormatter.format(dayDate);
-    const daySlots = snapshot.slots.filter((slot) => {
+    const daySlots = slots.filter((slot) => {
       const slotDate = new Date(slot.startUtc);
       return formatters.dayKeyFormatter.format(slotDate) === dayKey;
     });
@@ -58,9 +58,15 @@ function buildSlotLabel(
 export function SearchResultClient({
   snapshot,
   organizerTimezone,
+  weekStart,
+  weekEnd,
+  slots,
 }: {
   snapshot: SearchSnapshot;
   organizerTimezone: string;
+  weekStart: Date;
+  weekEnd: Date;
+  slots: Slot[];
 }) {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
 
@@ -84,8 +90,8 @@ export function SearchResultClient({
   }, [organizerTimezone]);
 
   const days = useMemo(
-    () => buildWeeklyGrid(snapshot, formatters),
-    [snapshot, formatters],
+    () => buildWeeklyGrid(weekStart, weekEnd, slots, formatters),
+    [weekEnd, weekStart, slots, formatters],
   );
 
   const handleSlotClick = useCallback((slot: Slot) => {

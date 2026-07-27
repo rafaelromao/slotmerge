@@ -8,7 +8,6 @@ import {
 } from "../../../../src/search/calendar-utils";
 import {
   getSearchResultRepository,
-  type SearchSnapshot,
 } from "../../../../src/search/search-result-repository";
 import { listActiveTopics } from "../../../../src/topics/repository";
 import { systemClock } from "../../../../src/system/clock";
@@ -59,18 +58,6 @@ function formatWeekParam(date: Date, timezone: string): string {
   return year && month && day
     ? `${year}-${month}-${day}`
     : date.toISOString().slice(0, 10);
-}
-
-function buildWeeklySnapshot(
-  snapshot: SearchSnapshot,
-  weekStart: Date,
-): SearchSnapshot {
-  return {
-    ...snapshot,
-    dateRangeStart: weekStart.toISOString(),
-    dateRangeEnd: new Date(weekStart.getTime() + WEEK_MS - 1).toISOString(),
-    slots: getSlotsForWeek(snapshot, weekStart),
-  };
 }
 
 export default async function SearchResultPage({
@@ -129,7 +116,8 @@ export default async function SearchResultPage({
       new Date(opened.value.snapshot.dateRangeStart),
     opened.value.search.organizerTimezone,
   );
-  const weeklySnapshot = buildWeeklySnapshot(opened.value.snapshot, weekStart);
+  const weekEnd = new Date(weekStart.getTime() + WEEK_MS - 1);
+  const weeklySlots = getSlotsForWeek(opened.value.snapshot, weekStart);
   const dateRangeStart = new Date(opened.value.search.dateRangeStart);
   const dateRangeEnd = new Date(opened.value.search.dateRangeEnd);
   const prevWeekStart =
@@ -153,7 +141,7 @@ export default async function SearchResultPage({
     </div>
   );
 
-  if (weeklySnapshot.slots.length === 0) {
+  if (weeklySlots.length === 0) {
     return (
       <main className="search-result-page">
         <header className="search-result-header">
@@ -317,8 +305,11 @@ export default async function SearchResultPage({
       </nav>
 
       <SearchResultClient
-        snapshot={weeklySnapshot}
+        snapshot={opened.value.snapshot}
         organizerTimezone={opened.value.search.organizerTimezone}
+        weekStart={weekStart}
+        weekEnd={weekEnd}
+        slots={weeklySlots}
       />
 
       <p className="search-result-stale-note">

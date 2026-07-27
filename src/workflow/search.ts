@@ -79,7 +79,12 @@ export type SearchHistoryPageItem = {
   stale: boolean;
 };
 
-export type ListHistoryOutcome = SearchHistoryPageItem[];
+export type ListHistoryOutcome = Result<
+  SearchHistoryPageItem[],
+  {
+    reason: "history_unavailable";
+  }
+>;
 
 export type RerunSearchOutcome = Result<
   { searchId: string },
@@ -316,61 +321,79 @@ export function createSearchWorkflow(
       });
     },
 
-    async listHistory({ userId }: { userId: string }) {
+    async listHistory({
+      userId,
+    }: {
+      userId: string;
+    }): Promise<ListHistoryOutcome> {
       // The history is shared by every Organizer and Admin; userId is part of
       // the workflow contract but is not used as a filter. Reserved for any
       // future per-caller scoping (e.g. audit trail).
       void userId;
-      const raw = await getSearchRepository().listSearchHistory(clock);
-      const catalogue = await getTopicCatalogueRepository().listCatalogue();
-      const topicNamesById = new Map(
-        catalogue.map((entry) => [entry.id, entry.name] as const),
-      );
-      const page: SearchHistoryPageItem[] = [];
-      for (const item of raw) {
-        const profile = await profileRepository.findByUserId(item.organizerId);
-        const displayName =
-          profile?.displayName?.trim() && profile.displayName.trim().length > 0
-            ? profile.displayName.trim()
-            : item.organizerId;
-        const selectedTopicNames = item.selectedTopicIds.map(
-          (topicId) => topicNamesById.get(topicId) ?? topicId,
+      try {
+        const raw = await getSearchRepository().listSearchHistory(clock);
+        const catalogue = await getTopicCatalogueRepository().listCatalogue();
+        const topicNamesById = new Map(
+          catalogue.map((entry) => [entry.id, entry.name] as const),
         );
-        page.push({
-          id: item.id,
-          organizerId: item.organizerId,
-          organizerDisplayName: displayName,
-          selectedTopicIds: item.selectedTopicIds,
-          selectedTopicNames,
-          minimumMatchingUsers: item.minimumMatchingUsers,
-          durationMinutes: item.durationMinutes,
-          dateRangeStart: item.dateRangeStart,
-          dateRangeEnd: item.dateRangeEnd,
-          organizerTimezone: item.organizerTimezone,
-          generatedAt: item.generatedAt,
-          snapshotId: item.snapshotId,
-          stale: item.stale,
-        });
+        const page: SearchHistoryPageItem[] = [];
+        for (const item of raw) {
+          const profile = await profileRepository.findByUserId(
+            item.organizerId,
+          );
+          const displayName =
+            profile?.displayName?.trim() &&
+            profile.displayName.trim().length > 0
+              ? profile.displayName.trim()
+              : item.organizerId;
+          const selectedTopicNames = item.selectedTopicIds.map(
+            (topicId) => topicNamesById.get(topicId) ?? topicId,
+          );
+          page.push({
+            id: item.id,
+            organizerId: item.organizerId,
+            organizerDisplayName: displayName,
+            selectedTopicIds: item.selectedTopicIds,
+            selectedTopicNames,
+            minimumMatchingUsers: item.minimumMatchingUsers,
+            durationMinutes: item.durationMinutes,
+            dateRangeStart: item.dateRangeStart,
+            dateRangeEnd: item.dateRangeEnd,
+            organizerTimezone: item.organizerTimezone,
+            generatedAt: item.generatedAt,
+            snapshotId: item.snapshotId,
+            stale: item.stale,
+          });
+        }
+        return ok(page);
+      } catch (caught) {
+        if (caught instanceof Error && caught.name === "AbortError") {
+          throw caught;
+        }
+        return err({ reason: "history_unavailable" });
       }
-      return page;
     },
 
     async rerun(input: {
       userId: string;
       searchId: string;
     }): Promise<RerunSearchOutcome> {
-      const { searchId } = input;
+      const { userId, searchId } = input;
       const activeTopics = await activeTopicsRepository.listActive();
-      const result = await rerunSearch(searchId, {
-        discoverableUserRepository,
-        clock,
-        searchResultRepository,
-        topicRepository: {
-          listActive: () => Promise.resolve(activeTopics),
+      const result = await rerunSearch(
+        searchId,
+        {
+          discoverableUserRepository,
+          clock,
+          searchResultRepository,
+          topicRepository: {
+            listActive: () => Promise.resolve(activeTopics),
+          },
+          profileRepository,
+          assemblerDependencies,
         },
-        profileRepository,
-        assemblerDependencies,
-      });
+        { actingOrganizerId: userId },
+      );
       if (!result.ok) {
         if (result.reason === "not_found") {
           return err({ reason: "search_not_found" });

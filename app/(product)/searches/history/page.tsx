@@ -86,9 +86,10 @@ export default async function SearchHistoryPage({
   const query = (await searchParams) ?? {};
   const before = readFirstString(query.before);
 
-  const history = await buildHistoryWorkflow().listHistory({
+  const historyResult = await buildHistoryWorkflow().listHistory({
     userId: context.user.id,
   });
+  const history = historyResult.ok ? historyResult.value : [];
 
   const beforeIndex = before
     ? history.findIndex((item) => item.id === before)

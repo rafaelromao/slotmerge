@@ -56,7 +56,7 @@ test.describe("Organizer search result journey", () => {
     await seedSearchResultFixture();
   });
 
-  test("happy path: grid renders, stale slot opens the drawer, next week navigates, rerun shell opens", async ({
+  test("happy path: grid renders, stale slot opens the drawer, next week navigates, history opens, rerun shell opens", async ({
     page,
   }) => {
     await page.clock.install({ time: FIXED_DATE });
@@ -101,11 +101,18 @@ test.describe("Organizer search result journey", () => {
     ).toBeVisible();
     await captureState(page, "search-result", "next-week");
 
+    await page.getByRole("link", { name: "Open in history" }).click();
+    await page.waitForURL(/\/searches\/history$/);
+    await expect(
+      page.getByRole("heading", { name: "Search History" }),
+    ).toBeVisible();
+    await captureState(page, "search-history", "list");
+
     await page.getByText("Re-run Search").click();
     await expect(
       page.getByText("Re-run Search confirmation lands in T13."),
     ).toBeVisible();
-    await captureState(page, "search-result", "rerun-shell");
+    await captureState(page, "search-history", "rerun-shell");
   });
 
   test("failure path: a week with no slots renders the empty state and actions", async ({
@@ -124,7 +131,9 @@ test.describe("Organizer search result journey", () => {
 
     await page.goto(`/searches/${searchId}?week=2026-09-14`);
 
-    await expect(page.getByTestId("search-result-empty-state")).toBeVisible();
+    await expect(page.getByRole("grid", { name: /Weekly search results/ })).toBeVisible();
+    await expect(page.getByText("No matching Slots this week.")).toHaveCount(0);
+    await expect(page.locator(".calendar-slot-empty")).toHaveCount(7);
     await expect(
       page.getByRole("link", { name: "Open in history" }),
     ).toBeVisible();

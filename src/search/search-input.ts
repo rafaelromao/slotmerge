@@ -328,16 +328,19 @@ export async function submitSearch(
 export async function rerunSearch(
   existingSearchId: string,
   deps: RerunSearchDeps,
+  options: { actingOrganizerId?: string } = {},
 ): Promise<RerunSearchResult> {
   const existing = await getSearchRepository().findById(existingSearchId);
   if (!existing) {
     return { ok: false, reason: "not_found" };
   }
 
+  const actingOrganizerId = options.actingOrganizerId ?? existing.organizerId;
+
   let input: SearchInput;
   try {
     const builder = createSearchInputBuilder({
-      organizerId: existing.organizerId,
+      organizerId: actingOrganizerId,
       activeTopicsRepository: deps.topicRepository,
       profileRepository: deps.profileRepository,
       clock: deps.clock,
@@ -363,7 +366,7 @@ export async function rerunSearch(
   const generatedAt = deps.clock.now();
 
   const searchRecord: SearchRecord = {
-    organizerId: existing.organizerId,
+    organizerId: actingOrganizerId,
     selectedTopicIds: existing.selectedTopicIds,
     minimumMatchingUsers: existing.minimumMatchingUsers,
     durationMinutes: existing.durationMinutes,

@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "../../../../../src/auth/session";
 import { assertCsrfFromFormData, CsrfError } from "../../../../../src/lib/csrf";
 import { getDiscoverableUserRepository } from "../../../../../src/search/discoverable-user-repository";
-import { rerunSearch } from "../../../../../src/search/search-input";
 import { getSearchResultRepository } from "../../../../../src/search/search-result-repository";
 import { listActiveTopics } from "../../../../../src/topics/repository";
 import { getProfileByUserId } from "../../../../../src/profile/repository";
@@ -31,27 +30,6 @@ function buildWorkflow() {
     discoverableUserRepository: getDiscoverableUserRepository(),
     searchResultRepository: getSearchResultRepository(),
   });
-}
-
-function buildRerunDependencies() {
-  return {
-    clock: systemClock(),
-    profileRepository: {
-      findByUserId: getProfileByUserId,
-    },
-    topicRepository: {
-      async listActive() {
-        const entries = await listActiveTopics();
-        return entries.map((entry) => ({
-          id: entry.id,
-          name: entry.name,
-          status: "active" as const,
-        }));
-      },
-    },
-    discoverableUserRepository: getDiscoverableUserRepository(),
-    searchResultRepository: getSearchResultRepository(),
-  };
 }
 
 function readSearchId(formData: FormData): string | null {
@@ -96,21 +74,14 @@ export async function rerunSearchAction(formData: FormData): Promise<void> {
   }
 
   const workflow = buildWorkflow();
-  const opened = await workflow.openSnapshot({
+  const result = await workflow.rerun({
     userId: session.user.id,
     searchId,
-    isAdmin: session.user.role === "admin",
   });
 
-  if (!opened.ok) {
-    redirectWithReason(searchId, opened.error.reason);
-  }
-
-  const result = await rerunSearch(searchId, buildRerunDependencies());
-
   if (!result.ok) {
-    redirectWithReason(searchId, result.reason);
+    redirectWithReason(searchId, result.error.reason);
   }
 
-  redirectToSearch(result.search.id!);
+  redirectToSearch(result.value.searchId);
 }

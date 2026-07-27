@@ -603,3 +603,265 @@ describe("searchWorkflow.run", () => {
     expect(all).toHaveLength(0);
   });
 });
+
+describe("searchWorkflow.listHistory", () => {
+  beforeEach(() => {
+    setSearchRepositoryForTests(null);
+    setSearchResultRepositoryForTests(null);
+    setDiscoverableUserRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
+  });
+
+  afterEach(() => {
+    setSearchRepositoryForTests(null);
+    setSearchResultRepositoryForTests(null);
+    setDiscoverableUserRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
+  });
+
+  async function seedTwoSearches(searchRepo: InMemorySearchRepository) {
+    const earlier = await searchRepo.save({
+      organizerId: "organizer-1",
+      selectedTopicIds: ["topic-1"],
+      minimumMatchingUsers: 2,
+      durationMinutes: 60,
+      dateRangeStart: new Date("2026-07-06T03:00:00.000Z"),
+      dateRangeEnd: new Date("2026-08-10T03:00:00.000Z"),
+      organizerTimezone: "America/Sao_Paulo",
+      generatedAt: new Date("2026-07-08T09:00:00.000Z"),
+    });
+    searchRepo.setSnapshotId(earlier.id!, "snapshot-earlier");
+    const later = await searchRepo.save({
+      organizerId: "organizer-1",
+      selectedTopicIds: ["topic-1", "topic-2"],
+      minimumMatchingUsers: 3,
+      durationMinutes: 30,
+      dateRangeStart: new Date("2026-07-13T03:00:00.000Z"),
+      dateRangeEnd: new Date("2026-07-20T03:00:00.000Z"),
+      organizerTimezone: "America/Sao_Paulo",
+      generatedAt: new Date("2026-07-09T09:00:00.000Z"),
+    });
+    searchRepo.setSnapshotId(later.id!, "snapshot-later");
+    return { earlier, later };
+  }
+
+  it("returns the shared chronological list newest first with display name and topic names", async () => {
+    const { workflow, searchRepo } = buildWorkflow({
+      activeTopics: [
+        { id: "topic-1", name: "Product strategy" },
+        { id: "topic-2", name: "AI engineering" },
+      ],
+      discoverableUserIds: ["user-1", "user-2", "user-3"],
+    });
+    const { earlier, later } = await seedTwoSearches(searchRepo);
+
+    const result = await workflow.listHistory({ userId: "organizer-1" });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected history result to succeed");
+    const history = result.value;
+    expect(history.map((item) => item.id)).toEqual([later.id, earlier.id]);
+    expect(history).toHaveLength(2);
+
+    const newest = history[0];
+    expect(newest.organizerDisplayName).toBe("Organizer");
+    expect(newest.selectedTopicIds).toEqual(["topic-1", "topic-2"]);
+    expect(newest.selectedTopicNames).toEqual([
+      "Product strategy",
+      "AI engineering",
+    ]);
+    expect(newest.minimumMatchingUsers).toBe(3);
+    expect(newest.durationMinutes).toBe(30);
+    expect(newest.organizerTimezone).toBe("America/Sao_Paulo");
+    expect(newest.snapshotId).toBe("snapshot-later");
+    expect(newest.generatedAt.toISOString()).toBe(
+      "2026-07-09T09:00:00.000Z",
+    );
+
+    const older = history[1];
+    expect(older.selectedTopicNames).toEqual(["Product strategy"]);
+    expect(older.snapshotId).toBe("snapshot-earlier");
+  });
+
+  it("is shared across Organizer and Admin callers", async () => {
+    const { workflow, searchRepo } = buildWorkflow({
+      discoverableUserIds: ["user-1", "user-2"],
+    });
+    await seedTwoSearches(searchRepo);
+
+    const organizerView = await workflow.listHistory({
+      userId: "organizer-1",
+    });
+    const adminView = await workflow.listHistory({ userId: "admin-1" });
+
+    expect(organizerView.ok).toBe(true);
+    expect(adminView.ok).toBe(true);
+    if (!organizerView.ok || !adminView.ok) {
+      throw new Error("expected history results to succeed");
+    }
+    expect(organizerView.value.map((item) => item.id)).toEqual(
+      adminView.value.map((item) => item.id),
+    );
+    expect(organizerView.value).toHaveLength(2);
+    expect(adminView.value).toHaveLength(2);
+  });
+
+  it("returns an empty ok result when there are no Search Results yet", async () => {
+    const { workflow } = buildWorkflow();
+    const result = await workflow.listHistory({ userId: "organizer-1" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected history result to succeed");
+    expect(result.value).toEqual([]);
+  });
+
+  it("returns history_unavailable when the underlying repository throws", async () => {
+    let attempted = false;
+    setSearchRepositoryForTests({
+      listSearchHistory() {
+        attempted = true;
+        return Promise.reject(new Error("database unreachable"));
+      },
+      save() {
+        return Promise.reject(new Error("not used"));
+      },
+      findById() {
+        return Promise.resolve(null);
+      },
+      listByOrganizer() {
+        return Promise.resolve([]);
+      },
+      listAll() {
+        return Promise.resolve([]);
+      },
+    });
+    const { createSearchWorkflow } = await import("../src/workflow/search");
+    const {
+      InMemoryActiveTopicsRepository,
+      InMemoryDiscoverableUserRepository,
+      InMemoryProfileRepository,
+      InMemorySearchResultRepository,
+      pinnedClock,
+      organizerProfile,
+    } = await import("./helpers/workflow-search-fixtures");
+    const workflow = createSearchWorkflow({
+      clock: pinnedClock("2026-07-08T15:00:00.000Z"),
+      profileRepository: new InMemoryProfileRepository(organizerProfile),
+      activeTopicsRepository: new InMemoryActiveTopicsRepository(),
+      discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
+      searchResultRepository: new InMemorySearchResultRepository(),
+    });
+    const result = await workflow.listHistory({ userId: "organizer-1" });
+    expect(attempted).toBe(true);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected failure");
+    expect(result.error.reason).toBe("history_unavailable");
+  });
+});
+
+describe("searchWorkflow.rerun", () => {
+  beforeEach(() => {
+    setSearchRepositoryForTests(null);
+    setSearchResultRepositoryForTests(null);
+    setDiscoverableUserRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
+  });
+
+  afterEach(() => {
+    setSearchRepositoryForTests(null);
+    setSearchResultRepositoryForTests(null);
+    setDiscoverableUserRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
+  });
+
+  it("returns search_not_found when the source Search id is unknown", async () => {
+    const { workflow } = buildWorkflow({
+      discoverableUserIds: ["user-1", "user-2"],
+    });
+    const result = await workflow.rerun({
+      userId: "organizer-1",
+      searchId: "missing-search",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected failure");
+    expect(result.error.reason).toBe("search_not_found");
+  });
+
+  it("persists a new Search and immutable Search Result using the source's parameters", async () => {
+    const { workflow, searchRepo } = buildWorkflow({
+      discoverableUserIds: ["user-1", "user-2", "user-3"],
+    });
+
+    const initial = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw(),
+    });
+    expect(initial.ok).toBe(true);
+    if (!initial.ok) throw new Error("expected initial run to succeed");
+    const firstSearchId = initial.value.searchId;
+
+    const result = await workflow.rerun({
+      userId: "organizer-1",
+      searchId: firstSearchId,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected rerun to succeed");
+    expect(result.value.searchId).not.toBe(firstSearchId);
+
+    const newSearch = await searchRepo.findById(result.value.searchId);
+    expect(newSearch).not.toBeNull();
+    if (!newSearch) throw new Error("expected rerun search to exist");
+    expect(newSearch.selectedTopicIds).toEqual(["topic-1"]);
+    expect(newSearch.minimumMatchingUsers).toBe(2);
+    expect(newSearch.durationMinutes).toBe(60);
+    expect(newSearch.organizerTimezone).toBe("America/Sao_Paulo");
+    expect(newSearch.organizerId).toBe("organizer-1");
+
+    const source = await searchRepo.findById(firstSearchId);
+    expect(source).not.toBeNull();
+
+    const all = await searchRepo.listAll();
+    expect(all).toHaveLength(2);
+  });
+
+  it("attributes the rerun to a different Organizer while keeping the source Parameters", async () => {
+    const { workflow, searchRepo } = buildWorkflow({
+      discoverableUserIds: ["user-1", "user-2", "user-3"],
+    });
+
+    const initial = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw({
+        selectedTopicIds: ["topic-1"],
+      }),
+    });
+    expect(initial.ok).toBe(true);
+    if (!initial.ok) throw new Error("expected initial run to succeed");
+    const sourceSearchId = initial.value.searchId;
+
+    const result = await workflow.rerun({
+      userId: "organizer-2",
+      searchId: sourceSearchId,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected rerun to succeed");
+
+    const rerun = await searchRepo.findById(result.value.searchId);
+    expect(rerun).not.toBeNull();
+    if (!rerun) throw new Error("expected rerun search to exist");
+    expect(rerun.organizerId).toBe("organizer-2");
+    expect(rerun.selectedTopicIds).toEqual(["topic-1"]);
+    expect(rerun.minimumMatchingUsers).toBe(2);
+    expect(rerun.durationMinutes).toBe(60);
+    expect(rerun.organizerTimezone).toBe("America/Sao_Paulo");
+
+    const source = await searchRepo.findById(sourceSearchId);
+    expect(source).not.toBeNull();
+    if (!source) throw new Error("expected source search to exist");
+    expect(source.organizerId).toBe("organizer-1");
+
+    const all = await searchRepo.listAll();
+    expect(all).toHaveLength(2);
+  });
+});

@@ -720,4 +720,48 @@ describe("rerunSearch", () => {
     expect(allSnapshots.length).toBe(1);
     expect(allSnapshots[0].id).toBe("sr-original");
   });
+
+  it("attributes the rerun to the acting organizer when actingOrganizerId is provided", async () => {
+    const repo = new InMemorySearchRepository();
+    setSearchRepositoryForTests(repo);
+    const searchResultRepo = new InMemorySearchResultRepository();
+    setSearchResultRepositoryForTests(searchResultRepo);
+
+    const originalSearch = await repo.save({
+      organizerId: "organizer-1",
+      selectedTopicIds: ["topic-1"],
+      minimumMatchingUsers: 2,
+      durationMinutes: 60,
+      dateRangeStart: new Date("2026-07-06T03:00:00.000Z"),
+      dateRangeEnd: new Date("2026-07-13T03:00:00.000Z"),
+      organizerTimezone: "America/Sao_Paulo",
+      generatedAt: new Date("2026-07-01T10:00:00.000Z"),
+    });
+
+    const result = await rerunSearch(
+      originalSearch.id!,
+      {
+        assemblerDependencies: mockAssemblerDeps,
+        discoverableUserRepository: new InMemoryDiscoverableUserRepository(),
+        clock: pinnedClock("2026-07-08T15:00:00.000Z"),
+        searchResultRepository: searchResultRepo,
+        topicRepository: new InMemoryActiveTopicsRepository([
+          { id: "topic-1", name: "Product strategy" },
+        ]),
+        profileRepository: new InMemoryProfileRepository(organizerProfile),
+      },
+      { actingOrganizerId: "organizer-2" },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected success");
+    expect(result.search.id).not.toBe(originalSearch.id);
+    expect(result.search.organizerId).toBe("organizer-2");
+    expect(result.search.selectedTopicIds).toEqual(
+      originalSearch.selectedTopicIds,
+    );
+
+    const source = await repo.findById(originalSearch.id!);
+    expect(source!.organizerId).toBe("organizer-1");
+  });
 });

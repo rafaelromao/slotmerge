@@ -71,9 +71,8 @@ describe("SearchHistoryPage", () => {
       isOrganizerOrAdmin: true,
     });
 
-    const { default: SearchHistoryPage } = await import(
-      "../app/(product)/searches/history/page",
-    );
+    const { default: SearchHistoryPage } =
+      await import("../app/(product)/searches/history/page");
 
     const html = renderToString(await SearchHistoryPage());
 

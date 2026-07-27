@@ -142,9 +142,8 @@ test.describe("Organizer search result journey", () => {
 
     await page.goto(`/searches/${searchId}?week=2026-09-14`);
 
-    await expect(page.getByRole("grid", { name: /Weekly search results/ })).toBeVisible();
-    await expect(page.getByText("No matching Slots this week.")).toHaveCount(0);
-    await expect(page.locator(".calendar-slot-empty")).toHaveCount(7);
+    await expect(page.getByTestId("search-result-empty-state")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Next week" })).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Open in history" }),
     ).toBeVisible();

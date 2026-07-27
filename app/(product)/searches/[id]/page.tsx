@@ -194,6 +194,12 @@ export default async function SearchResultPage({
     nextWeekCandidate.getTime() < dateRangeEnd.getTime()
       ? nextWeekCandidate
       : null;
+  const emptyStatePrimaryHref = nextWeekStart
+    ? `/searches/${id}?week=${formatWeekParam(nextWeekStart, opened.value.search.organizerTimezone)}`
+    : "/searches/history";
+  const emptyStatePrimaryLabel = nextWeekStart
+    ? "Next week"
+    : "Open in history";
 
   const actions = (
     <div className="search-result-actions">
@@ -298,18 +304,28 @@ export default async function SearchResultPage({
         )}
       </nav>
 
-      <SearchResultClient
-        snapshot={opened.value.snapshot}
-        organizerTimezone={opened.value.search.organizerTimezone}
-        weekStart={weekStart}
-        weekEnd={weekEnd}
-        slots={weeklySlots}
-      />
+      {weeklySlots.length > 0 ? (
+        <>
+          <SearchResultClient
+            snapshot={opened.value.snapshot}
+            organizerTimezone={opened.value.search.organizerTimezone}
+            weekStart={weekStart}
+            weekEnd={weekEnd}
+            slots={weeklySlots}
+          />
 
-      <p className="search-result-stale-note">
-        Cells marked ⚠ include stale calendar data. The Match list may be
-        smaller than the count suggests.
-      </p>
+          <p className="search-result-stale-note">
+            Cells marked ⚠ include stale calendar data. The Match list may be
+            smaller than the count suggests.
+          </p>
+        </>
+      ) : (
+        <div className="empty-state" data-testid="search-result-empty-state">
+          <p className="empty-state-title">No matching Slots this week.</p>
+          <p>Try the next week or review Search history.</p>
+          <Link href={emptyStatePrimaryHref}>{emptyStatePrimaryLabel}</Link>
+        </div>
+      )}
 
       {actions}
     </main>

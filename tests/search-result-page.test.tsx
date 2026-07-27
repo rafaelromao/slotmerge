@@ -13,7 +13,8 @@ vi.mock("../src/lib/page-context", () => ({
 }));
 
 vi.mock("../src/topics/repository", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/topics/repository")>();
+  const actual =
+    await importOriginal<typeof import("../src/topics/repository")>();
   return {
     ...actual,
     listActiveTopics: vi.fn(() =>
@@ -151,6 +152,84 @@ describe("SearchResultPage", () => {
     expect(html.match(/role="columnheader"/g)).toHaveLength(7);
   });
 
+  it("renders the empty-state primitive and a primary next-step action when the week has no Slots", async () => {
+    const searchRepo = new InMemorySearchRepository();
+    const resultRepo = new InMemorySearchResultRepository();
+    setSearchRepositoryForTests(searchRepo);
+    setSearchResultRepositoryForTests(resultRepo);
+    setTopicCatalogueRepositoryForTests({
+      listCatalogue: () =>
+        Promise.resolve([
+          {
+            id: "topic-1",
+            name: "Product strategy",
+            status: "active" as const,
+          },
+        ]),
+      listSelectedTopicIds: () => Promise.resolve([]),
+      listAssociations: () => Promise.resolve([]),
+      saveAssociations: () => Promise.resolve(),
+    });
+
+    const search = await searchRepo.save({
+      organizerId: "organizer-1",
+      selectedTopicIds: ["topic-1"],
+      minimumMatchingUsers: 2,
+      durationMinutes: 60,
+      dateRangeStart: new Date("2026-07-06T00:00:00.000Z"),
+      dateRangeEnd: new Date("2026-07-27T00:00:00.000Z"),
+      organizerTimezone: "UTC",
+      generatedAt: new Date("2026-07-13T09:00:00.000Z"),
+    });
+
+    await resultRepo.save({
+      searchId: search.id!,
+      createdAt: new Date("2026-07-13T09:00:00.000Z"),
+      snapshotJson: {
+        generatedAt: "2026-07-13T09:00:00.000Z",
+        organizerTimezone: "UTC",
+        dateRangeStart: "2026-07-06T00:00:00.000Z",
+        dateRangeEnd: "2026-07-27T00:00:00.000Z",
+        durationMinutes: 60,
+        slots: [],
+      },
+    });
+
+    const { requirePageContext } = await import("../src/lib/page-context");
+    vi.mocked(requirePageContext).mockResolvedValue({
+      user: {
+        id: "organizer-1",
+        email: "organizer@example.com",
+        displayName: "Organizer",
+        avatarUrl: null,
+        shortBio: null,
+        role: "organizer",
+        status: "active",
+        profileTimezone: "UTC",
+        bufferMinutes: 0,
+      },
+      csrfToken: "csrf-token",
+      isAuthed: true,
+      isAdmin: false,
+      isOrganizerOrAdmin: true,
+    });
+
+    const { default: SearchResultPage } =
+      await import("../app/(product)/searches/[id]/page");
+
+    const html = renderToString(
+      await SearchResultPage({
+        params: Promise.resolve({ id: search.id! }),
+        searchParams: Promise.resolve({ week: "2026-07-13" }),
+      }),
+    );
+
+    expect(html).toContain("No matching Slots this week.");
+    expect(html).toContain('data-testid="search-result-empty-state"');
+    expect(html).toContain(">Next week<");
+    expect(html).not.toContain('data-testid="slot-0-0"');
+  });
+
   it("keeps the requested week in the Organizer timezone", async () => {
     const searchRepo = new InMemorySearchRepository();
     const resultRepo = new InMemorySearchResultRepository();
@@ -213,9 +292,8 @@ describe("SearchResultPage", () => {
       isOrganizerOrAdmin: true,
     });
 
-    const { default: SearchResultPage } = await import(
-      "../app/(product)/searches/[id]/page",
-    );
+    const { default: SearchResultPage } =
+      await import("../app/(product)/searches/[id]/page");
 
     const html = renderToString(
       await SearchResultPage({
@@ -225,8 +303,10 @@ describe("SearchResultPage", () => {
     );
 
     expect(html).toContain("Mon, Jul 13, 2026");
+    expect(html).toContain("No matching Slots this week.");
+    expect(html).toContain('data-testid="search-result-empty-state"');
     expect(html).toContain(`href="/searches/${search.id}?week=2026-07-06"`);
     expect(html).toContain(`href="/searches/${search.id}?week=2026-07-20"`);
-    expect(html.match(/role="columnheader"/g)).toHaveLength(7);
+    expect(html).toContain(">Next week<");
   });
 });

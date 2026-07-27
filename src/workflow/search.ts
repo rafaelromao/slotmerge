@@ -254,13 +254,14 @@ export function createSearchWorkflow(
       return { ok: true, value: { searchId } };
     },
 
-    async openSnapshot({ userId, searchId, isAdmin = false }) {
+    async openSnapshot(input: {
+      userId: string;
+      searchId: string;
+      isAdmin?: boolean;
+    }) {
+      const { searchId } = input;
       const search = await getSearchRepository().findById(searchId);
       if (!search) {
-        return err({ reason: "search_not_found" as const });
-      }
-
-      if (!isAdmin && search.organizerId !== userId) {
         return err({ reason: "search_not_found" as const });
       }
 

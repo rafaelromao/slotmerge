@@ -3,8 +3,13 @@ import Link from "next/link";
 import { requirePageContext } from "../../../../src/lib/page-context";
 import { getProfileByUserId } from "../../../../src/profile/repository";
 import { getSearchRepository } from "../../../../src/search/repository";
+import { getTopicCatalogueRepository } from "../../../../src/topics/repository";
 import { systemClock } from "../../../../src/system/clock";
 import { rerunSearchAction } from "../[id]/_actions/rerun-search";
+
+type SearchParams = Promise<{
+  before?: string | string[];
+}>;
 
 function formatDateLabel(date: Date, timezone: string): string {
   return new Intl.DateTimeFormat("en-US", {
@@ -42,21 +47,45 @@ function formatWeekParam(date: Date, timezone: string): string {
     : date.toISOString().slice(0, 10);
 }
 
-export default async function SearchHistoryPage() {
+function readFirstString(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+export default async function SearchHistoryPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+} = {}) {
   const context = await requirePageContext({ roles: ["organizer", "admin"] });
   const repository = getSearchRepository();
   const history = await repository.listSearchHistory(systemClock());
-  const historyWithOrganizerNames = await Promise.all(
-    history.map(async (item) => {
+  const query = (await searchParams) ?? {};
+  const before = readFirstString(query.before);
+  const beforeIndex = before
+    ? history.findIndex((item) => item.id === before)
+    : -1;
+  const windowStart = beforeIndex >= 0 ? beforeIndex + 1 : 0;
+  const windowEnd = windowStart + 50;
+  const pageHistory = history.slice(windowStart, windowEnd);
+  const hasMore = windowEnd < history.length;
+  const topicCatalogue = await getTopicCatalogueRepository().listCatalogue();
+  const historyWithDetails = await Promise.all(
+    pageHistory.map(async (item) => {
       const profile = await getProfileByUserId(item.organizerId);
       return {
         ...item,
         organizerDisplayName: profile?.displayName?.trim() || item.organizerId,
+        selectedTopicNames: item.selectedTopicIds.map(
+          (topicId) =>
+            topicCatalogue.find((topic) => topic.id === topicId)?.name ??
+            topicId,
+        ),
       };
     }),
   );
 
-  if (historyWithOrganizerNames.length === 0) {
+  if (historyWithDetails.length === 0) {
     return (
       <main className="app-container">
         <div className="empty-state">
@@ -76,7 +105,7 @@ export default async function SearchHistoryPage() {
       </header>
 
       <ol className="search-history-list">
-        {historyWithOrganizerNames.map((item) => {
+        {historyWithDetails.map((item) => {
           const openHref = `/searches/${item.id}?week=${formatWeekParam(item.dateRangeStart, item.organizerTimezone)}`;
           return (
             <li key={item.id} className="search-history-row">
@@ -88,7 +117,7 @@ export default async function SearchHistoryPage() {
                     item.organizerTimezone,
                   )}
                 </p>
-                <p>Topics: {item.selectedTopicIds.join(", ")}</p>
+                <p>Topics: {item.selectedTopicNames.join(", ")}</p>
                 <p>
                   Minimum {item.minimumMatchingUsers}, {item.durationMinutes}{" "}
                   minutes
@@ -121,6 +150,15 @@ export default async function SearchHistoryPage() {
           );
         })}
       </ol>
+
+      {hasMore ? (
+        <Link
+          className="search-history-load-more"
+          href={`/searches/history?before=${encodeURIComponent(pageHistory.at(-1)?.id ?? "")}`}
+        >
+          Load more
+        </Link>
+      ) : null}
     </main>
   );
 }

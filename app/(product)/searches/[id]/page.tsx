@@ -133,7 +133,7 @@ export default async function SearchResultPage({
 
   const actions = (
     <div className="search-result-actions">
-      <Link href="/searches/history">Open in history</Link>
+      <Link href="/searches">Open in history</Link>
       <button type="button" popoverTarget={`rerun-search-confirm-${id}`}>
         Re-run Search
       </button>

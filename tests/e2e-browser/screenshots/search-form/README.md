@@ -1,6 +1,6 @@
 # Search Form Capture
 
-Captured from GitHub Actions run `30222248451` for `tests/e2e-browser/journeys/organizer/search-form.spec.ts`.
+Captured from GitHub Actions run `30228286607` for `tests/e2e-browser/journeys/organizer/search-form.spec.ts`.
 
 ## Baselines
 
@@ -19,9 +19,10 @@ Captured from GitHub Actions run `30222248451` for `tests/e2e-browser/journeys/o
 
 - Issue: https://github.com/rafaelromao/slotmerge/issues/297
 - PR: https://github.com/rafaelromao/slotmerge/pull/325
-- Workflow run: https://github.com/rafaelromao/slotmerge/actions/runs/30222248451
-- Screenshot artifact: https://github.com/rafaelromao/slotmerge/actions/runs/30222248451/artifacts/8637560299
+- Workflow run: https://github.com/rafaelromao/slotmerge/actions/runs/30228286607
+- Screenshot artifact: https://github.com/rafaelromao/slotmerge/actions/runs/30228286607/artifacts/8639240471
+- Video artifact: https://github.com/rafaelromao/slotmerge/actions/runs/30228286607/artifacts/8639241673
 
 ## Notes
 
-- The capture job uploaded the screenshot artifact, but the dedicated video upload step found no `playwright/.artifacts/**/*.webm` files on that run.
+- The capture job uploaded the screenshot artifact and the dedicated `playwright-videos` artifact with real `video.webm` files.

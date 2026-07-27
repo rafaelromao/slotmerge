@@ -119,6 +119,11 @@ test.describe("Organizer search result journey", () => {
       page.getByRole("heading", { name: "Search Result" }),
     ).toBeVisible();
     await captureState(page, "search-result", "rerun-shell");
+
+    await page.getByRole("link", { name: "Open in history" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Search History" }),
+    ).toBeVisible();
   });
 
   test("failure path: a week with no slots renders the empty state and actions", async ({

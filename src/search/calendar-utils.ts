@@ -1,10 +1,11 @@
 import type { SearchSnapshot, Slot } from "../db/schema";
+import { addCivilDays } from "./timezone";
 
 export function getSlotsForWeek(
   snapshot: SearchSnapshot,
   weekStart: Date,
 ): Slot[] {
-  const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const weekEnd = addCivilDays(weekStart, 7, snapshot.organizerTimezone);
 
   return snapshot.slots.filter((slot) => {
     const slotDate = new Date(slot.startUtc);
@@ -21,9 +22,8 @@ export function getPreviousWeekStart(
   today: Date,
 ): Date | null {
   const lookbackLimit = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
-  const previousWeekStart = new Date(
-    currentWeekStart.getTime() - 7 * 24 * 60 * 60 * 1000,
-  );
+  const previousWeekStart = new Date(currentWeekStart);
+  previousWeekStart.setUTCDate(previousWeekStart.getUTCDate() - 7);
   if (previousWeekStart < lookbackLimit) {
     return null;
   }
@@ -34,9 +34,8 @@ export function getNextWeekStart(
   currentWeekStart: Date,
   snapshotDateRangeEnd: Date,
 ): Date | null {
-  const nextWeekStart = new Date(
-    currentWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000,
-  );
+  const nextWeekStart = new Date(currentWeekStart);
+  nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 7);
   if (nextWeekStart >= snapshotDateRangeEnd) {
     return null;
   }

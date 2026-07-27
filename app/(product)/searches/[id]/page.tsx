@@ -7,14 +7,13 @@ import {
   getSlotsForWeek,
 } from "../../../../src/search/calendar-utils";
 import { getSearchResultRepository } from "../../../../src/search/search-result-repository";
-import { zonedTimeToUtc } from "../../../../src/search/timezone";
+import { addCivilDays, zonedTimeToUtc } from "../../../../src/search/timezone";
 import { listActiveTopics } from "../../../../src/topics/repository";
 import { systemClock } from "../../../../src/system/clock";
 import { createSearchWorkflow } from "../../../../src/workflow/search";
 import { rerunSearchAction } from "./_actions/rerun-search";
 import { SearchResultClient } from "./SearchResultClient";
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 type SearchParams = Promise<{
   week?: string | string[];
   rerun?: string | string[];
@@ -174,17 +173,26 @@ export default async function SearchResultPage({
       : new Date(opened.value.snapshot.dateRangeStart),
     opened.value.search.organizerTimezone,
   );
-  const weekEnd = new Date(weekStart.getTime() + WEEK_MS - 1);
+  const weekEnd = addCivilDays(
+    weekStart,
+    7,
+    opened.value.search.organizerTimezone,
+  );
   const weeklySlots = getSlotsForWeek(opened.value.snapshot, weekStart);
   const dateRangeStart = new Date(opened.value.search.dateRangeStart);
   const dateRangeEnd = new Date(opened.value.search.dateRangeEnd);
   const prevWeekStart =
     weekStart.getTime() > dateRangeStart.getTime()
-      ? new Date(weekStart.getTime() - WEEK_MS)
+      ? addCivilDays(weekStart, -7, opened.value.search.organizerTimezone)
       : null;
+  const nextWeekCandidate = addCivilDays(
+    weekStart,
+    7,
+    opened.value.search.organizerTimezone,
+  );
   const nextWeekStart =
-    weekStart.getTime() + WEEK_MS < dateRangeEnd.getTime()
-      ? new Date(weekStart.getTime() + WEEK_MS)
+    nextWeekCandidate.getTime() < dateRangeEnd.getTime()
+      ? nextWeekCandidate
       : null;
 
   const actions = (

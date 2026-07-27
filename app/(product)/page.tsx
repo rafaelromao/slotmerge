@@ -107,11 +107,25 @@ export default async function SetupHomePage({
     );
   }
 
-  const summary = await createProductionSetupHomeWorkflow().loadSummary({
+  const result = await createProductionSetupHomeWorkflow().loadSummary({
     userId: session.user.id,
   });
 
-  const itemsByKey = new Map(summary.items.map((item) => [item.key, item]));
+  if (!result.ok) {
+    return (
+      <main className="app-container">
+        <p
+          className="form-error-banner"
+          role="alert"
+          data-testid="setup-home-error-banner"
+        >
+          Setup status is temporarily unavailable. Refresh the page to retry.
+        </p>
+      </main>
+    );
+  }
+
+  const itemsByKey = new Map(result.value.items.map((item) => [item.key, item]));
 
   return (
     <div className="setup-checklist">
@@ -121,9 +135,14 @@ export default async function SetupHomePage({
       <div className="setup-cards">
         {SETUP_CARDS.map((card) => {
           const item = itemsByKey.get(card.key);
-          const status: "complete" | "pending" | "optional" = item?.complete
+          if (!item) {
+            throw new Error(
+              `Setup Home page is missing the "${card.key}" item.`,
+            );
+          }
+          const status: "complete" | "pending" | "optional" = item.complete
             ? "complete"
-            : item?.required
+            : item.required
               ? "pending"
               : "optional";
           return (

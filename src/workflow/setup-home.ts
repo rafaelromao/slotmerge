@@ -12,6 +12,7 @@ import type {
   SetupStatusItem,
   SetupStatusSummary,
 } from "../api/serializers";
+import type { Result } from "../lib/result";
 
 export type SetupHomeWorkflowDeps = {
   profileRepository: {
@@ -37,8 +38,13 @@ export type SetupHomeWorkflowDeps = {
   >;
 };
 
+export type LoadSummaryOutcome = Result<
+  SetupStatusSummary,
+  { reason: "summary_unavailable" }
+>;
+
 export type SetupHomeWorkflow = {
-  loadSummary(input: { userId: string }): Promise<SetupStatusSummary>;
+  loadSummary(input: { userId: string }): Promise<LoadSummaryOutcome>;
 };
 
 type ItemSeed = Omit<SetupStatusItem, "complete">;
@@ -56,60 +62,69 @@ export function createSetupHomeWorkflow(
 ): SetupHomeWorkflow {
   return {
     async loadSummary({ userId }) {
-      const [
-        profile,
-        discoverability,
-        selectedTopicIds,
-        userProposals,
-        windows,
-        overrides,
-        connections,
-      ] = await Promise.all([
-        deps.profileRepository.findByUserId(userId),
-        deps.discoverabilityConsentRepository.findByUserId(userId),
-        deps.topicRepository.listSelectedTopicIds(userId),
-        deps.topicProposalRepository.listUserProposals(userId),
-        deps.weeklyAvailabilityWindowRepository.listByUserId(userId),
-        deps.availabilityOverrideRepository.listByUserId(userId),
-        deps.calendarConnectionRepository.listByUserId(userId),
-      ]);
+      try {
+        const [
+          profile,
+          discoverability,
+          selectedTopicIds,
+          userProposals,
+          windows,
+          overrides,
+          connections,
+        ] = await Promise.all([
+          deps.profileRepository.findByUserId(userId),
+          deps.discoverabilityConsentRepository.findByUserId(userId),
+          deps.topicRepository.listSelectedTopicIds(userId),
+          deps.topicProposalRepository.listUserProposals(userId),
+          deps.weeklyAvailabilityWindowRepository.listByUserId(userId),
+          deps.availabilityOverrideRepository.listByUserId(userId),
+          deps.calendarConnectionRepository.listByUserId(userId),
+        ]);
 
-      const items: SetupStatusItem[] = [
-        {
-          ...ITEM_SEEDS[0],
-          complete: profileHasDisplayName(profile),
-        },
-        {
-          ...ITEM_SEEDS[1],
-          complete: discoverabilityIsGranted(discoverability),
-        },
-        {
-          ...ITEM_SEEDS[2],
-          complete:
-            selectedTopicIds.length > 0 ||
-            userProposals.some(
-              (proposal) => proposal.status === "pending",
-            ) ||
-            userProposals.some((proposal) => proposal.status === "approved"),
-        },
-        {
-          ...ITEM_SEEDS[3],
-          complete:
-            windows.length > 0 ||
-            overrides.length > 0 ||
-            connections.length > 0,
-        },
-        {
-          ...ITEM_SEEDS[4],
-          complete: connections.length > 0,
-        },
-      ];
+        const items: SetupStatusItem[] = [
+          {
+            ...ITEM_SEEDS[0],
+            complete: profileHasDisplayName(profile),
+          },
+          {
+            ...ITEM_SEEDS[1],
+            complete: discoverabilityIsGranted(discoverability),
+          },
+          {
+            ...ITEM_SEEDS[2],
+            complete:
+              selectedTopicIds.length > 0 ||
+              userProposals.some(
+                (proposal) => proposal.status === "pending",
+              ) ||
+              userProposals.some(
+                (proposal) => proposal.status === "approved",
+              ),
+          },
+          {
+            ...ITEM_SEEDS[3],
+            complete:
+              windows.length > 0 ||
+              overrides.length > 0 ||
+              connections.length > 0,
+          },
+          {
+            ...ITEM_SEEDS[4],
+            complete: connections.length > 0,
+          },
+        ];
 
-      const complete = items
-        .filter((item) => item.required)
-        .every((item) => item.complete);
+        const complete = items
+          .filter((item) => item.required)
+          .every((item) => item.complete);
 
-      return { complete, items };
+        return { ok: true, value: { complete, items } };
+      } catch (caught) {
+        if (caught instanceof Error && caught.name === "AbortError") {
+          throw caught;
+        }
+        return { ok: false, error: { reason: "summary_unavailable" } };
+      }
     },
   };
 }

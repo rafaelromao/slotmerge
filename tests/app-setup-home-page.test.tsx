@@ -67,7 +67,7 @@ describe("Setup Home page (setupHomeWorkflow driven)", () => {
     vi.mocked(workflowModule.createProductionSetupHomeWorkflow).mockReturnValue({
       async loadSummary() {
         await Promise.resolve();
-        return SUMMARY_PENDING;
+        return { ok: true, value: SUMMARY_PENDING };
       },
     });
 
@@ -92,7 +92,7 @@ describe("Setup Home page (setupHomeWorkflow driven)", () => {
     vi.mocked(workflowModule.createProductionSetupHomeWorkflow).mockReturnValue({
       async loadSummary() {
         await Promise.resolve();
-        return SUMMARY_PENDING;
+        return { ok: true, value: SUMMARY_PENDING };
       },
     });
 
@@ -109,7 +109,7 @@ describe("Setup Home page (setupHomeWorkflow driven)", () => {
     vi.mocked(workflowModule.createProductionSetupHomeWorkflow).mockReturnValue({
       async loadSummary() {
         await Promise.resolve();
-        return SUMMARY_COMPLETE;
+        return { ok: true, value: SUMMARY_COMPLETE };
       },
     });
 
@@ -119,5 +119,22 @@ describe("Setup Home page (setupHomeWorkflow driven)", () => {
     expect(html).toContain('data-status="complete"');
     const completeCount = (html.match(/data-status="complete"/g) ?? []).length;
     expect(completeCount).toBe(5);
+  });
+
+  it("renders an error banner when the workflow returns summary_unavailable", async () => {
+    vi.mocked(sessionModule.getServerSession).mockResolvedValue(buildSession("Ada Lovelace"));
+    vi.mocked(workflowModule.createProductionSetupHomeWorkflow).mockReturnValue({
+      async loadSummary() {
+        await Promise.resolve();
+        return { ok: false, error: { reason: "summary_unavailable" } };
+      },
+    });
+
+    const { default: Page } = await import("@/../app/(product)/page");
+    const html = renderToString(await Page());
+
+    expect(html).toContain("setup-home-error-banner");
+    expect(html).toContain("temporarily unavailable");
+    expect(html).not.toContain("Welcome to SlotMerge");
   });
 });

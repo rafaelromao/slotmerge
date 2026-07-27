@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
 
-import { FIXTURE_DATE, seedAll } from "../fixtures/seeds";
-import { getDb } from "../../src/db/client";
-import { searches, searchResults } from "../../src/db/schema";
+import { FIXTURE_DATE, seedAll } from "../../../fixtures/seeds";
+import { getDb } from "../../../../src/db/client";
+import { searches, searchResults } from "../../../../src/db/schema";
 
 const FIXED_DATE = new Date(FIXTURE_DATE);
 
@@ -44,8 +44,9 @@ async function seedSearchFixture(): Promise<void> {
   });
 }
 
-test.describe("/api/v1 read adapters journey", () => {
+test.describe("/api/v1 read adapters journey (organizer)", () => {
   test.describe.configure({ mode: "serial" });
+  test.use({ storageState: "playwright/.auth/organizer.json" });
 
   test("organizer: GET /api/v1/searches returns the canonical history DTO", async ({
     request,
@@ -142,7 +143,7 @@ test.describe("/api/v1 read adapters journey", () => {
     ]);
   });
 
-  test("failure: organizer /api/v1/searches/{missing} returns problem+json 404", async ({
+  test("organizer: GET /api/v1/searches/{missing} returns problem+json 404", async ({
     request,
   }) => {
     await test.step("seed baseline users, topics, and a search snapshot", async () => {
@@ -171,8 +172,9 @@ test.describe("/api/v1 read adapters journey", () => {
   });
 });
 
-test.describe("/api/v1 read adapters — failure paths", () => {
+test.describe("/api/v1 read adapters — failure paths (user role)", () => {
   test.describe.configure({ mode: "serial" });
+  test.use({ storageState: "playwright/.auth/user.json" });
 
   test("user role: GET /api/v1/searches returns problem+json 403", async ({
     request,
@@ -197,6 +199,10 @@ test.describe("/api/v1 read adapters — failure paths", () => {
     expect(body.type).toBe("about:blank");
     expect(body.status).toBe(403);
   });
+});
+
+test.describe("/api/v1 read adapters — failure paths (no session)", () => {
+  test.describe.configure({ mode: "serial" });
 
   test("no session: GET /api/v1/me/setup-status returns problem+json 401", async ({
     browser,

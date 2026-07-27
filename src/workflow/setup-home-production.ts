@@ -24,10 +24,3 @@ export function createProductionSetupHomeWorkflow(): SetupHomeWorkflow {
     calendarConnectionRepository: getCalendarConnectionRepository(),
   });
 }
-
-export {
-  getAvailabilityOverrideRepository,
-  getDiscoverabilityConsentRepository,
-  getTopicProposalRepository,
-  getWeeklyAvailabilityWindowRepository,
-};

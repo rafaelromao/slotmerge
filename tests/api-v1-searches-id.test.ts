@@ -172,6 +172,43 @@ describe("GET /api/v1/searches/{id}", () => {
   it("returns 404 problem+json when the search is not found", async () => {
     setSearchRepositoryForTests(makeSearchRepository(false));
     setSearchResultRepositoryForTests(makeSearchResultRepository(false));
+    setTopicCatalogueRepositoryForTests({
+      async listCatalogue() {
+        await Promise.resolve();
+        return [];
+      },
+      async listSelectedTopicIds() {
+        await Promise.resolve();
+        return [];
+      },
+      async listAssociations() {
+        await Promise.resolve();
+        return [];
+      },
+      async saveAssociations() {
+        await Promise.resolve();
+      },
+    });
+    setProfileRepositoryForTests({
+      async findByUserId() {
+        await Promise.resolve();
+        return null;
+      },
+      async updateByUserId() {
+        await Promise.resolve();
+        return null;
+      },
+      async deleteByUserId() {
+        await Promise.resolve();
+        return false;
+      },
+    });
+    setDiscoverableUserRepositoryForTests({
+      async listDiscoverableUserIds() {
+        await Promise.resolve();
+        return [];
+      },
+    });
 
     const cookie = await sealSession(ORG_SESSION_ID);
     const response = await GET(
@@ -191,6 +228,43 @@ describe("GET /api/v1/searches/{id}", () => {
   it("returns 404 problem+json when the snapshot is missing", async () => {
     setSearchRepositoryForTests(makeSearchRepository(true));
     setSearchResultRepositoryForTests(makeSearchResultRepository(false));
+    setTopicCatalogueRepositoryForTests({
+      async listCatalogue() {
+        await Promise.resolve();
+        return [];
+      },
+      async listSelectedTopicIds() {
+        await Promise.resolve();
+        return [];
+      },
+      async listAssociations() {
+        await Promise.resolve();
+        return [];
+      },
+      async saveAssociations() {
+        await Promise.resolve();
+      },
+    });
+    setProfileRepositoryForTests({
+      async findByUserId() {
+        await Promise.resolve();
+        return null;
+      },
+      async updateByUserId() {
+        await Promise.resolve();
+        return null;
+      },
+      async deleteByUserId() {
+        await Promise.resolve();
+        return false;
+      },
+    });
+    setDiscoverableUserRepositoryForTests({
+      async listDiscoverableUserIds() {
+        await Promise.resolve();
+        return [];
+      },
+    });
 
     const cookie = await sealSession(ORG_SESSION_ID);
     const response = await GET(

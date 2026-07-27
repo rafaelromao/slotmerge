@@ -222,8 +222,11 @@ describe("setupHomeWorkflow.loadSummary", () => {
       windows: 1,
     });
 
-    const summary = await workflow.loadSummary({ userId: "user-1" });
+    const result = await workflow.loadSummary({ userId: "user-1" });
 
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected summary ok");
+    const summary = result.value;
     expect(summary.complete).toBe(false);
     expect(summary.items.map((i) => i.key)).toEqual([
       "profile",
@@ -268,9 +271,11 @@ describe("setupHomeWorkflow.loadSummary", () => {
       },
     });
 
-    const summary = await workflow.loadSummary({ userId: "user-1" });
+    const result = await workflow.loadSummary({ userId: "user-1" });
 
-    expect(summary.items[0]).toMatchObject({
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected summary ok");
+    expect(result.value.items[0]).toMatchObject({
       key: "profile",
       required: true,
       complete: false,
@@ -292,9 +297,11 @@ describe("setupHomeWorkflow.loadSummary", () => {
       },
     });
 
-    const summary = await workflow.loadSummary({ userId: "user-1" });
+    const result = await workflow.loadSummary({ userId: "user-1" });
 
-    expect(summary.items[0].complete).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected summary ok");
+    expect(result.value.items[0].complete).toBe(false);
   });
 
   it("marks the discoverability item complete when consent is granted", async () => {
@@ -305,9 +312,11 @@ describe("setupHomeWorkflow.loadSummary", () => {
       },
     });
 
-    const summary = await workflow.loadSummary({ userId: "user-1" });
+    const result = await workflow.loadSummary({ userId: "user-1" });
 
-    expect(summary.items[1]).toMatchObject({
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected summary ok");
+    expect(result.value.items[1]).toMatchObject({
       key: "discoverability",
       required: true,
       complete: true,
@@ -326,9 +335,11 @@ describe("setupHomeWorkflow.loadSummary", () => {
       ],
     });
 
-    const summary = await workflow.loadSummary({ userId: "user-1" });
+    const result = await workflow.loadSummary({ userId: "user-1" });
 
-    expect(summary.items[2]).toMatchObject({
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected summary ok");
+    expect(result.value.items[2]).toMatchObject({
       key: "topics",
       required: true,
       complete: true,
@@ -338,9 +349,11 @@ describe("setupHomeWorkflow.loadSummary", () => {
   it("marks the availability item complete when at least one Calendar Connection exists", async () => {
     const workflow = buildWorkflow({ connections: 1 });
 
-    const summary = await workflow.loadSummary({ userId: "user-1" });
+    const result = await workflow.loadSummary({ userId: "user-1" });
 
-    expect(summary.items[3]).toMatchObject({
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected summary ok");
+    expect(result.value.items[3]).toMatchObject({
       key: "availability",
       required: true,
       complete: true,
@@ -349,12 +362,16 @@ describe("setupHomeWorkflow.loadSummary", () => {
 
   it("marks the optional Calendar Connection item complete only when connections exist", async () => {
     const workflowNone = buildWorkflow({});
-    const none = await workflowNone.loadSummary({ userId: "user-1" });
-    expect(none.items[4].complete).toBe(false);
+    const noneResult = await workflowNone.loadSummary({ userId: "user-1" });
+    expect(noneResult.ok).toBe(true);
+    if (!noneResult.ok) throw new Error("expected summary ok");
+    expect(noneResult.value.items[4].complete).toBe(false);
 
     const workflowOne = buildWorkflow({ connections: 1 });
-    const one = await workflowOne.loadSummary({ userId: "user-1" });
-    expect(one.items[4].complete).toBe(true);
+    const oneResult = await workflowOne.loadSummary({ userId: "user-1" });
+    expect(oneResult.ok).toBe(true);
+    if (!oneResult.ok) throw new Error("expected summary ok");
+    expect(oneResult.value.items[4].complete).toBe(true);
   });
 
   it("returns aggregate complete=true when every required item is complete", async () => {
@@ -367,12 +384,76 @@ describe("setupHomeWorkflow.loadSummary", () => {
       windows: 1,
     });
 
-    const summary = await workflow.loadSummary({ userId: "user-1" });
+    const result = await workflow.loadSummary({ userId: "user-1" });
 
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected summary ok");
+    const summary = result.value;
     expect(summary.complete).toBe(true);
     expect(summary.items[0].complete).toBe(true);
     expect(summary.items[1].complete).toBe(true);
     expect(summary.items[2].complete).toBe(true);
     expect(summary.items[3].complete).toBe(true);
+  });
+
+  it("returns summary_unavailable when a repository throws", async () => {
+    const throwingProfileRepo = {
+      async findByUserId() {
+        await Promise.resolve();
+        throw new Error("database unreachable");
+      },
+    };
+    const { createSetupHomeWorkflow } = await import("./setup-home");
+    const throwingWorkflow = createSetupHomeWorkflow({
+      profileRepository: throwingProfileRepo,
+      discoverabilityConsentRepository: {
+        async findByUserId() {
+          await Promise.resolve();
+          return null;
+        },
+        async grant() {
+          await Promise.resolve();
+          throw new Error("not used");
+        },
+        async revoke() {
+          await Promise.resolve();
+          throw new Error("not used");
+        },
+      },
+      topicRepository: {
+        async listSelectedTopicIds() {
+          await Promise.resolve();
+          return [];
+        },
+      },
+      topicProposalRepository: {
+        async listUserProposals() {
+          await Promise.resolve();
+          return [];
+        },
+      },
+      weeklyAvailabilityWindowRepository: {
+        async listByUserId() {
+          await Promise.resolve();
+          return [];
+        },
+      },
+      availabilityOverrideRepository: {
+        async listByUserId() {
+          await Promise.resolve();
+          return [];
+        },
+      },
+      calendarConnectionRepository: {
+        async listByUserId() {
+          await Promise.resolve();
+          return [];
+        },
+      },
+    });
+    const result = await throwingWorkflow.loadSummary({ userId: "user-1" });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected failure");
+    expect(result.error.reason).toBe("summary_unavailable");
   });
 });

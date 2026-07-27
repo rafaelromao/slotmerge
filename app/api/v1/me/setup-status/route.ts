@@ -1,9 +1,7 @@
 import { getSessionFromRequest } from "../../../../../src/auth/session";
 import { problemJson } from "../../../../../src/api/problem-json";
 import { serializeSetupStatus } from "../../../../../src/api/serializers";
-import {
-  createProductionSetupHomeWorkflow,
-} from "../../../../../src/workflow/setup-home-production";
+import { createProductionSetupHomeWorkflow } from "../../../../../src/workflow/setup-home-production";
 import type { SetupHomeWorkflow } from "../../../../../src/workflow/setup-home";
 
 let workflowOverride: SetupHomeWorkflow | null = null;
@@ -28,9 +26,16 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  const summary = await getSetupHomeWorkflow().loadSummary({
+  const result = await getSetupHomeWorkflow().loadSummary({
     userId: session.user.id,
   });
 
-  return Response.json(serializeSetupStatus(summary));
+  if (!result.ok) {
+    return problemJson(503, {
+      title: "Setup status unavailable",
+      detail: "The setup status could not be read. Try again in a moment.",
+    });
+  }
+
+  return Response.json(serializeSetupStatus(result.value));
 }

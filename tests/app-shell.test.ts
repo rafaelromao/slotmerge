@@ -59,14 +59,17 @@ function installMocks(displayName: string | null) {
     async loadSummary() {
       await Promise.resolve();
       return {
-        complete: false,
-        items: [
-          { key: "profile", label: "Profile", required: true, complete: Boolean(displayName) },
-          { key: "discoverability", label: "Discoverability", required: true, complete: false },
-          { key: "topics", label: "Topics", required: true, complete: false },
-          { key: "availability", label: "Availability", required: true, complete: false },
-          { key: "calendarConnection", label: "Calendar Connection", required: false, complete: false },
-        ],
+        ok: true,
+        value: {
+          complete: false,
+          items: [
+            { key: "profile", label: "Profile", required: true, complete: Boolean(displayName) },
+            { key: "discoverability", label: "Discoverability", required: true, complete: false },
+            { key: "topics", label: "Topics", required: true, complete: false },
+            { key: "availability", label: "Availability", required: true, complete: false },
+            { key: "calendarConnection", label: "Calendar Connection", required: false, complete: false },
+          ],
+        },
       };
     },
   });

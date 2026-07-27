@@ -110,15 +110,14 @@ export default async function SearchHistoryPage({
   }
 
   const historyDto = serializeSearchHistoryPage(historyResult.value);
-void historyDto;
 
   const beforeIndex = before
-    ? historyResult.value.findIndex((item) => item.id === before)
+    ? historyDto.history.findIndex((item) => item.id === before)
     : -1;
   const windowStart = beforeIndex >= 0 ? beforeIndex + 1 : 0;
   const windowEnd = windowStart + HISTORY_PAGE_SIZE;
-  const pageHistory = historyResult.value.slice(windowStart, windowEnd);
-  const hasMore = windowEnd < historyResult.value.length;
+  const pageHistory = historyDto.history.slice(windowStart, windowEnd);
+  const hasMore = windowEnd < historyDto.history.length;
 
   if (pageHistory.length === 0) {
     return (
@@ -141,7 +140,7 @@ void historyDto;
 
       <ol className="search-history-list" data-testid="search-history-list">
         {pageHistory.map((item) => {
-          const openHref = `/searches/${item.id}?week=${formatWeekParam(item.dateRangeStart, item.organizerTimezone)}`;
+          const openHref = `/searches/${item.id}?week=${formatWeekParam(new Date(item.dateRangeStart), item.organizerTimezone)}`;
           return (
             <li
               key={item.id}
@@ -151,9 +150,9 @@ void historyDto;
               <article>
                 <h2>{item.organizerDisplayName}</h2>
                 <p>
-                  <time dateTime={item.generatedAt.toISOString()}>
+                  <time dateTime={item.generatedAt}>
                     {formatDateTimeLabel(
-                      item.generatedAt,
+                      new Date(item.generatedAt),
                       item.organizerTimezone,
                     )}
                   </time>
@@ -165,8 +164,8 @@ void historyDto;
                 </p>
                 <p>
                   Date Range:{" "}
-                  {formatDateLabel(item.dateRangeStart, item.organizerTimezone)}{" "}
-                  - {formatDateLabel(item.dateRangeEnd, item.organizerTimezone)}
+                  {formatDateLabel(new Date(item.dateRangeStart), item.organizerTimezone)}{" "}
+                  - {formatDateLabel(new Date(item.dateRangeEnd), item.organizerTimezone)}
                 </p>
                 <p>Organizer timezone: {item.organizerTimezone}</p>
                 <p>

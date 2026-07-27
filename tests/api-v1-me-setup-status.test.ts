@@ -183,7 +183,7 @@ function buildWorkflowFromDeps(
     connections?: number;
   } = {},
 ) {
-  return createSetupHomeWorkflow({
+  const workflow = createSetupHomeWorkflow({
     profileRepository: {
       async findByUserId() {
         await Promise.resolve();
@@ -208,6 +208,7 @@ function buildWorkflowFromDeps(
       overrides.connections ?? 0,
     ),
   });
+  return workflow;
 }
 
 describe("GET /api/v1/me/setup-status", () => {

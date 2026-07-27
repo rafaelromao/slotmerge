@@ -106,6 +106,7 @@ export default async function SearchResultPage({
               ? "Search not found."
               : "No snapshot available for this search."}
           </p>
+          <Link href="/searches">Run a Search</Link>
         </div>
       </main>
     );
@@ -135,7 +136,10 @@ export default async function SearchResultPage({
       <details className="rerun-search-confirm">
         <summary>Re-run Search</summary>
         <div className="rerun-search-confirm-panel">
-          <p>Re-run Search confirmation lands in T13.</p>
+          <p>Re-run this Search?</p>
+          <form action={`/searches/${id}/rerun`} method="post">
+            <button type="submit">Re-run</button>
+          </form>
         </div>
       </details>
     </div>

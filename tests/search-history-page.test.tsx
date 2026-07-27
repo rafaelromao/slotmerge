@@ -86,6 +86,7 @@ describe("SearchHistoryPage", () => {
     expect(html).toContain("Newest first.");
     expect(html.indexOf(newer.id!)).toBeLessThan(html.indexOf(older.id!));
     expect(html).toContain("Open Search Result");
-    expect(html).toContain("Re-run Search confirmation lands in T13.");
+    expect(html).toContain("Re-run this Search?");
+    expect(html).toContain('button type="submit">Re-run</button>');
   });
 });

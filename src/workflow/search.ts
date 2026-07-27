@@ -250,9 +250,13 @@ export function createSearchWorkflow(
       return { ok: true, value: { searchId } };
     },
 
-    async openSnapshot({ searchId }) {
+    async openSnapshot({ userId, searchId }) {
       const search = await getSearchRepository().findById(searchId);
       if (!search) {
+        return err({ reason: "search_not_found" as const });
+      }
+
+      if (search.organizerId !== userId) {
         return err({ reason: "search_not_found" as const });
       }
 

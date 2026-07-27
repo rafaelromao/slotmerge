@@ -93,7 +93,10 @@ export default async function SearchHistoryPage() {
                 <details className="rerun-search-confirm">
                   <summary>Re-run Search</summary>
                   <div className="rerun-search-confirm-panel">
-                    <p>Re-run Search confirmation lands in T13.</p>
+                    <p>Re-run this Search?</p>
+                    <form action={`/searches/${item.id}/rerun`} method="post">
+                      <button type="submit">Re-run</button>
+                    </form>
                   </div>
                 </details>
               </div>

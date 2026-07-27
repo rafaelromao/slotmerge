@@ -56,7 +56,7 @@ test.describe("Organizer search result journey", () => {
     await seedSearchResultFixture();
   });
 
-  test("happy path: grid renders, stale slot opens the drawer, next week navigates, rerun redirects", async ({
+  test("happy path: grid renders, stale slot opens the drawer, next week navigates, rerun shell opens", async ({
     page,
   }) => {
     await page.clock.install({ time: FIXED_DATE });
@@ -101,21 +101,11 @@ test.describe("Organizer search result journey", () => {
     ).toBeVisible();
     await captureState(page, "search-result", "next-week");
 
-    const currentSearchId = new URL(page.url()).pathname.split("/").at(-1)!;
     await page.getByText("Re-run Search").click();
-    await expect(page.getByRole("button", { name: "Re-run" })).toBeVisible();
-    await page.getByRole("button", { name: "Re-run" }).click();
-
-    await page.waitForURL(
-      (url) =>
-        url.pathname.startsWith("/searches/") &&
-        url.pathname !== `/searches/${currentSearchId}`,
-      { timeout: 10_000 },
-    );
     await expect(
-      page.getByRole("heading", { name: "Search Result" }),
+      page.getByText("Re-run Search confirmation lands in T13."),
     ).toBeVisible();
-    await captureState(page, "search-result", "rerun");
+    await captureState(page, "search-result", "rerun-shell");
   });
 
   test("failure path: a week with no slots renders the empty state and actions", async ({

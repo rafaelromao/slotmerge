@@ -159,7 +159,7 @@ test.describe("Organizer search result journey", () => {
 
     await expect(page.getByTestId("search-result-empty-state")).toBeVisible();
     await expect(page.getByRole("link", { name: "Next week" })).toHaveCount(0);
-    await expect(page.getByText("Next week")).toBeVisible();
+    await expect(page.getByText("Next week", { exact: true })).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Open in history" }),
     ).toBeVisible();

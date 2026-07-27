@@ -133,15 +133,17 @@ export default async function SearchResultPage({
   const actions = (
     <div className="search-result-actions">
       <Link href="/searches/history">Open in history</Link>
-      <details className="rerun-search-confirm">
-        <summary>Re-run Search</summary>
+      <button type="button" popoverTarget={`rerun-search-confirm-${id}`}>
+        Re-run Search
+      </button>
+      <div id={`rerun-search-confirm-${id}`} popover="auto">
         <div className="rerun-search-confirm-panel">
           <p>Re-run this Search?</p>
           <form action={`/searches/${id}/rerun`} method="post">
             <button type="submit">Re-run</button>
           </form>
         </div>
-      </details>
+      </div>
     </div>
   );
 
@@ -229,7 +231,7 @@ export default async function SearchResultPage({
       />
 
       <p className="search-result-stale-note">
-        Cells marked ⚠ include stale calendar data. The Match list may be
+        Cells marked [!] include stale calendar data. The Match list may be
         smaller than the count suggests.
       </p>
 

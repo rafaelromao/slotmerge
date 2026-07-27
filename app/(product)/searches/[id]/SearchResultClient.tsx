@@ -131,7 +131,7 @@ export function SearchResultClient({
             >
               {day.slots.length === 0 ? (
                 <div className="calendar-slot-empty" aria-hidden="true">
-                  —
+                  -
                 </div>
               ) : (
                 day.slots.map((slot, slotIdx) => {
@@ -156,7 +156,7 @@ export function SearchResultClient({
                           className="slot-stale-indicator"
                           aria-hidden="true"
                         >
-                          <span className="slot-stale-glyph">⚠</span>
+                          <span className="slot-stale-glyph">[!]</span>
                         </span>
                       )}
                     </button>

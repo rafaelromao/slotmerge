@@ -84,21 +84,26 @@ export default async function SearchHistoryPage() {
                 </p>
                 <p>
                   <strong>Search ID:</strong> {item.id}
-                  {item.stale ? " · Stale" : ""}
+                  {item.stale ? " | Stale" : ""}
                 </p>
               </div>
 
               <div className="search-history-row-actions">
                 <Link href={`/searches/${item.id}`}>Open Search Result</Link>
-                <details className="rerun-search-confirm">
-                  <summary>Re-run Search</summary>
+                <button
+                  type="button"
+                  popoverTarget={`rerun-search-confirm-${item.id}`}
+                >
+                  Re-run Search
+                </button>
+                <div id={`rerun-search-confirm-${item.id}`} popover="auto">
                   <div className="rerun-search-confirm-panel">
                     <p>Re-run this Search?</p>
                     <form action={`/searches/${item.id}/rerun`} method="post">
                       <button type="submit">Re-run</button>
                     </form>
                   </div>
-                </details>
+                </div>
               </div>
             </li>
           );

@@ -84,7 +84,7 @@ export type ListHistoryOutcome = SearchHistoryPageItem[];
 export type RerunSearchOutcome = Result<
   { searchId: string },
   {
-    reason: "search_not_found" | "topics_invalid" | "replay_failed";
+    reason: "search_not_found" | "topics_invalid";
   }
 >;
 
@@ -317,6 +317,9 @@ export function createSearchWorkflow(
     },
 
     async listHistory({ userId }: { userId: string }) {
+      // The history is shared by every Organizer and Admin; userId is part of
+      // the workflow contract but is not used as a filter. Reserved for any
+      // future per-caller scoping (e.g. audit trail).
       void userId;
       const raw = await getSearchRepository().listSearchHistory(clock);
       const catalogue = await getTopicCatalogueRepository().listCatalogue();
@@ -357,10 +360,6 @@ export function createSearchWorkflow(
       searchId: string;
     }): Promise<RerunSearchOutcome> {
       const { searchId } = input;
-      const existing = await getSearchRepository().findById(searchId);
-      if (!existing) {
-        return err({ reason: "search_not_found" as const });
-      }
       const activeTopics = await activeTopicsRepository.listActive();
       const result = await rerunSearch(searchId, {
         discoverableUserRepository,
@@ -373,17 +372,16 @@ export function createSearchWorkflow(
         assemblerDependencies,
       });
       if (!result.ok) {
-        const mappedReason =
-          result.reason === "not_found"
-            ? ("search_not_found" as const)
-            : ("topics_invalid" as const);
-        return err({ reason: mappedReason });
+        if (result.reason === "not_found") {
+          return err({ reason: "search_not_found" });
+        }
+        return err({ reason: "topics_invalid" });
       }
-      const persisted = await getSearchRepository().findById(result.search.id!);
-      if (!persisted?.id) {
-        return err({ reason: "replay_failed" as const });
+      const persistedId = result.search.id;
+      if (!persistedId) {
+        throw new Error("Persisted Search is missing its id after rerun.");
       }
-      return ok({ searchId: persisted.id });
+      return ok({ searchId: persistedId });
     },
   };
 }

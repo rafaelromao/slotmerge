@@ -614,8 +614,11 @@ button {
   border-radius: var(--radius-md);
   min-height: 4rem;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: stretch;
   justify-content: center;
+  padding: var(--space-2);
   background: var(--surface-base);
 }
 
@@ -683,6 +686,7 @@ button {
 }
 
 .calendar-slot {
+  width: 100%;
   background: var(--accent-soft);
   border: 1px solid var(--accent-soft-border);
   border-radius: var(--radius-md);

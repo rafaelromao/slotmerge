@@ -13,7 +13,7 @@ type WeeklyDay = {
 type WeeklyHourRow = {
   hour: number;
   label: string;
-  cells: Array<{ slot: Slot; slotIdx: number } | null>;
+  cells: Array<Array<{ slot: Slot; slotIdx: number }> | null>;
 };
 
 function buildWeeklyGrid(
@@ -46,8 +46,11 @@ function buildWeeklyGrid(
     dayKeys.push(dayKey);
   }
 
-  const slotMap = new Map<string, Slot>();
   const daySlotsByKey = new Map<
+    string,
+    Array<{ slot: Slot; slotIdx: number }>
+  >();
+  const cellSlotsByKey = new Map<
     string,
     Array<{ slot: Slot; slotIdx: number }>
   >();
@@ -55,11 +58,15 @@ function buildWeeklyGrid(
     const slotDate = new Date(slot.startUtc);
     const dayKey = formatters.dayKeyFormatter.format(slotDate);
     const hourKey = formatters.hourKeyFormatter.format(slotDate);
-    slotMap.set(`${dayKey}:${hourKey}`, slot);
 
     const daySlots = daySlotsByKey.get(dayKey) ?? [];
-    daySlots.push({ slot, slotIdx: daySlots.length });
+    const entry = { slot, slotIdx: daySlots.length };
+    daySlots.push(entry);
     daySlotsByKey.set(dayKey, daySlots);
+
+    const cellSlots = cellSlotsByKey.get(`${dayKey}:${hourKey}`) ?? [];
+    cellSlots.push(entry);
+    cellSlotsByKey.set(`${dayKey}:${hourKey}`, cellSlots);
   }
 
   for (const daySlots of daySlotsByKey.values()) {
@@ -80,13 +87,10 @@ function buildWeeklyGrid(
       hour,
       label: formatters.hourFormatter.format(rowDate),
       cells: dayKeys.map((dayKey) => {
-        const slot = slotMap.get(`${dayKey}:${hourKey}`) ?? null;
-        if (!slot) return null;
+        const slots = cellSlotsByKey.get(`${dayKey}:${hourKey}`) ?? null;
+        if (!slots) return null;
 
-        const daySlots = daySlotsByKey.get(dayKey) ?? [];
-        const slotIdx =
-          daySlots.find((entry) => entry.slot === slot)?.slotIdx ?? 0;
-        return { slot, slotIdx };
+        return slots;
       }),
     };
   });
@@ -143,6 +147,7 @@ export function SearchResultClient({
         hour: "numeric",
         minute: "2-digit",
         timeZone: organizerTimezone,
+        timeZoneName: "short",
       }),
       hourKeyFormatter: new Intl.DateTimeFormat("en-CA", {
         timeZone: organizerTimezone,
@@ -203,31 +208,36 @@ export function SearchResultClient({
                   );
                 }
 
-                const isStale = slotHasStale(cell.slot);
                 return (
                   <div key={`c-${dayIdx}`} className="calendar-hour-cell">
-                    <button
-                      type="button"
-                      className="calendar-slot"
-                      data-testid={`slot-${dayIdx}-${cell.slotIdx}`}
-                      data-stale={isStale ? "true" : "false"}
-                      aria-label={buildSlotLabel(
-                        cell.slot,
-                        days[dayIdx]?.label ?? "",
-                        formatters.hourFormatter,
-                      )}
-                      onClick={() => handleSlotClick(cell.slot)}
-                    >
-                      <span className="slot-count">{cell.slot.matchCount}</span>
-                      {isStale && (
-                        <span
-                          className="slot-stale-indicator"
-                          aria-hidden="true"
+                    {cell.map(({ slot, slotIdx }) => {
+                      const isStale = slotHasStale(slot);
+                      return (
+                        <button
+                          key={`${slot.startUtc}-${slotIdx}`}
+                          type="button"
+                          className="calendar-slot"
+                          data-testid={`slot-${dayIdx}-${slotIdx}`}
+                          data-stale={isStale ? "true" : "false"}
+                          aria-label={buildSlotLabel(
+                            slot,
+                            days[dayIdx]?.label ?? "",
+                            formatters.hourFormatter,
+                          )}
+                          onClick={() => handleSlotClick(slot)}
                         >
-                          <span className="slot-stale-glyph">⚠</span>
-                        </span>
-                      )}
-                    </button>
+                          <span className="slot-count">{slot.matchCount}</span>
+                          {isStale && (
+                            <span
+                              className="slot-stale-indicator"
+                              aria-hidden="true"
+                            >
+                              <span className="slot-stale-glyph">⚠</span>
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 );
               })}

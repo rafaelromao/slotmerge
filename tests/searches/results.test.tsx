@@ -52,6 +52,39 @@ describe("SearchResultClient click-to-open flow", () => {
     expect(html).toMatch(/data-testid="slot-\d+-\d+"/);
   });
 
+  it("keeps both Slots when two UTC times land on the same local hour during fall-back DST", () => {
+    const duplicateHourSlots: Slot[] = [
+      {
+        ...slot1,
+        startUtc: "2026-11-01T05:00:00.000Z",
+      },
+      {
+        ...slot1,
+        startUtc: "2026-11-01T06:00:00.000Z",
+      },
+    ];
+    const duplicateHourSnapshot: SearchSnapshot = {
+      ...snapshot,
+      dateRangeStart: "2026-10-26T04:00:00.000Z",
+      dateRangeEnd: "2026-11-02T05:00:00.000Z",
+      slots: duplicateHourSlots,
+    };
+
+    const html = renderToString(
+      <SearchResultClient
+        snapshot={duplicateHourSnapshot}
+        organizerTimezone="America/New_York"
+        weekStart={new Date(duplicateHourSnapshot.dateRangeStart)}
+        weekEnd={new Date(duplicateHourSnapshot.dateRangeEnd)}
+        slots={duplicateHourSnapshot.slots}
+      />,
+    );
+
+    expect(html).toContain('data-testid="slot-6-0"');
+    expect(html).toContain('data-testid="slot-6-1"');
+    expect(html.match(/data-testid="slot-6-\d+"/g)).toHaveLength(2);
+  });
+
   it("opens the Slot Details drawer when a slot button is clicked", () => {
     const { getByTestId, getByText } = render(
       <SearchResultClient

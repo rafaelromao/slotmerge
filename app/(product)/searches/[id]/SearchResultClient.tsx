@@ -23,7 +23,7 @@ function buildWeeklyGrid(
 
   for (
     let d = new Date(weekStart);
-    d <= weekEnd;
+    d < weekEnd;
     d.setUTCDate(d.getUTCDate() + 1)
   ) {
     const dayDate = new Date(d);

@@ -148,6 +148,7 @@ describe("SearchResultPage", () => {
     expect(html).toContain(`href="/searches/${search.id}?week=2026-07-20"`);
     expect(html).toContain('href="/searches/history"');
     expect(html).toContain('data-testid="slot-0-0"');
+    expect(html.match(/role="columnheader"/g)).toHaveLength(7);
   });
 
   it("keeps the requested week in the Organizer timezone", async () => {
@@ -226,5 +227,6 @@ describe("SearchResultPage", () => {
     expect(html).toContain("Mon, Jul 13, 2026");
     expect(html).toContain(`href="/searches/${search.id}?week=2026-07-06"`);
     expect(html).toContain(`href="/searches/${search.id}?week=2026-07-20"`);
+    expect(html.match(/role="columnheader"/g)).toHaveLength(7);
   });
 });

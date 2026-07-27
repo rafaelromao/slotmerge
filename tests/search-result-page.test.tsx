@@ -149,4 +149,82 @@ describe("SearchResultPage", () => {
     expect(html).toContain('href="/searches/history"');
     expect(html).toContain('data-testid="slot-0-0"');
   });
+
+  it("keeps the requested week in the Organizer timezone", async () => {
+    const searchRepo = new InMemorySearchRepository();
+    const resultRepo = new InMemorySearchResultRepository();
+    setSearchRepositoryForTests(searchRepo);
+    setSearchResultRepositoryForTests(resultRepo);
+    setTopicCatalogueRepositoryForTests({
+      listCatalogue: () =>
+        Promise.resolve([
+          {
+            id: "topic-1",
+            name: "Product strategy",
+            status: "active" as const,
+          },
+        ]),
+      listSelectedTopicIds: () => Promise.resolve([]),
+      listAssociations: () => Promise.resolve([]),
+      saveAssociations: () => Promise.resolve(),
+    });
+
+    const search = await searchRepo.save({
+      organizerId: "organizer-1",
+      selectedTopicIds: ["topic-1"],
+      minimumMatchingUsers: 2,
+      durationMinutes: 60,
+      dateRangeStart: new Date("2026-07-06T04:00:00.000Z"),
+      dateRangeEnd: new Date("2026-07-27T04:00:00.000Z"),
+      organizerTimezone: "America/New_York",
+      generatedAt: new Date("2026-07-13T09:00:00.000Z"),
+    });
+
+    await resultRepo.save({
+      searchId: search.id!,
+      createdAt: new Date("2026-07-13T09:00:00.000Z"),
+      snapshotJson: {
+        generatedAt: "2026-07-13T09:00:00.000Z",
+        organizerTimezone: "America/New_York",
+        dateRangeStart: "2026-07-06T04:00:00.000Z",
+        dateRangeEnd: "2026-07-27T04:00:00.000Z",
+        durationMinutes: 60,
+        slots: [],
+      },
+    });
+
+    const { requirePageContext } = await import("../src/lib/page-context");
+    vi.mocked(requirePageContext).mockResolvedValue({
+      user: {
+        id: "organizer-1",
+        email: "organizer@example.com",
+        displayName: "Organizer",
+        avatarUrl: null,
+        shortBio: null,
+        role: "organizer",
+        status: "active",
+        profileTimezone: "America/New_York",
+        bufferMinutes: 0,
+      },
+      csrfToken: "csrf-token",
+      isAuthed: true,
+      isAdmin: false,
+      isOrganizerOrAdmin: true,
+    });
+
+    const { default: SearchResultPage } = await import(
+      "../app/(product)/searches/[id]/page",
+    );
+
+    const html = renderToString(
+      await SearchResultPage({
+        params: Promise.resolve({ id: search.id! }),
+        searchParams: Promise.resolve({ week: "2026-07-13" }),
+      }),
+    );
+
+    expect(html).toContain("Mon, Jul 13, 2026");
+    expect(html).toContain(`href="/searches/${search.id}?week=2026-07-06"`);
+    expect(html).toContain(`href="/searches/${search.id}?week=2026-07-20"`);
+  });
 });

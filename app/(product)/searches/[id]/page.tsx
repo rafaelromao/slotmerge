@@ -7,6 +7,7 @@ import {
   getSlotsForWeek,
 } from "../../../../src/search/calendar-utils";
 import { getSearchResultRepository } from "../../../../src/search/search-result-repository";
+import { zonedTimeToUtc } from "../../../../src/search/timezone";
 import { listActiveTopics } from "../../../../src/topics/repository";
 import { systemClock } from "../../../../src/system/clock";
 import { createSearchWorkflow } from "../../../../src/workflow/search";
@@ -19,11 +20,38 @@ type SearchParams = Promise<{
   rerun?: string | string[];
 }>;
 
-function parseWeekParam(value: string | string[] | undefined): Date | null {
+type CalendarDate = { year: number; month: number; day: number };
+
+function parseWeekParam(
+  value: string | string[] | undefined,
+): CalendarDate | null {
   const raw = Array.isArray(value) ? value[0] : value;
   if (!raw) return null;
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  if (
+    probe.getUTCFullYear() !== year ||
+    probe.getUTCMonth() !== month - 1 ||
+    probe.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return { year, month, day };
 }
 
 function formatDateLabel(date: Date, timezone: string): string {
@@ -134,9 +162,16 @@ export default async function SearchResultPage({
     );
   }
 
+  const requestedWeek = parseWeekParam(query.week);
   const weekStart = alignToMonday(
-    parseWeekParam(query.week) ??
-      new Date(opened.value.snapshot.dateRangeStart),
+    requestedWeek
+      ? zonedTimeToUtc(
+          requestedWeek.year,
+          requestedWeek.month - 1,
+          requestedWeek.day,
+          opened.value.search.organizerTimezone,
+        )
+      : new Date(opened.value.snapshot.dateRangeStart),
     opened.value.search.organizerTimezone,
   );
   const weekEnd = new Date(weekStart.getTime() + WEEK_MS - 1);

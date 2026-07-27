@@ -161,7 +161,9 @@ test.describe("Organizer search result journey", () => {
     await expect(page.getByRole("link", { name: "Next week" })).toHaveCount(0);
     await expect(page.getByText("Next week", { exact: true })).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Open in history" }),
+      page.getByTestId("search-result-empty-state").getByRole("link", {
+        name: "Open in history",
+      }),
     ).toBeVisible();
     await expect(page.getByText("Re-run Search")).toBeVisible();
     await captureState(page, "search-result", "empty-week");

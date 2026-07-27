@@ -89,7 +89,26 @@ export default async function SearchHistoryPage({
   const historyResult = await buildHistoryWorkflow().listHistory({
     userId: context.user.id,
   });
-  const history = historyResult.ok ? historyResult.value : [];
+
+  if (!historyResult.ok) {
+    return (
+      <main className="app-container search-history-page">
+        <header>
+          <h1>Search History</h1>
+          <p>Visible to every Organizer and Admin.</p>
+        </header>
+        <p
+          className="form-error-banner"
+          role="alert"
+          data-testid="search-history-error-banner"
+        >
+          Search history is temporarily unavailable. Refresh the page to retry.
+        </p>
+      </main>
+    );
+  }
+
+  const history = historyResult.value;
 
   const beforeIndex = before
     ? history.findIndex((item) => item.id === before)

@@ -222,4 +222,56 @@ describe("SearchHistoryPage", () => {
     expect(html).toContain('href="/searches"');
     expect(html).not.toContain("search-history-list");
   });
+
+  it("renders a per-section error banner when history_unavailable is returned", async () => {
+    setSearchRepositoryForTests({
+      listSearchHistory: () =>
+        Promise.reject(new Error("database unreachable")),
+      save: () => Promise.reject(new Error("not used")),
+      findById: () => Promise.resolve(null),
+      listByOrganizer: () => Promise.resolve([]),
+      listAll: () => Promise.resolve([]),
+    });
+    setProfileRepositoryForTests({
+      findByUserId: () => Promise.resolve(null),
+      updateByUserId: () => Promise.resolve(null),
+      deleteByUserId: () => Promise.resolve(false),
+    });
+    setTopicCatalogueRepositoryForTests({
+      listCatalogue: () => Promise.resolve([]),
+      listSelectedTopicIds: () => Promise.resolve([]),
+      listAssociations: () => Promise.resolve([]),
+      saveAssociations: () => Promise.resolve(),
+    });
+
+    const { requirePageContext } = await import("../src/lib/page-context");
+    vi.mocked(requirePageContext).mockResolvedValue({
+      user: {
+        id: "organizer-1",
+        email: "organizer@example.com",
+        displayName: "Ada Lovelace",
+        avatarUrl: null,
+        shortBio: null,
+        role: "organizer",
+        status: "active",
+        profileTimezone: "UTC",
+        bufferMinutes: 0,
+      },
+      csrfToken: "csrf-token",
+      isAuthed: true,
+      isAdmin: false,
+      isOrganizerOrAdmin: true,
+    });
+
+    const { default: SearchHistoryPage } =
+      await import("../app/(product)/searches/history/page");
+
+    const html = renderToString(await SearchHistoryPage());
+
+    expect(html).toContain("search-history-error-banner");
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("temporarily unavailable");
+    expect(html).not.toContain("search-history-empty-state");
+    expect(html).not.toContain("Run your first Search");
+  });
 });

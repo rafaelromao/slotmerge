@@ -1,10 +1,12 @@
 import Link from "next/link";
 
 import { requirePageContext } from "../../../../src/lib/page-context";
+import { getDiscoverableUserRepository } from "../../../../src/search/discoverable-user-repository";
+import { getSearchResultRepository } from "../../../../src/search/search-result-repository";
+import { listActiveTopics } from "../../../../src/topics/repository";
 import { getProfileByUserId } from "../../../../src/profile/repository";
-import { getSearchRepository } from "../../../../src/search/repository";
-import { getTopicCatalogueRepository } from "../../../../src/topics/repository";
 import { systemClock } from "../../../../src/system/clock";
+import { createSearchWorkflow } from "../../../../src/workflow/search";
 import { rerunSearchAction } from "../[id]/_actions/rerun-search";
 
 type SearchParams = Promise<{
@@ -52,46 +54,57 @@ function readFirstString(value: string | string[] | undefined): string | null {
   return value ?? null;
 }
 
+const HISTORY_PAGE_SIZE = 50;
+
+function buildHistoryWorkflow() {
+  return createSearchWorkflow({
+    clock: systemClock(),
+    profileRepository: {
+      findByUserId: getProfileByUserId,
+    },
+    activeTopicsRepository: {
+      async listActive() {
+        const entries = await listActiveTopics();
+        return entries.map((entry) => ({
+          id: entry.id,
+          name: entry.name,
+          status: "active" as const,
+        }));
+      },
+    },
+    discoverableUserRepository: getDiscoverableUserRepository(),
+    searchResultRepository: getSearchResultRepository(),
+  });
+}
+
 export default async function SearchHistoryPage({
   searchParams,
 }: {
   searchParams?: SearchParams;
 } = {}) {
   const context = await requirePageContext({ roles: ["organizer", "admin"] });
-  const repository = getSearchRepository();
-  const history = await repository.listSearchHistory(systemClock());
   const query = (await searchParams) ?? {};
   const before = readFirstString(query.before);
+
+  const history = await buildHistoryWorkflow().listHistory({
+    userId: context.user.id,
+  });
+
   const beforeIndex = before
     ? history.findIndex((item) => item.id === before)
     : -1;
   const windowStart = beforeIndex >= 0 ? beforeIndex + 1 : 0;
-  const windowEnd = windowStart + 50;
+  const windowEnd = windowStart + HISTORY_PAGE_SIZE;
   const pageHistory = history.slice(windowStart, windowEnd);
   const hasMore = windowEnd < history.length;
-  const topicCatalogue = await getTopicCatalogueRepository().listCatalogue();
-  const historyWithDetails = await Promise.all(
-    pageHistory.map(async (item) => {
-      const profile = await getProfileByUserId(item.organizerId);
-      return {
-        ...item,
-        organizerDisplayName: profile?.displayName?.trim() || item.organizerId,
-        selectedTopicNames: item.selectedTopicIds.map(
-          (topicId) =>
-            topicCatalogue.find((topic) => topic.id === topicId)?.name ??
-            topicId,
-        ),
-      };
-    }),
-  );
 
-  if (historyWithDetails.length === 0) {
+  if (pageHistory.length === 0) {
     return (
       <main className="app-container">
-        <div className="empty-state">
+        <div className="empty-state" data-testid="search-history-empty-state">
           <p className="empty-state-title">No Searches yet.</p>
           <p>Run a Search to populate history.</p>
-          <Link href="/searches">Run a Search</Link>
+          <Link href="/searches">Run your first Search</Link>
         </div>
       </main>
     );
@@ -104,18 +117,24 @@ export default async function SearchHistoryPage({
         <p>Visible to every Organizer and Admin.</p>
       </header>
 
-      <ol className="search-history-list">
-        {historyWithDetails.map((item) => {
+      <ol className="search-history-list" data-testid="search-history-list">
+        {pageHistory.map((item) => {
           const openHref = `/searches/${item.id}?week=${formatWeekParam(item.dateRangeStart, item.organizerTimezone)}`;
           return (
-            <li key={item.id} className="search-history-row">
+            <li
+              key={item.id}
+              className="search-history-row"
+              data-testid="search-history-row"
+            >
               <article>
                 <h2>{item.organizerDisplayName}</h2>
                 <p>
-                  {formatDateTimeLabel(
-                    item.generatedAt,
-                    item.organizerTimezone,
-                  )}
+                  <time dateTime={item.generatedAt.toISOString()}>
+                    {formatDateTimeLabel(
+                      item.generatedAt,
+                      item.organizerTimezone,
+                    )}
+                  </time>
                 </p>
                 <p>Topics: {item.selectedTopicNames.join(", ")}</p>
                 <p>
@@ -134,7 +153,12 @@ export default async function SearchHistoryPage({
                     : "Fresh snapshot"}
                 </p>
                 <div className="search-history-actions">
-                  <Link href={openHref}>Open snapshot</Link>
+                  <Link
+                    href={openHref}
+                    data-testid="search-history-open-snapshot"
+                  >
+                    Open snapshot
+                  </Link>
                   <form action={rerunSearchAction}>
                     <input
                       type="hidden"
@@ -142,7 +166,9 @@ export default async function SearchHistoryPage({
                       value={context.csrfToken}
                     />
                     <input type="hidden" name="searchId" value={item.id} />
-                    <button type="submit">Re-run</button>
+                    <button type="submit" data-testid="search-history-rerun">
+                      Re-run
+                    </button>
                   </form>
                 </div>
               </article>
@@ -154,6 +180,7 @@ export default async function SearchHistoryPage({
       {hasMore ? (
         <Link
           className="search-history-load-more"
+          data-testid="search-history-load-more"
           href={`/searches/history?before=${encodeURIComponent(pageHistory.at(-1)?.id ?? "")}`}
         >
           Load more

@@ -220,3 +220,11 @@ export function createPostgresTopicProposalRepository(
     },
   };
 }
+
+let cachedTopicProposalRepository: (TopicProposalAdminRepository & TopicProposalUserRepository) | null = null;
+
+export function getTopicProposalRepository(): TopicProposalAdminRepository & TopicProposalUserRepository {
+  cachedTopicProposalRepository ??= createPostgresTopicProposalRepository();
+  return cachedTopicProposalRepository;
+}
+

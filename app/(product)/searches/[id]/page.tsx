@@ -6,9 +6,7 @@ import {
   alignToMonday,
   getSlotsForWeek,
 } from "../../../../src/search/calendar-utils";
-import {
-  getSearchResultRepository,
-} from "../../../../src/search/search-result-repository";
+import { getSearchResultRepository } from "../../../../src/search/search-result-repository";
 import { listActiveTopics } from "../../../../src/topics/repository";
 import { systemClock } from "../../../../src/system/clock";
 import { createSearchWorkflow } from "../../../../src/workflow/search";
@@ -133,7 +131,7 @@ export default async function SearchResultPage({
 
   const actions = (
     <div className="search-result-actions">
-      <Link href="/searches">Open in history</Link>
+      <Link href="/searches/history">Open in history</Link>
       <button type="button" popoverTarget={`rerun-search-confirm-${id}`}>
         Re-run Search
       </button>

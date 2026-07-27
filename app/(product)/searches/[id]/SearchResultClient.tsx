@@ -21,7 +21,11 @@ function buildWeeklyGrid(
 ): WeeklyDay[] {
   const days: WeeklyDay[] = [];
 
-  for (let d = new Date(weekStart); d <= weekEnd; d.setUTCDate(d.getUTCDate() + 1)) {
+  for (
+    let d = new Date(weekStart);
+    d <= weekEnd;
+    d.setUTCDate(d.getUTCDate() + 1)
+  ) {
     const dayDate = new Date(d);
     const dayKey = formatters.dayKeyFormatter.format(dayDate);
     const daySlots = slots.filter((slot) => {

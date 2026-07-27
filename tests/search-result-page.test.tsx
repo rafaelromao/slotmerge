@@ -146,6 +146,7 @@ describe("SearchResultPage", () => {
     expect(html).toContain(search.id!);
     expect(html).toContain(`href="/searches/${search.id}?week=2026-07-06"`);
     expect(html).toContain(`href="/searches/${search.id}?week=2026-07-20"`);
+    expect(html).toContain('href="/searches/history"');
     expect(html).toContain('data-testid="slot-0-0"');
   });
 });

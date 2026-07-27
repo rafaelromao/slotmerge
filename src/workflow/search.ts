@@ -68,7 +68,11 @@ export type SearchWorkflow = {
     userId: string;
     raw: SearchFormDefaults;
   }): Promise<RunSearchOutcome>;
-  openSnapshot(input: { userId: string; searchId: string; isAdmin?: boolean }): Promise<
+  openSnapshot(input: {
+    userId: string;
+    searchId: string;
+    isAdmin?: boolean;
+  }): Promise<
     Result<
       {
         search: SearchRecord;

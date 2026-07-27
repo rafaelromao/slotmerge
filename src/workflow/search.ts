@@ -1,5 +1,6 @@
 import {
   submitSearch,
+  rerunSearch,
   type ActiveTopicsRepository,
   type ProfileRepository,
   type SearchInput,
@@ -62,6 +63,31 @@ export type RunSearchOutcome = Result<
   { fieldErrors: SearchFieldErrors }
 >;
 
+export type SearchHistoryPageItem = {
+  id: string;
+  organizerId: string;
+  organizerDisplayName: string;
+  selectedTopicIds: string[];
+  selectedTopicNames: string[];
+  minimumMatchingUsers: number;
+  durationMinutes: number | null;
+  dateRangeStart: Date;
+  dateRangeEnd: Date;
+  organizerTimezone: string;
+  generatedAt: Date;
+  snapshotId: string;
+  stale: boolean;
+};
+
+export type ListHistoryOutcome = SearchHistoryPageItem[];
+
+export type RerunSearchOutcome = Result<
+  { searchId: string },
+  {
+    reason: "search_not_found" | "topics_invalid" | "replay_failed";
+  }
+>;
+
 export type SearchWorkflow = {
   buildForm(input: { userId: string }): Promise<SearchFormState>;
   run(input: {
@@ -84,6 +110,11 @@ export type SearchWorkflow = {
       }
     >
   >;
+  listHistory(input: { userId: string }): Promise<ListHistoryOutcome>;
+  rerun(input: {
+    userId: string;
+    searchId: string;
+  }): Promise<RerunSearchOutcome>;
 };
 
 export type CreateSearchWorkflowDeps = {
@@ -283,6 +314,76 @@ export function createSearchWorkflow(
         snapshot: result.snapshotJson,
         selectedTopics,
       });
+    },
+
+    async listHistory({ userId }: { userId: string }) {
+      void userId;
+      const raw = await getSearchRepository().listSearchHistory(clock);
+      const catalogue = await getTopicCatalogueRepository().listCatalogue();
+      const topicNamesById = new Map(
+        catalogue.map((entry) => [entry.id, entry.name] as const),
+      );
+      const page: SearchHistoryPageItem[] = [];
+      for (const item of raw) {
+        const profile = await profileRepository.findByUserId(item.organizerId);
+        const displayName =
+          profile?.displayName?.trim() && profile.displayName.trim().length > 0
+            ? profile.displayName.trim()
+            : item.organizerId;
+        const selectedTopicNames = item.selectedTopicIds.map(
+          (topicId) => topicNamesById.get(topicId) ?? topicId,
+        );
+        page.push({
+          id: item.id,
+          organizerId: item.organizerId,
+          organizerDisplayName: displayName,
+          selectedTopicIds: item.selectedTopicIds,
+          selectedTopicNames,
+          minimumMatchingUsers: item.minimumMatchingUsers,
+          durationMinutes: item.durationMinutes,
+          dateRangeStart: item.dateRangeStart,
+          dateRangeEnd: item.dateRangeEnd,
+          organizerTimezone: item.organizerTimezone,
+          generatedAt: item.generatedAt,
+          snapshotId: item.snapshotId,
+          stale: item.stale,
+        });
+      }
+      return page;
+    },
+
+    async rerun(input: {
+      userId: string;
+      searchId: string;
+    }): Promise<RerunSearchOutcome> {
+      const { searchId } = input;
+      const existing = await getSearchRepository().findById(searchId);
+      if (!existing) {
+        return err({ reason: "search_not_found" as const });
+      }
+      const activeTopics = await activeTopicsRepository.listActive();
+      const result = await rerunSearch(searchId, {
+        discoverableUserRepository,
+        clock,
+        searchResultRepository,
+        topicRepository: {
+          listActive: () => Promise.resolve(activeTopics),
+        },
+        profileRepository,
+        assemblerDependencies,
+      });
+      if (!result.ok) {
+        const mappedReason =
+          result.reason === "not_found"
+            ? ("search_not_found" as const)
+            : ("topics_invalid" as const);
+        return err({ reason: mappedReason });
+      }
+      const persisted = await getSearchRepository().findById(result.search.id!);
+      if (!persisted?.id) {
+        return err({ reason: "replay_failed" as const });
+      }
+      return ok({ searchId: persisted.id });
     },
   };
 }

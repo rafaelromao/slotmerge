@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { SlotDetailsDrawer } from "../../../components/SlotDetailsDrawer";
 import type { Slot, SearchSnapshot } from "../../../../src/db/schema";
+import { addCivilDays } from "../../../../src/search/timezone";
 
 type WeeklyDay = {
   date: Date;
@@ -14,6 +15,7 @@ function buildWeeklyGrid(
   weekStart: Date,
   weekEnd: Date,
   slots: Slot[],
+  timezone: string,
   formatters: {
     dayFormatter: Intl.DateTimeFormat;
     dayKeyFormatter: Intl.DateTimeFormat;
@@ -24,7 +26,7 @@ function buildWeeklyGrid(
   for (
     let d = new Date(weekStart);
     d < weekEnd;
-    d.setUTCDate(d.getUTCDate() + 1)
+    d = addCivilDays(d, 1, timezone)
   ) {
     const dayDate = new Date(d);
     const dayKey = formatters.dayKeyFormatter.format(dayDate);
@@ -94,8 +96,9 @@ export function SearchResultClient({
   }, [organizerTimezone]);
 
   const days = useMemo(
-    () => buildWeeklyGrid(weekStart, weekEnd, slots, formatters),
-    [weekEnd, weekStart, slots, formatters],
+    () =>
+      buildWeeklyGrid(weekStart, weekEnd, slots, organizerTimezone, formatters),
+    [weekEnd, weekStart, slots, organizerTimezone, formatters],
   );
 
   const handleSlotClick = useCallback((slot: Slot) => {

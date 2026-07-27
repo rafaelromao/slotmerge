@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { SearchResultClient } from "../../app/(product)/searches/[id]/SearchResultClient";
 import type { SearchSnapshot, Slot } from "../../src/db/schema";
+import { addCivilDays } from "../../src/search/timezone";
 
 describe("SearchResultClient click-to-open flow", () => {
   const slot1: Slot = {
@@ -153,6 +154,27 @@ describe("SearchResultClient click-to-open flow", () => {
 
     // startUtc 2026-07-15T10:00:00Z is 06:00 in America/New_York (EDT, UTC-4)
     expect(html).toMatch(/aria-label="[^"]*at 6:00 AM[^"]*2 matches/);
+  });
+
+  it("renders exactly seven day headers across the fall DST boundary", () => {
+    const dstWeekStart = new Date("2026-10-26T04:00:00.000Z");
+    const dstWeekEnd = addCivilDays(dstWeekStart, 7, "America/New_York");
+    const html = renderToString(
+      <SearchResultClient
+        snapshot={{
+          ...snapshot,
+          dateRangeStart: dstWeekStart.toISOString(),
+          dateRangeEnd: dstWeekEnd.toISOString(),
+          slots: [],
+        }}
+        organizerTimezone="America/New_York"
+        weekStart={dstWeekStart}
+        weekEnd={dstWeekEnd}
+        slots={[]}
+      />,
+    );
+
+    expect(html.match(/role="columnheader"/g)).toHaveLength(7);
   });
 
   it("marks the inline stale glyph as aria-hidden so it does not double-announce", () => {

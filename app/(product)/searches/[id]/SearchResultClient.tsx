@@ -13,7 +13,7 @@ type WeeklyDay = {
 type WeeklyHourRow = {
   hour: number;
   label: string;
-  cells: Array<Slot | null>;
+  cells: Array<{ slot: Slot; slotIdx: number } | null>;
 };
 
 function buildWeeklyGrid(
@@ -47,11 +47,30 @@ function buildWeeklyGrid(
   }
 
   const slotMap = new Map<string, Slot>();
+  const daySlotsByKey = new Map<
+    string,
+    Array<{ slot: Slot; slotIdx: number }>
+  >();
   for (const slot of slots) {
     const slotDate = new Date(slot.startUtc);
     const dayKey = formatters.dayKeyFormatter.format(slotDate);
     const hourKey = formatters.hourKeyFormatter.format(slotDate);
     slotMap.set(`${dayKey}:${hourKey}`, slot);
+
+    const daySlots = daySlotsByKey.get(dayKey) ?? [];
+    daySlots.push({ slot, slotIdx: daySlots.length });
+    daySlotsByKey.set(dayKey, daySlots);
+  }
+
+  for (const daySlots of daySlotsByKey.values()) {
+    daySlots.sort(
+      (left, right) =>
+        new Date(left.slot.startUtc).getTime() -
+        new Date(right.slot.startUtc).getTime(),
+    );
+    daySlots.forEach((entry, index) => {
+      entry.slotIdx = index;
+    });
   }
 
   const hourRows = Array.from({ length: 24 }, (_, hour) => {
@@ -60,9 +79,15 @@ function buildWeeklyGrid(
     return {
       hour,
       label: formatters.hourFormatter.format(rowDate),
-      cells: dayKeys.map(
-        (dayKey) => slotMap.get(`${dayKey}:${hourKey}`) ?? null,
-      ),
+      cells: dayKeys.map((dayKey) => {
+        const slot = slotMap.get(`${dayKey}:${hourKey}`) ?? null;
+        if (!slot) return null;
+
+        const daySlots = daySlotsByKey.get(dayKey) ?? [];
+        const slotIdx =
+          daySlots.find((entry) => entry.slot === slot)?.slotIdx ?? 0;
+        return { slot, slotIdx };
+      }),
     };
   });
 
@@ -167,8 +192,8 @@ export function SearchResultClient({
               <div className="calendar-hour-label" role="rowheader">
                 {row.label}
               </div>
-              {row.cells.map((slot, dayIdx) => {
-                if (!slot) {
+              {row.cells.map((cell, dayIdx) => {
+                if (!cell) {
                   return (
                     <div
                       key={`c-${dayIdx}`}
@@ -178,22 +203,22 @@ export function SearchResultClient({
                   );
                 }
 
-                const isStale = slotHasStale(slot);
+                const isStale = slotHasStale(cell.slot);
                 return (
                   <div key={`c-${dayIdx}`} className="calendar-hour-cell">
                     <button
                       type="button"
                       className="calendar-slot"
-                      data-testid={`slot-${dayIdx}-${row.hour}`}
+                      data-testid={`slot-${dayIdx}-${cell.slotIdx}`}
                       data-stale={isStale ? "true" : "false"}
                       aria-label={buildSlotLabel(
-                        slot,
+                        cell.slot,
                         days[dayIdx]?.label ?? "",
                         formatters.hourFormatter,
                       )}
-                      onClick={() => handleSlotClick(slot)}
+                      onClick={() => handleSlotClick(cell.slot)}
                     >
-                      <span className="slot-count">{slot.matchCount}</span>
+                      <span className="slot-count">{cell.slot.matchCount}</span>
                       {isStale && (
                         <span
                           className="slot-stale-indicator"

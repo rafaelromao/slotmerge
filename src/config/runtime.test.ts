@@ -21,6 +21,7 @@ describe("loadRuntimeConfig", () => {
     expect(config.calendarTokenEncryptionKey).toContain("local");
     expect(config.magicLinkSecret).toContain("local");
     expect(config.appBaseUrl).toBe("http://localhost:3000");
+    expect(config.appPublicUrl).toBe("http://localhost:3000");
   });
 
   it("fails fast in production when required non-local secrets are missing", () => {

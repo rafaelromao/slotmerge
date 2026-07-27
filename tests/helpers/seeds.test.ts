@@ -15,6 +15,7 @@ import {
   CALENDAR_CONNECTION_FIXTURES,
   SESSION_FIXTURES,
   USER_TOPIC_FIXTURES,
+  DISCOVERABILITY_CONSENT_FIXTURES,
 } from "../fixtures/seeds";
 
 const HAS_DATABASE = !!process.env.DATABASE_URL;
@@ -77,6 +78,13 @@ describe("seeds", () => {
       );
       expect(userTopicsResult.rows.map((r) => r.id)).toEqual(
         USER_TOPIC_FIXTURES.map((ut) => ut.id),
+      );
+
+      const consentsResult = await db.execute<{ user_id: string }>(
+        `SELECT user_id FROM discoverability_consents ORDER BY user_id`,
+      );
+      expect(consentsResult.rows.map((r) => r.user_id)).toEqual(
+        DISCOVERABILITY_CONSENT_FIXTURES.map((c) => c.userId).sort(),
       );
 
       const sessionsResult = await db.execute<{ id: string }>(

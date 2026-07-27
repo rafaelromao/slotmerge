@@ -77,6 +77,7 @@ export type CreateTopicWorkflowDeps = {
 };
 
 export type TopicWorkflow = {
+  listActive(): Promise<TopicRow[]>;
   loadPageState(input: {
     userId: string;
   }): Promise<
@@ -112,20 +113,24 @@ export function createTopicWorkflow(
   const replaceUserTopics = deps.replaceUserTopics ?? defaultReplaceUserTopics;
   const createProposal = deps.createProposal ?? defaultCreateProposal;
 
+  async function listActive(): Promise<TopicRow[]> {
+    const rows = await catalogue.listActive();
+    return rows
+      .filter((row) => row.status === "active")
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   return {
+    listActive,
+
     async loadPageState({ userId }) {
-      const [rawCatalogue, selectedTopicIds, userProposals] = await Promise.all(
-        [
-          catalogue.listActive(),
+      const [activeCatalogue, selectedTopicIds, userProposals] =
+        await Promise.all([
+          listActive(),
           catalogue.listSelectedTopicIds(userId),
           proposals.listUserProposals(userId),
-        ],
-      );
-
-      const activeCatalogue = rawCatalogue
-        .filter((row) => row.status === "active")
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name));
+        ]);
 
       const catalogueByName = new Map(
         activeCatalogue.map((row) => [row.name, row] as const),
@@ -177,7 +182,7 @@ export function createTopicWorkflow(
     },
 
     async saveSelection({ userId, topicIds }) {
-      const activeCatalogue = await catalogue.listActive();
+      const activeCatalogue = await listActive();
       const activeIds = new Set(activeCatalogue.map((row) => row.id));
 
       const invalidIds = topicIds.filter(

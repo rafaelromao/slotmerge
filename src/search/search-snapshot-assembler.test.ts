@@ -191,6 +191,21 @@ describe("SearchSnapshotAssembler.assemble (eligible candidate)", () => {
     });
   }
 
+  it("lists only candidates that pass setup and availability eligibility", async () => {
+    const assembler = new SearchSnapshotAssembler(
+      eligibleDeps({
+        loadUserAvailabilityData: () =>
+          Promise.resolve({
+            windows: [],
+            overrides: [],
+            busyIntervals: [],
+          }),
+      }),
+    );
+
+    await expect(assembler.listEligibleUserIds(baseInput)).resolves.toEqual([]);
+  });
+
   it("includes an eligible candidate whose effective availability fully covers the slot", async () => {
     const assembler = new SearchSnapshotAssembler(
       eligibleDeps({

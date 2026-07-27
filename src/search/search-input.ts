@@ -9,6 +9,9 @@ import {
   createDefaultSearchSnapshotAssemblerDeps,
   type SearchSnapshotAssemblerDeps,
 } from "./search-snapshot-assembler";
+import { addCivilDays, startOfWeekInTimezone } from "./timezone";
+
+export { startOfWeekInTimezone } from "./timezone";
 
 export type ActiveTopic = {
   id: string;
@@ -53,6 +56,7 @@ export type SearchInputBuilderDeps = {
   activeTopicsRepository: ActiveTopicsRepository;
   profileRepository: ProfileRepository;
   clock: Clock;
+  activeTopicsSnapshot?: ActiveTopic[];
 };
 
 export function createSearchInputBuilder(
@@ -60,7 +64,9 @@ export function createSearchInputBuilder(
 ): SearchInputBuilder {
   return {
     async activeTopics(): Promise<ActiveTopic[]> {
-      return deps.activeTopicsRepository.listActive();
+      return (
+        deps.activeTopicsSnapshot ?? deps.activeTopicsRepository.listActive()
+      );
     },
     async build(overrides: SearchInputOverrides): Promise<SearchInput> {
       const profile = await deps.profileRepository.findByUserId(
@@ -69,9 +75,10 @@ export function createSearchInputBuilder(
       const timezone =
         overrides.organizerTimezone ?? profile?.profileTimezone ?? "UTC";
 
-      const activeTopicIds = new Set(
-        (await deps.activeTopicsRepository.listActive()).map((t) => t.id),
-      );
+      const activeTopics =
+        deps.activeTopicsSnapshot ??
+        (await deps.activeTopicsRepository.listActive());
+      const activeTopicIds = new Set(activeTopics.map((t) => t.id));
 
       const requestedTopicIds = overrides.selectedTopicIds ?? [];
       for (const id of requestedTopicIds) {
@@ -87,8 +94,7 @@ export function createSearchInputBuilder(
         startOfWeekInTimezone(deps.clock.now(), timezone);
 
       const endOfRange =
-        overrides.dateRangeEnd ??
-        new Date(startOfRange.getTime() + 5 * 7 * 24 * 60 * 60 * 1000);
+        overrides.dateRangeEnd ?? addCivilDays(startOfRange, 5 * 7, timezone);
 
       return {
         organizerId: deps.organizerId,
@@ -103,52 +109,6 @@ export function createSearchInputBuilder(
   };
 }
 
-export function startOfWeekInTimezone(date: Date, timezone: string): Date {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    weekday: "short",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-
-  const weekday = get("weekday");
-  const year = Number(get("year"));
-  const month = Number(get("month"));
-  const day = Number(get("day"));
-  const hour = Number(get("hour"));
-  const minute = Number(get("minute"));
-  const second = Number(get("second"));
-
-  const offsetMs =
-    Date.UTC(year, month - 1, day, hour, minute, second) - date.getTime();
-  const localMidnightAsUtc = Date.UTC(year, month - 1, day, 0, 0, 0) - offsetMs;
-
-  const weekdayIndex =
-    weekday === "Mon"
-      ? 1
-      : weekday === "Tue"
-        ? 2
-        : weekday === "Wed"
-          ? 3
-          : weekday === "Thu"
-            ? 4
-            : weekday === "Fri"
-              ? 5
-              : weekday === "Sat"
-                ? 6
-                : 0;
-  const daysSinceMonday = weekdayIndex === 0 ? 6 : weekdayIndex - 1;
-
-  return new Date(localMidnightAsUtc - daysSinceMonday * 86400000);
-}
-
 export type SearchInputError = {
   field: keyof SearchInput;
   message: string;
@@ -161,17 +121,13 @@ export type SearchInputValidationDeps = {
   matchingPoolSize: number;
 };
 
-const IANA_ZONE_PATTERN = /^[A-Za-z][A-Za-z0-9_+\-/]*$/;
-
 function isValidIanaTimezone(value: string): boolean {
-  if (!IANA_ZONE_PATTERN.test(value)) {
-    return false;
-  }
+  if (!value) return false;
   try {
-    const resolved = new Intl.DateTimeFormat("en-US", {
-      timeZone: value,
-    }).resolvedOptions().timeZone;
-    return resolved === value;
+    return (
+      new Intl.DateTimeFormat("en-US", { timeZone: value }).resolvedOptions()
+        .timeZone === value
+    );
   } catch {
     return false;
   }

@@ -126,11 +126,11 @@ export function makeEligibleAssemblerDeps(
     discoverableUserRepository,
     topicRepository: new InMemoryActiveTopicsRepository(activeTopics),
     profileRepository: {
-      async findByUserId(userId: string): Promise<UserProfile | null> {
+      findByUserId(userId: string): Promise<UserProfile | null> {
         if (!eligible.has(userId)) {
-          return null;
+          return Promise.resolve(null);
         }
-        return {
+        return Promise.resolve({
           id: userId,
           email: `${userId}@example.com`,
           displayName: `Eligible ${userId}`,
@@ -140,33 +140,35 @@ export function makeEligibleAssemblerDeps(
           status: "active",
           profileTimezone: "UTC",
           bufferMinutes: 0,
-        };
+        });
       },
     },
-    async listSelectedTopicIds(userId: string): Promise<string[]> {
-      return eligible.has(userId) ? activeTopics.map((topic) => topic.id) : [];
+    listSelectedTopicIds(userId: string): Promise<string[]> {
+      return Promise.resolve(
+        eligible.has(userId) ? activeTopics.map((topic) => topic.id) : [],
+      );
     },
-    async loadUserAvailabilityData() {
-      return {
+    loadUserAvailabilityData() {
+      return Promise.resolve({
         windows: availabilityWindows,
         overrides: availabilityOverrides,
         busyIntervals,
-      };
+      });
     },
-    async loadCalendarConnectionLastSyncAt() {
-      return null;
+    loadCalendarConnectionLastSyncAt() {
+      return Promise.resolve(null);
     },
-    async getDiscoverabilityConsent(userId: string) {
+    getDiscoverabilityConsent(userId: string) {
       if (!eligible.has(userId)) {
-        return null;
+        return Promise.resolve(null);
       }
-      return {
+      return Promise.resolve({
         state: "granted" as const,
         grantedAt: new Date("2026-07-12T12:00:00.000Z"),
-      };
+      });
     },
-    async hasTopicProposal(userId: string) {
-      return eligible.has(userId);
+    hasTopicProposal(userId: string) {
+      return Promise.resolve(eligible.has(userId));
     },
     computeEffectiveAvailability(inputs) {
       return eligible.has(inputs.userId)

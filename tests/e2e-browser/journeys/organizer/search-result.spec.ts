@@ -86,15 +86,19 @@ test.describe("Organizer search result journey", () => {
     await expect(staleSlot).toBeVisible();
     await staleSlot.click();
 
-    await expect(page.getByTestId("slot-details-drawer")).toBeVisible();
-    await expect(page.getByText("Dana Discoverable")).toBeVisible();
-    await expect(page.getByText("Eli Discoverable")).toBeVisible();
-    await expect(page.getByText("Product strategy")).toBeVisible();
-    await expect(page.getByText("stale")).toBeVisible();
+    const drawer = page.getByTestId("slot-details-drawer");
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByText("Dana Discoverable")).toBeVisible();
+    await expect(drawer.getByText("Eli Discoverable")).toBeVisible();
+    await expect(drawer.getByText("Product strategy, AI engineering")).toHaveCount(
+      2,
+    );
     await expect(
-      page.getByText("available in this Search window"),
-    ).toBeVisible();
-    await expect(page.getByText("No booking actions in MVP.")).toBeVisible();
+      drawer.getByText("available in this Search window"),
+    ).toHaveCount(2);
+    await expect(drawer.getByText("contains stale calendar data")).toBeVisible();
+    await expect(drawer.getByText("no calendar connected")).toBeVisible();
+    await expect(drawer.getByText("No booking actions in MVP.")).toBeVisible();
     await captureState(page, "search-result", "drawer");
 
     await page.getByRole("link", { name: "Next week" }).click();

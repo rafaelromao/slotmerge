@@ -80,6 +80,14 @@ function buildWeeklyGrid(
     });
   }
 
+  for (const cellSlots of cellSlotsByKey.values()) {
+    cellSlots.sort(
+      (left, right) =>
+        new Date(left.slot.startUtc).getTime() -
+        new Date(right.slot.startUtc).getTime(),
+    );
+  }
+
   const hourRows = Array.from({ length: 24 }, (_, hour) => {
     const rowDate = new Date(weekStart.getTime() + hour * 60 * 60 * 1000);
     const hourKey = String(hour).padStart(2, "0");

@@ -140,7 +140,7 @@ test.describe("Organizer search result journey", () => {
     await page.waitForURL(/\/searches\/[a-f0-9-]+$/);
     const searchId = new URL(page.url()).pathname.split("/").at(-1)!;
 
-    await page.goto(`/searches/${searchId}?week=2026-07-20`);
+    await page.goto(`/searches/${searchId}?week=2026-08-10`);
 
     await expect(page.getByTestId("search-result-empty-state")).toBeVisible();
     await expect(page.getByRole("link", { name: "Next week" })).toHaveCount(0);

@@ -795,15 +795,15 @@ button {
 
 @media (min-width: 768px) and (max-width: 1023px) {
   .calendar-header,
-  .calendar-body {
-    grid-template-columns: repeat(7, calc((100% - var(--space-4)) / 3));
+  .calendar-hour-row {
+    grid-template-columns: minmax(5rem, auto) repeat(7, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 1024px) {
   .calendar-header,
-  .calendar-body {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+  .calendar-hour-row {
+    grid-template-columns: minmax(5rem, auto) repeat(7, minmax(0, 1fr));
   }
 
   .calendar-day-nav {
@@ -813,12 +813,13 @@ button {
 
 @media (max-width: 767px) {
   .calendar-header,
-  .calendar-body {
-    grid-template-columns: repeat(7, 100%);
+  .calendar-hour-row {
+    grid-template-columns: minmax(5rem, auto) repeat(7, minmax(0, 100%));
     scroll-snap-type: x mandatory;
   }
 
-  .calendar-day-column {
+  .calendar-hour-label,
+  .calendar-hour-cell {
     scroll-snap-align: start;
   }
 }

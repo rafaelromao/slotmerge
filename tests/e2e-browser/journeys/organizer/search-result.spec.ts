@@ -113,7 +113,7 @@ test.describe("Organizer search result journey", () => {
     await expect(page.getByTestId("slot-details-drawer")).toHaveCount(0);
 
     await page.getByRole("link", { name: "Next week" }).click();
-    await page.waitForURL(/week=2026-07-20/);
+    await page.waitForURL(/week=2026-07-13/);
     await expect(
       page.getByRole("heading", { name: "Search Result" }),
     ).toBeVisible();

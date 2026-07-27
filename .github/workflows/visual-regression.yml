@@ -73,6 +73,7 @@ jobs:
           name: playwright-test-results
           path: |
             playwright/.artifacts/test-results/
+            playwright/.artifacts/report/
             test-results/
           retention-days: 14
 

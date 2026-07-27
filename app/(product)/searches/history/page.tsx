@@ -7,6 +7,7 @@ import { listActiveTopics } from "../../../../src/topics/repository";
 import { getProfileByUserId } from "../../../../src/profile/repository";
 import { systemClock } from "../../../../src/system/clock";
 import { createSearchWorkflow } from "../../../../src/workflow/search";
+import { serializeSearchHistoryPage } from "../../../../src/api/serializers";
 import { rerunSearchAction } from "../[id]/_actions/rerun-search";
 
 type SearchParams = Promise<{
@@ -108,15 +109,16 @@ export default async function SearchHistoryPage({
     );
   }
 
-  const history = historyResult.value;
+  const historyDto = serializeSearchHistoryPage(historyResult.value);
+void historyDto;
 
   const beforeIndex = before
-    ? history.findIndex((item) => item.id === before)
+    ? historyResult.value.findIndex((item) => item.id === before)
     : -1;
   const windowStart = beforeIndex >= 0 ? beforeIndex + 1 : 0;
   const windowEnd = windowStart + HISTORY_PAGE_SIZE;
-  const pageHistory = history.slice(windowStart, windowEnd);
-  const hasMore = windowEnd < history.length;
+  const pageHistory = historyResult.value.slice(windowStart, windowEnd);
+  const hasMore = windowEnd < historyResult.value.length;
 
   if (pageHistory.length === 0) {
     return (

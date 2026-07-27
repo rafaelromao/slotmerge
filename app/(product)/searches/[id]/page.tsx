@@ -11,6 +11,7 @@ import { addCivilDays, zonedTimeToUtc } from "../../../../src/search/timezone";
 import { listActiveTopics } from "../../../../src/topics/repository";
 import { systemClock } from "../../../../src/system/clock";
 import { createSearchWorkflow } from "../../../../src/workflow/search";
+import { serializeSearchSnapshot } from "../../../../src/api/serializers";
 import { rerunSearchAction } from "./_actions/rerun-search";
 import { SearchResultClient } from "./SearchResultClient";
 
@@ -140,6 +141,11 @@ export default async function SearchResultPage({
     searchId: id,
     isAdmin: context.isAdmin,
   });
+
+  const snapshotDto = opened.ok
+    ? serializeSearchSnapshot(opened.value)
+    : null;
+  void snapshotDto;
 
   if (!opened.ok) {
     return (

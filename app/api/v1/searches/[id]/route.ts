@@ -52,7 +52,8 @@ export async function GET(
   if (!session) {
     return problemJson(401, {
       title: "Sign in required",
-      detail: "Authenticate with a sealed session cookie to read a Search Result.",
+      detail:
+        "Authenticate with a sealed session cookie to read a Search Result.",
     });
   }
 

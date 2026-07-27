@@ -18,15 +18,17 @@ import type { WeeklyAvailabilityWindowRepository } from "../profile/availability
 import type { AvailabilityOverrideRepository } from "../profile/availability-overrides";
 import type { CalendarConnectionRepository } from "../calendar/connection";
 
-function buildWorkflow(overrides: {
-  profile?: UserProfile | null;
-  discoverability?: DiscoverabilityConsentState | null;
-  selectedTopicIds?: string[];
-  proposals?: UserTopicProposal[];
-  windows?: number;
-  overrides?: number;
-  connections?: number;
-} = {}) {
+function buildWorkflow(
+  overrides: {
+    profile?: UserProfile | null;
+    discoverability?: DiscoverabilityConsentState | null;
+    selectedTopicIds?: string[];
+    proposals?: UserTopicProposal[];
+    windows?: number;
+    overrides?: number;
+    connections?: number;
+  } = {},
+) {
   const profileRepository = {
     async findByUserId() {
       await Promise.resolve();

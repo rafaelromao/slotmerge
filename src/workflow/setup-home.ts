@@ -8,10 +8,7 @@ import type {
 import type { UserProfile } from "../profile/repository";
 import type { TopicCatalogueRepository } from "../topics/repository";
 import type { TopicProposalUserRepository } from "../topics/proposals.repository";
-import type {
-  SetupStatusItem,
-  SetupStatusSummary,
-} from "../api/serializers";
+import type { SetupStatusItem, SetupStatusSummary } from "../api/serializers";
 import type { Result } from "../lib/result";
 
 export type SetupHomeWorkflowDeps = {
@@ -94,12 +91,8 @@ export function createSetupHomeWorkflow(
             ...ITEM_SEEDS[2],
             complete:
               selectedTopicIds.length > 0 ||
-              userProposals.some(
-                (proposal) => proposal.status === "pending",
-              ) ||
-              userProposals.some(
-                (proposal) => proposal.status === "approved",
-              ),
+              userProposals.some((proposal) => proposal.status === "pending") ||
+              userProposals.some((proposal) => proposal.status === "approved"),
           },
           {
             ...ITEM_SEEDS[3],

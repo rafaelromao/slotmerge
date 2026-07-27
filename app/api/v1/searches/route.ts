@@ -49,7 +49,8 @@ export async function GET(request: Request): Promise<Response> {
   if (!session) {
     return problemJson(401, {
       title: "Sign in required",
-      detail: "Authenticate with a sealed session cookie to read Search history.",
+      detail:
+        "Authenticate with a sealed session cookie to read Search history.",
     });
   }
 

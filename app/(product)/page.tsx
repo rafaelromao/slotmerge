@@ -125,7 +125,9 @@ export default async function SetupHomePage({
     );
   }
 
-  const itemsByKey = new Map(result.value.items.map((item) => [item.key, item]));
+  const itemsByKey = new Map(
+    result.value.items.map((item) => [item.key, item]),
+  );
 
   return (
     <div className="setup-checklist">

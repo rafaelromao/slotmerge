@@ -6,10 +6,7 @@ import { getProfileByUserId } from "../profile/repository";
 import { getTopicCatalogueRepository } from "../topics/repository";
 import { getTopicProposalRepository } from "../topics/proposals.repository";
 
-import {
-  createSetupHomeWorkflow,
-  type SetupHomeWorkflow,
-} from "./setup-home";
+import { createSetupHomeWorkflow, type SetupHomeWorkflow } from "./setup-home";
 
 export function createProductionSetupHomeWorkflow(): SetupHomeWorkflow {
   return createSetupHomeWorkflow({

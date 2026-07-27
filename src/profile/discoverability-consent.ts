@@ -159,10 +159,11 @@ export function consentStateIsGranted(
   return state?.state === "granted";
 }
 
-let cachedDiscoverabilityConsentRepository: DiscoverabilityConsentRepository | null = null;
+let cachedDiscoverabilityConsentRepository: DiscoverabilityConsentRepository | null =
+  null;
 
 export function getDiscoverabilityConsentRepository(): DiscoverabilityConsentRepository {
-  cachedDiscoverabilityConsentRepository ??= createPostgresDiscoverabilityConsentRepository(systemClock());
+  cachedDiscoverabilityConsentRepository ??=
+    createPostgresDiscoverabilityConsentRepository(systemClock());
   return cachedDiscoverabilityConsentRepository;
 }
-

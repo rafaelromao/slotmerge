@@ -4,10 +4,7 @@ export type ProblemJsonInput = {
   type?: string;
 };
 
-export function problemJson(
-  status: number,
-  input: ProblemJsonInput,
-): Response {
+export function problemJson(status: number, input: ProblemJsonInput): Response {
   const body: { type: string; title: string; status: number; detail?: string } =
     {
       type: input.type ?? "about:blank",

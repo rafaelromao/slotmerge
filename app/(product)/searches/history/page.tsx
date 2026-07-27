@@ -164,8 +164,15 @@ export default async function SearchHistoryPage({
                 </p>
                 <p>
                   Date Range:{" "}
-                  {formatDateLabel(new Date(item.dateRangeStart), item.organizerTimezone)}{" "}
-                  - {formatDateLabel(new Date(item.dateRangeEnd), item.organizerTimezone)}
+                  {formatDateLabel(
+                    new Date(item.dateRangeStart),
+                    item.organizerTimezone,
+                  )}{" "}
+                  -{" "}
+                  {formatDateLabel(
+                    new Date(item.dateRangeEnd),
+                    item.organizerTimezone,
+                  )}
                 </p>
                 <p>Organizer timezone: {item.organizerTimezone}</p>
                 <p>

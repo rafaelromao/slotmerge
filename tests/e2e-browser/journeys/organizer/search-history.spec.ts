@@ -40,10 +40,10 @@ test.describe("Organizer search history journey", () => {
       page.getByRole("heading", { name: "Bob Organizer" }),
     ).toBeVisible();
     await expect(
-      page.getByText("Product strategy, AI engineering"),
+      page.getByText("AI engineering, Product strategy"),
     ).toBeVisible();
     await expect(
-      page.getByText("Topics: Product strategy, AI engineering"),
+      page.getByText("Topics: AI engineering, Product strategy"),
     ).toBeVisible();
     await expect(
       page.getByText("Minimum 2, 60 minutes"),

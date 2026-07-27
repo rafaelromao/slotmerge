@@ -110,6 +110,7 @@ test.describe("Organizer search result journey", () => {
     await captureState(page, "search-result", "drawer");
 
     await page.getByTestId("drawer-close").click();
+    await expect(page.getByTestId("slot-details-drawer")).toHaveCount(0);
 
     await page.getByRole("link", { name: "Next week" }).click();
     await page.waitForURL(/week=2026-07-20/);

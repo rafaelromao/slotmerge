@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { SlotDetailsDrawer } from "../../../components/SlotDetailsDrawer";
 import type { Slot, SearchSnapshot } from "../../../../src/db/schema";
 
@@ -63,8 +63,6 @@ export function SearchResultClient({
   organizerTimezone: string;
 }) {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
-  const [focusedDayIndex, setFocusedDayIndex] = useState(0);
-  const dayColumnRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const formatters = useMemo(() => {
     return {
@@ -75,14 +73,6 @@ export function SearchResultClient({
         timeZone: organizerTimezone,
       }),
       dayKeyFormatter: new Intl.DateTimeFormat("en-CA", {
-        timeZone: organizerTimezone,
-      }),
-      generatedAtFormatter: new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
         timeZone: organizerTimezone,
       }),
       hourFormatter: new Intl.DateTimeFormat("en-US", {
@@ -98,25 +88,6 @@ export function SearchResultClient({
     [snapshot, formatters],
   );
 
-  useEffect(() => {
-    const column = dayColumnRefs.current[focusedDayIndex];
-    if (column) {
-      column.scrollIntoView({
-        behavior: "smooth",
-        inline: "start",
-        block: "nearest",
-      });
-    }
-  }, [focusedDayIndex]);
-
-  const handlePrevDay = useCallback(() => {
-    setFocusedDayIndex((i) => Math.max(0, i - 1));
-  }, []);
-
-  const handleNextDay = useCallback(() => {
-    setFocusedDayIndex((i) => Math.min(days.length - 1, i + 1));
-  }, [days.length]);
-
   const handleSlotClick = useCallback((slot: Slot) => {
     setSelectedSlot(slot);
   }, []);
@@ -125,60 +96,8 @@ export function SearchResultClient({
     setSelectedSlot(null);
   }, []);
 
-  const canPrev = focusedDayIndex > 0;
-  const canNext = focusedDayIndex < days.length - 1;
-  const focusedDay = days[focusedDayIndex];
-
   return (
-    <main className="search-result-page">
-      <h1>Search Result</h1>
-      <p className="search-result-meta">
-        <span className="search-result-meta-item">
-          <span className="search-result-meta-label">Timezone:</span>
-          <span>{organizerTimezone}</span>
-        </span>
-        <span className="search-result-meta-item">
-          <span className="search-result-meta-label">Generated:</span>
-          <time dateTime={snapshot.generatedAt}>
-            {formatters.generatedAtFormatter.format(
-              new Date(snapshot.generatedAt),
-            )}
-          </time>
-        </span>
-        <span className="search-result-meta-item">
-          <span className="search-result-meta-label">Window:</span>
-          <span>
-            {days.length} day{days.length !== 1 ? "s" : ""}
-          </span>
-        </span>
-      </p>
-
-      <div className="calendar-day-nav" aria-label="Day navigation">
-        <button
-          type="button"
-          className="calendar-day-nav-btn"
-          onClick={handlePrevDay}
-          disabled={!canPrev}
-          aria-label="Previous day"
-          data-testid="day-nav-prev"
-        >
-          <span aria-hidden="true">‹</span>
-        </button>
-        <span className="calendar-day-nav-label" aria-live="polite">
-          {focusedDay ? focusedDay.label : ""}
-        </span>
-        <button
-          type="button"
-          className="calendar-day-nav-btn"
-          onClick={handleNextDay}
-          disabled={!canNext}
-          aria-label="Next day"
-          data-testid="day-nav-next"
-        >
-          <span aria-hidden="true">›</span>
-        </button>
-      </div>
-
+    <>
       <div
         className="calendar-grid"
         role="grid"
@@ -200,9 +119,6 @@ export function SearchResultClient({
           {days.map((day, dayIdx) => (
             <div
               key={`d-${dayIdx}`}
-              ref={(el) => {
-                dayColumnRefs.current[dayIdx] = el;
-              }}
               className="calendar-day-column"
               role="gridcell"
               aria-label={day.label}
@@ -228,20 +144,14 @@ export function SearchResultClient({
                       )}
                       onClick={() => handleSlotClick(slot)}
                     >
-                      {slot.matchCount === 0 ? (
-                        <span className="slot-count slot-count-zero">0</span>
-                      ) : (
-                        <>
-                          <span className="slot-count">{slot.matchCount}</span>
-                          {isStale && (
-                            <span
-                              className="slot-stale-indicator"
-                              aria-hidden="true"
-                            >
-                              <span className="slot-stale-glyph" />
-                            </span>
-                          )}
-                        </>
+                      <span className="slot-count">{slot.matchCount}</span>
+                      {isStale && (
+                        <span
+                          className="slot-stale-indicator"
+                          aria-hidden="true"
+                        >
+                          <span className="slot-stale-glyph">⚠</span>
+                        </span>
                       )}
                     </button>
                   );
@@ -259,6 +169,6 @@ export function SearchResultClient({
           onClose={handleClose}
         />
       )}
-    </main>
+    </>
   );
 }

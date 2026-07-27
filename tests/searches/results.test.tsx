@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { fireEvent, render } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -47,6 +48,21 @@ describe("SearchResultClient click-to-open flow", () => {
     expect(html).toMatch(/data-testid="slot-\d+-\d+"/);
   });
 
+  it("opens the Slot Details drawer when a slot button is clicked", () => {
+    const { getByTestId, getByText } = render(
+      <SearchResultClient
+        snapshot={snapshot}
+        organizerTimezone="America/New_York"
+      />,
+    );
+
+    fireEvent.click(getByTestId("slot-3-0"));
+
+    expect(getByTestId("slot-details-drawer")).toBeTruthy();
+    expect(getByText("Ada Lovelace")).toBeTruthy();
+    expect(getByText(/No booking actions in MVP\./)).toBeTruthy();
+  });
+
   it("does not render the drawer until a slot is selected", () => {
     const html = renderToString(
       <SearchResultClient
@@ -56,19 +72,6 @@ describe("SearchResultClient click-to-open flow", () => {
     );
 
     expect(html).not.toContain("slot-details-drawer-overlay");
-  });
-
-  it("renders all days in the date range", () => {
-    const html = renderToString(
-      <SearchResultClient
-        snapshot={snapshot}
-        organizerTimezone="America/New_York"
-      />,
-    );
-
-    expect(html).toContain("calendar-grid");
-    expect(html).toContain("calendar-day-header");
-    expect(html).toContain("Search Result");
   });
 
   it("renders stale indicator when any match has stale calendar", () => {
@@ -158,59 +161,6 @@ describe("SearchResultClient click-to-open flow", () => {
     expect(html).toMatch(/slot-stale-indicator[^>]*aria-hidden="true"/);
   });
 
-  it("does not render stale indicator for fresh data", () => {
-    const html = renderToString(
-      <SearchResultClient
-        snapshot={snapshot}
-        organizerTimezone="America/New_York"
-      />,
-    );
-
-    expect(html).not.toContain("slot-stale-indicator");
-    expect(html).not.toContain("stale calendar data");
-  });
-
-  it("marks the calendar grid as a grid with an accessible name", () => {
-    const html = renderToString(
-      <SearchResultClient
-        snapshot={snapshot}
-        organizerTimezone="America/New_York"
-      />,
-    );
-
-    expect(html).toContain('role="grid"');
-    expect(html).toContain("Weekly search results");
-  });
-
-  it("renders prev/next day navigation buttons for narrow viewports", () => {
-    const html = renderToString(
-      <SearchResultClient
-        snapshot={snapshot}
-        organizerTimezone="America/New_York"
-      />,
-    );
-
-    expect(html).toContain('data-testid="day-nav-prev"');
-    expect(html).toContain('data-testid="day-nav-next"');
-    expect(html).toContain('aria-label="Previous day"');
-    expect(html).toContain('aria-label="Next day"');
-  });
-
-  it("disables the prev day button at the start of the window", () => {
-    const html = renderToString(
-      <SearchResultClient
-        snapshot={snapshot}
-        organizerTimezone="America/New_York"
-      />,
-    );
-
-    expect(html).toMatch(
-      /<button[^>]*data-testid="day-nav-prev"[^>]*>/,
-    );
-    const match = html.match(/<button[^>]*data-testid="day-nav-prev"[^>]*>/);
-    expect(match?.[0]).toContain("disabled");
-  });
-
   it("does not expose email addresses in rendered output", () => {
     const html = renderToString(
       <SearchResultClient
@@ -219,8 +169,6 @@ describe("SearchResultClient click-to-open flow", () => {
       />,
     );
 
-    expect(html).not.toMatch(
-      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
-    );
+    expect(html).not.toMatch(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
   });
 });

@@ -137,6 +137,62 @@ describe("searchWorkflow.buildForm", () => {
   });
 });
 
+describe("searchWorkflow.openSnapshot", () => {
+  beforeEach(() => {
+    setSearchRepositoryForTests(null);
+    setSearchResultRepositoryForTests(null);
+    setDiscoverableUserRepositoryForTests(null);
+  });
+
+  afterEach(() => {
+    setSearchRepositoryForTests(null);
+    setSearchResultRepositoryForTests(null);
+    setDiscoverableUserRepositoryForTests(null);
+  });
+
+  it("returns the Search metadata together with the immutable Search Result snapshot", async () => {
+    const { workflow, searchRepo } = buildWorkflow({
+      discoverableUserIds: ["user-1", "user-2"],
+    });
+
+    const runResult = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw(),
+    });
+
+    expect(runResult.ok).toBe(true);
+    if (!runResult.ok) {
+      throw new Error("expected search run to succeed");
+    }
+
+    const storedSearch = await searchRepo.findById(runResult.value.searchId);
+    expect(storedSearch).not.toBeNull();
+    if (!storedSearch) {
+      throw new Error("expected stored search to exist");
+    }
+
+    const opened = await workflow.openSnapshot({
+      userId: "organizer-1",
+      searchId: storedSearch.id!,
+    });
+
+    expect(opened.ok).toBe(true);
+    if (!opened.ok) {
+      throw new Error("expected openSnapshot to succeed");
+    }
+
+    expect(opened.value.search.id).toBe(storedSearch.id);
+    expect(opened.value.search.organizerId).toBe("organizer-1");
+    expect(opened.value.selectedTopics).toEqual([
+      { id: "topic-1", name: "Product strategy" },
+    ]);
+    expect(opened.value.snapshot.generatedAt).toBe(
+      storedSearch.generatedAt.toISOString(),
+    );
+    expect(opened.value.snapshot.slots.length).toBeGreaterThan(0);
+  });
+});
+
 describe("searchWorkflow.run", () => {
   beforeEach(() => {
     setSearchRepositoryForTests(null);

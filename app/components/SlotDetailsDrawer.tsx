@@ -160,6 +160,9 @@ export function SlotDetailsDrawer({
     snapshot.organizerTimezone,
     formatters,
   );
+  const hasStaleMatch = slot.matches.some(
+    (match) => match.calendarFreshness === "stale",
+  );
 
   const matchCountText = `${slot.matchCount} matching ${slot.matchCount === 1 ? "User" : "Users"}`;
 
@@ -196,6 +199,7 @@ export function SlotDetailsDrawer({
           </h2>
           <p id={DESCRIPTION_ID} className="drawer-match-count">
             {matchCountText}
+            {hasStaleMatch ? " ⚠ contains stale calendar data" : ""}
           </p>
           {matchedTopics && (
             <p className="drawer-matched-topics">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { requirePageContext } from "../../../../src/lib/page-context";
+import { getProfileByUserId } from "../../../../src/profile/repository";
 import { getSearchRepository } from "../../../../src/search/repository";
 import { systemClock } from "../../../../src/system/clock";
 import { rerunSearchAction } from "../[id]/_actions/rerun-search";
@@ -45,8 +46,18 @@ export default async function SearchHistoryPage() {
   const context = await requirePageContext({ roles: ["organizer", "admin"] });
   const repository = getSearchRepository();
   const history = await repository.listSearchHistory(systemClock());
+  const historyWithOrganizerNames = await Promise.all(
+    history.map(async (item) => {
+      const profile = await getProfileByUserId(item.organizerId);
+      return {
+        ...item,
+        organizerDisplayName:
+          profile?.displayName?.trim() || item.organizerId,
+      };
+    }),
+  );
 
-  if (history.length === 0) {
+  if (historyWithOrganizerNames.length === 0) {
     return (
       <main className="app-container">
         <div className="empty-state">
@@ -66,12 +77,12 @@ export default async function SearchHistoryPage() {
       </header>
 
       <ol className="search-history-list">
-        {history.map((item) => {
+        {historyWithOrganizerNames.map((item) => {
           const openHref = `/searches/${item.id}?week=${formatWeekParam(item.dateRangeStart, item.organizerTimezone)}`;
           return (
             <li key={item.id} className="search-history-row">
               <article>
-                <h2>{item.organizerId}</h2>
+                <h2>{item.organizerDisplayName}</h2>
                 <p>
                   {formatDateTimeLabel(
                     item.generatedAt,

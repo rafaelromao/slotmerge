@@ -156,7 +156,7 @@ export function SearchResultClient({
                           className="slot-stale-indicator"
                           aria-hidden="true"
                         >
-                          <span className="slot-stale-glyph">[!]</span>
+                          <span className="slot-stale-glyph">⚠</span>
                         </span>
                       )}
                     </button>

@@ -109,8 +109,8 @@ describe("SearchHistoryPage", () => {
     expect(html).toContain("Organizer One");
     expect(html.indexOf(newer.id!)).toBeLessThan(html.indexOf(older.id!));
     expect(html).toContain("Open Search Result");
+    expect(html).toContain('button type="button" popoverTarget="rerun-search-confirm-');
     expect(html).toContain("Re-run this Search?");
-    expect(html).toContain('button type="submit">Re-run</button>');
   });
 
   it("renders a load more link after 50 rows", async () => {

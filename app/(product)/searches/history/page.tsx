@@ -135,9 +135,6 @@ export default async function SearchHistoryPage({
                 <div id={`rerun-search-confirm-${item.id}`} popover="auto">
                   <div className="rerun-search-confirm-panel">
                     <p>Re-run this Search?</p>
-                    <form action={`/searches/${item.id}/rerun`} method="post">
-                      <button type="submit">Re-run</button>
-                    </form>
                   </div>
                 </div>
               </div>

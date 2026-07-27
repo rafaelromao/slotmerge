@@ -140,9 +140,6 @@ export default async function SearchResultPage({
       <div id={`rerun-search-confirm-${id}`} popover="auto">
         <div className="rerun-search-confirm-panel">
           <p>Re-run this Search?</p>
-          <form action={`/searches/${id}/rerun`} method="post">
-            <button type="submit">Re-run</button>
-          </form>
         </div>
       </div>
     </div>
@@ -232,7 +229,7 @@ export default async function SearchResultPage({
       />
 
       <p className="search-result-stale-note">
-        Cells marked [!] include stale calendar data. The Match list may be
+        Cells marked ⚠ include stale calendar data. The Match list may be
         smaller than the count suggests.
       </p>
 

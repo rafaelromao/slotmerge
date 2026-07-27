@@ -767,14 +767,14 @@ button {
   }
 }
 
-@media (min-width: 900px) {
+@media (min-width: 768px) and (max-width: 1023px) {
   .calendar-header,
   .calendar-body {
     grid-template-columns: repeat(7, calc((100% - var(--space-4)) / 3));
   }
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1024px) {
   .calendar-header,
   .calendar-body {
     grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -785,7 +785,7 @@ button {
   }
 }
 
-@media (max-width: 899px) {
+@media (max-width: 767px) {
   .calendar-header,
   .calendar-body {
     grid-template-columns: repeat(7, 100%);

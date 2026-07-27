@@ -51,8 +51,7 @@ export default async function SearchHistoryPage() {
       const profile = await getProfileByUserId(item.organizerId);
       return {
         ...item,
-        organizerDisplayName:
-          profile?.displayName?.trim() || item.organizerId,
+        organizerDisplayName: profile?.displayName?.trim() || item.organizerId,
       };
     }),
   );

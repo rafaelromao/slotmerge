@@ -63,7 +63,7 @@ describe("SearchResultClient click-to-open flow", () => {
       />,
     );
 
-    fireEvent.click(getByTestId("slot-3-0"));
+    fireEvent.click(getByTestId("slot-3-6"));
 
     expect(getByTestId("slot-details-drawer")).toBeTruthy();
     expect(getByText("Ada Lovelace")).toBeTruthy();

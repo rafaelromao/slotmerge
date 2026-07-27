@@ -148,7 +148,7 @@ describe("SearchResultPage", () => {
     expect(html).toContain(`href="/searches/${search.id}?week=2026-07-06"`);
     expect(html).toContain(`href="/searches/${search.id}?week=2026-07-20"`);
     expect(html).toContain('href="/searches/history"');
-    expect(html).toContain('data-testid="slot-0-0"');
+    expect(html).toContain('data-testid="slot-0-13"');
     expect(html.match(/role="columnheader"/g)).toHaveLength(7);
   });
 
@@ -227,7 +227,7 @@ describe("SearchResultPage", () => {
     expect(html).toContain("No matching Slots this week.");
     expect(html).toContain('data-testid="search-result-empty-state"');
     expect(html).toContain(">Next week<");
-    expect(html).not.toContain('data-testid="slot-0-0"');
+    expect(html).not.toContain('data-testid="slot-0-13"');
   });
 
   it("keeps the requested week in the Organizer timezone", async () => {

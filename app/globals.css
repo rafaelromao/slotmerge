@@ -551,9 +551,9 @@ button {
 }
 
 .calendar-header,
-.calendar-body {
+.calendar-hour-row {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: minmax(5rem, auto) repeat(7, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
@@ -578,18 +578,44 @@ button {
   border-right: none;
 }
 
-.calendar-body {
-  padding: var(--space-2);
+.calendar-hour-corner {
+  min-height: 3rem;
 }
 
-.calendar-day-column {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  min-height: 80px;
+.calendar-body {
+  padding: var(--space-2);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+.calendar-hour-row {
+  align-items: stretch;
+}
+
+.calendar-hour-label {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  min-height: 4rem;
+  display: flex;
   padding: var(--space-2);
+  align-items: center;
+  justify-content: flex-end;
+  text-align: right;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-sunken);
+}
+
+.calendar-hour-cell {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  min-height: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--surface-base);
 }
 

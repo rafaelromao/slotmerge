@@ -8,7 +8,12 @@ import { addCivilDays } from "../../../../src/search/timezone";
 type WeeklyDay = {
   date: Date;
   label: string;
-  slots: Slot[];
+};
+
+type WeeklyHourRow = {
+  hour: number;
+  label: string;
+  cells: Array<Slot | null>;
 };
 
 function buildWeeklyGrid(
@@ -19,9 +24,12 @@ function buildWeeklyGrid(
   formatters: {
     dayFormatter: Intl.DateTimeFormat;
     dayKeyFormatter: Intl.DateTimeFormat;
+    hourFormatter: Intl.DateTimeFormat;
+    hourKeyFormatter: Intl.DateTimeFormat;
   },
-): WeeklyDay[] {
+): { days: WeeklyDay[]; hourRows: WeeklyHourRow[] } {
   const days: WeeklyDay[] = [];
+  const dayKeys: string[] = [];
 
   for (
     let d = new Date(weekStart);
@@ -30,19 +38,35 @@ function buildWeeklyGrid(
   ) {
     const dayDate = new Date(d);
     const dayKey = formatters.dayKeyFormatter.format(dayDate);
-    const daySlots = slots.filter((slot) => {
-      const slotDate = new Date(slot.startUtc);
-      return formatters.dayKeyFormatter.format(slotDate) === dayKey;
-    });
 
     days.push({
       date: dayDate,
       label: formatters.dayFormatter.format(dayDate),
-      slots: daySlots,
     });
+    dayKeys.push(dayKey);
   }
 
-  return days;
+  const slotMap = new Map<string, Slot>();
+  for (const slot of slots) {
+    const slotDate = new Date(slot.startUtc);
+    const dayKey = formatters.dayKeyFormatter.format(slotDate);
+    const hourKey = formatters.hourKeyFormatter.format(slotDate);
+    slotMap.set(`${dayKey}:${hourKey}`, slot);
+  }
+
+  const hourRows = Array.from({ length: 24 }, (_, hour) => {
+    const rowDate = new Date(weekStart.getTime() + hour * 60 * 60 * 1000);
+    const hourKey = String(hour).padStart(2, "0");
+    return {
+      hour,
+      label: formatters.hourFormatter.format(rowDate),
+      cells: dayKeys.map(
+        (dayKey) => slotMap.get(`${dayKey}:${hourKey}`) ?? null,
+      ),
+    };
+  });
+
+  return { days, hourRows };
 }
 
 function slotHasStale(slot: Slot): boolean {
@@ -86,16 +110,24 @@ export function SearchResultClient({
       }),
       dayKeyFormatter: new Intl.DateTimeFormat("en-CA", {
         timeZone: organizerTimezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
       }),
       hourFormatter: new Intl.DateTimeFormat("en-US", {
         hour: "numeric",
         minute: "2-digit",
         timeZone: organizerTimezone,
       }),
+      hourKeyFormatter: new Intl.DateTimeFormat("en-CA", {
+        timeZone: organizerTimezone,
+        hour: "2-digit",
+        hourCycle: "h23",
+      }),
     };
   }, [organizerTimezone]);
 
-  const days = useMemo(
+  const { days, hourRows } = useMemo(
     () =>
       buildWeeklyGrid(weekStart, weekEnd, slots, organizerTimezone, formatters),
     [weekEnd, weekStart, slots, organizerTimezone, formatters],
@@ -114,9 +146,10 @@ export function SearchResultClient({
       <div
         className="calendar-grid"
         role="grid"
-        aria-label={`Weekly search results, ${days.length} day${days.length !== 1 ? "s" : ""}`}
+        aria-label={`Weekly search results, ${days.length} day${days.length !== 1 ? "s" : ""} by ${hourRows.length} hourly rows`}
       >
         <div className="calendar-header" role="row">
+          <div className="calendar-hour-corner" aria-hidden="true" />
           {days.map((day, i) => (
             <div
               key={`h-${i}`}
@@ -128,31 +161,34 @@ export function SearchResultClient({
           ))}
         </div>
 
-        <div className="calendar-body" role="row">
-          {days.map((day, dayIdx) => (
-            <div
-              key={`d-${dayIdx}`}
-              className="calendar-day-column"
-              role="gridcell"
-              aria-label={day.label}
-            >
-              {day.slots.length === 0 ? (
-                <div className="calendar-slot-empty" aria-hidden="true">
-                  -
-                </div>
-              ) : (
-                day.slots.map((slot, slotIdx) => {
-                  const isStale = slotHasStale(slot);
+        <div className="calendar-body">
+          {hourRows.map((row) => (
+            <div key={`r-${row.hour}`} className="calendar-hour-row" role="row">
+              <div className="calendar-hour-label" role="rowheader">
+                {row.label}
+              </div>
+              {row.cells.map((slot, dayIdx) => {
+                if (!slot) {
                   return (
+                    <div
+                      key={`c-${dayIdx}`}
+                      className="calendar-hour-cell"
+                      aria-hidden="true"
+                    />
+                  );
+                }
+
+                const isStale = slotHasStale(slot);
+                return (
+                  <div key={`c-${dayIdx}`} className="calendar-hour-cell">
                     <button
-                      key={`s-${dayIdx}-${slotIdx}`}
                       type="button"
                       className="calendar-slot"
-                      data-testid={`slot-${dayIdx}-${slotIdx}`}
+                      data-testid={`slot-${dayIdx}-${row.hour}`}
                       data-stale={isStale ? "true" : "false"}
                       aria-label={buildSlotLabel(
                         slot,
-                        day.label,
+                        days[dayIdx]?.label ?? "",
                         formatters.hourFormatter,
                       )}
                       onClick={() => handleSlotClick(slot)}
@@ -167,9 +203,9 @@ export function SearchResultClient({
                         </span>
                       )}
                     </button>
-                  );
-                })
-              )}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>

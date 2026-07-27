@@ -26,6 +26,7 @@ import type { DiscoverableUserRepository } from "../src/search/discoverable-user
 import { setSearchRepositoryForTests } from "../src/search/repository";
 import { setSearchResultRepositoryForTests } from "../src/search/search-result-repository";
 import { setDiscoverableUserRepositoryForTests } from "../src/search/discoverable-user-repository";
+import { setTopicCatalogueRepositoryForTests } from "../src/topics/repository";
 
 function buildWorkflow(
   overrides: {
@@ -67,6 +68,19 @@ function buildWorkflow(
   setSearchRepositoryForTests(searchRepo);
   setSearchResultRepositoryForTests(resultRepo);
   setDiscoverableUserRepositoryForTests(discoverableRepo);
+  setTopicCatalogueRepositoryForTests({
+    listCatalogue: () =>
+      Promise.resolve(
+        activeTopics.map((topic) => ({
+          id: topic.id,
+          name: topic.name,
+          status: "active" as const,
+        })),
+      ),
+    listSelectedTopicIds: () => Promise.resolve([]),
+    listAssociations: () => Promise.resolve([]),
+    saveAssociations: () => Promise.resolve(),
+  });
   const workflow = createSearchWorkflow({
     clock,
     profileRepository: new InMemoryProfileRepository(profile),
@@ -97,12 +111,14 @@ describe("searchWorkflow.buildForm", () => {
     setSearchRepositoryForTests(null);
     setSearchResultRepositoryForTests(null);
     setDiscoverableUserRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
   });
 
   afterEach(() => {
     setSearchRepositoryForTests(null);
     setSearchResultRepositoryForTests(null);
     setDiscoverableUserRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
   });
 
   it("returns the per-Organizer defaults", async () => {
@@ -134,6 +150,63 @@ describe("searchWorkflow.buildForm", () => {
     expect(state.defaults.dateRangeEnd.toISOString()).toBe(
       "2026-08-10T00:00:00.000Z",
     );
+  });
+});
+
+describe("searchWorkflow.openSnapshot", () => {
+  beforeEach(() => {
+    setSearchRepositoryForTests(null);
+    setSearchResultRepositoryForTests(null);
+    setDiscoverableUserRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
+  });
+
+  afterEach(() => {
+    setSearchRepositoryForTests(null);
+    setSearchResultRepositoryForTests(null);
+    setDiscoverableUserRepositoryForTests(null);
+  });
+
+  it("returns the Search metadata together with the immutable Search Result snapshot", async () => {
+    const { workflow, searchRepo } = buildWorkflow({
+      discoverableUserIds: ["user-1", "user-2"],
+    });
+
+    const runResult = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw(),
+    });
+
+    expect(runResult.ok).toBe(true);
+    if (!runResult.ok) {
+      throw new Error("expected search run to succeed");
+    }
+
+    const storedSearch = await searchRepo.findById(runResult.value.searchId);
+    expect(storedSearch).not.toBeNull();
+    if (!storedSearch) {
+      throw new Error("expected stored search to exist");
+    }
+
+    const opened = await workflow.openSnapshot({
+      userId: "organizer-1",
+      searchId: storedSearch.id!,
+    });
+
+    expect(opened.ok).toBe(true);
+    if (!opened.ok) {
+      throw new Error("expected openSnapshot to succeed");
+    }
+
+    expect(opened.value.search.id).toBe(storedSearch.id);
+    expect(opened.value.search.organizerId).toBe("organizer-1");
+    expect(opened.value.selectedTopics).toEqual([
+      { id: "topic-1", name: "Product strategy" },
+    ]);
+    expect(opened.value.snapshot.generatedAt).toBe(
+      storedSearch.generatedAt.toISOString(),
+    );
+    expect(opened.value.snapshot.slots.length).toBeGreaterThan(0);
   });
 });
 

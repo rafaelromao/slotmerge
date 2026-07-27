@@ -5,6 +5,7 @@ import {
   type SearchInput,
   type SearchInputOverrides,
 } from "../search/search-input";
+import type { SearchRecord } from "../search/repository";
 import {
   addCivilDays,
   calendarDayNumber,
@@ -12,7 +13,9 @@ import {
   startOfWeekInTimezone,
 } from "../search/timezone";
 import type { Result } from "../lib/result";
+import { err, ok } from "../lib/result";
 import type { SearchResultRepository } from "../search/search-result-repository";
+import type { SearchSnapshot } from "../search/search-result-repository";
 import {
   createDefaultSearchSnapshotAssemblerDeps,
   SearchSnapshotAssembler,
@@ -20,6 +23,8 @@ import {
 } from "../search/search-snapshot-assembler";
 import type { DiscoverableUserRepository } from "../search/discoverable-user-repository";
 import type { Clock } from "../system/clock";
+import { getSearchRepository } from "../search/repository";
+import { getTopicCatalogueRepository } from "../topics/repository";
 
 export type SearchFormDefaults = {
   selectedTopicIds: string[];
@@ -63,6 +68,22 @@ export type SearchWorkflow = {
     userId: string;
     raw: SearchFormDefaults;
   }): Promise<RunSearchOutcome>;
+  openSnapshot(input: {
+    userId: string;
+    searchId: string;
+    isAdmin?: boolean;
+  }): Promise<
+    Result<
+      {
+        search: SearchRecord;
+        snapshot: SearchSnapshot;
+        selectedTopics: Array<{ id: string; name: string }>;
+      },
+      {
+        reason: "search_not_found" | "snapshot_not_found";
+      }
+    >
+  >;
 };
 
 export type CreateSearchWorkflowDeps = {
@@ -231,6 +252,37 @@ export function createSearchWorkflow(
         throw new Error("Persisted Search is missing its id.");
       }
       return { ok: true, value: { searchId } };
+    },
+
+    async openSnapshot(input: {
+      userId: string;
+      searchId: string;
+      isAdmin?: boolean;
+    }) {
+      const { searchId } = input;
+      const search = await getSearchRepository().findById(searchId);
+      if (!search) {
+        return err({ reason: "search_not_found" as const });
+      }
+
+      const result = await searchResultRepository.findBySearchId(searchId);
+      if (!result) {
+        return err({ reason: "snapshot_not_found" as const });
+      }
+
+      const catalogue = await getTopicCatalogueRepository().listCatalogue();
+      const selectedTopics = search.selectedTopicIds.flatMap((topicId) => {
+        const topic = catalogue.find((entry) => entry.id === topicId);
+        return topic
+          ? [{ id: topic.id, name: topic.name }]
+          : [{ id: topicId, name: topicId }];
+      });
+
+      return ok({
+        search,
+        snapshot: result.snapshotJson,
+        selectedTopics,
+      });
     },
   };
 }

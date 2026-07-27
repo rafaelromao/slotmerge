@@ -1,42 +1,109 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { SlotDetailsDrawer } from "../../../components/SlotDetailsDrawer";
 import type { Slot, SearchSnapshot } from "../../../../src/db/schema";
+import { addCivilDays } from "../../../../src/search/timezone";
 
 type WeeklyDay = {
   date: Date;
   label: string;
-  slots: Slot[];
+};
+
+type WeeklyHourRow = {
+  hour: number;
+  label: string;
+  cells: Array<Array<{ slot: Slot; slotIdx: number }> | null>;
 };
 
 function buildWeeklyGrid(
-  snapshot: SearchSnapshot,
+  weekStart: Date,
+  weekEnd: Date,
+  slots: Slot[],
+  timezone: string,
   formatters: {
     dayFormatter: Intl.DateTimeFormat;
     dayKeyFormatter: Intl.DateTimeFormat;
+    hourFormatter: Intl.DateTimeFormat;
+    hourKeyFormatter: Intl.DateTimeFormat;
   },
-): WeeklyDay[] {
-  const start = new Date(snapshot.dateRangeStart);
-  const end = new Date(snapshot.dateRangeEnd);
+): { days: WeeklyDay[]; hourRows: WeeklyHourRow[] } {
   const days: WeeklyDay[] = [];
+  const dayKeys: string[] = [];
 
-  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+  for (
+    let d = new Date(weekStart);
+    d < weekEnd;
+    d = addCivilDays(d, 1, timezone)
+  ) {
     const dayDate = new Date(d);
     const dayKey = formatters.dayKeyFormatter.format(dayDate);
-    const daySlots = snapshot.slots.filter((slot) => {
-      const slotDate = new Date(slot.startUtc);
-      return formatters.dayKeyFormatter.format(slotDate) === dayKey;
-    });
 
     days.push({
       date: dayDate,
       label: formatters.dayFormatter.format(dayDate),
-      slots: daySlots,
+    });
+    dayKeys.push(dayKey);
+  }
+
+  const daySlotsByKey = new Map<
+    string,
+    Array<{ slot: Slot; slotIdx: number }>
+  >();
+  const cellSlotsByKey = new Map<
+    string,
+    Array<{ slot: Slot; slotIdx: number }>
+  >();
+  for (const slot of slots) {
+    const slotDate = new Date(slot.startUtc);
+    const dayKey = formatters.dayKeyFormatter.format(slotDate);
+    const hourKey = formatters.hourKeyFormatter.format(slotDate);
+
+    const daySlots = daySlotsByKey.get(dayKey) ?? [];
+    const entry = { slot, slotIdx: daySlots.length };
+    daySlots.push(entry);
+    daySlotsByKey.set(dayKey, daySlots);
+
+    const cellSlots = cellSlotsByKey.get(`${dayKey}:${hourKey}`) ?? [];
+    cellSlots.push(entry);
+    cellSlotsByKey.set(`${dayKey}:${hourKey}`, cellSlots);
+  }
+
+  for (const daySlots of daySlotsByKey.values()) {
+    daySlots.sort(
+      (left, right) =>
+        new Date(left.slot.startUtc).getTime() -
+        new Date(right.slot.startUtc).getTime(),
+    );
+    daySlots.forEach((entry, index) => {
+      entry.slotIdx = index;
     });
   }
 
-  return days;
+  for (const cellSlots of cellSlotsByKey.values()) {
+    cellSlots.sort(
+      (left, right) =>
+        new Date(left.slot.startUtc).getTime() -
+        new Date(right.slot.startUtc).getTime(),
+    );
+  }
+
+  const hourRows = Array.from({ length: 24 }, (_, hour) => {
+    const rowDate = new Date(weekStart.getTime() + hour * 60 * 60 * 1000);
+    const hourKey = String(hour).padStart(2, "0");
+    return {
+      hour,
+      label: formatters.hourFormatter.format(rowDate),
+      cells: dayKeys.map((dayKey) => {
+        const slots = cellSlotsByKey.get(`${dayKey}:${hourKey}`) ?? null;
+        if (!slots) return null;
+
+        return slots;
+      }),
+    };
+  });
+
+  return { days, hourRows };
 }
 
 function slotHasStale(slot: Slot): boolean {
@@ -58,13 +125,17 @@ function buildSlotLabel(
 export function SearchResultClient({
   snapshot,
   organizerTimezone,
+  weekStart,
+  weekEnd,
+  slots,
 }: {
   snapshot: SearchSnapshot;
   organizerTimezone: string;
+  weekStart: Date;
+  weekEnd: Date;
+  slots: Slot[];
 }) {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
-  const [focusedDayIndex, setFocusedDayIndex] = useState(0);
-  const dayColumnRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const formatters = useMemo(() => {
     return {
@@ -76,46 +147,29 @@ export function SearchResultClient({
       }),
       dayKeyFormatter: new Intl.DateTimeFormat("en-CA", {
         timeZone: organizerTimezone,
-      }),
-      generatedAtFormatter: new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
         year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        timeZone: organizerTimezone,
+        month: "2-digit",
+        day: "2-digit",
       }),
       hourFormatter: new Intl.DateTimeFormat("en-US", {
         hour: "numeric",
         minute: "2-digit",
         timeZone: organizerTimezone,
+        timeZoneName: "short",
+      }),
+      hourKeyFormatter: new Intl.DateTimeFormat("en-CA", {
+        timeZone: organizerTimezone,
+        hour: "2-digit",
+        hourCycle: "h23",
       }),
     };
   }, [organizerTimezone]);
 
-  const days = useMemo(
-    () => buildWeeklyGrid(snapshot, formatters),
-    [snapshot, formatters],
+  const { days, hourRows } = useMemo(
+    () =>
+      buildWeeklyGrid(weekStart, weekEnd, slots, organizerTimezone, formatters),
+    [weekEnd, weekStart, slots, organizerTimezone, formatters],
   );
-
-  useEffect(() => {
-    const column = dayColumnRefs.current[focusedDayIndex];
-    if (column) {
-      column.scrollIntoView({
-        behavior: "smooth",
-        inline: "start",
-        block: "nearest",
-      });
-    }
-  }, [focusedDayIndex]);
-
-  const handlePrevDay = useCallback(() => {
-    setFocusedDayIndex((i) => Math.max(0, i - 1));
-  }, []);
-
-  const handleNextDay = useCallback(() => {
-    setFocusedDayIndex((i) => Math.min(days.length - 1, i + 1));
-  }, [days.length]);
 
   const handleSlotClick = useCallback((slot: Slot) => {
     setSelectedSlot(slot);
@@ -125,66 +179,15 @@ export function SearchResultClient({
     setSelectedSlot(null);
   }, []);
 
-  const canPrev = focusedDayIndex > 0;
-  const canNext = focusedDayIndex < days.length - 1;
-  const focusedDay = days[focusedDayIndex];
-
   return (
-    <main className="search-result-page">
-      <h1>Search Result</h1>
-      <p className="search-result-meta">
-        <span className="search-result-meta-item">
-          <span className="search-result-meta-label">Timezone:</span>
-          <span>{organizerTimezone}</span>
-        </span>
-        <span className="search-result-meta-item">
-          <span className="search-result-meta-label">Generated:</span>
-          <time dateTime={snapshot.generatedAt}>
-            {formatters.generatedAtFormatter.format(
-              new Date(snapshot.generatedAt),
-            )}
-          </time>
-        </span>
-        <span className="search-result-meta-item">
-          <span className="search-result-meta-label">Window:</span>
-          <span>
-            {days.length} day{days.length !== 1 ? "s" : ""}
-          </span>
-        </span>
-      </p>
-
-      <div className="calendar-day-nav" aria-label="Day navigation">
-        <button
-          type="button"
-          className="calendar-day-nav-btn"
-          onClick={handlePrevDay}
-          disabled={!canPrev}
-          aria-label="Previous day"
-          data-testid="day-nav-prev"
-        >
-          <span aria-hidden="true">‹</span>
-        </button>
-        <span className="calendar-day-nav-label" aria-live="polite">
-          {focusedDay ? focusedDay.label : ""}
-        </span>
-        <button
-          type="button"
-          className="calendar-day-nav-btn"
-          onClick={handleNextDay}
-          disabled={!canNext}
-          aria-label="Next day"
-          data-testid="day-nav-next"
-        >
-          <span aria-hidden="true">›</span>
-        </button>
-      </div>
-
+    <>
       <div
         className="calendar-grid"
         role="grid"
-        aria-label={`Weekly search results, ${days.length} day${days.length !== 1 ? "s" : ""}`}
+        aria-label={`Weekly search results, ${days.length} day${days.length !== 1 ? "s" : ""} by ${hourRows.length} hourly rows`}
       >
         <div className="calendar-header" role="row">
+          <div className="calendar-hour-corner" aria-hidden="true" />
           {days.map((day, i) => (
             <div
               key={`h-${i}`}
@@ -196,57 +199,56 @@ export function SearchResultClient({
           ))}
         </div>
 
-        <div className="calendar-body" role="row">
-          {days.map((day, dayIdx) => (
-            <div
-              key={`d-${dayIdx}`}
-              ref={(el) => {
-                dayColumnRefs.current[dayIdx] = el;
-              }}
-              className="calendar-day-column"
-              role="gridcell"
-              aria-label={day.label}
-            >
-              {day.slots.length === 0 ? (
-                <div className="calendar-slot-empty" aria-hidden="true">
-                  —
-                </div>
-              ) : (
-                day.slots.map((slot, slotIdx) => {
-                  const isStale = slotHasStale(slot);
+        <div className="calendar-body">
+          {hourRows.map((row) => (
+            <div key={`r-${row.hour}`} className="calendar-hour-row" role="row">
+              <div className="calendar-hour-label" role="rowheader">
+                {row.label}
+              </div>
+              {row.cells.map((cell, dayIdx) => {
+                if (!cell) {
                   return (
-                    <button
-                      key={`s-${dayIdx}-${slotIdx}`}
-                      type="button"
-                      className="calendar-slot"
-                      data-testid={`slot-${dayIdx}-${slotIdx}`}
-                      data-stale={isStale ? "true" : "false"}
-                      aria-label={buildSlotLabel(
-                        slot,
-                        day.label,
-                        formatters.hourFormatter,
-                      )}
-                      onClick={() => handleSlotClick(slot)}
-                    >
-                      {slot.matchCount === 0 ? (
-                        <span className="slot-count slot-count-zero">0</span>
-                      ) : (
-                        <>
+                    <div
+                      key={`c-${dayIdx}`}
+                      className="calendar-hour-cell"
+                      aria-hidden="true"
+                    />
+                  );
+                }
+
+                return (
+                  <div key={`c-${dayIdx}`} className="calendar-hour-cell">
+                    {cell.map(({ slot, slotIdx }) => {
+                      const isStale = slotHasStale(slot);
+                      return (
+                        <button
+                          key={`${slot.startUtc}-${slotIdx}`}
+                          type="button"
+                          className="calendar-slot"
+                          data-testid={`slot-${dayIdx}-${slotIdx}`}
+                          data-stale={isStale ? "true" : "false"}
+                          aria-label={buildSlotLabel(
+                            slot,
+                            days[dayIdx]?.label ?? "",
+                            formatters.hourFormatter,
+                          )}
+                          onClick={() => handleSlotClick(slot)}
+                        >
                           <span className="slot-count">{slot.matchCount}</span>
                           {isStale && (
                             <span
                               className="slot-stale-indicator"
                               aria-hidden="true"
                             >
-                              <span className="slot-stale-glyph" />
+                              <span className="slot-stale-glyph">⚠</span>
                             </span>
                           )}
-                        </>
-                      )}
-                    </button>
-                  );
-                })
-              )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -259,6 +261,6 @@ export function SearchResultClient({
           onClose={handleClose}
         />
       )}
-    </main>
+    </>
   );
 }

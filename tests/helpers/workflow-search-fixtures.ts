@@ -5,6 +5,9 @@ export { InMemorySearchResultRepository } from "../../src/search/search-result-i
 
 import type { SearchSnapshotAssemblerDeps } from "../../src/search/search-snapshot-assembler";
 import type { DiscoverableUserRepository } from "../../src/search/discoverable-user-repository";
+import type { WeeklyAvailabilityWindow } from "../../src/profile/availability-windows";
+import type { AvailabilityOverride } from "../../src/profile/availability-overrides";
+import type { ImportedBusyIntervalRecord } from "../../src/calendar/imported-busy-intervals";
 
 import type {
   ActiveTopicsRepository,
@@ -98,3 +101,85 @@ export const mockAssemblerDeps: SearchSnapshotAssemblerDeps = {
     return "none" as const;
   },
 };
+
+export function makeEligibleAssemblerDeps(
+  eligibleUserIds: string[],
+  activeTopics: Array<{ id: string; name: string }> = [
+    { id: "topic-1", name: "Product strategy" },
+  ],
+  discoverableUserRepository: DiscoverableUserRepository = new InMemoryDiscoverableUserRepository(
+    eligibleUserIds,
+  ),
+): SearchSnapshotAssemblerDeps {
+  const eligible = new Set(eligibleUserIds);
+  const availabilityWindows = [
+    {
+      dayOfWeek: 1,
+      startTime: "09:00",
+      endTime: "17:00",
+    },
+  ] as WeeklyAvailabilityWindow[];
+  const availabilityOverrides = [] as AvailabilityOverride[];
+  const busyIntervals = [] as ImportedBusyIntervalRecord[];
+
+  return {
+    discoverableUserRepository,
+    topicRepository: new InMemoryActiveTopicsRepository(activeTopics),
+    profileRepository: {
+      async findByUserId(userId: string): Promise<UserProfile | null> {
+        if (!eligible.has(userId)) {
+          return null;
+        }
+        return {
+          id: userId,
+          email: `${userId}@example.com`,
+          displayName: `Eligible ${userId}`,
+          avatarUrl: null,
+          shortBio: null,
+          role: "organizer",
+          status: "active",
+          profileTimezone: "UTC",
+          bufferMinutes: 0,
+        };
+      },
+    },
+    async listSelectedTopicIds(userId: string): Promise<string[]> {
+      return eligible.has(userId) ? activeTopics.map((topic) => topic.id) : [];
+    },
+    async loadUserAvailabilityData() {
+      return {
+        windows: availabilityWindows,
+        overrides: availabilityOverrides,
+        busyIntervals,
+      };
+    },
+    async loadCalendarConnectionLastSyncAt() {
+      return null;
+    },
+    async getDiscoverabilityConsent(userId: string) {
+      if (!eligible.has(userId)) {
+        return null;
+      }
+      return {
+        state: "granted" as const,
+        grantedAt: new Date("2026-07-12T12:00:00.000Z"),
+      };
+    },
+    async hasTopicProposal(userId: string) {
+      return eligible.has(userId);
+    },
+    computeEffectiveAvailability(inputs) {
+      return eligible.has(inputs.userId)
+        ? [
+            {
+              startUtc: new Date("2026-07-13T15:00:00.000Z"),
+              endUtc: new Date("2026-07-13T18:00:00.000Z"),
+            },
+          ]
+        : [];
+    },
+    deriveCalendarFreshness() {
+      return "none" as const;
+    },
+  };
+}

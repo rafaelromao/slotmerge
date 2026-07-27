@@ -15,6 +15,7 @@ import type { Result } from "../lib/result";
 import type { SearchResultRepository } from "../search/search-result-repository";
 import {
   createDefaultSearchSnapshotAssemblerDeps,
+  SearchSnapshotAssembler,
   type SearchSnapshotAssemblerDeps,
 } from "../search/search-snapshot-assembler";
 import type { DiscoverableUserRepository } from "../search/discoverable-user-repository";
@@ -163,11 +164,31 @@ export function createSearchWorkflow(
         };
       }
 
+      const effectiveAssemblerDependencies =
+        assemblerDependencies ??
+        createDefaultSearchSnapshotAssemblerDeps({
+          discoverableUserRepository,
+          topicRepository: {
+            listActive: () => Promise.resolve(activeTopics),
+          },
+          profileRepository,
+        });
       const matchingPoolSize = (
-        await discoverableUserRepository.listDiscoverableUserIds(
+        await new SearchSnapshotAssembler({
+          ...effectiveAssemblerDependencies,
+          topicRepository: {
+            listActive: () => Promise.resolve(activeTopics),
+          },
+        }).listEligibleUserIds({
+          organizerId: userId,
           selectedTopicIds,
-          { excludeUserId: userId, requireAllTopics: true },
-        )
+          durationMinutes: raw.durationMinutes,
+          dateRangeStart: raw.dateRangeStart,
+          dateRangeEnd: raw.dateRangeEnd,
+          organizerTimezone,
+          minimumMatchingUsers: raw.minimumMatchingUsers,
+          now: clock.now(),
+        })
       ).length;
 
       if (
@@ -196,15 +217,6 @@ export function createSearchWorkflow(
         matchingPoolSize,
         activeTopicsSnapshot: activeTopics,
       };
-      const effectiveAssemblerDependencies =
-        assemblerDependencies ??
-        createDefaultSearchSnapshotAssemblerDeps({
-          discoverableUserRepository,
-          topicRepository: {
-            listActive: () => Promise.resolve(activeTopics),
-          },
-          profileRepository,
-        });
       submitDeps.assemblerDependencies = effectiveAssemblerDependencies;
 
       const submitResult = await submitSearch(submitDeps, overrides);

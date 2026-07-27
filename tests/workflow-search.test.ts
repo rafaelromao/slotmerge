@@ -10,9 +10,9 @@ import {
   InMemoryDiscoverableUserRepository,
   InMemoryProfileRepository,
   InMemorySearchResultRepository,
-  mockAssemblerDeps,
   organizerProfile,
   pinnedClock,
+  makeEligibleAssemblerDeps,
   utcProfile,
 } from "./helpers/workflow-search-fixtures";
 
@@ -35,6 +35,7 @@ function buildWorkflow(
     profile?: UserProfile | null;
     discoverableUserIds?: string[];
     discoverableUserRepository?: DiscoverableUserRepository;
+    assemblerDependencies?: ReturnType<typeof makeEligibleAssemblerDeps>;
   } = {},
 ): {
   workflow: SearchWorkflow;
@@ -57,6 +58,12 @@ function buildWorkflow(
   );
   const workflowDiscoverableRepo =
     overrides.discoverableUserRepository ?? discoverableRepo;
+  const assemblerDependencies =
+    overrides.assemblerDependencies ??
+    makeEligibleAssemblerDeps(
+      overrides.discoverableUserIds ?? [],
+      activeTopics,
+    );
   setSearchRepositoryForTests(searchRepo);
   setSearchResultRepositoryForTests(resultRepo);
   setDiscoverableUserRepositoryForTests(discoverableRepo);
@@ -68,7 +75,7 @@ function buildWorkflow(
       new InMemoryActiveTopicsRepository(activeTopics),
     discoverableUserRepository: workflowDiscoverableRepo,
     searchResultRepository: resultRepo,
-    assemblerDependencies: mockAssemblerDeps,
+    assemblerDependencies,
   });
   return { workflow, clock, searchRepo, resultRepo, discoverableRepo };
 }
@@ -213,7 +220,14 @@ describe("searchWorkflow.run", () => {
         return Promise.resolve(["user-with-all-topics"]);
       },
     };
-    const { workflow } = buildWorkflow({ discoverableUserRepository });
+    const { workflow } = buildWorkflow({
+      discoverableUserRepository,
+      assemblerDependencies: makeEligibleAssemblerDeps(
+        ["user-with-all-topics"],
+        undefined,
+        discoverableUserRepository,
+      ),
+    });
 
     const result = await workflow.run({
       userId: "organizer-1",
@@ -231,6 +245,54 @@ describe("searchWorkflow.run", () => {
         options: { excludeUserId: "organizer-1", requireAllTopics: true },
       },
     ]);
+  });
+
+  it("returns minimum_out_of_range when a discoverable User is excluded by setup or availability", async () => {
+    const discoverableUserRepository: DiscoverableUserRepository = {
+      listDiscoverableUserIds() {
+        return Promise.resolve(["user-ready", "user-missing-availability"]);
+      },
+    };
+    const assemblerDependencies = makeEligibleAssemblerDeps([
+      "user-ready",
+      "user-missing-availability",
+    ]);
+    const { workflow } = buildWorkflow({
+      discoverableUserRepository,
+      assemblerDependencies: {
+        ...assemblerDependencies,
+        async loadUserAvailabilityData(userId: string) {
+          if (userId === "user-missing-availability") {
+            return {
+              windows: [],
+              overrides: [],
+              busyIntervals: [],
+            };
+          }
+          return assemblerDependencies.loadUserAvailabilityData(userId, {
+            rangeStart: new Date("2026-07-06T03:00:00.000Z"),
+            rangeEnd: new Date("2026-08-10T03:00:00.000Z"),
+          });
+        },
+        computeEffectiveAvailability(inputs) {
+          if (inputs.userId === "user-missing-availability") {
+            return [];
+          }
+          return assemblerDependencies.computeEffectiveAvailability(inputs);
+        },
+      },
+    });
+
+    const result = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw({ minimumMatchingUsers: 2 }),
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected validation failure");
+    expect(result.error.fieldErrors.minimumMatchingUsers).toBe(
+      "minimum_out_of_range",
+    );
   });
 
   it("returns minimum_out_of_range when minimumMatchingUsers exceeds the matching pool", async () => {

@@ -8,7 +8,7 @@ import {
   InMemoryActiveTopicsRepository,
   InMemoryDiscoverableUserRepository,
   InMemoryProfileRepository,
-  mockAssemblerDeps,
+  makeEligibleAssemblerDeps,
   pinnedClock,
   organizerProfile,
 } from "./helpers/workflow-search-fixtures";
@@ -47,13 +47,24 @@ function buildHandlerAndDeps(
       "user-5",
     ],
   );
+  const assemblerDependencies = makeEligibleAssemblerDeps(
+    overrides.discoverableUserIds ?? [
+      "user-1",
+      "user-2",
+      "user-3",
+      "user-4",
+      "user-5",
+    ],
+    activeTopics,
+    discoverableRepo,
+  );
   const workflow = createSearchWorkflow({
     clock,
     profileRepository: new InMemoryProfileRepository(profile),
     activeTopicsRepository: new InMemoryActiveTopicsRepository(activeTopics),
     discoverableUserRepository: discoverableRepo,
     searchResultRepository: resultRepo,
-    assemblerDependencies: mockAssemblerDeps,
+    assemblerDependencies,
   });
 
   const handler = buildSearchActionHandler({

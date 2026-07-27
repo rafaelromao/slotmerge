@@ -83,6 +83,7 @@ jobs:
         with:
           name: playwright-videos
           path: playwright/.artifacts/**/*.webm
+          include-hidden-files: true
           retention-days: 14
 
       - name: Upload traces
@@ -91,4 +92,5 @@ jobs:
         with:
           name: playwright-traces
           path: playwright/.artifacts/**/*.zip
+          include-hidden-files: true
           retention-days: 14

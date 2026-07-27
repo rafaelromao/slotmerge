@@ -49,7 +49,9 @@ export async function GET(
     process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
   const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
   const fetchImpl =
-    isLocalOrTest && overrideUrl
+    isLocalOrTest &&
+    process.env.CALENDAR_PROVIDER_MODE === "mock" &&
+    overrideUrl
       ? createProviderFetchImpl(fetch, overrideUrl)
       : fetch;
 

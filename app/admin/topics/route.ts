@@ -1,7 +1,15 @@
-import { createAdminTopicsHandlers } from "../../../src/admin/topics";
-import { systemDependencies } from "../../../src/system";
+import { legacyRedirect } from "../../../src/lib/legacy-redirect";
 
-const handlers = createAdminTopicsHandlers(systemDependencies());
+export function GET(): Response {
+  return legacyRedirect({
+    target: "/admin#topics",
+    sunset: new Date("2026-12-31T23:59:59.000Z"),
+  });
+}
 
-export const GET = handlers.GET;
-export const POST = handlers.POST;
+export function POST(): Response {
+  return legacyRedirect({
+    target: "/admin#topics",
+    sunset: new Date("2026-12-31T23:59:59.000Z"),
+  });
+}

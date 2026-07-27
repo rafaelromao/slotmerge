@@ -49,9 +49,16 @@ services:
     command: pnpm dev:web
     environment:
       APP_ENV: local
+      APP_PUBLIC_URL: http://localhost:3000
+      CALENDAR_PROVIDER_MODE: mock
       DATABASE_URL: postgres://slotmerge:slotmerge@postgres:5432/slotmerge
       LOCAL_WEB_URL: http://web:3000
       LOCAL_PROVIDER_OVERRIDE_URL: http://provider-mock:3001
+      LOCAL_PROVIDER_BROWSER_URL: http://localhost:3001
+      GOOGLE_OAUTH_CLIENT_ID: local-google-client
+      GOOGLE_OAUTH_CLIENT_SECRET: local-google-secret
+      MICROSOFT_OAUTH_CLIENT_ID: local-microsoft-client
+      MICROSOFT_OAUTH_CLIENT_SECRET: local-microsoft-secret
       EMAIL_CAPTURE_ENABLED: "true"
       FIXTURE_DATE: "2026-07-12T12:00:00.000Z"
       MAGIC_LINK_SECRET: "local-magic-link-secret-do-not-use-in-production"
@@ -72,6 +79,7 @@ services:
     command: pnpm dev:worker
     environment:
       APP_ENV: local
+      CALENDAR_PROVIDER_MODE: mock
       DATABASE_URL: postgres://slotmerge:slotmerge@postgres:5432/slotmerge
       LOCAL_WEB_URL: http://web:3000
       LOCAL_PROVIDER_OVERRIDE_URL: http://provider-mock:3001

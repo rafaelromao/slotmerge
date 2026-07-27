@@ -15,13 +15,13 @@ import {
 
 import { POST as COMPLETE_CONNECTION } from "../../app/me/calendar-connections/callback/route";
 import { POST as START_CONNECTION } from "../../app/me/calendar-connections/microsoft/connect/route";
-import { GET as LIST_CONNECTIONS } from "../../app/me/calendar-connections/route";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,
 } from "../../src/auth/session";
 import { decryptCalendarToken } from "../../src/calendar/token-encryption";
 import { calendarConnections } from "../../src/db/schema";
+import { listConnectionsForTests } from "../helpers/calendar-connection-tests";
 import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb } from "../helpers/setup";
 import {
@@ -243,16 +243,8 @@ describe("E2E: connect Microsoft work/school calendar with Calendars.ReadBasic",
         }),
       ).toBe(REFRESH_TOKEN);
 
-      const listResponse = await LIST_CONNECTIONS(
-        new Request("http://localhost/me/calendar-connections", {
-          headers: { cookie },
-        }),
-      );
-      expect(listResponse.status).toBe(200);
-      const listBody = (await listResponse.json()) as {
-        connections: Array<Record<string, unknown>>;
-      };
-      const matchingConnections = listBody.connections.filter(
+      const listResponse = await listConnectionsForTests(ALICE.id);
+      const matchingConnections = listResponse.connections.filter(
         (connection) => connection.id === startBody.connection.id,
       );
       expect(matchingConnections).toHaveLength(1);
@@ -260,15 +252,13 @@ describe("E2E: connect Microsoft work/school calendar with Calendars.ReadBasic",
       expect(listed).toMatchObject({
         id: startBody.connection.id,
         provider: "microsoft",
-        scopes: MICROSOFT_SCOPES,
-        status: "connected",
-        healthStatus: "connected",
+        displayStatus: "connected",
         stale: true,
         lastSyncAt: null,
-        contributingCalendarIds: [PRIMARY_CALENDAR_ID],
       });
       expect(listed).not.toHaveProperty("accessTokenEncrypted");
       expect(listed).not.toHaveProperty("refreshTokenEncrypted");
+      expect(listed).not.toHaveProperty("refreshToken");
     },
   );
 });

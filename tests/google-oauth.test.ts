@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildGoogleCalendarAuthorizationUrl } from "../src/calendar/google-oauth";
 
 describe("Google Calendar OAuth", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("builds a consent URL limited to freebusy scope and the fixed callback path", () => {
     const authorizationUrl = buildGoogleCalendarAuthorizationUrl({
       baseUrl: "https://slotmerge.example",
@@ -32,5 +36,26 @@ describe("Google Calendar OAuth", () => {
     expect(url.searchParams.get("code_challenge")).toBe("code-challenge");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("state")).toBe("sealed-state");
+  });
+
+  it("uses the browser-visible provider mock only behind both local gates", () => {
+    vi.stubEnv("APP_ENV", "test");
+    vi.stubEnv("CALENDAR_PROVIDER_MODE", "mock");
+    vi.stubEnv("LOCAL_PROVIDER_BROWSER_URL", "http://localhost:3001");
+
+    const url = new URL(
+      buildGoogleCalendarAuthorizationUrl({
+        baseUrl: "http://localhost:3000",
+        clientId: "google-client-id",
+        codeChallenge: "code-challenge",
+        state: "sealed-state",
+      }),
+    );
+
+    expect(url.origin).toBe("http://localhost:3001");
+    expect(url.pathname).toBe("/google/authorize");
+    expect(url.searchParams.get("redirect_uri")).toBe(
+      "http://localhost:3000/me/calendar-connections/callback",
+    );
   });
 });

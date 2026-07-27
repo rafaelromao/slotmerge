@@ -13,6 +13,7 @@ export default tseslint.config(
       "*.mjs",
       ".sandman/**",
       "tests/provider-mock/**",
+      "playwright/.artifacts/**",
     ],
   },
   js.configs.recommended,

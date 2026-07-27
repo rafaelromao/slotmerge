@@ -1,16 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PATCH } from "../app/me/calendar-connections/[id]/route";
-import { GET } from "../app/me/calendar-connections/route";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,
 } from "../src/auth/session";
 import { encryptCalendarToken } from "../src/calendar/token-encryption";
 import type { CalendarConnectionRecord } from "../src/calendar/connection";
-import {
-  setCalendarConnectionRepositoryForTests,
-} from "../src/calendar/repository";
+import { setCalendarConnectionRepositoryForTests } from "../src/calendar/repository";
+import { listConnectionsForTests } from "./helpers/calendar-connection-tests";
 
 describe("calendar connection management routes", () => {
   beforeEach(() => {
@@ -72,33 +70,20 @@ describe("calendar connection management routes", () => {
       updateById: () => Promise.resolve(null),
     });
 
-    const cookie = await sealSessionCookie({ sessionId: "session-1" });
-    const response = await GET(
-      new Request("http://localhost/me/calendar-connections", {
-        headers: { cookie },
-      }),
-    );
+    const { connections } = await listConnectionsForTests("user-1");
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      connections: [
-        {
-          id: "connection-1",
-          provider: "google",
-          accountIdentifier: "google:connection-1",
-          providerAccountKey: "google:connection-1",
-          scopes: "https://www.googleapis.com/auth/calendar.freebusy",
-          status: "connected",
-          accessTokenExpiresAt: "2026-01-01T00:00:00.000Z",
-          lastErrorCode: null,
-          lastErrorMessage: null,
-          lastSyncAt: null,
-          healthStatus: "connected",
-          stale: true,
-          contributingCalendarIds: [],
-        },
-      ],
-    });
+    expect(connections).toEqual([
+      {
+        id: "connection-1",
+        provider: "google",
+        accountIdentifier: "google:connection-1",
+        displayStatus: "connected",
+        lastSyncAt: null,
+        stale: true,
+        calendars: [],
+        calendarsError: false,
+      },
+    ]);
   });
 
   it("revokes the stored refresh token on disconnect and leaves metadata queryable", async () => {

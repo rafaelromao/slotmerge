@@ -22,9 +22,7 @@ async function renderSignIn(
   const search = buildSearchParams(params);
   const searchParams = Promise.resolve(
     Object.fromEntries(search.entries()),
-  ) as unknown as NonNullable<
-    Parameters<typeof SignInPage>[0]
-  >["searchParams"];
+  ) as unknown as NonNullable<Parameters<typeof SignInPage>[0]>["searchParams"];
   const element = await SignInPage({ searchParams });
   return renderToString(PublicLayout({ children: element }));
 }
@@ -66,6 +64,14 @@ describe("Public sign-in page", () => {
   it("renders the Calendar Connection help text below the form", async () => {
     const html = await renderSignIn();
     expect(html).toMatch(/calendar access is separate/i);
+  });
+
+  it("shows the account deletion confirmation for ?reason=deleted", async () => {
+    const html = await renderSignIn({ reason: "deleted" });
+    expect(html).toContain(
+      "Your account has been deleted. The audit log retains your role and invite history.",
+    );
+    expect(html).toContain('data-testid="sign-in-deleted-notice"');
   });
 
   it("includes the returnTo hidden input when ?returnTo is set", async () => {

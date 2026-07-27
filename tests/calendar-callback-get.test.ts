@@ -1,13 +1,9 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { GET } from "../app/me/calendar-connections/callback/route";
+import {
+  GET,
+  resetCalendarOAuthCallbackRateLimitForTests,
+} from "../app/me/calendar-connections/callback/route";
 import { setSessionRepositoryForTests } from "../src/auth/session";
 import { setCalendarConnectionRepositoryForTests } from "../src/calendar/repository";
 import {
@@ -56,6 +52,7 @@ function newConnectionRecord(
 }
 
 beforeEach(() => {
+  resetCalendarOAuthCallbackRateLimitForTests();
   process.env.SESSION_SECRET = "0123456789abcdef0123456789abcdef";
   process.env.CALENDAR_TOKEN_ENCRYPTION_KEY =
     "0123456789abcdef0123456789abcdef";
@@ -125,7 +122,9 @@ describe("GET /me/calendar-connections/callback", () => {
     );
 
     const sealedState = await sealCalendarConnectionState({
+      provider: "google",
       connectionId: stored.id,
+      sessionId: "session-1",
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",
       secret: "0123456789abcdef0123456789abcdef",
@@ -136,10 +135,13 @@ describe("GET /me/calendar-connections/callback", () => {
     url.searchParams.set("state", sealedState);
 
     const response = await GET(new Request(url.toString()));
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "http://localhost/me/calendar-connections?oauth=connected",
+    );
   });
 
-  it("returns 400 with unsupported_microsoft_account when the sealed state resolves to a Microsoft connection but the response errors with access_denied", async () => {
+  it("redirects validated Microsoft denied consent to the denied outcome", async () => {
     const stored: CalendarConnectionRecord = newConnectionRecord("microsoft");
 
     setCalendarConnectionRepositoryForTests({
@@ -147,11 +149,17 @@ describe("GET /me/calendar-connections/callback", () => {
       listByUserId: () => Promise.resolve([]),
       findById: (id) =>
         Promise.resolve(id === stored.id ? { ...stored } : null),
-      updateById: () => Promise.resolve(null),
+      updateById: (id, patch) => {
+        if (id !== stored.id) return Promise.resolve(null);
+        Object.assign(stored, patch);
+        return Promise.resolve({ ...stored });
+      },
     });
 
     const sealedState = await sealCalendarConnectionState({
+      provider: "microsoft",
       connectionId: stored.id,
+      sessionId: "session-1",
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",
       secret: "0123456789abcdef0123456789abcdef",
@@ -162,9 +170,29 @@ describe("GET /me/calendar-connections/callback", () => {
     url.searchParams.set("state", sealedState);
 
     const response = await GET(new Request(url.toString()));
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
-      error: "unsupported_microsoft_account",
-    });
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "http://localhost/me/calendar-connections?oauth=denied",
+    );
+  });
+
+  it("rate limits callback attempts before state processing", async () => {
+    let response: Response | null = null;
+    for (let attempt = 0; attempt <= 30; attempt += 1) {
+      response = await GET(
+        new Request("http://localhost/me/calendar-connections/callback", {
+          headers: {
+            "x-forwarded-for": "192.0.2.44",
+            "x-request-id": `rate-limit-${attempt}`,
+          },
+        }),
+      );
+    }
+
+    expect(response?.status).toBe(303);
+    expect(response?.headers.get("retry-after")).toBe("60");
+    expect(response?.headers.get("location")).toBe(
+      "http://localhost/me/calendar-connections?oauth=failed&requestId=rate-limit-30",
+    );
   });
 });

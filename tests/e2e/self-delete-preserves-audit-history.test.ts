@@ -9,6 +9,8 @@ import {
   availabilityWindows,
   calendarConnections,
   discoverabilityConsents,
+  emailEventAttempts,
+  emailEvents,
   importedBusyIntervals,
   sessions,
   topicProposals,
@@ -17,6 +19,7 @@ import {
   users,
 } from "../../src/db/schema";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
+import { createConnectionActionRequiredDedupReference } from "../../src/calendar/action-required-email";
 
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
 const HAS_TEST_DB = !!TEST_DB_URL;
@@ -29,6 +32,10 @@ const CSRF_TOKEN = "csrf-self-delete-audit-78";
 const PROPOSAL_ID = "00000000-0000-0000-0000-00000000d078";
 const GOOGLE_CONNECTION_ID = "00000000-0000-0000-0000-00000000e078";
 const MICROSOFT_CONNECTION_ID = "00000000-0000-0000-0000-00000000e179";
+const PERSONAL_EMAIL_EVENT_ID = "00000000-0000-0000-0000-00000000e278";
+const CONNECTION_EMAIL_EVENT_ID = "00000000-0000-0000-0000-00000000e378";
+const UNRELATED_EMAIL_EVENT_ID = "00000000-0000-0000-0000-00000000e478";
+const PREFIX_EMAIL_EVENT_ID = "00000000-0000-0000-0000-00000000e678";
 const PROPOSAL_NAME = "Knowledge graphs";
 
 type CountResult = { count: string };
@@ -146,6 +153,59 @@ describe("E2E: self-delete removes personal data and tokens, preserves audit his
           updatedAt: now,
         },
       ]);
+
+      await db.insert(emailEvents).values([
+        {
+          id: PERSONAL_EMAIL_EVENT_ID,
+          recipient: USER_EMAIL,
+          type: "magic-link",
+          payloadReference: "unrelated-payload-reference",
+          status: "sent",
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: CONNECTION_EMAIL_EVENT_ID,
+          recipient: "operations@example.com",
+          type: "calendar-action-required",
+          payloadReference: createConnectionActionRequiredDedupReference(
+            GOOGLE_CONNECTION_ID,
+            "token-revoked",
+          ),
+          status: "sent",
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: UNRELATED_EMAIL_EVENT_ID,
+          recipient: "unrelated@example.com",
+          type: "magic-link",
+          payloadReference: "unrelated-reference",
+          status: "sent",
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: PREFIX_EMAIL_EVENT_ID,
+          recipient: "unrelated-prefix@example.com",
+          type: "calendar-action-required",
+          payloadReference: `prefix-${createConnectionActionRequiredDedupReference(
+            GOOGLE_CONNECTION_ID,
+            "token-revoked",
+          )}`,
+          status: "sent",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      await db.insert(emailEventAttempts).values({
+        id: "00000000-0000-0000-0000-00000000e578",
+        emailEventId: PERSONAL_EMAIL_EVENT_ID,
+        attemptNumber: 1,
+        status: "delivered",
+        attemptedAt: now,
+        createdAt: now,
+      });
 
       await db.insert(availabilityWindows).values({
         id: "00000000-0000-0000-0000-0000000f0078",
@@ -301,6 +361,24 @@ describe("E2E: self-delete removes personal data and tokens, preserves audit his
         await countRows("imported_busy_intervals", `user_id = '${USER_ID}'`),
       ).toBe(0);
       expect(await countRows("user_topics", `user_id = '${USER_ID}'`)).toBe(0);
+      expect(
+        await countRows(
+          "email_events",
+          `id IN ('${PERSONAL_EMAIL_EVENT_ID}', '${CONNECTION_EMAIL_EVENT_ID}')`,
+        ),
+      ).toBe(0);
+      expect(
+        await countRows(
+          "email_event_attempts",
+          `email_event_id = '${PERSONAL_EMAIL_EVENT_ID}'`,
+        ),
+      ).toBe(0);
+      expect(
+        await countRows(
+          "email_events",
+          `id IN ('${UNRELATED_EMAIL_EVENT_ID}', '${PREFIX_EMAIL_EVENT_ID}')`,
+        ),
+      ).toBe(2);
 
       const afterProposal = await selectProposal(PROPOSAL_ID);
       expect(afterProposal).not.toBeNull();

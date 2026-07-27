@@ -7,6 +7,7 @@ export default defineConfig({
       DATABASE_URL:
         process.env.DATABASE_URL ??
         "postgres://slotmerge:slotmerge@localhost:5432/slotmerge",
+      FIXTURE_DATE: "2026-07-12T12:00:00.000Z",
     },
     globals: true,
     include: ["tests/e2e/**/*.test.ts"],

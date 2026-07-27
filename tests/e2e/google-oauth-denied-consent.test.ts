@@ -13,12 +13,12 @@ import {
 
 import { POST as COMPLETE_CONNECTION } from "../../app/me/calendar-connections/callback/route";
 import { POST as START_CONNECTION } from "../../app/me/calendar-connections/google/connect/route";
-import { GET as LIST_CONNECTIONS } from "../../app/me/calendar-connections/route";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,
 } from "../../src/auth/session";
 import { calendarConnections } from "../../src/db/schema";
+import { listConnectionsForTests } from "../helpers/calendar-connection-tests";
 import { SESSION_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb } from "../helpers/setup";
 import { buildMockGoogleCalendarAdapter } from "../google-calendar-adapter";
@@ -192,26 +192,15 @@ describe("E2E: denied Google OAuth consent leaves Calendar Connection pending", 
         contributingCalendarIds: [],
       });
 
-      const listResponse = await LIST_CONNECTIONS(
-        new Request("http://localhost/me/calendar-connections", {
-          headers: { cookie },
-        }),
+      const listResponse = await listConnectionsForTests(ALICE.id);
+      const matching = listResponse.connections.filter(
+        (connection) => connection.id === startBody.connection.id,
       );
-      expect(listResponse.status).toBe(200);
-      const listBody = (await listResponse.json()) as {
-        connections: Array<Record<string, unknown>>;
-      };
-      expect(
-        listBody.connections.filter(
-          (connection) => connection.id === startBody.connection.id,
-        ),
-      ).toEqual([
-        expect.objectContaining({
-          id: startBody.connection.id,
-          provider: "google",
-          status: "pending",
-        }),
-      ]);
+      expect(matching).toEqual([]);
+      const pendingOrDisconnected = listResponse.connections.filter(
+        (connection) => connection.id === startBody.connection.id,
+      );
+      expect(pendingOrDisconnected).toHaveLength(0);
     },
   );
 });

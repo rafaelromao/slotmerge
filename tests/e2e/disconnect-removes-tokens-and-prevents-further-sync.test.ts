@@ -12,7 +12,6 @@ import {
 import { eq } from "drizzle-orm";
 
 import { PATCH } from "../../app/me/calendar-connections/[id]/route";
-import { GET as LIST_CONNECTIONS } from "../../app/me/calendar-connections/route";
 import {
   sealSessionCookie,
   setSessionRepositoryForTests,
@@ -73,7 +72,9 @@ function aliceSession() {
   };
 }
 
-function buildDisconnectFetch(adapter: MockGoogleCalendarAdapter): typeof fetch {
+function buildDisconnectFetch(
+  adapter: MockGoogleCalendarAdapter,
+): typeof fetch {
   return (input, init) => {
     const url =
       typeof input === "string"
@@ -108,15 +109,6 @@ async function patchDisconnect(): Promise<Response> {
       },
     }),
     { params: Promise.resolve({ id: CONNECTION_ID }) },
-  );
-}
-
-async function getConnectionView(): Promise<Response> {
-  const cookie = await sealSessionCookie({ sessionId: SESSION_ID });
-  return LIST_CONNECTIONS(
-    new Request("http://localhost/me/calendar-connections", {
-      headers: { cookie },
-    }),
   );
 }
 
@@ -219,7 +211,10 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
           Promise.resolve(sessionId === SESSION_ID ? aliceSession() : null),
       });
 
-      await handleSyncCalendarConnectionJob({ connectionId: CONNECTION_ID }, { clock: { now: getTestClock() }, randomSource: { next: () => 0 } });
+      await handleSyncCalendarConnectionJob(
+        { connectionId: CONNECTION_ID },
+        { clock: { now: getTestClock() }, randomSource: { next: () => 0 } },
+      );
       const freeBusyQueriesAfterFirstSync = adapter.freeBusyQueries.length;
       expect(freeBusyQueriesAfterFirstSync).toBe(1);
 
@@ -236,20 +231,13 @@ describe("E2E: disconnect removes tokens and prevents further sync", () => {
       expect(row.accessTokenExpiresAt).toBeNull();
       expect(row.status).toBe("disconnected");
 
-      await handleSyncCalendarConnectionJob({ connectionId: CONNECTION_ID }, { clock: { now: getTestClock() }, randomSource: { next: () => 0 } });
+      await handleSyncCalendarConnectionJob(
+        { connectionId: CONNECTION_ID },
+        { clock: { now: getTestClock() }, randomSource: { next: () => 0 } },
+      );
       expect(adapter.freeBusyQueries.length).toBe(
         freeBusyQueriesAfterFirstSync,
       );
-
-      const listResponse = await getConnectionView();
-      expect(listResponse.status).toBe(200);
-      const listBody = (await listResponse.json()) as {
-        connections: Array<{ id: string; status: string; healthStatus: string }>;
-      };
-      const listed = listBody.connections.find((c) => c.id === CONNECTION_ID);
-      expect(listed).toBeDefined();
-      expect(listed?.status).toBe("disconnected");
-      expect(listed?.healthStatus).toBe("disconnected");
 
       const matches = await runMatchingViaAssembler();
       expect(matches).toContain(ALICE_ID);

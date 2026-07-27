@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 
 import {
+  extractSessionIdFromRequest,
   getSessionFromRequest,
   getSessionSecret,
 } from "../../../../../src/auth/session";
@@ -12,9 +13,12 @@ import { getCalendarProvider } from "../../../../../src/calendar/providers";
 import { getCalendarConnectionRepository } from "../../../../../src/calendar/repository";
 
 export async function POST(request: Request): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const [session, sessionId] = await Promise.all([
+    getSessionFromRequest(request),
+    extractSessionIdFromRequest(request),
+  ]);
 
-  if (!session) {
+  if (!session || !sessionId) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });
   }
 
@@ -39,6 +43,7 @@ export async function POST(request: Request): Promise<Response> {
     baseUrl: new URL(request.url).origin,
     clientId,
     csrfToken: session.csrfToken,
+    sessionId,
     sessionSecret: getSessionSecret(),
     userId: session.user.id,
   });

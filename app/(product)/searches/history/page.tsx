@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { requirePageContext } from "../../../../src/lib/page-context";
+import { getProfileByUserId } from "../../../../src/profile/repository";
 import { getSearchRepository } from "../../../../src/search/repository";
 import { getTopicCatalogueRepository } from "../../../../src/topics/repository";
 import { systemClock } from "../../../../src/system/clock";
@@ -26,8 +27,22 @@ function formatDateTimeLabel(date: Date, timezone: string): string {
   }).format(date);
 }
 
-export default async function SearchHistoryPage() {
+const PAGE_SIZE = 50;
+
+function parseBeforeParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+  return value ?? null;
+}
+
+export default async function SearchHistoryPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ before?: string | string[] }>;
+} = {}) {
   await requirePageContext({ roles: ["organizer", "admin"] });
+  const query = (await searchParams) ?? {};
 
   const [history, topics] = await Promise.all([
     getSearchRepository().listSearchHistory(systemClock()),
@@ -35,6 +50,23 @@ export default async function SearchHistoryPage() {
   ]);
 
   const topicById = new Map(topics.map((topic) => [topic.id, topic.name]));
+  const before = parseBeforeParam(query.before);
+  const startIndex = before
+    ? Math.max(
+        history.findIndex((item) => item.id === before) + 1,
+        0,
+      )
+    : 0;
+  const pageHistory = history.slice(startIndex, startIndex + PAGE_SIZE);
+  const nextBefore = history[startIndex + PAGE_SIZE]?.id ?? null;
+  const organizerProfiles = new Map(
+    await Promise.all(
+      pageHistory.map(async (item) => [
+        item.organizerId,
+        await getProfileByUserId(item.organizerId),
+      ] as const),
+    ),
+  );
 
   if (history.length === 0) {
     return (
@@ -56,14 +88,18 @@ export default async function SearchHistoryPage() {
       </header>
 
       <ul className="search-history-list">
-        {history.map((item) => {
+        {pageHistory.map((item) => {
           const selectedTopics = item.selectedTopicIds.map(
             (topicId) => topicById.get(topicId) ?? topicId,
           );
+          const organizer = organizerProfiles.get(item.organizerId);
 
           return (
             <li key={item.id} className="search-history-row">
               <div className="search-history-row-main">
+                <p>
+                  <strong>Organizer:</strong> {organizer?.displayName ?? organizer?.email ?? item.organizerId}
+                </p>
                 <p>
                   <strong>Selected Topics:</strong> {selectedTopics.join(", ")}
                 </p>
@@ -109,6 +145,10 @@ export default async function SearchHistoryPage() {
           );
         })}
       </ul>
+
+      {nextBefore ? (
+        <Link href={`/searches/history?before=${nextBefore}`}>Load more</Link>
+      ) : null}
     </main>
   );
 }

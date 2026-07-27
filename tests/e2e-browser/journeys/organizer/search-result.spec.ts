@@ -87,6 +87,9 @@ test.describe("Organizer search result journey", () => {
     await staleSlot.click();
 
     await expect(page.getByTestId("slot-details-drawer")).toBeVisible();
+    await expect(page.getByText("Ada Lovelace")).toBeVisible();
+    await expect(page.getByText("Computing pioneer")).toBeVisible();
+    await expect(page.getByText("Product strategy")).toBeVisible();
     await expect(page.getByText("stale")).toBeVisible();
     await expect(
       page.getByText("available in this Search window"),
@@ -108,7 +111,7 @@ test.describe("Organizer search result journey", () => {
     ).toBeVisible();
     await captureState(page, "search-history", "list");
 
-    await page.getByText("Re-run Search").click();
+    await page.getByRole("button", { name: "Re-run Search" }).click();
     await expect(page.getByRole("button", { name: "Re-run" })).toBeVisible();
     await page.getByRole("button", { name: "Re-run" }).click();
 

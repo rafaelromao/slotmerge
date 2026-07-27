@@ -90,6 +90,7 @@ export default async function SearchResultPage({
   const opened = await workflow.openSnapshot({
     userId: context.user.id,
     searchId: id,
+    isAdmin: context.isAdmin,
   });
 
   if (!opened.ok) {

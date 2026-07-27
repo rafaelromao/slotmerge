@@ -68,7 +68,7 @@ export type SearchWorkflow = {
     userId: string;
     raw: SearchFormDefaults;
   }): Promise<RunSearchOutcome>;
-  openSnapshot(input: { userId: string; searchId: string }): Promise<
+  openSnapshot(input: { userId: string; searchId: string; isAdmin?: boolean }): Promise<
     Result<
       {
         search: SearchRecord;
@@ -250,13 +250,13 @@ export function createSearchWorkflow(
       return { ok: true, value: { searchId } };
     },
 
-    async openSnapshot({ userId, searchId }) {
+    async openSnapshot({ userId, searchId, isAdmin = false }) {
       const search = await getSearchRepository().findById(searchId);
       if (!search) {
         return err({ reason: "search_not_found" as const });
       }
 
-      if (search.organizerId !== userId) {
+      if (!isAdmin && search.organizerId !== userId) {
         return err({ reason: "search_not_found" as const });
       }
 

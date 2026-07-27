@@ -223,6 +223,133 @@ describe("SearchHistoryPage", () => {
     expect(html).not.toContain("search-history-list");
   });
 
+  it("renders the same DTO field subset as /api/v1/searches (serializer parity)", async () => {
+    const searchRepo = new InMemorySearchRepository();
+    setSearchRepositoryForTests(searchRepo);
+    setProfileRepositoryForTests({
+      findByUserId: () =>
+        Promise.resolve({
+          id: "organizer-1",
+          email: "organizer@example.com",
+          displayName: "Ada Lovelace",
+          avatarUrl: null,
+          shortBio: null,
+          role: "organizer",
+          status: "active",
+          profileTimezone: "UTC",
+          bufferMinutes: 0,
+        }),
+      updateByUserId: () => Promise.resolve(null),
+      deleteByUserId: () => Promise.resolve(false),
+    });
+    setTopicCatalogueRepositoryForTests({
+      listCatalogue: () =>
+        Promise.resolve([
+          {
+            id: "topic-1",
+            name: "Product strategy",
+            status: "active" as const,
+          },
+        ]),
+      listSelectedTopicIds: () => Promise.resolve([]),
+      listAssociations: () => Promise.resolve([]),
+      saveAssociations: () => Promise.resolve(),
+    });
+
+    const search = await searchRepo.save({
+      organizerId: "organizer-1",
+      selectedTopicIds: ["topic-1"],
+      minimumMatchingUsers: 2,
+      durationMinutes: 60,
+      dateRangeStart: new Date("2026-07-06T00:00:00.000Z"),
+      dateRangeEnd: new Date("2026-07-27T00:00:00.000Z"),
+      organizerTimezone: "UTC",
+      generatedAt: new Date("2026-07-13T09:00:00.000Z"),
+    });
+    searchRepo.setSnapshotId(search.id!, "snapshot-1");
+
+    const { requirePageContext } = await import("../src/lib/page-context");
+    vi.mocked(requirePageContext).mockResolvedValue({
+      user: {
+        id: "organizer-1",
+        email: "organizer@example.com",
+        displayName: "Ada Lovelace",
+        avatarUrl: null,
+        shortBio: null,
+        role: "organizer",
+        status: "active",
+        profileTimezone: "UTC",
+        bufferMinutes: 0,
+      },
+      csrfToken: "csrf-token",
+      isAuthed: true,
+      isAdmin: false,
+      isOrganizerOrAdmin: true,
+    });
+
+    const { default: SearchHistoryPage } =
+      await import("../app/(product)/searches/history/page");
+    const { serializeSearchHistoryPage } = await import(
+      "../src/api/serializers"
+    );
+    const { createSearchWorkflow } = await import("../src/workflow/search");
+
+    const html = renderToString(await SearchHistoryPage());
+
+    const workflow = createSearchWorkflow({
+      clock: {
+        now: () => new Date("2026-07-13T10:00:00.000Z"),
+      },
+      profileRepository: {
+        findByUserId: () =>
+          Promise.resolve({
+            id: "organizer-1",
+            email: "organizer@example.com",
+            displayName: "Ada Lovelace",
+            avatarUrl: null,
+            shortBio: null,
+            role: "organizer",
+            status: "active",
+            profileTimezone: "UTC",
+            bufferMinutes: 0,
+          }),
+      },
+      activeTopicsRepository: {
+        listActive: () =>
+          Promise.resolve([
+            {
+              id: "topic-1",
+              name: "Product strategy",
+              status: "active" as const,
+            },
+          ]),
+      },
+      discoverableUserRepository: {
+        listDiscoverableUserIds: () => Promise.resolve([]),
+      },
+      searchResultRepository: {
+        save: () => Promise.reject(new Error("not used")),
+        findById: () => Promise.resolve(null),
+        findBySearchId: () => Promise.resolve(null),
+      },
+    });
+
+    const historyResult = await workflow.listHistory({ userId: "organizer-1" });
+    expect(historyResult.ok).toBe(true);
+    if (!historyResult.ok) {
+      throw new Error("expected history list to succeed");
+    }
+
+    const dto = serializeSearchHistoryPage(historyResult.value);
+    const wire = JSON.stringify(dto);
+
+    expect(html).toContain(dto.history[0].id);
+    expect(html).toContain(dto.history[0].organizerDisplayName);
+    expect(html).toContain(dto.history[0].selectedTopicNames[0]);
+    expect(wire).toContain(dto.history[0].id);
+    expect(wire).toContain(dto.history[0].generatedAt);
+  });
+
   it("renders a per-section error banner when history_unavailable is returned", async () => {
     setSearchRepositoryForTests({
       listSearchHistory: () =>

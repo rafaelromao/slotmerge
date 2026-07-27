@@ -7,6 +7,7 @@ import { listActiveTopics } from "../../../../src/topics/repository";
 import { getProfileByUserId } from "../../../../src/profile/repository";
 import { systemClock } from "../../../../src/system/clock";
 import { createSearchWorkflow } from "../../../../src/workflow/search";
+import { serializeSearchHistoryPage } from "../../../../src/api/serializers";
 import { rerunSearchAction } from "../[id]/_actions/rerun-search";
 
 type SearchParams = Promise<{
@@ -108,15 +109,15 @@ export default async function SearchHistoryPage({
     );
   }
 
-  const history = historyResult.value;
+  const historyDto = serializeSearchHistoryPage(historyResult.value);
 
   const beforeIndex = before
-    ? history.findIndex((item) => item.id === before)
+    ? historyDto.history.findIndex((item) => item.id === before)
     : -1;
   const windowStart = beforeIndex >= 0 ? beforeIndex + 1 : 0;
   const windowEnd = windowStart + HISTORY_PAGE_SIZE;
-  const pageHistory = history.slice(windowStart, windowEnd);
-  const hasMore = windowEnd < history.length;
+  const pageHistory = historyDto.history.slice(windowStart, windowEnd);
+  const hasMore = windowEnd < historyDto.history.length;
 
   if (pageHistory.length === 0) {
     return (
@@ -139,7 +140,7 @@ export default async function SearchHistoryPage({
 
       <ol className="search-history-list" data-testid="search-history-list">
         {pageHistory.map((item) => {
-          const openHref = `/searches/${item.id}?week=${formatWeekParam(item.dateRangeStart, item.organizerTimezone)}`;
+          const openHref = `/searches/${item.id}?week=${formatWeekParam(new Date(item.dateRangeStart), item.organizerTimezone)}`;
           return (
             <li
               key={item.id}
@@ -149,9 +150,9 @@ export default async function SearchHistoryPage({
               <article>
                 <h2>{item.organizerDisplayName}</h2>
                 <p>
-                  <time dateTime={item.generatedAt.toISOString()}>
+                  <time dateTime={item.generatedAt}>
                     {formatDateTimeLabel(
-                      item.generatedAt,
+                      new Date(item.generatedAt),
                       item.organizerTimezone,
                     )}
                   </time>
@@ -163,8 +164,15 @@ export default async function SearchHistoryPage({
                 </p>
                 <p>
                   Date Range:{" "}
-                  {formatDateLabel(item.dateRangeStart, item.organizerTimezone)}{" "}
-                  - {formatDateLabel(item.dateRangeEnd, item.organizerTimezone)}
+                  {formatDateLabel(
+                    new Date(item.dateRangeStart),
+                    item.organizerTimezone,
+                  )}{" "}
+                  -{" "}
+                  {formatDateLabel(
+                    new Date(item.dateRangeEnd),
+                    item.organizerTimezone,
+                  )}
                 </p>
                 <p>Organizer timezone: {item.organizerTimezone}</p>
                 <p>

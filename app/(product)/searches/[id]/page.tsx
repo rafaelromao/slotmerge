@@ -11,6 +11,7 @@ import { addCivilDays, zonedTimeToUtc } from "../../../../src/search/timezone";
 import { listActiveTopics } from "../../../../src/topics/repository";
 import { systemClock } from "../../../../src/system/clock";
 import { createSearchWorkflow } from "../../../../src/workflow/search";
+import { serializeSearchSnapshot } from "../../../../src/api/serializers";
 import { rerunSearchAction } from "./_actions/rerun-search";
 import { SearchResultClient } from "./SearchResultClient";
 
@@ -161,6 +162,8 @@ export default async function SearchResultPage({
     );
   }
 
+  const snapshotDto = serializeSearchSnapshot(opened.value);
+
   const requestedWeek = parseWeekParam(query.week);
   const weekStart = alignToMonday(
     requestedWeek
@@ -168,34 +171,34 @@ export default async function SearchResultPage({
           requestedWeek.year,
           requestedWeek.month - 1,
           requestedWeek.day,
-          opened.value.search.organizerTimezone,
+          snapshotDto.search.organizerTimezone,
         )
-      : new Date(opened.value.snapshot.dateRangeStart),
-    opened.value.search.organizerTimezone,
+      : new Date(snapshotDto.snapshot.dateRangeStart),
+    snapshotDto.search.organizerTimezone,
   );
   const weekEnd = addCivilDays(
     weekStart,
     7,
-    opened.value.search.organizerTimezone,
+    snapshotDto.search.organizerTimezone,
   );
-  const weeklySlots = getSlotsForWeek(opened.value.snapshot, weekStart);
-  const dateRangeStart = new Date(opened.value.search.dateRangeStart);
-  const dateRangeEnd = new Date(opened.value.search.dateRangeEnd);
+  const weeklySlots = getSlotsForWeek(snapshotDto.snapshot, weekStart);
+  const dateRangeStart = new Date(snapshotDto.search.dateRangeStart);
+  const dateRangeEnd = new Date(snapshotDto.search.dateRangeEnd);
   const prevWeekStart =
     weekStart.getTime() > dateRangeStart.getTime()
-      ? addCivilDays(weekStart, -7, opened.value.search.organizerTimezone)
+      ? addCivilDays(weekStart, -7, snapshotDto.search.organizerTimezone)
       : null;
   const nextWeekCandidate = addCivilDays(
     weekStart,
     7,
-    opened.value.search.organizerTimezone,
+    snapshotDto.search.organizerTimezone,
   );
   const nextWeekStart =
     nextWeekCandidate.getTime() < dateRangeEnd.getTime()
       ? nextWeekCandidate
       : null;
   const emptyStatePrimaryHref = nextWeekStart
-    ? `/searches/${id}?week=${formatWeekParam(nextWeekStart, opened.value.search.organizerTimezone)}`
+    ? `/searches/${id}?week=${formatWeekParam(nextWeekStart, snapshotDto.search.organizerTimezone)}`
     : "/searches/history";
   const emptyStatePrimaryLabel = nextWeekStart
     ? "Next week"
@@ -230,42 +233,42 @@ export default async function SearchResultPage({
         <p className="search-result-header-meta">
           <span>
             <strong>Selected Topics:</strong>{" "}
-            {opened.value.selectedTopics.map((topic) => topic.name).join(", ")}
+            {snapshotDto.selectedTopics.map((topic) => topic.name).join(", ")}
           </span>
           <span>
-            <strong>Minimum:</strong> {opened.value.search.minimumMatchingUsers}
+            <strong>Minimum:</strong> {snapshotDto.search.minimumMatchingUsers}
           </span>
           <span>
-            <strong>Duration:</strong> {opened.value.search.durationMinutes}{" "}
+            <strong>Duration:</strong> {snapshotDto.search.durationMinutes}{" "}
             minutes
           </span>
           <span>
             <strong>Date Range:</strong>{" "}
             {formatDateLabel(
               dateRangeStart,
-              opened.value.search.organizerTimezone,
+              snapshotDto.search.organizerTimezone,
             )}{" "}
             -{" "}
             {formatDateLabel(
               dateRangeEnd,
-              opened.value.search.organizerTimezone,
+              snapshotDto.search.organizerTimezone,
             )}
           </span>
           <span>
             <strong>Organizer timezone:</strong>{" "}
-            {opened.value.search.organizerTimezone}
+            {snapshotDto.search.organizerTimezone}
           </span>
           <span>
             <strong>Generated:</strong>{" "}
-            <time dateTime={opened.value.search.generatedAt.toISOString()}>
+            <time dateTime={snapshotDto.search.generatedAt}>
               {formatDateTimeLabel(
-                new Date(opened.value.search.generatedAt),
-                opened.value.search.organizerTimezone,
+                new Date(snapshotDto.search.generatedAt),
+                snapshotDto.search.organizerTimezone,
               )}
             </time>
           </span>
           <span>
-            <strong>Search ID:</strong> {opened.value.search.id}
+            <strong>Search ID:</strong> {snapshotDto.search.id}
           </span>
         </p>
       </header>
@@ -282,7 +285,7 @@ export default async function SearchResultPage({
       >
         {prevWeekStart ? (
           <Link
-            href={`/searches/${id}?week=${formatWeekParam(prevWeekStart, opened.value.search.organizerTimezone)}`}
+            href={`/searches/${id}?week=${formatWeekParam(prevWeekStart, snapshotDto.search.organizerTimezone)}`}
           >
             Previous week
           </Link>
@@ -291,11 +294,11 @@ export default async function SearchResultPage({
         )}
         <span>
           Week of{" "}
-          {formatDateLabel(weekStart, opened.value.search.organizerTimezone)}
+          {formatDateLabel(weekStart, snapshotDto.search.organizerTimezone)}
         </span>
         {nextWeekStart ? (
           <Link
-            href={`/searches/${id}?week=${formatWeekParam(nextWeekStart, opened.value.search.organizerTimezone)}`}
+            href={`/searches/${id}?week=${formatWeekParam(nextWeekStart, snapshotDto.search.organizerTimezone)}`}
           >
             Next week
           </Link>
@@ -307,8 +310,8 @@ export default async function SearchResultPage({
       {weeklySlots.length > 0 ? (
         <>
           <SearchResultClient
-            snapshot={opened.value.snapshot}
-            organizerTimezone={opened.value.search.organizerTimezone}
+            snapshot={snapshotDto.snapshot}
+            organizerTimezone={snapshotDto.search.organizerTimezone}
             weekStart={weekStart}
             weekEnd={weekEnd}
             slots={weeklySlots}

@@ -51,6 +51,10 @@ function getRepository(): WeeklyAvailabilityWindowRepository {
   return repositoryOverride ?? getDefaultRepository();
 }
 
+export function getWeeklyAvailabilityWindowRepository(): WeeklyAvailabilityWindowRepository {
+  return getRepository();
+}
+
 let cachedDefaultRepository: WeeklyAvailabilityWindowRepository | null = null;
 
 export function createPostgresWeeklyAvailabilityWindowRepository(

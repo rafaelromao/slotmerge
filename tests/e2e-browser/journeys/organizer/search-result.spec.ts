@@ -122,7 +122,7 @@ test.describe("Organizer search result journey", () => {
     await page.getByRole("button", { name: "Re-run Search" }).click();
     await expect(page.getByText("Re-run this Search?")).toBeVisible();
     const beforeRerunSearchId = new URL(page.url()).pathname.split("/").at(-1)!;
-    await page.getByRole("button", { name: "Re-run" }).click();
+    await page.getByRole("button", { name: "Re-run", exact: true }).click();
     await page.waitForURL((url) => {
       const pathname = url.pathname;
       return (

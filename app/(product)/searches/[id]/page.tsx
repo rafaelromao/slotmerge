@@ -10,10 +10,14 @@ import { getSearchResultRepository } from "../../../../src/search/search-result-
 import { listActiveTopics } from "../../../../src/topics/repository";
 import { systemClock } from "../../../../src/system/clock";
 import { createSearchWorkflow } from "../../../../src/workflow/search";
+import { rerunSearchAction } from "./_actions/rerun-search";
 import { SearchResultClient } from "./SearchResultClient";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-type SearchParams = Promise<{ week?: string | string[] }>;
+type SearchParams = Promise<{
+  week?: string | string[];
+  rerun?: string | string[];
+}>;
 
 function parseWeekParam(value: string | string[] | undefined): Date | null {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -58,6 +62,24 @@ function formatWeekParam(date: Date, timezone: string): string {
     : date.toISOString().slice(0, 10);
 }
 
+function readFirstString(
+  value: string | string[] | undefined,
+): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+function rerunMessage(reason: string | undefined): string | null {
+  if (!reason) return null;
+  if (reason === "csrf_error") {
+    return "Your session expired. Re-open the Search and try again.";
+  }
+  if (reason === "topics_invalid") {
+    return "One or more Topics are no longer active. Pick a different Topic set and re-run.";
+  }
+  return "That Search is no longer available.";
+}
+
 export default async function SearchResultPage({
   params,
   searchParams,
@@ -68,6 +90,7 @@ export default async function SearchResultPage({
   const context = await requirePageContext({ roles: ["organizer", "admin"] });
   const { id } = await params;
   const query = (await searchParams) ?? {};
+  const rerunReason = rerunMessage(readFirstString(query.rerun));
 
   const workflow = createSearchWorkflow({
     clock: systemClock(),
@@ -138,6 +161,14 @@ export default async function SearchResultPage({
       <div id={`rerun-search-confirm-${id}`} popover="auto">
         <div className="rerun-search-confirm-panel">
           <p>Re-run this Search?</p>
+          <form
+            action={rerunSearchAction}
+            className="rerun-search-confirm-form"
+          >
+            <input type="hidden" name="_csrf" value={context.csrfToken} />
+            <input type="hidden" name="searchId" value={id} />
+            <button type="submit">Re-run</button>
+          </form>
         </div>
       </div>
     </div>
@@ -189,6 +220,12 @@ export default async function SearchResultPage({
           </span>
         </p>
       </header>
+
+      {rerunReason ? (
+        <p className="form-error-banner" role="alert">
+          {rerunReason}
+        </p>
+      ) : null}
 
       <nav
         className="search-result-week-nav"

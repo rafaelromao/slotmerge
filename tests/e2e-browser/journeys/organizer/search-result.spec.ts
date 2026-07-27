@@ -106,6 +106,18 @@ test.describe("Organizer search result journey", () => {
 
     await page.getByRole("button", { name: "Re-run Search" }).click();
     await expect(page.getByText("Re-run this Search?")).toBeVisible();
+    const beforeRerunSearchId = new URL(page.url()).pathname.split("/").at(-1)!;
+    await page.getByRole("button", { name: "Re-run" }).click();
+    await page.waitForURL((url) => {
+      const pathname = url.pathname;
+      return (
+        /\/searches\/[a-f0-9-]+$/.test(pathname) &&
+        pathname !== `/searches/${beforeRerunSearchId}`
+      );
+    });
+    await expect(
+      page.getByRole("heading", { name: "Search Result" }),
+    ).toBeVisible();
     await captureState(page, "search-result", "rerun-shell");
   });
 

@@ -6,19 +6,24 @@ import { InMemorySearchRepository } from "../src/search/in-memory-repository";
 import { setSearchRepositoryForTests } from "../src/search/repository";
 import { InMemorySearchResultRepository } from "../src/search/search-result-in-memory-repository";
 import { setSearchResultRepositoryForTests } from "../src/search/search-result-repository";
+import { setTopicCatalogueRepositoryForTests } from "../src/topics/repository";
 
 vi.mock("../src/lib/page-context", () => ({
   requirePageContext: vi.fn(),
 }));
 
-vi.mock("../src/topics/repository", () => ({
-  listActiveTopics: vi.fn(() =>
-    Promise.resolve([
-      { id: "topic-1", name: "Product strategy", status: "active" as const },
-      { id: "topic-2", name: "AI engineering", status: "active" as const },
-    ]),
-  ),
-}));
+vi.mock("../src/topics/repository", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/topics/repository")>();
+  return {
+    ...actual,
+    listActiveTopics: vi.fn(() =>
+      Promise.resolve([
+        { id: "topic-1", name: "Product strategy", status: "active" as const },
+        { id: "topic-2", name: "AI engineering", status: "active" as const },
+      ]),
+    ),
+  };
+});
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -33,6 +38,7 @@ describe("SearchResultPage", () => {
   beforeEach(() => {
     setSearchRepositoryForTests(null);
     setSearchResultRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
   });
 
   it("renders the Search Result header, ordinary week links, and the weekly grid from the stored snapshot", async () => {
@@ -40,6 +46,24 @@ describe("SearchResultPage", () => {
     const resultRepo = new InMemorySearchResultRepository();
     setSearchRepositoryForTests(searchRepo);
     setSearchResultRepositoryForTests(resultRepo);
+    setTopicCatalogueRepositoryForTests({
+      listCatalogue: () =>
+        Promise.resolve([
+          {
+            id: "topic-1",
+            name: "Product strategy",
+            status: "active" as const,
+          },
+          {
+            id: "topic-2",
+            name: "AI engineering",
+            status: "active" as const,
+          },
+        ]),
+      listSelectedTopicIds: () => Promise.resolve([]),
+      listAssociations: () => Promise.resolve([]),
+      saveAssociations: () => Promise.resolve(),
+    });
 
     const search = await searchRepo.save({
       organizerId: "organizer-1",

@@ -24,6 +24,7 @@ import {
 import type { DiscoverableUserRepository } from "../search/discoverable-user-repository";
 import type { Clock } from "../system/clock";
 import { getSearchRepository } from "../search/repository";
+import { getTopicCatalogueRepository } from "../topics/repository";
 
 export type SearchFormDefaults = {
   selectedTopicIds: string[];
@@ -260,10 +261,12 @@ export function createSearchWorkflow(
         return err({ reason: "snapshot_not_found" as const });
       }
 
-      const activeTopics = await activeTopicsRepository.listActive();
+      const catalogue = await getTopicCatalogueRepository().listCatalogue();
       const selectedTopics = search.selectedTopicIds.flatMap((topicId) => {
-        const topic = activeTopics.find((entry) => entry.id === topicId);
-        return topic ? [{ id: topic.id, name: topic.name }] : [];
+        const topic = catalogue.find((entry) => entry.id === topicId);
+        return topic
+          ? [{ id: topic.id, name: topic.name }]
+          : [{ id: topicId, name: topicId }];
       });
 
       return ok({

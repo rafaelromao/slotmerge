@@ -26,6 +26,7 @@ import type { DiscoverableUserRepository } from "../src/search/discoverable-user
 import { setSearchRepositoryForTests } from "../src/search/repository";
 import { setSearchResultRepositoryForTests } from "../src/search/search-result-repository";
 import { setDiscoverableUserRepositoryForTests } from "../src/search/discoverable-user-repository";
+import { setTopicCatalogueRepositoryForTests } from "../src/topics/repository";
 
 function buildWorkflow(
   overrides: {
@@ -67,6 +68,19 @@ function buildWorkflow(
   setSearchRepositoryForTests(searchRepo);
   setSearchResultRepositoryForTests(resultRepo);
   setDiscoverableUserRepositoryForTests(discoverableRepo);
+  setTopicCatalogueRepositoryForTests({
+    listCatalogue: () =>
+      Promise.resolve(
+        activeTopics.map((topic) => ({
+          id: topic.id,
+          name: topic.name,
+          status: "active" as const,
+        })),
+      ),
+    listSelectedTopicIds: () => Promise.resolve([]),
+    listAssociations: () => Promise.resolve([]),
+    saveAssociations: () => Promise.resolve(),
+  });
   const workflow = createSearchWorkflow({
     clock,
     profileRepository: new InMemoryProfileRepository(profile),
@@ -97,12 +111,14 @@ describe("searchWorkflow.buildForm", () => {
     setSearchRepositoryForTests(null);
     setSearchResultRepositoryForTests(null);
     setDiscoverableUserRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
   });
 
   afterEach(() => {
     setSearchRepositoryForTests(null);
     setSearchResultRepositoryForTests(null);
     setDiscoverableUserRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
   });
 
   it("returns the per-Organizer defaults", async () => {
@@ -142,6 +158,7 @@ describe("searchWorkflow.openSnapshot", () => {
     setSearchRepositoryForTests(null);
     setSearchResultRepositoryForTests(null);
     setDiscoverableUserRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
   });
 
   afterEach(() => {

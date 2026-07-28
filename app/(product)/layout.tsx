@@ -10,6 +10,7 @@ import {
   calendarConnections,
 } from "../../src/db/schema";
 import { HeaderMenuToggle } from "./_components/HeaderMenuToggle";
+import { ThemeToggle } from "../components/ThemeToggle";
 import {
   buildCalendarBadgeState,
   renderCalendarBadgeLabel,
@@ -118,6 +119,7 @@ export default async function ProductLayout({
           </nav>
         </details>
         <div className="top-bar-right">
+          <ThemeToggle />
           {setupIncomplete && (
             <span className="setup-chip" data-testid="setup-chip">
               Setup

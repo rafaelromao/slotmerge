@@ -30,6 +30,12 @@ export async function signInRequestMagicLinkAction(
   });
 
   let destination = `/sign-in/sent?email=${encodeURIComponent(masked)}`;
+  if (
+    (process.env.APP_ENV === "local" || process.env.APP_ENV === "test") &&
+    process.env.EMAIL_CAPTURE_ENABLED === "true"
+  ) {
+    destination += `&localEmail=${encodeURIComponent(email.toString())}`;
+  }
   if (!result.ok && result.error === "rate_limited") {
     destination = "/sign-in?error=rate_limited";
   } else if (!result.ok) {

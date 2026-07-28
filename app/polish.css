@@ -1,0 +1,58 @@
+/* Shared flagship surface contracts for workflow pages. */
+.app-container{padding-block:clamp(2rem,5vh,4rem)}
+.search-history-list,.admin-section-content{display:grid;gap:var(--space-3)}
+.search-history-row,.recent-invites-row,.pending-topic-proposals-row,.active-topics-row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);padding:var(--space-4);background:var(--surface-raised);border:1px solid var(--border-subtle);border-radius:var(--radius-md)}
+.search-history-actions,.search-result-actions,.topics-proposal-actions,.recent-invites-actions{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.search-result-header{margin-bottom:var(--space-6)}
+.search-result-header-meta{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-4);margin-top:var(--space-4);color:var(--text-muted);font-size:var(--text-sm)}
+.search-result-week-nav{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin:var(--space-5) 0;padding:var(--space-3) 0;border-block:1px solid var(--border-subtle)}
+.admin-section{margin-bottom:var(--space-5);background:var(--surface-raised);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);overflow:clip}
+.admin-section>summary{padding:var(--space-4) var(--space-5);cursor:pointer;font-weight:var(--weight-semibold);color:var(--text-primary)}
+.admin-section-content,.admin-section-body{padding:var(--space-5);border-top:1px solid var(--border-subtle)}
+.admin-section-summary{display:flex;align-items:center;gap:var(--space-3)}
+.admin-section-heading{font-size:var(--text-lg);font-weight:var(--weight-semibold);margin:0}
+.admin-section-summary-line{margin-left:auto;color:var(--text-muted);font-size:var(--text-sm)}
+.recent-invites-table,.topics-proposal-table{width:100%;border-collapse:collapse;font-size:var(--text-sm)}
+.recent-invites-table th,.recent-invites-table td,.topics-proposal-table th,.topics-proposal-table td{padding:var(--space-3);text-align:left;border-bottom:1px solid var(--border-subtle);vertical-align:middle}
+.recent-invites-table th,.topics-proposal-table th{color:var(--text-muted);font-size:var(--text-xs);letter-spacing:.04em;text-transform:uppercase}
+.recent-invites-heading{font-size:var(--text-md);font-weight:var(--weight-semibold);margin:0 0 var(--space-3);color:var(--text-primary)}
+.recent-invites-empty{padding:var(--space-4);border:1px dashed var(--border-subtle);border-radius:var(--radius-md);color:var(--text-muted);background:var(--surface-sunken)}
+.recent-invites-action{display:inline-flex;align-items:center;justify-content:center;padding:0 var(--space-3);min-height:32px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:var(--surface-raised);color:var(--text-secondary);font-size:var(--text-sm)}
+.recent-invites-action:hover{background:var(--surface-sunken);color:var(--text-primary)}
+.users-table{width:100%;border-collapse:collapse;font-size:var(--text-sm)}
+.users-table th,.users-table td{padding:var(--space-3);text-align:left;border-bottom:1px solid var(--border-subtle);vertical-align:middle}
+.users-table th{color:var(--text-muted);font-size:var(--text-xs);letter-spacing:.04em;text-transform:uppercase}
+.users-table-wrap{overflow-x:auto;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:var(--surface-raised)}
+.admin-error-banner,.admin-info-banner,.invite-banner{margin-bottom:var(--space-4);padding:var(--space-3) var(--space-4);border:1px solid var(--border-strong);border-radius:var(--radius-md);background:var(--surface-sunken);color:var(--text-secondary)}
+.sign-in-error{margin:0;padding:var(--space-3);border-radius:var(--radius-md);background:oklch(95% .03 25);color:var(--danger);font-size:var(--text-sm)}
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* Shared top bar polish. */
+.top-bar{display:flex;align-items:center;gap:var(--space-4);padding:0 var(--space-5);height:60px;background:var(--surface-raised);border-bottom:1px solid var(--border-subtle)}
+.top-bar .top-bar-brand{display:inline-flex;align-items:center;gap:var(--space-2);font-weight:var(--weight-semibold);color:var(--text-primary);text-decoration:none}
+.top-bar .top-bar-brand:hover{text-decoration:none;color:var(--text-primary)}
+.top-bar .top-bar-brand .wordmark-mark{width:24px;height:24px;display:inline-grid;place-items:center;border-radius:6px;background:var(--accent);color:var(--accent-text);font-size:var(--text-xs);font-weight:var(--weight-bold)}
+.top-bar .primary-nav{margin-left:var(--space-3)}
+.top-bar .top-nav{display:flex;gap:var(--space-1)}
+.top-bar .nav-link{padding:var(--space-2) var(--space-3);border-radius:var(--radius-sm);color:var(--text-secondary);text-decoration:none;font-weight:var(--weight-medium)}
+.top-bar .nav-link:hover{background:var(--surface-sunken);color:var(--text-primary);text-decoration:none}
+.top-bar .nav-link-active{color:var(--text-primary);background:var(--surface-sunken)}
+.top-bar .top-bar-right{margin-left:auto;display:flex;align-items:center;gap:var(--space-2)}
+
+/* Shared button vocabulary. */
+.btn,.button,.actions button,.actions a{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);padding:0 var(--space-3);min-height:36px;border-radius:var(--radius-md);border:1px solid transparent;font-weight:var(--weight-medium);text-decoration:none}
+.btn-primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent-hover);text-decoration:none;color:var(--accent-text)}
+.btn-secondary,.actions a,.sign-in-submit-link{background:var(--surface-raised);color:var(--text-primary);border-color:var(--border-strong)}
+.btn-secondary:hover,.actions a:hover{background:var(--surface-sunken);color:var(--text-primary);text-decoration:none}
+.btn-danger,.suspend-confirm-button,.delete-account-button{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn-danger:hover,.suspend-confirm-button:hover,.delete-account-button:hover{filter:brightness(.95)}
+.btn-ghost,.continue-link,.use-different-email-link,.open-snapshot-link,.resend-link{background:transparent;color:var(--text-secondary);border-color:transparent}
+.btn-ghost:hover,.continue-link:hover,.use-different-email-link:hover,.open-snapshot-link:hover,.resend-link:hover{background:var(--surface-sunken);color:var(--text-primary);text-decoration:none}
+
+@media(max-width:767px){
+  .search-history-row,.recent-invites-row,.pending-topic-proposals-row,.active-topics-row{align-items:flex-start;flex-direction:column}
+  .users-table{min-width:680px}
+  .admin-section-content{overflow-x:auto}
+  .top-bar{padding:0 var(--space-4)}
+}

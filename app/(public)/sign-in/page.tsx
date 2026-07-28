@@ -19,62 +19,70 @@ export default async function SignInPage({
   const returnTo = firstString(params.returnTo) ?? "";
 
   return (
-    <main className="app-container">
-      <h1>Sign in</h1>
-      {reason === "deleted" ? (
-        <p
-          className="sign-in-success"
-          role="status"
-          aria-live="polite"
-          data-testid="sign-in-deleted-notice"
-        >
-          Your account has been deleted. The audit log retains your role and
-          invite history.
-        </p>
-      ) : null}
-      <p className="sign-in-help">
-        We will email you a sign-in link. Calendar access is separate and is
-        connected later.
-      </p>
-      <form
-        className="sign-in-form"
-        data-testid="sign-in-form"
-        action={signInRequestMagicLinkAction}
-      >
-        <label className="sign-in-label" htmlFor="sign-in-email">
-          Email
-        </label>
-        <input
-          id="sign-in-email"
-          name="email"
-          type="email"
-          className="sign-in-input"
-          data-testid="sign-in-email"
-          defaultValue={prefilledEmail}
-          required
-          autoComplete="email"
-        />
-        {returnTo ? (
-          <input type="hidden" name="returnTo" value={returnTo} />
-        ) : null}
-        <button
-          type="submit"
-          className="btn btn-primary sign-in-submit"
-          data-testid="sign-in-submit"
-        >
-          Send magic link
-        </button>
-        {errorCode ? (
+    <main className="sign-in-page">
+      <section className="sign-in-panel" aria-labelledby="sign-in-title">
+        <div className="sign-in-intro">
+          <p className="eyebrow">Access your workspace</p>
+          <h1 id="sign-in-title">Sign in to SlotMerge</h1>
+          <p className="sign-in-help">
+            Enter your email and we will send you a secure, one-time link.
+          </p>
+        </div>
+        {reason === "deleted" ? (
           <p
-            className="sign-in-error"
-            role="alert"
+            className="sign-in-success"
+            role="status"
             aria-live="polite"
-            data-testid="sign-in-error"
+            data-testid="sign-in-deleted-notice"
           >
-            {errorMessageFor(errorCode)}
+            Your account has been deleted. The audit log retains your role and
+            invite history.
           </p>
         ) : null}
-      </form>
+        <form
+          className="sign-in-form"
+          data-testid="sign-in-form"
+          action={signInRequestMagicLinkAction}
+        >
+          <label className="sign-in-label" htmlFor="sign-in-email">
+            Email
+          </label>
+          <input
+            id="sign-in-email"
+            name="email"
+            type="email"
+            className="sign-in-input"
+            data-testid="sign-in-email"
+            defaultValue={prefilledEmail}
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
+          />
+          {returnTo ? (
+            <input type="hidden" name="returnTo" value={returnTo} />
+          ) : null}
+          <button
+            type="submit"
+            className="btn btn-primary sign-in-submit"
+            data-testid="sign-in-submit"
+          >
+            Send magic link
+          </button>
+          {errorCode ? (
+            <p
+              className="sign-in-error"
+              role="alert"
+              aria-live="polite"
+              data-testid="sign-in-error"
+            >
+              {errorMessageFor(errorCode)}
+            </p>
+          ) : null}
+        </form>
+        <p className="sign-in-note">
+          Calendar access is separate and connected only when you choose to.
+        </p>
+      </section>
     </main>
   );
 }

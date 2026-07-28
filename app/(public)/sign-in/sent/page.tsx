@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { LocalMagicLink } from "./LocalMagicLink";
 
 type SearchParams = Promise<{
   email?: string | string[];
+  localEmail?: string | string[];
 }>;
 
 export default async function SentPage({
@@ -12,6 +14,11 @@ export default async function SentPage({
   const params = (await searchParams) ?? {};
   const email = firstString(params.email);
   const maskedEmail = email ? maskEmail(email) : null;
+  const localEmail = firstString(params.localEmail);
+  const showLocalMagicLink =
+    localEmail &&
+    (process.env.APP_ENV === "local" || process.env.APP_ENV === "test") &&
+    process.env.EMAIL_CAPTURE_ENABLED === "true";
 
   return (
     <main className="app-container">
@@ -40,6 +47,7 @@ export default async function SentPage({
           Use a different email
         </Link>
       </p>
+      {showLocalMagicLink ? <LocalMagicLink email={localEmail} /> : null}
     </main>
   );
 }

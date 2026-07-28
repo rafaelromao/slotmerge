@@ -168,4 +168,105 @@ describe("AdminStatusSection", () => {
     expect(html).toMatch(/data-status="red"[^>]*data-testid="admin-status-calendar-pill"/);
     expect(html).toMatch(/data-status="red"[^>]*data-testid="admin-status-tokens-pill"/);
   });
+
+  it("does not render Email or Calendar warning banners when health is green", () => {
+    const html = renderToString(
+      <AdminStatusSection
+        statusResult={makeResult({
+          health: { email: "green", calendar: "green", tokens: "green" },
+        })}
+      />,
+    );
+
+    expect(html).not.toContain("admin-status-email-warning");
+    expect(html).not.toContain("admin-status-calendar-warning");
+  });
+
+  it("renders the Email warning banner with verbatim copy when Email is amber", () => {
+    const html = renderToString(
+      <AdminStatusSection
+        statusResult={makeResult({
+          emailFailureRate: 6,
+          needsReconnectCount: 0,
+          tokensCount: 0,
+          health: { email: "amber", calendar: "green", tokens: "green" },
+        })}
+      />,
+    );
+
+    expect(html).toContain('data-testid="admin-status-email-warning"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain(
+      "Email delivery is degraded. The latest",
+    );
+    expect(html).toContain("<code>emailEvent</code>");
+    expect(html).toContain(
+      "rows in the DB are the source of truth; a re-run is automatic on the next retry window.",
+    );
+  });
+
+  it("renders the Calendar warning banner with verbatim copy when Calendar is red", () => {
+    const html = renderToString(
+      <AdminStatusSection
+        statusResult={makeResult({
+          emailFailureRate: 0,
+          needsReconnectCount: 3,
+          tokensCount: 0,
+          health: { email: "green", calendar: "red", tokens: "green" },
+        })}
+      />,
+    );
+
+    expect(html).toContain('data-testid="admin-status-calendar-warning"');
+    // The exact wording from the issue AC, with a Unicode right single
+    // quotation mark for the apostrophe in "User's".
+    expect(html).toContain(
+      "One or more Calendar connections need reconnect. Visit",
+    );
+    expect(html).toContain("<code>/me/calendar-connections</code>");
+    expect(html).toContain("on the affected User");
+  });
+
+  it("warning banners never reveal any User identity", () => {
+    const html = renderToString(
+      <AdminStatusSection
+        statusResult={makeResult({
+          emailFailureRate: 11,
+          needsReconnectCount: 3,
+          tokensCount: 4,
+          health: { email: "red", calendar: "red", tokens: "red" },
+        })}
+      />,
+    );
+
+    const emailBanner = extractBlock(
+      html,
+      'data-testid="admin-status-email-warning"',
+    );
+    const calendarBanner = extractBlock(
+      html,
+      'data-testid="admin-status-calendar-warning"',
+    );
+
+    for (const block of [emailBanner, calendarBanner]) {
+      expect(block).not.toContain("user@example.com");
+      expect(block).not.toContain("user-1");
+      expect(block).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-/);
+      expect(block).not.toContain("Alice");
+      expect(block).not.toContain("Carol");
+    }
+  });
 });
+
+function extractBlock(html: string, marker: string): string {
+  const start = html.indexOf(marker);
+  if (start === -1) {
+    return "";
+  }
+  const close = html.indexOf("</p>", start);
+  if (close === -1) {
+    return html.slice(start);
+  }
+  return html.slice(start, close);
+}

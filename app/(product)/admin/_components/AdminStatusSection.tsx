@@ -49,6 +49,18 @@ export function AdminStatusSection({
             {STATUS_TONE_LABEL[statusResult.health.email]}
           </span>
         </div>
+        {statusResult.health.email !== "green" ? (
+          <p
+            className="admin-status-warning admin-status-email-warning"
+            role="alert"
+            aria-live="polite"
+            data-testid="admin-status-email-warning"
+          >
+            Email delivery is degraded. The latest{" "}
+            <code>emailEvent</code> rows in the DB are the source of truth; a
+            re-run is automatic on the next retry window.
+          </p>
+        ) : null}
         <p className="admin-status-window-note">
           Last {statusResult.windowHours} hours
         </p>
@@ -95,6 +107,18 @@ export function AdminStatusSection({
             {STATUS_TONE_LABEL[statusResult.health.calendar]}
           </span>
         </div>
+        {statusResult.health.calendar !== "green" ? (
+          <p
+            className="admin-status-warning admin-status-calendar-warning"
+            role="alert"
+            aria-live="polite"
+            data-testid="admin-status-calendar-warning"
+          >
+            One or more Calendar connections need reconnect. Visit{" "}
+            <code>/me/calendar-connections</code> on the affected User&rsquo;s
+            account to reconnect.
+          </p>
+        ) : null}
         <table
           className="admin-status-calendar-table"
           data-testid="admin-status-calendar-table"

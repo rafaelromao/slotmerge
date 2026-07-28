@@ -32,11 +32,8 @@ function field(formData: FormData, name: string): string | null {
 }
 
 function buildWorkflow() {
-  const repository = getTopicAdminRepository() as unknown as Parameters<
-    typeof createAdminTopicsWorkflow
-  >[0]["repository"];
   return createAdminTopicsWorkflow({
-    repository,
+    repository: getTopicAdminRepository(),
     clock: systemClock(),
   });
 }

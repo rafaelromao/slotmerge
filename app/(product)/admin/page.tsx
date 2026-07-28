@@ -453,8 +453,28 @@ function errorMessageFor(code: string): string {
     case "invalid_resend":
       return "Choose a valid invite to resend.";
     case "resend_failed":
-    default:
       return "We could not resend the invite. Please try again.";
+    case "topic_proposal_invalid":
+      return "Choose a valid Topic Proposal to decide on.";
+    case "topic_invalid_topic":
+      return "Choose a valid Topic to retire.";
+    case "topic_proposal_not_found":
+      return "That Topic Proposal no longer exists.";
+    case "topic_proposal_already_decided":
+      return "That Topic Proposal has already been decided.";
+    case "topic_cannot_retire_own_proposal":
+      return "You cannot retire a Topic you proposed.";
+    case "topic_not_found":
+      return "That Topic no longer exists.";
+    case "topic_already_retired":
+      return "That Topic is already retired.";
+    case "topic_confirm_name_required":
+      return "Type the Topic's name to confirm retirement.";
+    case "topic_confirm_name_mismatch":
+      return "The typed name does not match the Topic. Type the Topic's exact name to confirm.";
+    case "topic_error_unknown":
+    default:
+      return "We could not complete that Topics action. Please try again.";
   }
 }
 

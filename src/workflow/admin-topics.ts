@@ -36,11 +36,12 @@ export type AdminTopicsRepository = {
   listPendingProposals(): Promise<AdminTopicProposalListItem[]>;
   findTopic(id: string): Promise<AdminTopicListItem | null>;
   decideProposal(input: {
+    actorId: string;
     proposalId: string;
     status: DecideProposalStatus;
     now: Date;
   }): Promise<DecideProposalResult>;
-  retireTopic(input: { topicId: string; now: Date }): Promise<
+  retireTopic(input: { actorId: string; topicId: string; now: Date }): Promise<
     | {
         ok: true;
       }
@@ -91,8 +92,8 @@ export function createAdminTopicsWorkflow(
       proposalId,
       status,
     }): Promise<Result<AdminTopicsDecideOk, AdminTopicsDecideError>> {
-      void actorId;
       const result = await repository.decideProposal({
+        actorId,
         proposalId,
         status,
         now: clock.now(),
@@ -131,6 +132,7 @@ export function createAdminTopicsWorkflow(
       }
 
       const result = await repository.retireTopic({
+        actorId,
         topicId,
         now: clock.now(),
       });

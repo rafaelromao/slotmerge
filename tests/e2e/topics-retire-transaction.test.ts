@@ -229,7 +229,7 @@ describe("E2E: adminTopicsWorkflow.retireTopic transactions", () => {
   );
 
   it.runIf(HAS_TEST_DB)(
-    "retireTopic rollback restores associations when a failing repository variant is injected",
+    "retireTopic surfaces a post-commit failure to the caller without losing the committed write",
     async () => {
       const db = getTestDb();
       expect(db).not.toBeNull();
@@ -247,7 +247,7 @@ describe("E2E: adminTopicsWorkflow.retireTopic transactions", () => {
         async retireTopic(input: Parameters<typeof baseRepository.retireTopic>[0]) {
           const result = await baseRepository.retireTopic(input);
           if (result.ok) {
-            throw new Error("boom-injected-retire-topic");
+            throw new Error("boom-post-commit-retire-topic");
           }
           return result;
         },
@@ -264,7 +264,7 @@ describe("E2E: adminTopicsWorkflow.retireTopic transactions", () => {
           topicId,
           confirmName: topicToRetire.name,
         }),
-      ).rejects.toThrow(/boom-injected-retire-topic/);
+      ).rejects.toThrow(/boom-post-commit-retire-topic/);
 
       const [topic] = await db
         .select()
@@ -272,16 +272,17 @@ describe("E2E: adminTopicsWorkflow.retireTopic transactions", () => {
         .where(eq(topics.id, topicId))
         .limit(1);
       expect(topic?.status).toBe("retired");
+      expect(topic?.retiredAt).toBeInstanceOf(Date);
 
-      const rolledBackAssociations = await db
+      const activeAfter = await db
         .select()
         .from(userTopics)
         .where(
           and(eq(userTopics.topicId, topicId), eq(userTopics.status, "active")),
         );
-      expect(rolledBackAssociations).toHaveLength(0);
+      expect(activeAfter).toHaveLength(0);
 
-      const historicalAssociations = await db
+      const historicalAfter = await db
         .select()
         .from(userTopics)
         .where(
@@ -290,7 +291,142 @@ describe("E2E: adminTopicsWorkflow.retireTopic transactions", () => {
             eq(userTopics.status, "historical"),
           ),
         );
-      expect(historicalAssociations.length).toBeGreaterThan(0);
+      expect(historicalAfter.length).toBeGreaterThan(0);
+
+      const auditAfter = await db
+        .select()
+        .from(auditRecords)
+        .where(eq(auditRecords.action, "retire-topic"));
+      const retireAudit = auditAfter.find(
+        (row) => row.targetId === topicId,
+      );
+      expect(retireAudit).toBeDefined();
+    },
+  );
+
+  it.runIf(HAS_TEST_DB)(
+    "retireTopic rolls back the Topic and user_topics transitions when a failure is injected mid-transaction",
+    async () => {
+      const db = getTestDb();
+      expect(db).not.toBeNull();
+      if (!db) return;
+
+      await setupTest();
+
+      const topicToRetire = TOPIC_FIXTURES[0];
+      const topicId = topicToRetire.id;
+
+      const beforeActive = await db
+        .select()
+        .from(userTopics)
+        .where(
+          and(
+            eq(userTopics.topicId, topicId),
+            eq(userTopics.status, "active"),
+          ),
+        );
+      const beforeActiveIds = new Set(beforeActive.map((row) => row.id));
+
+      const [beforeTopic] = await db
+        .select()
+        .from(topics)
+        .where(eq(topics.id, topicId))
+        .limit(1);
+      expect(beforeTopic?.status).toBe("active");
+
+      const failingRetire = {
+        ...getTopicAdminRepository(),
+        async retireTopic(
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          _input: {
+            actorId: string;
+            topicId: string;
+            now: Date;
+          },
+        ) {
+          return await db.transaction(async (tx) => {
+            await tx
+              .update(topics)
+              .set({
+                status: "retired",
+                retiredAt: new Date("2026-07-12T12:00:00.000Z"),
+                updatedAt: new Date("2026-07-12T12:00:00.000Z"),
+              })
+              .where(eq(topics.id, topicId));
+
+            await tx
+              .update(userTopics)
+              .set({
+                status: "historical",
+                updatedAt: new Date("2026-07-12T12:00:00.000Z"),
+              })
+              .where(
+                and(
+                  eq(userTopics.topicId, topicId),
+                  eq(userTopics.status, "active"),
+                ),
+              );
+
+            throw new Error("boom-mid-transaction-retire-topic");
+          });
+        },
+      } as unknown as Parameters<typeof createAdminTopicsWorkflow>[0]["repository"];
+
+      const failingWorkflow = createAdminTopicsWorkflow({
+        repository: failingRetire,
+        clock: { now: getTestClock() },
+      });
+
+      await expect(
+        failingWorkflow.retireTopic({
+          actorId: USER_FIXTURES[2].id,
+          topicId,
+          confirmName: topicToRetire.name,
+        }),
+      ).rejects.toThrow(/boom-mid-transaction-retire-topic/);
+
+      const [afterTopic] = await db
+        .select()
+        .from(topics)
+        .where(eq(topics.id, topicId))
+        .limit(1);
+      expect(afterTopic?.status).toBe("active");
+      expect(afterTopic?.retiredAt).toBeNull();
+
+      const activeAfter = await db
+        .select()
+        .from(userTopics)
+        .where(
+          and(
+            eq(userTopics.topicId, topicId),
+            eq(userTopics.status, "active"),
+          ),
+        );
+      expect(activeAfter.map((row) => row.id).sort()).toEqual(
+        [...beforeActiveIds].sort(),
+      );
+
+      const newHistorical = await db
+        .select()
+        .from(userTopics)
+        .where(
+          and(
+            eq(userTopics.topicId, topicId),
+            eq(userTopics.status, "historical"),
+          ),
+        );
+      const newHistoricalIds = newHistorical
+        .map((row) => row.id)
+        .filter((id) => !beforeActiveIds.has(id));
+      expect(newHistoricalIds).toHaveLength(0);
+
+      const rolledBackAudit = await db
+        .select()
+        .from(auditRecords)
+        .where(eq(auditRecords.action, "retire-topic"));
+      expect(
+        rolledBackAudit.find((row) => row.targetId === topicId),
+      ).toBeUndefined();
     },
   );
 

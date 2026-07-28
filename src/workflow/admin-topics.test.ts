@@ -92,6 +92,7 @@ describe("adminTopicsWorkflow", () => {
       if (!result.ok) return;
       expect(result.value).toEqual({ topicId: "topic-new" });
       expect(decideProposal).toHaveBeenCalledWith({
+        actorId: "admin-1",
         proposalId: "proposal-1",
         status: "approved",
         now: fixedNow,
@@ -118,6 +119,7 @@ describe("adminTopicsWorkflow", () => {
       if (!result.ok) return;
       expect(result.value).toEqual({ topicId: null });
       expect(decideProposal).toHaveBeenCalledWith({
+        actorId: "admin-1",
         proposalId: "proposal-1",
         status: "rejected",
         now: fixedNow,
@@ -347,6 +349,7 @@ describe("adminTopicsWorkflow", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(retireTopic).toHaveBeenCalledWith({
+        actorId: "admin-2",
         topicId: "topic-1",
         now: fixedNow,
       });
@@ -401,6 +404,7 @@ describe("adminTopicsWorkflow", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(retireTopic).toHaveBeenCalledWith({
+        actorId: "admin-2",
         topicId: "topic-1",
         now: fixedNow,
       });

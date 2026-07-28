@@ -143,8 +143,8 @@ test.describe("search result surface", () => {
       page.getByText("Cells marked ⚠ include stale calendar data."),
     ).toBeVisible();
     const headerText = await page
-      .getByText("Search ID:", { exact: false })
-      .first()
+      .locator(".search-result-header-meta span")
+      .filter({ hasText: "Search ID:" })
       .innerText();
     expect(headerText).toContain(searchId);
     await captureState(page, "organizer/search-result", "grid");

@@ -151,6 +151,38 @@ export default async function AdminPage({
         </p>
       ) : null}
 
+      {(() => {
+        const actionValue = firstString(params.action);
+        if (
+          actionValue === "refresh_ok" ||
+          actionValue === "refresh_err" ||
+          actionValue === "disconnect_ok" ||
+          actionValue === "disconnect_err"
+        ) {
+          const isError = actionValue.endsWith("_err");
+          const intent = actionValue.startsWith("refresh_")
+            ? "Refresh"
+            : "Disconnect";
+          const message = isError
+            ? `${intent} failed. Refresh and try again.`
+            : `${intent} succeeded.`;
+          return (
+            <p
+              className={
+                isError ? "admin-error-banner" : "admin-info-banner"
+              }
+              role={isError ? "alert" : "status"}
+              aria-live={isError ? "assertive" : "polite"}
+              data-testid="admin-status-action-banner"
+              data-outcome={isError ? "error" : "success"}
+            >
+              {message}
+            </p>
+          );
+        }
+        return null;
+      })()}
+
       <details id="users" className="admin-section" open>
         <summary
           className="admin-section-summary"

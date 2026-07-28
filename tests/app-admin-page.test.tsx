@@ -351,6 +351,31 @@ describe("Admin page", () => {
     await expect(AdminPage()).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
+  it("renders the admin status action banner when refresh succeeded", async () => {
+    const { default: AdminPage } = await import("../app/(product)/admin/page");
+    const html = renderToString(
+      await AdminPage({
+        searchParams: Promise.resolve({ action: "refresh_ok" }),
+      }),
+    );
+    expect(html).toContain('data-testid="admin-status-action-banner"');
+    expect(html).toContain('data-outcome="success"');
+    expect(html).toContain("Refresh succeeded.");
+  });
+
+  it("renders the admin status action banner with role=alert when refresh failed", async () => {
+    const { default: AdminPage } = await import("../app/(product)/admin/page");
+    const html = renderToString(
+      await AdminPage({
+        searchParams: Promise.resolve({ action: "refresh_err" }),
+      }),
+    );
+    expect(html).toContain('data-testid="admin-status-action-banner"');
+    expect(html).toContain('data-outcome="error"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Refresh failed.");
+  });
+
   it("redirects when there is no session", async () => {
     vi.mocked(sessionModule.getSessionFromRequest).mockResolvedValue(null);
     const { default: AdminPage } = await import("../app/(product)/admin/page");

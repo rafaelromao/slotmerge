@@ -19,6 +19,7 @@ import {
   computeEffectiveAvailability,
   type Interval,
 } from "../matching/effective-availability";
+import { getLocalDateParts, getLocalDayHour } from "../time";
 
 export type AvailabilityDayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -229,23 +230,8 @@ function computePreviewRange(now: Date): { rangeStart: Date; rangeEnd: Date } {
 }
 
 function formatLocalDate(date: Date, timeZone: string): string {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return formatter.format(date);
-}
-
-function getLocalDayOfWeek(date: Date, timeZone: string): number {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    weekday: "short",
-  });
-  const dayStr = formatter.format(date);
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  return days.indexOf(dayStr);
+  const parts = getLocalDateParts(date, timeZone);
+  return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
 }
 
 function formatLocalTime(date: Date, timeZone: string): string {
@@ -259,6 +245,10 @@ function formatLocalTime(date: Date, timeZone: string): string {
   const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
   const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
   return `${hour}:${minute}`;
+}
+
+function getLocalDayOfWeek(date: Date, timeZone: string): number {
+  return getLocalDayHour(date, timeZone).dayOfWeek;
 }
 
 function buildPreviewLines(

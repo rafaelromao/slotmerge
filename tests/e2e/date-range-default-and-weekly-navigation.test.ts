@@ -9,9 +9,9 @@ import { getSearchRepository } from "../../src/search/repository";
 import { getSearchResultRepository } from "../../src/search/search-result-repository";
 import {
   submitSearch,
-  startOfWeekInTimezone,
   type ProfileRepository,
 } from "../../src/search/search-input";
+import { startOfWeekInTimezone } from "../../src/time";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, setupTest } from "../helpers/setup";

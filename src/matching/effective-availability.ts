@@ -2,6 +2,11 @@ import type { WeeklyAvailabilityWindow } from "../profile/availability-windows";
 import type { AvailabilityOverride } from "../profile/availability-overrides";
 import { expandOverrideToUtcRange } from "../profile/availability-overrides";
 import type { ImportedBusyIntervalRecord } from "../calendar/imported-busy-intervals";
+import {
+  getLocalDayHour,
+  getLocalDateParts,
+  localDateTimeToUtc,
+} from "../time";
 
 export type EffectiveAvailabilityInputs = {
   userId: string;
@@ -31,44 +36,6 @@ function parseTime(time: string): { hours: number; minutes: number } {
   return { hours, minutes };
 }
 
-function toUtcDateForTimezone(
-  year: number,
-  month: number,
-  day: number,
-  hours: number,
-  minutes: number,
-  timeZone: string,
-): Date {
-  const noonUtc = new Date(Date.UTC(year, month, day, 12, 0, 0));
-  const tzFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const noonInTz = Number(
-    tzFormatter.formatToParts(noonUtc).find((p) => p.type === "hour")!.value,
-  );
-  const utcHours = hours + 12 - noonInTz;
-  return new Date(Date.UTC(year, month, day, utcHours, minutes));
-}
-
-function getLocalDayOfWeekAtNoon(
-  utcYear: number,
-  utcMonth: number,
-  utcDay: number,
-  timeZone: string,
-): number {
-  const noonUtc = new Date(Date.UTC(utcYear, utcMonth, utcDay, 12, 0, 0));
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    weekday: "short",
-  });
-  const dayStr = formatter.format(noonUtc);
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  return days.indexOf(dayStr);
-}
-
 function expandWindowsInTimezone(
   windows: WeeklyAvailabilityWindow[],
   rangeStart: Date,
@@ -88,10 +55,11 @@ function expandWindowsInTimezone(
       const utcMonth = current.getUTCMonth();
       const utcDay = current.getUTCDate();
 
-      const localDayOfWeek = getLocalDayOfWeekAtNoon(
-        utcYear,
-        utcMonth,
-        utcDay,
+      const noonOnDate = new Date(
+        Date.UTC(utcYear, utcMonth, utcDay, 12, 0, 0),
+      );
+      const { dayOfWeek: localDayOfWeek } = getLocalDayHour(
+        noonOnDate,
         window.profileTimezone,
       );
 
@@ -103,21 +71,30 @@ function expandWindowsInTimezone(
           window.endTime,
         );
 
-        const startUtc = toUtcDateForTimezone(
-          utcYear,
-          utcMonth,
-          utcDay,
-          startHours,
-          startMinutes,
+        const localDateAtNoon = getLocalDateParts(
+          noonOnDate,
           window.profileTimezone,
         );
 
-        const endUtc = toUtcDateForTimezone(
-          utcYear,
-          utcMonth,
-          utcDay,
-          endHours,
-          endMinutes,
+        const startUtc = localDateTimeToUtc(
+          {
+            year: localDateAtNoon.year,
+            month: localDateAtNoon.month,
+            day: localDateAtNoon.day,
+            hour: startHours,
+            minute: startMinutes,
+          },
+          window.profileTimezone,
+        );
+
+        const endUtc = localDateTimeToUtc(
+          {
+            year: localDateAtNoon.year,
+            month: localDateAtNoon.month,
+            day: localDateAtNoon.day,
+            hour: endHours,
+            minute: endMinutes,
+          },
           window.profileTimezone,
         );
 

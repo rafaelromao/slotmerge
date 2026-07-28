@@ -6,7 +6,7 @@ import type {
   SearchFormDefaults,
   SearchWorkflow,
 } from "../../../../src/workflow/search";
-import { zonedTimeToUtc } from "../../../../src/search/timezone";
+import { isValidTimeZone, localDateTimeToUtc } from "../../../../src/time";
 
 export type SearchFormValues = {
   selectedTopicIds: string[];
@@ -99,19 +99,18 @@ function parseCalendarDateInTimezone(value: string, timezone: string): Date {
   ) {
     return new Date(NaN);
   }
-  if (!isValidIanaTimezone(timezone)) {
+  try {
+    isValidTimeZone(timezone);
+  } catch {
     return new Date(NaN);
   }
-  return zonedTimeToUtc(year, month - 1, day, timezone);
-}
-
-function isValidIanaTimezone(value: string): boolean {
-  if (!value) return false;
   try {
-    new Intl.DateTimeFormat("en-US", { timeZone: value }).resolvedOptions();
-    return true;
+    return localDateTimeToUtc(
+      { year, month, day, hour: 0, minute: 0 },
+      timezone,
+    );
   } catch {
-    return false;
+    return new Date(NaN);
   }
 }
 

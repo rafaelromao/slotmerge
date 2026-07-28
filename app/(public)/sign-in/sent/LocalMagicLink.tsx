@@ -18,7 +18,9 @@ export function LocalMagicLink({ email }: { email: string }) {
           `/api/local/emails/${encodeURIComponent(email)}`,
         );
         if (!response.ok) return;
-        const { emails } = (await response.json()) as { emails: CapturedEmail[] };
+        const { emails } = (await response.json()) as {
+          emails: CapturedEmail[];
+        };
         const message = [...emails]
           .reverse()
           .find((item) => item.type === "magic-link");

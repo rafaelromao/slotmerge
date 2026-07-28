@@ -278,6 +278,12 @@ async function runDispatch(args: {
     assertCsrfFromFormData(formData, session);
   } catch (error) {
     if (error instanceof CsrfError) {
+      if (intent === "refresh") {
+        redirect(refreshErrorRedirect(session, "csrf_error", null));
+      }
+      if (intent === "disconnect") {
+        redirect(disconnectErrorRedirect(session, "csrf_error"));
+      }
       redirect(buildErrorRedirect(intent, "csrf_error"));
     }
     throw error;
@@ -285,6 +291,12 @@ async function runDispatch(args: {
 
   const expectedOrigin = expectedAppOrigin();
   if (expectedOrigin && args.origin !== expectedOrigin) {
+    if (intent === "refresh") {
+      redirect(refreshErrorRedirect(session, "csrf_error", null));
+    }
+    if (intent === "disconnect") {
+      redirect(disconnectErrorRedirect(session, "csrf_error"));
+    }
     redirect(buildErrorRedirect(intent, "csrf_error"));
   }
 

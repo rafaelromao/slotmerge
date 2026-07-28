@@ -117,7 +117,6 @@ export async function cleanupLocalTestRows(): Promise<void> {
   );
   await db.query(
     `DELETE FROM email_events
-     WHERE id NOT IN (SELECT id FROM email_events WHERE created_at < now() - interval '10 minutes')
-     AND created_at > now() - interval '10 minutes'`,
+     WHERE created_at > now() - interval '10 minutes'`,
   );
 }

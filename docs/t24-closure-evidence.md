@@ -60,3 +60,29 @@ The `## End-to-end browser journeys` subsection records the per-role end-to-end 
 - **User** (`tests/e2e-browser/journeys/user/end-to-end.spec.ts`): **not landed** — T10 (#296) is open. The journey drives invite → verify → setup checklist → profile → consent → topics → availability → calendar connection → sign-out.
 - **Organizer** (`tests/e2e-browser/journeys/organizer/end-to-end.spec.ts`): **landed** — closed by PR [#331](https://github.com/rafaelromao/slotmerge/pull/331). The journey drives search form → result → drawer → history → rerun.
 - **Admin** (`tests/e2e-browser/journeys/admin/end-to-end.spec.ts`): **not landed** — T19 (#305) is open. The journey drives invite → role change → suspend → reinstate → approve proposal → reject proposal → retire topic → status page.
+
+## Closed implementation tickets
+
+The following 19 implementation tickets are closed. Each row records the T-number, the issue number, the closing PR URL, the Playwright journey file, the Vitest test file, and the visual-capture directory. The T-number → issue → PR mapping is pinned by `tests/t24-closure-evidence.test.ts` so any future re-run that reopens or re-closes a ticket requires a corresponding edit to the test.
+
+| T | Issue | Closing PR | Playwright journey | Vitest test | Visual capture |
+| --- | --- | --- | --- | --- | --- |
+| T1 | [#287](https://github.com/rafaelromao/slotmerge/issues/287) | [#316](https://github.com/rafaelromao/slotmerge/pull/316) | `tests/e2e-browser/journeys/user/setup-home.spec.ts` | `src/workflow/setup-home.test.ts` | `tests/e2e-browser/screenshots/setup-home/` |
+| T2 | [#288](https://github.com/rafaelromao/slotmerge/issues/288) | [#317](https://github.com/rafaelromao/slotmerge/pull/317) | `tests/e2e-browser/journeys/user/role-guard.spec.ts` | `src/auth/page-context.test.ts` | n/a |
+| T3 | [#289](https://github.com/rafaelromao/slotmerge/issues/289) | [#318](https://github.com/rafaelromao/slotmerge/pull/318) | `tests/e2e-browser/journeys/user/magic-link.spec.ts` | `src/workflow/auth.test.ts` | `tests/e2e-browser/screenshots/sign-in/` |
+| T4 | [#290](https://github.com/rafaelromao/slotmerge/issues/290) | [#319](https://github.com/rafaelromao/slotmerge/pull/319) | `tests/e2e-browser/journeys/user/profile.spec.ts` | `src/workflow/profile.test.ts` | n/a |
+| T5 | [#291](https://github.com/rafaelromao/slotmerge/issues/291) | [#320](https://github.com/rafaelromao/slotmerge/pull/320) | `tests/e2e-browser/journeys/user/discoverability.spec.ts` | `src/workflow/discoverability.test.ts` | n/a |
+| T6 | [#292](https://github.com/rafaelromao/slotmerge/issues/292) | [#321](https://github.com/rafaelromao/slotmerge/pull/321) | `tests/e2e-browser/journeys/user/topics.spec.ts` | `src/topics/topic-workflow.ts` | n/a |
+| T7 | [#293](https://github.com/rafaelromao/slotmerge/issues/293) | [#322](https://github.com/rafaelromao/slotmerge/pull/322) | `tests/e2e-browser/journeys/user/availability.spec.ts` | `src/workflow/availability.test.ts` | n/a |
+| T8 | [#294](https://github.com/rafaelromao/slotmerge/issues/294) | [#324](https://github.com/rafaelromao/slotmerge/pull/324) | `tests/e2e-browser/journeys/user/calendar-connection.spec.ts` | `src/workflow/calendar-connection.test.ts` | `tests/e2e-browser/screenshots/calendar-connections/` |
+| T9 | [#295](https://github.com/rafaelromao/slotmerge/issues/295) | [#327](https://github.com/rafaelromao/slotmerge/pull/327) | `tests/e2e-browser/journeys/user/self-delete.spec.ts` | `src/workflow/account.test.ts` | `tests/e2e-browser/screenshots/self-delete/` |
+| T11 | [#297](https://github.com/rafaelromao/slotmerge/issues/297) | [#325](https://github.com/rafaelromao/slotmerge/pull/325) | `tests/e2e-browser/journeys/organizer/search-form.spec.ts` | `src/workflow/search.ts` | `tests/e2e-browser/screenshots/search-form/` |
+| T12 | [#298](https://github.com/rafaelromao/slotmerge/issues/298) | [#328](https://github.com/rafaelromao/slotmerge/pull/328) | `tests/e2e-browser/journeys/organizer/search-result.spec.ts` | `src/workflow/search.ts` | `tests/e2e-browser/screenshots/search-result/` |
+| T13 | [#299](https://github.com/rafaelromao/slotmerge/issues/299) | [#329](https://github.com/rafaelromao/slotmerge/pull/329) | `tests/e2e-browser/journeys/organizer/search-history.spec.ts` | `src/workflow/search.ts` | `tests/e2e-browser/screenshots/search-history/` |
+| T14 | [#300](https://github.com/rafaelromao/slotmerge/issues/300) | [#330](https://github.com/rafaelromao/slotmerge/pull/330) | `tests/e2e-browser/journeys/organizer/api-v1.spec.ts` | `src/api/serializers.test.ts` | n/a |
+| T15 | [#301](https://github.com/rafaelromao/slotmerge/issues/301) | [#331](https://github.com/rafaelromao/slotmerge/pull/331) | `tests/e2e-browser/journeys/organizer/end-to-end.spec.ts` | `src/workflow/search.ts` | `tests/e2e-browser/screenshots/organizer/` |
+| T16 | [#302](https://github.com/rafaelromao/slotmerge/issues/302) | [#323](https://github.com/rafaelromao/slotmerge/pull/323) | `tests/e2e-browser/journeys/admin/users.spec.ts` | `src/workflow/admin-users.test.ts` | `tests/e2e-browser/screenshots/admin/` |
+| T20 | [#306](https://github.com/rafaelromao/slotmerge/issues/306) | [#313](https://github.com/rafaelromao/slotmerge/pull/313) | n/a (PRD amendments) | n/a | n/a |
+| T21 | [#307](https://github.com/rafaelromao/slotmerge/issues/307) | [#312](https://github.com/rafaelromao/slotmerge/pull/312) | n/a (E2E plan in-place update) | n/a | n/a |
+| T22 | [#308](https://github.com/rafaelromao/slotmerge/issues/308) | [#314](https://github.com/rafaelromao/slotmerge/pull/314) | n/a (compat adapter retirement) | n/a | n/a |
+| T23 | [#309](https://github.com/rafaelromao/slotmerge/issues/309) | [#315](https://github.com/rafaelromao/slotmerge/pull/315) | n/a (stale assertion cleanup) | n/a | n/a |

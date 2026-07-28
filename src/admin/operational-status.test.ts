@@ -239,7 +239,23 @@ describe("admin operational status", () => {
           recentFailures: [],
         }),
         summarizeCalendarConnections: vi.fn().mockResolvedValue({
-          counts: { pending: 1, connected: 5, disconnected: 2 },
+          counts: {
+            pending: 1,
+            connected: 5,
+            disconnected: 2,
+            needsReconnect: 1,
+          },
+          byProvider: [
+            {
+              provider: "google",
+              counts: {
+                pending: 1,
+                connected: 5,
+                needsReconnect: 1,
+                disconnected: 2,
+              },
+            },
+          ],
           tokensNeedingRefresh: [
             {
               connectionId: "conn-expired",

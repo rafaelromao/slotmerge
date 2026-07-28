@@ -15,6 +15,7 @@ import {
 } from "./_actions/users";
 import { SuspendTypedConfirm } from "./_components/SuspendTypedConfirm";
 import { SectionDeepLink } from "./_components/SectionDeepLink";
+import { AdminStatusSection } from "./_components/AdminStatusSection";
 import type { UserListItem } from "../../../src/admin/users.repository";
 import type { UserRole, UserStatus } from "../../../src/db/schema";
 import type { AdminUsersRecentInvite } from "../../../src/workflow/admin-users";
@@ -149,6 +150,36 @@ export default async function AdminPage({
           User reinstated.
         </p>
       ) : null}
+
+      {(() => {
+        const actionValue = firstString(params.action);
+        if (
+          actionValue === "refresh_ok" ||
+          actionValue === "refresh_err" ||
+          actionValue === "disconnect_ok" ||
+          actionValue === "disconnect_err"
+        ) {
+          const isError = actionValue.endsWith("_err");
+          const intent = actionValue.startsWith("refresh_")
+            ? "Refresh"
+            : "Disconnect";
+          const message = isError
+            ? `${intent} failed. Refresh and try again.`
+            : `${intent} succeeded.`;
+          return (
+            <p
+              className={isError ? "admin-error-banner" : "admin-info-banner"}
+              role={isError ? "alert" : "status"}
+              aria-live={isError ? "assertive" : "polite"}
+              data-testid="admin-status-action-banner"
+              data-outcome={isError ? "error" : "success"}
+            >
+              {message}
+            </p>
+          );
+        }
+        return null;
+      })()}
 
       <details id="users" className="admin-section" open>
         <summary
@@ -307,8 +338,14 @@ export default async function AdminPage({
             connection{calendarConnectionCount === 1 ? "" : "s"}
           </span>
         </summary>
-        <div className="admin-section-body" data-testid="admin-status-body">
-          <p>Status section is a placeholder for T18.</p>
+        <div
+          className="admin-section-body"
+          data-testid="admin-status-section-body"
+        >
+          <AdminStatusSection
+            statusResult={statusResult}
+            csrfToken={context.csrfToken}
+          />
         </div>
       </details>
     </main>

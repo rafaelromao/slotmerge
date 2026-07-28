@@ -73,11 +73,22 @@ vi.mock("../src/admin/operational-status.workflow", () => ({
         recentFailures: [],
       },
       calendar: {
-        counts: { pending: 0, connected: 0, disconnected: 0 },
+        counts: {
+          pending: 0,
+          connected: 0,
+          disconnected: 0,
+          needsReconnect: 0,
+        },
+        byProvider: [],
         tokensNeedingRefresh: [],
       },
       windowHours: 24,
       generatedAt: new Date("2026-07-12T12:00:00.000Z"),
+      emailFailureRate: 0,
+      pendingEmailCount: 0,
+      needsReconnectCount: 0,
+      tokensCount: 0,
+      health: { email: "green", calendar: "green", tokens: "green" },
     }),
   })),
 }));
@@ -144,11 +155,22 @@ describe("Admin page", () => {
           recentFailures: [],
         },
         calendar: {
-          counts: { pending: 1, connected: 2, disconnected: 0 },
+          counts: {
+            pending: 1,
+            connected: 2,
+            disconnected: 0,
+            needsReconnect: 0,
+          },
+          byProvider: [],
           tokensNeedingRefresh: [],
         },
         windowHours: 24,
         generatedAt: new Date("2026-07-12T12:00:00.000Z"),
+        emailFailureRate: 100,
+        pendingEmailCount: 0,
+        needsReconnectCount: 0,
+        tokensCount: 0,
+        health: { email: "red", calendar: "green", tokens: "green" },
       }),
     });
 
@@ -327,6 +349,31 @@ describe("Admin page", () => {
     });
     const { default: AdminPage } = await import("../app/(product)/admin/page");
     await expect(AdminPage()).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("renders the admin status action banner when refresh succeeded", async () => {
+    const { default: AdminPage } = await import("../app/(product)/admin/page");
+    const html = renderToString(
+      await AdminPage({
+        searchParams: Promise.resolve({ action: "refresh_ok" }),
+      }),
+    );
+    expect(html).toContain('data-testid="admin-status-action-banner"');
+    expect(html).toContain('data-outcome="success"');
+    expect(html).toContain("Refresh succeeded.");
+  });
+
+  it("renders the admin status action banner with role=alert when refresh failed", async () => {
+    const { default: AdminPage } = await import("../app/(product)/admin/page");
+    const html = renderToString(
+      await AdminPage({
+        searchParams: Promise.resolve({ action: "refresh_err" }),
+      }),
+    );
+    expect(html).toContain('data-testid="admin-status-action-banner"');
+    expect(html).toContain('data-outcome="error"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Refresh failed.");
   });
 
   it("redirects when there is no session", async () => {

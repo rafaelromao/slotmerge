@@ -24,6 +24,31 @@ describe("loadRuntimeConfig", () => {
     expect(config.appPublicUrl).toBe("http://localhost:3000");
   });
 
+  it("requires complete mock service configuration when explicit offline mocks are enabled", () => {
+    expect(() =>
+      loadRuntimeConfig({
+        APP_ENV: "local",
+        DATABASE_URL: "postgres://slotmerge:slotmerge@localhost:5432/slotmerge",
+        OFFLINE_MOCKS_ENABLED: "true",
+      }),
+    ).toThrow(/LOCAL_PROVIDER_OVERRIDE_URL/);
+  });
+
+  it("rejects real Email delivery while explicit offline mocks are enabled", () => {
+    expect(() =>
+      loadRuntimeConfig({
+        APP_ENV: "test",
+        DATABASE_URL: "postgres://slotmerge:slotmerge@localhost:5432/slotmerge",
+        OFFLINE_MOCKS_ENABLED: "true",
+        EMAIL_ADAPTER: "postmark",
+        LOCAL_PROVIDER_OVERRIDE_URL: "http://provider-mock:3001",
+        LOCAL_PROVIDER_BROWSER_URL: "http://localhost:3001",
+        LOCAL_EMAIL_OUTBOX_URL: "http://provider-mock:3001",
+        FIXTURE_DATE: "2026-07-12T12:00:00.000Z",
+      }),
+    ).toThrow(/EMAIL_ADAPTER=mock/);
+  });
+
   it("fails fast in production when required non-local secrets are missing", () => {
     expect(() =>
       loadRuntimeConfig({

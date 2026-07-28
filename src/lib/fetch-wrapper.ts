@@ -1,3 +1,5 @@
+import { loadRuntimeConfig } from "../config/runtime";
+
 export type ProviderFetchImpl = typeof fetch;
 
 const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
@@ -100,6 +102,19 @@ export function createProviderFetchImpl(
       return baseFetch(rewrittenUrl, init);
     }
 
-    return baseFetch(input, init);
+    throw new Error(
+      `Provider URL is not allowed in offline mock mode: ${originalUrl}`,
+    );
   };
+}
+
+export function configuredProviderFetchImpl(
+  baseFetch: typeof fetch = fetch,
+): ProviderFetchImpl {
+  const config = loadRuntimeConfig();
+  if (!config.offlineMocksEnabled) {
+    return baseFetch;
+  }
+
+  return createProviderFetchImpl(baseFetch, config.localProviderOverrideUrl!);
 }

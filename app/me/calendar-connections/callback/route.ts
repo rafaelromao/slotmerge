@@ -13,7 +13,7 @@ import {
 import { getCalendarProvider } from "../../../../src/calendar/providers";
 import { getCalendarConnectionRepository } from "../../../../src/calendar/repository";
 import type { CalendarProvider as CalendarProviderId } from "../../../../src/db/schema";
-import { createProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
+import { configuredProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
 import { requestContextFromRequest } from "../../../../src/workflow/auth";
 import { systemClock } from "../../../../src/system/clock";
 
@@ -133,15 +133,7 @@ async function handleCallback({
       throw new Error(configuration.missingError);
     }
 
-    const isLocalOrTest =
-      process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
-    const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
-    const fetchImpl =
-      isLocalOrTest &&
-      process.env.CALENDAR_PROVIDER_MODE === "mock" &&
-      overrideUrl
-        ? createProviderFetchImpl(fetch, overrideUrl)
-        : fetch;
+    const fetchImpl = configuredProviderFetchImpl();
     const result = await completeClaimedCalendarConnection({
       provider,
       repository,

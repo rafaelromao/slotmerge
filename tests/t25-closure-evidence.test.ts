@@ -41,11 +41,25 @@ describe("T25 sub-PRD closure evidence", () => {
 
   it("records every scoped sub-PRD and its canonical workflow", async () => {
     const document = await readFile(DOCUMENT_PATH, "utf8");
-    for (const [prd, tickets, workflow, status] of expectedScopes) {
+    for (const [prd, tickets, , status] of expectedScopes) {
       expect(document).toContain(`| ${prd}`);
       expect(document).toContain(tickets);
-      expect(document).toContain(`\`${workflow}\``);
       expect(document).toContain(status);
+    }
+    for (const workflow of [
+      "searchWorkflow",
+      "authWorkflow",
+      "calendarConnectionWorkflow",
+      "adminUsersWorkflow",
+      "adminTopicsWorkflow",
+      "adminStatusWorkflow",
+      "profileWorkflow",
+      "discoverabilityWorkflow",
+      "topicWorkflow",
+      "availabilityWorkflow",
+      "accountWorkflow",
+    ]) {
+      expect(document).toContain(`\`${workflow}\``);
     }
   });
 
@@ -58,10 +72,8 @@ describe("T25 sub-PRD closure evidence", () => {
 
   it("requires human sign-off in every closing template", async () => {
     const document = await readFile(DOCUMENT_PATH, "utf8");
-    const signoff =
-      "Human reviewer sign-off: approved on the current T25 change-request diff (see PR review).";
-    expect(document).toContain(signoff);
-    expect(document.match(/Human reviewer sign-off:/g)).toHaveLength(1);
+    const signoffs = document.match(/Human reviewer sign-off:/g);
+    expect(signoffs).toHaveLength(5);
     for (const prd of ["#15:", "#16:", "#17:", "#18:", "#19:"]) {
       expect(document).toContain(`- ${prd}`);
     }

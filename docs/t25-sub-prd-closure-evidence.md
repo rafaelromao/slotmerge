@@ -37,15 +37,13 @@ Evidence rows are pinned by `docs/t24-closure-evidence.md` lines 70–84. The el
 
 ## Per-sub-PRD closing comment templates
 
-Each template consists of the scoped rows above, the applicable verbatim gate lines from `AGENTS.md`, and this required sign-off line:
+Each template consists of the scoped rows above, the applicable verbatim gate lines from `AGENTS.md`, and its required sign-off line:
 
-`Human reviewer sign-off: approved on the current T25 change-request diff (see PR review).`
-
-- #15: T10–T15 rows and Organizer journey gates; blocked by T10 (#296), do not close.
-- #16: T3 row and User magic-link journey gates; eligible to close after human sign-off.
-- #17: T8 row and User Calendar Connection journey gates; eligible to close after human sign-off.
-- #18: T16–T19 rows and Admin journey gates; blocked by T17 (#303), T18 (#304), and T19 (#305), do not close.
-- #19: T4, T5, T6, T7, and T9 rows and User journey gates; eligible to close after human sign-off.
+- #15: T10–T15 rows and Organizer journey gates; blocked by T10 (#296), do not close. `Human reviewer sign-off: pending current T25 change-request approval for #15.`
+- #16: T3 row and User magic-link journey gates; eligible to close after human sign-off. `Human reviewer sign-off: pending current T25 change-request approval for #16.`
+- #17: T8 row and User Calendar Connection journey gates; eligible to close after human sign-off. `Human reviewer sign-off: pending current T25 change-request approval for #17.`
+- #18: T16–T19 rows and Admin journey gates; blocked by T17 (#303), T18 (#304), and T19 (#305), do not close. `Human reviewer sign-off: pending current T25 change-request approval for #18.`
+- #19: T4, T5, T6, T7, and T9 rows and User journey gates; eligible to close after human sign-off. `Human reviewer sign-off: pending current T25 change-request approval for #19.`
 
 ## Tracker sequence
 

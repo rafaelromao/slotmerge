@@ -16,7 +16,7 @@ import { loadRuntimeConfig } from "../../../../src/config/runtime";
 import { enqueueSyncCalendarConnectionJob } from "../../../../src/worker/sync";
 import { revokeCalendarConnection } from "../../../../src/calendar/connection";
 import { decryptCalendarToken } from "../../../../src/calendar/token-encryption";
-import { createProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
+import { configuredProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
 import { CsrfError, assertCsrfFromFormData } from "../../../../src/lib/csrf";
 import { listProviderCalendarsForProvider } from "../../../../src/calendar/providers";
 import { systemClock } from "../../../../src/system/clock";
@@ -112,14 +112,7 @@ function expectedAppOrigin(): string | null {
 }
 
 function providerFetchImpl(): typeof fetch {
-  const isLocalOrTest =
-    process.env.APP_ENV === "local" || process.env.APP_ENV === "test";
-  const overrideUrl = process.env.LOCAL_PROVIDER_OVERRIDE_URL;
-  return isLocalOrTest &&
-    process.env.CALENDAR_PROVIDER_MODE === "mock" &&
-    overrideUrl
-    ? createProviderFetchImpl(fetch, overrideUrl)
-    : fetch;
+  return configuredProviderFetchImpl();
 }
 
 function createMutationWorkflow() {

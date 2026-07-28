@@ -105,3 +105,15 @@ export function createProviderFetchImpl(
     );
   };
 }
+
+export function configuredProviderFetchImpl(
+  baseFetch: typeof fetch = fetch,
+): ProviderFetchImpl {
+  const config = loadRuntimeConfig();
+  if (!config.offlineMocksEnabled) {
+    return baseFetch;
+  }
+
+  return createProviderFetchImpl(baseFetch, config.localProviderOverrideUrl!);
+}
+import { loadRuntimeConfig } from "../config/runtime";

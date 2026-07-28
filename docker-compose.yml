@@ -55,6 +55,8 @@ services:
       LOCAL_WEB_URL: http://web:3000
       LOCAL_PROVIDER_OVERRIDE_URL: http://provider-mock:3001
       LOCAL_PROVIDER_BROWSER_URL: http://localhost:3001
+      LOCAL_EMAIL_OUTBOX_URL: http://provider-mock:3001
+      OFFLINE_MOCKS_ENABLED: "true"
       GOOGLE_OAUTH_CLIENT_ID: local-google-client
       GOOGLE_OAUTH_CLIENT_SECRET: local-google-secret
       MICROSOFT_OAUTH_CLIENT_ID: local-microsoft-client
@@ -83,6 +85,9 @@ services:
       DATABASE_URL: postgres://slotmerge:slotmerge@postgres:5432/slotmerge
       LOCAL_WEB_URL: http://web:3000
       LOCAL_PROVIDER_OVERRIDE_URL: http://provider-mock:3001
+      LOCAL_PROVIDER_BROWSER_URL: http://localhost:3001
+      LOCAL_EMAIL_OUTBOX_URL: http://provider-mock:3001
+      OFFLINE_MOCKS_ENABLED: "true"
       EMAIL_CAPTURE_ENABLED: "true"
       FIXTURE_DATE: "2026-07-12T12:00:00.000Z"
       MAGIC_LINK_SECRET: "local-magic-link-secret-do-not-use-in-production"

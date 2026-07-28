@@ -160,16 +160,22 @@ test.describe("Organizer end-to-end journey", () => {
       await seedJourneyFixture({ withStaleConnection: true });
     });
 
-    test("happy path: opens a stale Slot with accessible dialog semantics and the no-booking footer", async ({
+    test("happy path: opens a stale Slot with accessible dialog semantics, focus trap, Escape close, and the no-booking footer", async ({
       page,
     }) => {
       await page.clock.install({ time: FIXED_DATE });
       await runSearchThroughForm(page);
 
       const staleSlot = page
-        .getByRole("button", { name: /contains stale calendar data/ })
+        .getByTestId(/^slot-\d+-\d+$/)
+        .filter({ has: page.locator("[data-stale='true']") })
         .first();
       await expect(staleSlot).toBeVisible();
+      await expect(staleSlot).toHaveAttribute("data-stale", "true");
+      await expect(staleSlot).toHaveAttribute(
+        "aria-label",
+        /contains stale calendar data/,
+      );
       await staleSlot.click();
 
       const drawer = page.getByTestId("slot-details-drawer");
@@ -185,8 +191,13 @@ test.describe("Organizer end-to-end journey", () => {
       await expect(drawer.locator(".calendar-stale")).toHaveCount(1);
       await captureState(page, "organizer/search-result", "drawer-stale");
 
-      await page.getByTestId("drawer-close").click();
+      const closeButton = page.getByTestId("drawer-close");
+      await expect(closeButton).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(closeButton).toBeFocused();
+      await page.keyboard.press("Escape");
       await expect(page.getByTestId("slot-details-drawer")).toHaveCount(0);
+      await expect(staleSlot).toBeFocused();
     });
   });
 

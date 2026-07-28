@@ -147,42 +147,67 @@ export default async function SearchHistoryPage({
               className="search-history-row"
               data-testid="search-history-row"
             >
-              <article>
-                <h2>{item.organizerDisplayName}</h2>
-                <p>
-                  <time dateTime={item.generatedAt}>
-                    {formatDateTimeLabel(
-                      new Date(item.generatedAt),
-                      item.organizerTimezone,
-                    )}
-                  </time>
-                </p>
-                <p>Topics: {item.selectedTopicNames.join(", ")}</p>
-                <p>
-                  Minimum {item.minimumMatchingUsers}, {item.durationMinutes}{" "}
-                  minutes
-                </p>
-                <p>
-                  Date Range:{" "}
-                  {formatDateLabel(
-                    new Date(item.dateRangeStart),
-                    item.organizerTimezone,
-                  )}{" "}
-                  -{" "}
-                  {formatDateLabel(
-                    new Date(item.dateRangeEnd),
-                    item.organizerTimezone,
-                  )}
-                </p>
-                <p>Organizer timezone: {item.organizerTimezone}</p>
-                <p>
-                  {item.stale
-                    ? "⚠ include stale calendar data"
-                    : "Fresh snapshot"}
-                </p>
+              <article className="search-history-item">
+                <header className="search-history-header">
+                  <h2>{item.organizerDisplayName}</h2>
+                  <span
+                    className={
+                      item.stale
+                        ? "status-pill status-pill-warn"
+                        : "status-pill status-pill-ok"
+                    }
+                    data-testid={`search-history-status-${item.id}`}
+                  >
+                    {item.stale ? "Stale" : "Fresh"}
+                  </span>
+                </header>
+                <dl className="search-history-meta">
+                  <div>
+                    <dt>Generated</dt>
+                    <dd>
+                      <time dateTime={item.generatedAt}>
+                        {formatDateTimeLabel(
+                          new Date(item.generatedAt),
+                          item.organizerTimezone,
+                        )}
+                      </time>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Topics</dt>
+                    <dd>{item.selectedTopicNames.join(", ")}</dd>
+                  </div>
+                  <div>
+                    <dt>Minimum</dt>
+                    <dd>{item.minimumMatchingUsers} people</dd>
+                  </div>
+                  <div>
+                    <dt>Duration</dt>
+                    <dd>{item.durationMinutes} minutes</dd>
+                  </div>
+                  <div>
+                    <dt>Date range</dt>
+                    <dd>
+                      {formatDateLabel(
+                        new Date(item.dateRangeStart),
+                        item.organizerTimezone,
+                      )}{" "}
+                      –{" "}
+                      {formatDateLabel(
+                        new Date(item.dateRangeEnd),
+                        item.organizerTimezone,
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Timezone</dt>
+                    <dd>{item.organizerTimezone}</dd>
+                  </div>
+                </dl>
                 <div className="search-history-actions">
                   <Link
                     href={openHref}
+                    className="btn btn-secondary"
                     data-testid="search-history-open-snapshot"
                   >
                     Open snapshot
@@ -194,7 +219,11 @@ export default async function SearchHistoryPage({
                       value={context.csrfToken}
                     />
                     <input type="hidden" name="searchId" value={item.id} />
-                    <button type="submit" data-testid="search-history-rerun">
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      data-testid="search-history-rerun"
+                    >
                       Re-run
                     </button>
                   </form>

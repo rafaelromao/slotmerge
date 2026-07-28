@@ -155,11 +155,7 @@ export function localDayNumber(date: Date, timezone: string): number {
   return Date.UTC(parts.year, parts.month - 1, parts.day) / 86400000;
 }
 
-export function addCivilDays(
-  date: Date,
-  days: number,
-  timezone: string,
-): Date {
+export function addCivilDays(date: Date, days: number, timezone: string): Date {
   const parts = getLocalDateParts(date, timezone);
   const target = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
   target.setUTCDate(target.getUTCDate() + days);
@@ -176,10 +172,7 @@ export function addCivilDays(
   );
 }
 
-export function getLocalDayHour(
-  date: Date,
-  timezone: string,
-): LocalDayHour {
+export function getLocalDayHour(date: Date, timezone: string): LocalDayHour {
   isValidTimeZone(timezone);
   const parts = readParts(date, timezone);
   const weekdayFormatter = new Intl.DateTimeFormat("en-US", {
@@ -222,11 +215,7 @@ function validateCivilFields(local: LocalDateTime): void {
     throw new RangeError(`Invalid month: ${local.month}`);
   }
   const maxDay = daysInMonth(local.year, local.month);
-  if (
-    !Number.isInteger(local.day) ||
-    local.day < 1 ||
-    local.day > maxDay
-  ) {
+  if (!Number.isInteger(local.day) || local.day < 1 || local.day > maxDay) {
     throw new RangeError(`Invalid day: ${local.day}`);
   }
   if (!Number.isInteger(local.hour) || local.hour < 0 || local.hour > 23) {
@@ -274,10 +263,7 @@ function probeOffsetMs(probeUtcMs: number, timezone: string): number {
   return partsUtc - probeUtcMs;
 }
 
-function candidateForOffset(
-  baseUtcMs: number,
-  offsetMs: number,
-): number {
+function candidateForOffset(baseUtcMs: number, offsetMs: number): number {
   return baseUtcMs - offsetMs;
 }
 
@@ -332,31 +318,31 @@ export function localDateTimeToUtc(
     const largestOffset = sortedOffsets[sortedOffsets.length - 1] ?? 0;
     const utcBefore = new Date(candidateForOffset(baseUtcMs, smallestOffset));
     const utcAfter = new Date(candidateForOffset(baseUtcMs, largestOffset));
-    throw new NonexistentLocalTimeError(
-      local,
-      timezone,
-      utcBefore,
-      utcAfter,
-    );
+    throw new NonexistentLocalTimeError(local, timezone, utcBefore, utcAfter);
   }
 
   if (candidates.length === 2) {
     candidates.sort((a, b) => a.getTime() - b.getTime());
-    throw new AmbiguousLocalTimeError(
-      local,
-      timezone,
-      candidates[0]!,
-      candidates[1]!,
-    );
+    const earlier = candidates[0];
+    const later = candidates[1];
+    if (!earlier || !later) {
+      throw new RangeError(
+        `Failed to resolve ambiguous candidates for ${JSON.stringify(timezone)}`,
+      );
+    }
+    throw new AmbiguousLocalTimeError(local, timezone, earlier, later);
   }
 
-  return candidates[0]!;
+  const unique = candidates[0];
+  if (!unique) {
+    throw new RangeError(
+      `Failed to resolve unique candidate for ${JSON.stringify(timezone)}`,
+    );
+  }
+  return unique;
 }
 
-export function startOfWeekInTimezone(
-  date: Date,
-  timezone: string,
-): Date {
+export function startOfWeekInTimezone(date: Date, timezone: string): Date {
   isValidTimeZone(timezone);
   const parts = getLocalDateParts(date, timezone);
   const weekdayFormatter = new Intl.DateTimeFormat("en-US", {
@@ -376,9 +362,7 @@ export function startOfWeekInTimezone(
   const weekday = dayMap[weekdayStr] ?? 0;
   const daysSinceMonday = weekday === 0 ? 6 : weekday - 1;
 
-  const mondayUtc = new Date(
-    Date.UTC(parts.year, parts.month - 1, parts.day),
-  );
+  const mondayUtc = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
   mondayUtc.setUTCDate(mondayUtc.getUTCDate() - daysSinceMonday);
 
   return localDateTimeToUtc(

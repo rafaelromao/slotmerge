@@ -60,10 +60,7 @@ describe("getLocalDateParts", () => {
   });
 
   it("uses one-based months", () => {
-    const parts = getLocalDateParts(
-      new Date("2026-01-15T12:00:00Z"),
-      "UTC",
-    );
+    const parts = getLocalDateParts(new Date("2026-01-15T12:00:00Z"), "UTC");
     expect(parts.month).toBe(1);
   });
 
@@ -95,10 +92,7 @@ describe("getLocalDateParts", () => {
 
 describe("localDayNumber", () => {
   it("returns the epoch day count for a local civil date", () => {
-    const day = localDayNumber(
-      new Date("2026-07-15T12:00:00Z"),
-      "UTC",
-    );
+    const day = localDayNumber(new Date("2026-07-15T12:00:00Z"), "UTC");
     const expected = Date.UTC(2026, 6, 15) / 86400000;
     expect(day).toBe(expected);
   });
@@ -113,14 +107,8 @@ describe("localDayNumber", () => {
   });
 
   it("computes the day delta between two instants", () => {
-    const start = localDayNumber(
-      new Date("2026-07-13T00:00:00Z"),
-      "UTC",
-    );
-    const end = localDayNumber(
-      new Date("2026-07-20T00:00:00Z"),
-      "UTC",
-    );
+    const start = localDayNumber(new Date("2026-07-13T00:00:00Z"), "UTC");
+    const end = localDayNumber(new Date("2026-07-20T00:00:00Z"), "UTC");
     expect(end - start).toBe(7);
   });
 });
@@ -298,9 +286,9 @@ describe("NonexistentLocalTimeError (spring-forward)", () => {
       hour: 2,
       minute: 30,
     };
-    expect(() =>
-      localDateTimeToUtc(local, "America/New_York"),
-    ).toThrow(NonexistentLocalTimeError);
+    expect(() => localDateTimeToUtc(local, "America/New_York")).toThrow(
+      NonexistentLocalTimeError,
+    );
   });
 
   it("throws for Europe/London 2026-03-29 01:30", () => {
@@ -311,9 +299,9 @@ describe("NonexistentLocalTimeError (spring-forward)", () => {
       hour: 1,
       minute: 30,
     };
-    expect(() =>
-      localDateTimeToUtc(local, "Europe/London"),
-    ).toThrow(NonexistentLocalTimeError);
+    expect(() => localDateTimeToUtc(local, "Europe/London")).toThrow(
+      NonexistentLocalTimeError,
+    );
   });
 
   it("NonexistentLocalTimeError carries the bracket instants", () => {
@@ -348,9 +336,9 @@ describe("AmbiguousLocalTimeError (fall-back)", () => {
       hour: 1,
       minute: 30,
     };
-    expect(() =>
-      localDateTimeToUtc(local, "America/New_York"),
-    ).toThrow(AmbiguousLocalTimeError);
+    expect(() => localDateTimeToUtc(local, "America/New_York")).toThrow(
+      AmbiguousLocalTimeError,
+    );
   });
 
   it("throws for Europe/London 2026-10-25 01:30", () => {
@@ -361,9 +349,9 @@ describe("AmbiguousLocalTimeError (fall-back)", () => {
       hour: 1,
       minute: 30,
     };
-    expect(() =>
-      localDateTimeToUtc(local, "Europe/London"),
-    ).toThrow(AmbiguousLocalTimeError);
+    expect(() => localDateTimeToUtc(local, "Europe/London")).toThrow(
+      AmbiguousLocalTimeError,
+    );
   });
 
   it("AmbiguousLocalTimeError carries both candidate instants", () => {
@@ -385,9 +373,7 @@ describe("AmbiguousLocalTimeError (fall-back)", () => {
       expect(err.timezone).toBe("America/New_York");
       expect(err.utcEarlier).toBeInstanceOf(Date);
       expect(err.utcLater).toBeInstanceOf(Date);
-      expect(err.utcEarlier.getTime()).toBeLessThan(
-        err.utcLater.getTime(),
-      );
+      expect(err.utcEarlier.getTime()).toBeLessThan(err.utcLater.getTime());
       expect(err.utcLater.getTime() - err.utcEarlier.getTime()).toBe(
         60 * 60 * 1000,
       );
@@ -438,10 +424,7 @@ describe("startOfWeekInTimezone", () => {
 
 describe("getLocalDayHour", () => {
   it("returns Sunday noon for Sunday noon UTC", () => {
-    const result = getLocalDayHour(
-      new Date("2026-07-12T12:00:00Z"),
-      "UTC",
-    );
+    const result = getLocalDayHour(new Date("2026-07-12T12:00:00Z"), "UTC");
     expect(result).toEqual({ dayOfWeek: 0, hour: 12 });
   });
 

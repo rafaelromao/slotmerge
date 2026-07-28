@@ -105,7 +105,10 @@ function parseCalendarDateInTimezone(value: string, timezone: string): Date {
     return new Date(NaN);
   }
   try {
-    return localDateTimeToUtc({ year, month, day, hour: 0, minute: 0 }, timezone);
+    return localDateTimeToUtc(
+      { year, month, day, hour: 0, minute: 0 },
+      timezone,
+    );
   } catch {
     return new Date(NaN);
   }

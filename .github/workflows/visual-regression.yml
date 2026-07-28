@@ -73,6 +73,7 @@ jobs:
           name: playwright-test-results
           path: |
             playwright/.artifacts/test-results/
+            playwright/.artifacts/html-report/
             test-results/
           retention-days: 14
 
@@ -82,6 +83,7 @@ jobs:
         with:
           name: playwright-videos
           path: playwright/.artifacts/**/*.webm
+          include-hidden-files: true
           retention-days: 14
 
       - name: Upload traces
@@ -90,4 +92,5 @@ jobs:
         with:
           name: playwright-traces
           path: playwright/.artifacts/**/*.zip
+          include-hidden-files: true
           retention-days: 14

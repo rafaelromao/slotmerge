@@ -1,0 +1,219 @@
+import Link from "next/link";
+
+import { requirePageContext } from "../../../../src/lib/page-context";
+import { getDiscoverableUserRepository } from "../../../../src/search/discoverable-user-repository";
+import { getSearchResultRepository } from "../../../../src/search/search-result-repository";
+import { listActiveTopics } from "../../../../src/topics/repository";
+import { getProfileByUserId } from "../../../../src/profile/repository";
+import { systemClock } from "../../../../src/system/clock";
+import { createSearchWorkflow } from "../../../../src/workflow/search";
+import { serializeSearchHistoryPage } from "../../../../src/api/serializers";
+import { rerunSearchAction } from "../[id]/_actions/rerun-search";
+
+type SearchParams = Promise<{
+  before?: string | string[];
+}>;
+
+function formatDateLabel(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: timezone,
+  }).format(date);
+}
+
+function formatDateTimeLabel(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: timezone,
+  }).format(date);
+}
+
+function formatWeekParam(date: Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  return year && month && day
+    ? `${year}-${month}-${day}`
+    : date.toISOString().slice(0, 10);
+}
+
+function readFirstString(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+const HISTORY_PAGE_SIZE = 50;
+
+function buildHistoryWorkflow() {
+  return createSearchWorkflow({
+    clock: systemClock(),
+    profileRepository: {
+      findByUserId: getProfileByUserId,
+    },
+    activeTopicsRepository: {
+      async listActive() {
+        const entries = await listActiveTopics();
+        return entries.map((entry) => ({
+          id: entry.id,
+          name: entry.name,
+          status: "active" as const,
+        }));
+      },
+    },
+    discoverableUserRepository: getDiscoverableUserRepository(),
+    searchResultRepository: getSearchResultRepository(),
+  });
+}
+
+export default async function SearchHistoryPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+} = {}) {
+  const context = await requirePageContext({ roles: ["organizer", "admin"] });
+  const query = (await searchParams) ?? {};
+  const before = readFirstString(query.before);
+
+  const historyResult = await buildHistoryWorkflow().listHistory({
+    userId: context.user.id,
+  });
+
+  if (!historyResult.ok) {
+    return (
+      <main className="app-container search-history-page">
+        <header>
+          <h1>Search History</h1>
+          <p>Visible to every Organizer and Admin.</p>
+        </header>
+        <p
+          className="form-error-banner"
+          role="alert"
+          data-testid="search-history-error-banner"
+        >
+          Search history is temporarily unavailable. Refresh the page to retry.
+        </p>
+      </main>
+    );
+  }
+
+  const historyDto = serializeSearchHistoryPage(historyResult.value);
+
+  const beforeIndex = before
+    ? historyDto.history.findIndex((item) => item.id === before)
+    : -1;
+  const windowStart = beforeIndex >= 0 ? beforeIndex + 1 : 0;
+  const windowEnd = windowStart + HISTORY_PAGE_SIZE;
+  const pageHistory = historyDto.history.slice(windowStart, windowEnd);
+  const hasMore = windowEnd < historyDto.history.length;
+
+  if (pageHistory.length === 0) {
+    return (
+      <main className="app-container">
+        <div className="empty-state" data-testid="search-history-empty-state">
+          <p className="empty-state-title">No Searches yet.</p>
+          <p>Run a Search to populate history.</p>
+          <Link href="/searches">Run your first Search</Link>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="app-container search-history-page">
+      <header>
+        <h1>Search History</h1>
+        <p>Visible to every Organizer and Admin.</p>
+      </header>
+
+      <ol className="search-history-list" data-testid="search-history-list">
+        {pageHistory.map((item) => {
+          const openHref = `/searches/${item.id}?week=${formatWeekParam(new Date(item.dateRangeStart), item.organizerTimezone)}`;
+          return (
+            <li
+              key={item.id}
+              className="search-history-row"
+              data-testid="search-history-row"
+            >
+              <article>
+                <h2>{item.organizerDisplayName}</h2>
+                <p>
+                  <time dateTime={item.generatedAt}>
+                    {formatDateTimeLabel(
+                      new Date(item.generatedAt),
+                      item.organizerTimezone,
+                    )}
+                  </time>
+                </p>
+                <p>Topics: {item.selectedTopicNames.join(", ")}</p>
+                <p>
+                  Minimum {item.minimumMatchingUsers}, {item.durationMinutes}{" "}
+                  minutes
+                </p>
+                <p>
+                  Date Range:{" "}
+                  {formatDateLabel(
+                    new Date(item.dateRangeStart),
+                    item.organizerTimezone,
+                  )}{" "}
+                  -{" "}
+                  {formatDateLabel(
+                    new Date(item.dateRangeEnd),
+                    item.organizerTimezone,
+                  )}
+                </p>
+                <p>Organizer timezone: {item.organizerTimezone}</p>
+                <p>
+                  {item.stale
+                    ? "⚠ include stale calendar data"
+                    : "Fresh snapshot"}
+                </p>
+                <div className="search-history-actions">
+                  <Link
+                    href={openHref}
+                    data-testid="search-history-open-snapshot"
+                  >
+                    Open snapshot
+                  </Link>
+                  <form action={rerunSearchAction}>
+                    <input
+                      type="hidden"
+                      name="_csrf"
+                      value={context.csrfToken}
+                    />
+                    <input type="hidden" name="searchId" value={item.id} />
+                    <button type="submit" data-testid="search-history-rerun">
+                      Re-run
+                    </button>
+                  </form>
+                </div>
+              </article>
+            </li>
+          );
+        })}
+      </ol>
+
+      {hasMore ? (
+        <Link
+          className="search-history-load-more"
+          data-testid="search-history-load-more"
+          href={`/searches/history?before=${encodeURIComponent(pageHistory.at(-1)?.id ?? "")}`}
+        >
+          Load more
+        </Link>
+      ) : null}
+    </main>
+  );
+}

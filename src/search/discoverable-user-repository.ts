@@ -1,5 +1,11 @@
 export type DiscoverableUserRepository = {
-  listDiscoverableUserIds(selectedTopicIds: string[]): Promise<string[]>;
+  listDiscoverableUserIds(
+    selectedTopicIds: string[],
+    options?: {
+      excludeUserId?: string;
+      requireAllTopics?: boolean;
+    },
+  ): Promise<string[]>;
 };
 
 let repositoryOverride: DiscoverableUserRepository | null = null;

@@ -7,7 +7,10 @@ import {
   getSessionFromRequest,
   type Session,
 } from "../../../../src/auth/session";
-import { getCalendarConnectionRepository } from "../../../../src/calendar/repository";
+import {
+  findCalendarConnectionById,
+  getCalendarConnectionRepository,
+} from "../../../../src/calendar/repository";
 import { getCalendarProvider } from "../../../../src/calendar/providers";
 import { loadRuntimeConfig } from "../../../../src/config/runtime";
 import { enqueueSyncCalendarConnectionJob } from "../../../../src/worker/sync";
@@ -21,6 +24,12 @@ import {
   createCalendarConnectionWorkflow,
   type CalendarConnectionMutationError,
 } from "../../../../src/workflow/calendar-connection";
+import {
+  disconnectErrorRedirect,
+  disconnectRedirectTarget,
+  refreshErrorRedirect,
+  refreshRedirectTarget,
+} from "./calendar-connections.redirects";
 
 export type CalendarConnectionFormIntent = "save" | "refresh" | "disconnect";
 
@@ -198,25 +207,30 @@ async function runRefresh(args: {
 }): Promise<void> {
   const connectionId = extractFieldString(args.formData, "connectionId");
   if (!connectionId) {
-    redirect(buildErrorRedirect("refresh", "missing_connection"));
+    redirect(refreshErrorRedirect(args.session, "missing_connection", null));
+  }
+  const targetUserId = await resolveTargetUserId({
+    session: args.session,
+    connectionId,
+  });
+  if (!targetUserId) {
+    redirect(refreshErrorRedirect(args.session, "forbidden", connectionId));
   }
   const result = await createMutationWorkflow().mutateConnection({
     kind: "refresh",
-    userId: args.session.user.id,
+    userId: targetUserId,
     connectionId,
   });
   if (!result.ok) {
     redirect(
-      buildErrorRedirect(
-        "refresh",
+      refreshErrorRedirect(
+        args.session,
         mutationErrorCode(result.error),
         connectionId,
       ),
     );
   }
-  redirect(
-    `/me/calendar-connections?intent=refresh&success=1&connectionId=${encodeURIComponent(connectionId)}`,
-  );
+  redirect(refreshRedirectTarget(args.session, connectionId));
 }
 
 async function runDisconnect(args: {
@@ -225,25 +239,28 @@ async function runDisconnect(args: {
 }): Promise<void> {
   const connectionId = extractFieldString(args.formData, "connectionId");
   if (!connectionId) {
-    redirect(buildErrorRedirect("disconnect", "missing_connection"));
+    redirect(disconnectErrorRedirect(args.session, "missing_connection"));
+  }
+  const targetUserId = await resolveTargetUserId({
+    session: args.session,
+    connectionId,
+  });
+  if (!targetUserId) {
+    redirect(disconnectErrorRedirect(args.session, "forbidden"));
   }
   const result = await createMutationWorkflow().mutateConnection({
     kind: "disconnect",
-    userId: args.session.user.id,
+    userId: targetUserId,
     connectionId,
     confirmAccountIdentifier:
       extractFieldString(args.formData, "confirmAccountIdentifier") ?? "",
   });
   if (!result.ok) {
     redirect(
-      buildErrorRedirect(
-        "disconnect",
-        mutationErrorCode(result.error),
-        connectionId,
-      ),
+      disconnectErrorRedirect(args.session, mutationErrorCode(result.error)),
     );
   }
-  redirect("/me/calendar-connections?intent=disconnect&success=1");
+  redirect(disconnectRedirectTarget(args.session));
 }
 
 async function runDispatch(args: {
@@ -261,6 +278,12 @@ async function runDispatch(args: {
     assertCsrfFromFormData(formData, session);
   } catch (error) {
     if (error instanceof CsrfError) {
+      if (intent === "refresh") {
+        redirect(refreshErrorRedirect(session, "csrf_error", null));
+      }
+      if (intent === "disconnect") {
+        redirect(disconnectErrorRedirect(session, "csrf_error"));
+      }
       redirect(buildErrorRedirect(intent, "csrf_error"));
     }
     throw error;
@@ -268,6 +291,12 @@ async function runDispatch(args: {
 
   const expectedOrigin = expectedAppOrigin();
   if (expectedOrigin && args.origin !== expectedOrigin) {
+    if (intent === "refresh") {
+      redirect(refreshErrorRedirect(session, "csrf_error", null));
+    }
+    if (intent === "disconnect") {
+      redirect(disconnectErrorRedirect(session, "csrf_error"));
+    }
     redirect(buildErrorRedirect(intent, "csrf_error"));
   }
 
@@ -302,4 +331,15 @@ export async function disconnectConnectionAction(
 ): Promise<void> {
   const { origin } = await loadCurrentRequest();
   await runDispatch({ formData, intent: "disconnect", origin });
+}
+
+async function resolveTargetUserId(args: {
+  session: Session;
+  connectionId: string;
+}): Promise<string | null> {
+  if (args.session.user.role === "admin") {
+    const connection = await findCalendarConnectionById(args.connectionId);
+    return connection?.userId ?? null;
+  }
+  return args.session.user.id;
 }

@@ -36,6 +36,14 @@ function getRepository(): AvailabilityOverrideRepository {
   return repositoryOverride ?? databaseAvailabilityOverrideRepository;
 }
 
+export function createPostgresAvailabilityOverrideRepository(): AvailabilityOverrideRepository {
+  return databaseAvailabilityOverrideRepository;
+}
+
+export function getAvailabilityOverrideRepository(): AvailabilityOverrideRepository {
+  return getRepository();
+}
+
 const databaseAvailabilityOverrideRepository: AvailabilityOverrideRepository = {
   add: async (userId, override, profileTimezone) => {
     const [row] = await getDb()

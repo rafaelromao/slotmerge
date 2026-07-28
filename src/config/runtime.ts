@@ -45,7 +45,7 @@ export function loadRuntimeConfig(
   const config: RuntimeConfig = {
     appBaseUrl: parsed.APP_BASE_URL ?? "http://localhost:3000",
     appEnv: parsed.APP_ENV,
-    appPublicUrl: parsed.APP_PUBLIC_URL ?? "http://localhost",
+    appPublicUrl: parsed.APP_PUBLIC_URL ?? "http://localhost:3000",
     calendarProviderMode:
       parsed.CALENDAR_PROVIDER_MODE ?? (isLocal ? "mock" : "oauth"),
     calendarTokenEncryptionKey:

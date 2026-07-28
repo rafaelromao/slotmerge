@@ -1,5 +1,3 @@
-process.env.TZ = "UTC";
-
 import { describe, expect, it } from "vitest";
 
 import {

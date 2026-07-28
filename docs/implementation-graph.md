@@ -223,13 +223,14 @@ The graph below is the design. The actual implementation PRs are created from th
 
 ### T25. Sub-PRD closures
 
+- **Depends on**: T1, T2, T3, T4, T5, T6, T7, T8, T9, T11, T12, T13, T14, T15, T16.
 - **Owns**: the closure of issues #15, #16, #17, #18, #19. Each sub-PRD closes on the same evidence set scoped to its sub-surface:
   - #15 (Search & Matching): T10–T15 closure evidence.
   - #16 (Auth & Invites): T3 closure evidence.
   - #17 (Calendar Connections): T8 closure evidence.
   - #18 (Admin & Notifications): T16–T19 closure evidence.
   - #19 (Profile & Setup): T4, T5, T6, T7, T9 closure evidence.
-- **Closure evidence**: the per-sub-PRD subset of the AGENTS.md closure gates, reproduced in each sub-PRD's closing comment.
+- **Closure evidence**: the per-sub-PRD subset of the AGENTS.md closure gates, reproduced in each sub-PRD's closing comment; see [`docs/t25-sub-prd-closure-evidence.md`](t25-sub-prd-closure-evidence.md).
 
 ## 7. Dependency summary
 

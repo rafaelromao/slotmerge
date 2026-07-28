@@ -201,14 +201,14 @@ async function runRefresh(args: {
 }): Promise<void> {
   const connectionId = extractFieldString(args.formData, "connectionId");
   if (!connectionId) {
-    redirect(buildErrorRedirect("refresh", "missing_connection"));
+    redirect(refreshErrorRedirect(args.session, "missing_connection", null));
   }
   const targetUserId = await resolveTargetUserId({
     session: args.session,
     connectionId,
   });
   if (!targetUserId) {
-    redirect(buildErrorRedirect("refresh", "forbidden", connectionId));
+    redirect(refreshErrorRedirect(args.session, "forbidden", connectionId));
   }
   const result = await createMutationWorkflow().mutateConnection({
     kind: "refresh",
@@ -217,8 +217,8 @@ async function runRefresh(args: {
   });
   if (!result.ok) {
     redirect(
-      buildErrorRedirect(
-        "refresh",
+      refreshErrorRedirect(
+        args.session,
         mutationErrorCode(result.error),
         connectionId,
       ),
@@ -233,14 +233,14 @@ async function runDisconnect(args: {
 }): Promise<void> {
   const connectionId = extractFieldString(args.formData, "connectionId");
   if (!connectionId) {
-    redirect(buildErrorRedirect("disconnect", "missing_connection"));
+    redirect(disconnectErrorRedirect(args.session, "missing_connection"));
   }
   const targetUserId = await resolveTargetUserId({
     session: args.session,
     connectionId,
   });
   if (!targetUserId) {
-    redirect(buildErrorRedirect("disconnect", "forbidden", connectionId));
+    redirect(disconnectErrorRedirect(args.session, "forbidden"));
   }
   const result = await createMutationWorkflow().mutateConnection({
     kind: "disconnect",
@@ -251,11 +251,7 @@ async function runDisconnect(args: {
   });
   if (!result.ok) {
     redirect(
-      buildErrorRedirect(
-        "disconnect",
-        mutationErrorCode(result.error),
-        connectionId,
-      ),
+      disconnectErrorRedirect(args.session, mutationErrorCode(result.error)),
     );
   }
   redirect(disconnectRedirectTarget(args.session));
@@ -347,4 +343,37 @@ export function disconnectRedirectTarget(session: Session): string {
   return "/me/calendar-connections?intent=disconnect&success=1";
 }
 
-export const __testing = { resolveTargetUserId };
+function refreshErrorRedirect(
+  session: Session,
+  code: CalendarConnectionFormErrorCode,
+  connectionId: string | null,
+): string {
+  if (session.user.role === "admin") {
+    const params = new URLSearchParams({ action: "refresh_err", error: code });
+    if (connectionId) {
+      params.set("connectionId", connectionId);
+    }
+    return `/admin?${params.toString()}`;
+  }
+  return buildErrorRedirect("refresh", code, connectionId ?? undefined);
+}
+
+function disconnectErrorRedirect(
+  session: Session,
+  code: CalendarConnectionFormErrorCode,
+): string {
+  if (session.user.role === "admin") {
+    const params = new URLSearchParams({
+      action: "disconnect_err",
+      error: code,
+    });
+    return `/admin?${params.toString()}`;
+  }
+  return buildErrorRedirect("disconnect", code);
+}
+
+export const __testing = {
+  resolveTargetUserId,
+  refreshErrorRedirect,
+  disconnectErrorRedirect,
+};

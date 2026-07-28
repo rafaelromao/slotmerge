@@ -9,14 +9,6 @@ import {
 
 const CSRF_TOKEN = "csrf-admin-status-test";
 
-function render(props: AdminStatusSectionProps): string {
-  return renderToString(<AdminStatusSection {...props} />);
-}
-
-function defaultProps(): AdminStatusSectionProps {
-  return { statusResult: makeResult(), csrfToken: CSRF_TOKEN };
-}
-
 function makeResult(
   overrides: Partial<AdminStatusSectionProps["statusResult"]> = {},
 ): AdminStatusSectionProps["statusResult"] {
@@ -53,7 +45,7 @@ describe("AdminStatusSection", () => {
       <AdminStatusSection statusResult={makeResult()} csrfToken={CSRF_TOKEN} />,
     );
 
-    expect(html).toContain("data-testid=\"admin-status-body\"");
+    expect(html).toContain("data-testid=\"admin-status-section\"");
     expect(html).toContain("data-testid=\"admin-status-generated-at\"");
     expect(html).toContain("2026-07-12T12:00:00.000Z");
     expect(html).toContain("Transactional email delivery");
@@ -211,7 +203,6 @@ describe("AdminStatusSection", () => {
 
     expect(html).toContain('data-testid="admin-status-email-warning"');
     expect(html).toContain('role="alert"');
-    expect(html).toContain('aria-live="polite"');
     expect(html).toContain(
       "Email delivery is degraded. The latest",
     );

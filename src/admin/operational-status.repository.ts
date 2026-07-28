@@ -161,25 +161,29 @@ export function createPostgresOperationalStatusRepository(
           value: count(),
         })
         .from(calendarConnections)
-        .groupBy(
-          calendarConnections.provider,
-          calendarConnections.status,
-        )
+        .groupBy(calendarConnections.provider, calendarConnections.status)
         .then((rows) => {
           const byProvider = new Map<
             CalendarProvider,
             CalendarProviderConnectionCounts
           >();
+          // Always seed every known provider with a zero bucket so the
+          // per-provider table renders even when a provider has no rows.
+          for (const provider of [
+            "google",
+            "microsoft",
+          ] as CalendarProvider[]) {
+            byProvider.set(provider, {
+              pending: 0,
+              connected: 0,
+              needsReconnect: 0,
+              disconnected: 0,
+            });
+          }
           for (const row of rows) {
-            let bucket = byProvider.get(row.provider);
+            const bucket = byProvider.get(row.provider);
             if (!bucket) {
-              bucket = {
-                pending: 0,
-                connected: 0,
-                needsReconnect: 0,
-                disconnected: 0,
-              };
-              byProvider.set(row.provider, bucket);
+              continue;
             }
             if (row.status === "pending") bucket.pending = Number(row.value);
             else if (row.status === "connected")

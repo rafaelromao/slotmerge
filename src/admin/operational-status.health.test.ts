@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
+  createAdminStatusWorkflow,
   deriveEmailFailureRate,
   deriveHealthFromInputs,
   deriveStatusTone,
@@ -18,13 +19,22 @@ describe("deriveEmailFailureRate", () => {
 
   it("returns the failed / (sent + failed) ratio as a percentage", () => {
     expect(
-      deriveEmailFailureRate({ sent: 95, failed: 5 } satisfies EmailFailureRateInput),
+      deriveEmailFailureRate({
+        sent: 95,
+        failed: 5,
+      } satisfies EmailFailureRateInput),
     ).toBe(5);
     expect(
-      deriveEmailFailureRate({ sent: 90, failed: 10 } satisfies EmailFailureRateInput),
+      deriveEmailFailureRate({
+        sent: 90,
+        failed: 10,
+      } satisfies EmailFailureRateInput),
     ).toBe(10);
     expect(
-      deriveEmailFailureRate({ sent: 80, failed: 20 } satisfies EmailFailureRateInput),
+      deriveEmailFailureRate({
+        sent: 80,
+        failed: 20,
+      } satisfies EmailFailureRateInput),
     ).toBe(20);
   });
 
@@ -115,6 +125,45 @@ describe("deriveHealthFromInputs", () => {
       email: "red",
       calendar: "red",
       tokens: "red",
+    });
+  });
+});
+
+describe("createAdminStatusWorkflow.load", () => {
+  it("returns the typed AdminStatusLoadResult with derived health", async () => {
+    const workflow = createAdminStatusWorkflow({
+      statusRepository: {
+        summarizeEmailDelivery: vi.fn().mockResolvedValue({
+          since: new Date("2026-07-11T12:00:00.000Z"),
+          counts: { queued: 0, sending: 0, sent: 95, failed: 5 },
+          recentFailures: [],
+        }),
+        summarizeCalendarConnections: vi.fn().mockResolvedValue({
+          counts: {
+            pending: 0,
+            connected: 0,
+            disconnected: 0,
+            needsReconnect: 1,
+          },
+          byProvider: [],
+          tokensNeedingRefresh: [],
+        }),
+      },
+      clock: { now: () => new Date("2026-07-12T12:00:00.000Z") },
+    });
+
+    const result = await workflow.load();
+
+    expect(result.generatedAt.toISOString()).toBe("2026-07-12T12:00:00.000Z");
+    expect(result.windowHours).toBe(24);
+    expect(result.emailFailureRate).toBe(5);
+    expect(result.pendingEmailCount).toBe(0);
+    expect(result.needsReconnectCount).toBe(1);
+    expect(result.tokensCount).toBe(0);
+    expect(result.health).toEqual({
+      email: "amber",
+      calendar: "amber",
+      tokens: "green",
     });
   });
 });

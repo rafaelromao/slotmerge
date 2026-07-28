@@ -23,7 +23,7 @@ test.describe("Admin Status journey", () => {
 
     await page.goto("/admin#status");
 
-    await expect(page.getByTestId("admin-status-body")).toBeVisible();
+    await expect(page.getByTestId("admin-status-section")).toBeVisible();
     await expect(
       page.getByTestId("admin-status-email-block"),
     ).toBeVisible();
@@ -51,31 +51,21 @@ test.describe("Admin Status journey", () => {
     expect(html).not.toContain("Send critical operational email");
   });
 
-  test("surfaces warning banners when Email failure rate > 5% or >1 needs_reconnect", async ({
+  test("surfaces the Calendar warning banner when >1 needs_reconnect exists (Email still green)", async ({
     page,
   }) => {
     await page.clock.install({ time: new Date("2026-07-12T12:00:00.000Z") });
 
-    await insertLocalTestRows({
-      needsReconnectCount: 2,
-      failedEmailCount: 3,
-    });
+    await insertLocalTestRows({ needsReconnectCount: 2 });
 
     await page.goto("/admin#status");
 
     await expect(
-      page.getByTestId("admin-status-email-warning"),
-    ).toBeVisible();
-    await expect(
       page.getByTestId("admin-status-calendar-warning"),
     ).toBeVisible();
-
-    const emailBanner = await page
-      .getByTestId("admin-status-email-warning")
-      .textContent();
-    expect(emailBanner).toContain("Email delivery is degraded");
-    expect(emailBanner).toContain("emailEvent");
-    expect(emailBanner).toContain("the next retry window");
+    await expect(
+      page.getByTestId("admin-status-email-warning"),
+    ).toHaveCount(0);
 
     const calendarBanner = await page
       .getByTestId("admin-status-calendar-warning")
@@ -89,13 +79,38 @@ test.describe("Admin Status journey", () => {
     expect(calendarBanner).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-/);
 
     await expect(
-      page.getByTestId("admin-status-email-pill"),
-    ).toHaveAttribute("data-status", "red");
-    await expect(
       page.getByTestId("admin-status-calendar-pill"),
     ).toHaveAttribute("data-status", "red");
 
-    await captureState(page, "admin", "status-warning");
+    await captureState(page, "admin", "status-warning-calendar");
+  });
+
+  test("surfaces the Email warning banner when Email failure rate > 5% (Calendar still green)", async ({
+    page,
+  }) => {
+    await page.clock.install({ time: new Date("2026-07-12T12:00:00.000Z") });
+
+    // 1 sent + 1 failed -> 50% failure rate. The trigger condition is
+    // failure rate > 5%, not the absolute number of failures.
+    await insertLocalTestRows({ failedEmailCount: 1 });
+
+    await page.goto("/admin#status");
+
+    await expect(
+      page.getByTestId("admin-status-email-warning"),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("admin-status-calendar-warning"),
+    ).toHaveCount(0);
+
+    const emailBanner = await page
+      .getByTestId("admin-status-email-warning")
+      .textContent();
+    expect(emailBanner).toContain("Email delivery is degraded");
+    expect(emailBanner).toContain("emailEvent");
+    expect(emailBanner).toContain("the next retry window");
+
+    await captureState(page, "admin", "status-warning-email");
   });
 
   test("renders tokens-needing-refresh rows with Refresh and Disconnect forms", async ({
@@ -138,7 +153,7 @@ test.describe("Admin Status journey", () => {
 
       await page.goto("/admin#status");
 
-      await expect(page.getByTestId("admin-status-body")).toBeVisible();
+      await expect(page.getByTestId("admin-status-section")).toBeVisible();
       await captureState(page, "admin", `status-expanded-${label}`);
     });
   }

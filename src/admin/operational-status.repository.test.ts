@@ -188,11 +188,21 @@ describe("createPostgresOperationalStatusRepository", () => {
     expect(summary.byProvider).toEqual([
       {
         provider: "google",
-        counts: { pending: 1, connected: 4, needsReconnect: 2, disconnected: 1 },
+        counts: {
+          pending: 1,
+          connected: 4,
+          needsReconnect: 2,
+          disconnected: 1,
+        },
       },
       {
         provider: "microsoft",
-        counts: { pending: 0, connected: 1, needsReconnect: 1, disconnected: 1 },
+        counts: {
+          pending: 0,
+          connected: 1,
+          needsReconnect: 1,
+          disconnected: 1,
+        },
       },
     ]);
     expect(summary.tokensNeedingRefresh).toHaveLength(3);

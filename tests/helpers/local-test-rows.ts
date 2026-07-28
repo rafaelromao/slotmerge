@@ -42,26 +42,18 @@ export type LocalTestRowInput = {
   tokensExpiringSoonCount?: number;
 };
 
-let counter = 0;
-
-function uniqueSuffix(): string {
-  counter += 1;
-  return `${Date.now()}-${counter}`;
-}
-
 export async function insertLocalTestRows(
   input: LocalTestRowInput,
 ): Promise<void> {
   await assertLocalTestRowsEnabled();
 
   const db = getPool();
-  const suffix = uniqueSuffix();
   const client = await db.connect();
   try {
     await client.query("BEGIN");
 
     for (let i = 0; i < (input.needsReconnectCount ?? 0); i += 1) {
-      const id = `00000000-0000-0000-0000-${suffix.padStart(12, "0").slice(-12)}-${i}nr`;
+      const id = crypto.randomUUID();
       await client.query(
         `INSERT INTO calendar_connections (
           id, user_id, provider, status, contributing_calendar_ids,
@@ -73,7 +65,7 @@ export async function insertLocalTestRows(
     }
 
     for (let i = 0; i < (input.failedEmailCount ?? 0); i += 1) {
-      const id = `00000000-0000-0000-0000-${suffix.padStart(12, "0").slice(-12)}-${i}fe`;
+      const id = crypto.randomUUID();
       await client.query(
         `INSERT INTO email_events (
           id, recipient, type, payload_reference, status,
@@ -88,7 +80,7 @@ export async function insertLocalTestRows(
     }
 
     for (let i = 0; i < (input.tokensExpiringSoonCount ?? 0); i += 1) {
-      const id = `00000000-0000-0000-0000-${suffix.padStart(12, "0").slice(-12)}-${i}te`;
+      const id = crypto.randomUUID();
       await client.query(
         `INSERT INTO calendar_connections (
           id, user_id, provider, status, access_token_expires_at,
@@ -113,15 +105,19 @@ export async function cleanupLocalTestRows(): Promise<void> {
     return;
   }
   const db = pool;
+  // Only delete rows that are NOT seeded fixtures. Seeded fixtures use
+  // well-known UUIDs (see tests/fixtures/seeds.ts).
   await db.query(
-    `DELETE FROM calendar_connections WHERE id::text LIKE '00000000-0000-0000-0000-%' AND id::text NOT IN (
-      '00000000-0000-0000-0000-000000000030',
-      '00000000-0000-0000-0000-000000000031'
-    )`,
+    `DELETE FROM calendar_connections
+     WHERE id NOT IN (
+       '00000000-0000-0000-0000-000000000030',
+       '00000000-0000-0000-0000-000000000031'
+     )
+     AND created_at > now() - interval '10 minutes'`,
   );
   await db.query(
-    `DELETE FROM email_events WHERE id::text LIKE '00000000-0000-0000-0000-%'`,
+    `DELETE FROM email_events
+     WHERE id NOT IN (SELECT id FROM email_events WHERE created_at < now() - interval '10 minutes')
+     AND created_at > now() - interval '10 minutes'`,
   );
-  await db.end();
-  pool = null;
 }

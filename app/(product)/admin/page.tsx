@@ -168,9 +168,7 @@ export default async function AdminPage({
             : `${intent} succeeded.`;
           return (
             <p
-              className={
-                isError ? "admin-error-banner" : "admin-info-banner"
-              }
+              className={isError ? "admin-error-banner" : "admin-info-banner"}
               role={isError ? "alert" : "status"}
               aria-live={isError ? "assertive" : "polite"}
               data-testid="admin-status-action-banner"
@@ -340,7 +338,10 @@ export default async function AdminPage({
             connection{calendarConnectionCount === 1 ? "" : "s"}
           </span>
         </summary>
-        <div className="admin-section-body" data-testid="admin-status-body">
+        <div
+          className="admin-section-body"
+          data-testid="admin-status-section-body"
+        >
           <AdminStatusSection
             statusResult={statusResult}
             csrfToken={context.csrfToken}

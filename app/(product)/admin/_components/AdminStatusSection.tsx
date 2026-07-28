@@ -28,13 +28,12 @@ export function AdminStatusSection({
   const generatedAtIso = statusResult.generatedAt.toISOString();
 
   return (
-    <div className="admin-status-section" data-testid="admin-status-body">
+    <div className="admin-status-section" data-testid="admin-status-section">
       <p
         className="admin-status-generated-at"
         data-testid="admin-status-generated-at"
       >
-        Generated at{" "}
-        <time dateTime={generatedAtIso}>{generatedAtIso}</time>
+        Generated at <time dateTime={generatedAtIso}>{generatedAtIso}</time>
       </p>
 
       <section
@@ -62,18 +61,20 @@ export function AdminStatusSection({
           <p
             className="admin-status-warning admin-status-email-warning"
             role="alert"
-            aria-live="polite"
             data-testid="admin-status-email-warning"
           >
-            Email delivery is degraded. The latest{" "}
-            <code>emailEvent</code> rows in the DB are the source of truth; a
-            re-run is automatic on the next retry window.
+            Email delivery is degraded. The latest <code>emailEvent</code> rows
+            in the DB are the source of truth; a re-run is automatic on the next
+            retry window.
           </p>
         ) : null}
         <p className="admin-status-window-note">
           Last {statusResult.windowHours} hours
         </p>
-        <dl className="admin-status-counts" data-testid="admin-status-email-counts">
+        <dl
+          className="admin-status-counts"
+          data-testid="admin-status-email-counts"
+        >
           <div className="admin-status-count-row">
             <dt>Pending</dt>
             <dd>{statusResult.pendingEmailCount}</dd>
@@ -88,9 +89,7 @@ export function AdminStatusSection({
           </div>
           <div className="admin-status-count-row">
             <dt>Failure rate</dt>
-            <dd>
-              {statusResult.emailFailureRate.toFixed(2)}%
-            </dd>
+            <dd>{statusResult.emailFailureRate.toFixed(2)}%</dd>
           </div>
         </dl>
       </section>
@@ -120,11 +119,10 @@ export function AdminStatusSection({
           <p
             className="admin-status-warning admin-status-calendar-warning"
             role="alert"
-            aria-live="polite"
             data-testid="admin-status-calendar-warning"
           >
             One or more Calendar connections need reconnect. Visit{" "}
-            <code>/me/calendar-connections</code> on the affected User&rsquo;s
+            <code>/me/calendar-connections</code> on the affected User&apos;s
             account to reconnect.
           </p>
         ) : null}
@@ -277,11 +275,7 @@ function TokenRow({
             data-testid={`admin-status-tokens-refresh-form-${row.connectionId}`}
           >
             <input type="hidden" name="_csrf" value={csrfToken} />
-            <input
-              type="hidden"
-              name="connectionId"
-              value={row.connectionId}
-            />
+            <input type="hidden" name="connectionId" value={row.connectionId} />
             <button
               type="submit"
               className="btn btn-secondary"
@@ -297,11 +291,7 @@ function TokenRow({
             data-testid={`admin-status-tokens-disconnect-form-${row.connectionId}`}
           >
             <input type="hidden" name="_csrf" value={csrfToken} />
-            <input
-              type="hidden"
-              name="connectionId"
-              value={row.connectionId}
-            />
+            <input type="hidden" name="connectionId" value={row.connectionId} />
             <label
               htmlFor={confirmInputId}
               className="admin-status-tokens-disconnect-label"

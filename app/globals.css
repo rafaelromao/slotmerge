@@ -2069,7 +2069,7 @@ button {
   display: inline-flex;
   align-items: center;
   padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
   border: 1px solid var(--border-subtle);
@@ -2090,7 +2090,7 @@ button {
 }
 
 .admin-status-pill[data-status="red"] {
-  background: var(--danger-soft, var(--warning-soft));
+  background: var(--surface-raised);
   border-color: var(--danger);
   color: var(--danger);
 }
@@ -2198,4 +2198,9 @@ button {
   .admin-status-counts {
     grid-template-columns: 1fr;
   }
+}
+
+.admin-status-tokens-disconnect-hint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
 }

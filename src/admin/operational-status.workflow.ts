@@ -39,9 +39,7 @@ const EMAIL_THRESHOLDS: StatusToneConfig = { greenMax: 4.99, amberMax: 10 };
 const CALENDAR_THRESHOLDS: StatusToneConfig = { greenMax: 0, amberMax: 1 };
 const TOKENS_THRESHOLDS: StatusToneConfig = { greenMax: 0, amberMax: 3 };
 
-export function deriveEmailFailureRate(
-  input: EmailFailureRateInput,
-): number {
+export function deriveEmailFailureRate(input: EmailFailureRateInput): number {
   const sent = input.sent ?? 0;
   const failed = input.failed ?? 0;
   const denominator = sent + failed;
@@ -71,10 +69,7 @@ export function deriveHealthFromInputs(inputs: HealthInputs): {
 } {
   return {
     email: deriveStatusTone(inputs.emailFailureRate, EMAIL_THRESHOLDS),
-    calendar: deriveStatusTone(
-      inputs.needsReconnectCount,
-      CALENDAR_THRESHOLDS,
-    ),
+    calendar: deriveStatusTone(inputs.needsReconnectCount, CALENDAR_THRESHOLDS),
     tokens: deriveStatusTone(inputs.tokensCount, TOKENS_THRESHOLDS),
   };
 }

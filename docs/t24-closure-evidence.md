@@ -86,3 +86,18 @@ The following 19 implementation tickets are closed. Each row records the T-numbe
 | T21 | [#307](https://github.com/rafaelromao/slotmerge/issues/307) | [#312](https://github.com/rafaelromao/slotmerge/pull/312) | n/a (E2E plan in-place update) | n/a | n/a |
 | T22 | [#308](https://github.com/rafaelromao/slotmerge/issues/308) | [#314](https://github.com/rafaelromao/slotmerge/pull/314) | n/a (compat adapter retirement) | n/a | n/a |
 | T23 | [#309](https://github.com/rafaelromao/slotmerge/issues/309) | [#315](https://github.com/rafaelromao/slotmerge/pull/315) | n/a (stale assertion cleanup) | n/a | n/a |
+
+## Open blockers
+
+Four implementation tickets remain open and gate the actual `Closes #14` step. Each row records the T-number, the issue number, the ticket title, and a one-line headline acceptance criterion drawn from `docs/implementation-graph.md` and `docs/e2e-plan.md`. The next runs close these tickets in dependency order; this PR is the durable artifact for the partial closure.
+
+| T | Issue | Title | Headline AC |
+| --- | --- | --- | --- |
+| T10 | [#296](https://github.com/rafaelromao/slotmerge/issues/296) | T10 End-to-end User journey | `tests/e2e-browser/journeys/user/end-to-end.spec.ts` drives invite → verify → setup checklist → profile → consent → topics → availability → calendar connection → sign-out with the User `storageState`. |
+| T17 | [#303](https://github.com/rafaelromao/slotmerge/issues/303) | T17 Admin Topics section | The Topics section of `/admin` shows the Pending Topic Proposals list with `Approve` and `Reject` actions and the Active Topics list with typed-confirm `Retire`, plus self-action protection for the Admin who proposed. |
+| T18 | [#304](https://github.com/rafaelromao/slotmerge/issues/304) | T18 Admin Status section | The Status section of `/admin` shows the generated timestamp, the 24h transactional Email health, the per-provider Calendar Connection summary, the Tokens-needing-refresh table, and read-only alert banners above bad sections. |
+| T19 | [#305](https://github.com/rafaelromao/slotmerge/issues/305) | T19 End-to-end Admin journey | `tests/e2e-browser/journeys/admin/end-to-end.spec.ts` drives invite → role change → suspend → reinstate → approve proposal → reject proposal → retire topic → status page with the Admin `storageState`. |
+
+## Downstream
+
+T25 ([#311](https://github.com/rafaelromao/slotmerge/issues/311), "Sub-PRD closures") depends on T24 (this document) per `docs/implementation-graph.md:224-232`. T25 is therefore downstream, not a blocker for the T24 closure work. Once this PR lands, T25 closes the five sub-PRDs (#15, #16, #17, #18, #19) by reproducing the per-sub-PRD subset of the AGENTS.md closure gates in each sub-PRD's closing comment.

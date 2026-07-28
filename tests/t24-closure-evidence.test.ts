@@ -271,4 +271,23 @@ describe("T24 closure evidence document", () => {
       ).toContain(expectedPrUrl);
     }
   });
+
+  it("identifies the four open blockers and classifies T25 as downstream", async () => {
+    const document = await readFile(DOCUMENT_PATH, "utf8");
+
+    expect(document).toContain("## Open blockers");
+    expect(document).toContain("## Downstream");
+
+    for (const issue of [296, 303, 304, 305]) {
+      const expectedUrl = `https://github.com/rafaelromao/slotmerge/issues/${issue}`;
+      expect(
+        document,
+        `Open-blocker table must reference issue #${issue}`,
+      ).toContain(expectedUrl);
+    }
+
+    expect(document, "T25 (#311) is downstream, not a blocker").toContain(
+      "https://github.com/rafaelromao/slotmerge/issues/311",
+    );
+  });
 });

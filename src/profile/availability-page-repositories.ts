@@ -1,15 +1,19 @@
 import {
   setWeeklyAvailabilityWindowRepositoryForTests,
+  createPostgresWeeklyAvailabilityWindowRepository,
   type WeeklyAvailabilityWindowRepository,
 } from "./availability-windows";
 import {
   setAvailabilityOverrideRepositoryForTests,
+  createPostgresAvailabilityOverrideRepository,
   type AvailabilityOverrideRepository,
 } from "./availability-overrides";
 import {
   setProfileRepositoryForTests,
+  createPostgresProfileRepository,
   type ProfileRepository,
 } from "./repository";
+import { systemClock } from "../system/clock";
 
 export type AvailabilityPageRepositories = {
   windows: WeeklyAvailabilityWindowRepository;
@@ -53,31 +57,11 @@ export function clearAvailabilityPageRepositoryOverrides(): void {
 
 export function buildAvailabilityPageRepositories(): AvailabilityPageRepositories {
   return {
-    windows: windowsOverride ?? {
-      add: () => {
-        throw new Error(
-          "windows repository not configured for availability page",
-        );
-      },
-      listByUserId: () => Promise.resolve([]),
-      findById: () => Promise.resolve(null),
-      updateById: () => Promise.resolve(null),
-      removeById: () => Promise.resolve(false),
-    },
-    overrides: overridesOverride ?? {
-      add: () => {
-        throw new Error(
-          "overrides repository not configured for availability page",
-        );
-      },
-      listByUserId: () => Promise.resolve([]),
-      findById: () => Promise.resolve(null),
-      removeById: () => Promise.resolve(false),
-    },
-    profile: profileOverride ?? {
-      findByUserId: () => Promise.resolve(null),
-      updateByUserId: () => Promise.resolve(null),
-      deleteByUserId: () => Promise.resolve(false),
-    },
+    windows:
+      windowsOverride ??
+      createPostgresWeeklyAvailabilityWindowRepository(systemClock()),
+    overrides:
+      overridesOverride ?? createPostgresAvailabilityOverrideRepository(),
+    profile: profileOverride ?? createPostgresProfileRepository(systemClock()),
   };
 }

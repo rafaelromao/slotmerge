@@ -399,7 +399,7 @@ test.describe("User end-to-end journey", () => {
       await expect(page.getByTestId("topics-saved-indicator")).toBeVisible();
       await captureState(page, "user/topics", "saved");
 
-      const candidate = `${PROPOSED_TOPIC_NAME} ${Date.now()}`;
+      const candidate = `${PROPOSED_TOPIC_NAME} ${new Date(FIXTURE_DATE).getTime()}`;
       await page.getByTestId("topics-propose-input").fill(candidate);
       await page.getByTestId("topics-propose-submit").click();
 

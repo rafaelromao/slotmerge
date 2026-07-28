@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import {
+  auditRecords,
   topicProposals,
   topics,
   userTopics,
@@ -68,6 +69,7 @@ export type TopicAdminRepository = {
   retire(input: { topicId: string; now: Date }): Promise<RetireResult>;
   retireTopic(input: {
     topicId: string;
+    actorId: string;
     now: Date;
   }): Promise<AdminRetireTopicResult>;
   listActiveTopics(): Promise<AdminTopicListItem[]>;
@@ -262,10 +264,10 @@ export function createPostgresTopicCatalogueRepository(
 
       return { ok: true };
     },
-    retireTopic: async ({ topicId: id, now }) => {
+    retireTopic: async ({ topicId: id, actorId, now }) => {
       const result = await db.transaction(async (tx) => {
         const [topic] = await tx
-          .select({ status: topics.status })
+          .select({ status: topics.status, name: topics.name })
           .from(topics)
           .where(eq(topics.id, id))
           .limit(1);
@@ -288,12 +290,25 @@ export function createPostgresTopicCatalogueRepository(
           return { ok: false, reason: "already_retired" } as const;
         }
 
-        await tx
+        const historical = await tx
           .update(userTopics)
           .set({ status: "historical", updatedAt: now })
           .where(
             and(eq(userTopics.topicId, id), eq(userTopics.status, "active")),
-          );
+          )
+          .returning({ id: userTopics.id });
+
+        await tx.insert(auditRecords).values({
+          actorId,
+          action: "retire-topic",
+          targetType: "topic",
+          targetId: id,
+          metadata: {
+            topicName: topic.name,
+            transitionedAssociationCount: historical.length,
+          },
+          createdAt: now,
+        });
 
         return { ok: true } as const;
       });

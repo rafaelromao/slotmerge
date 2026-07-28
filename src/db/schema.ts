@@ -209,6 +209,29 @@ export const localSmokeJobs = pgTable("local_smoke_jobs", {
   processedAt: timestamp("processed_at", { withTimezone: true }),
 });
 
+export const auditRecords = pgTable(
+  "audit_records",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorId: uuid("actor_id").notNull(),
+    action: text("action").notNull(),
+    targetType: text("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    actorIdIdx: index("audit_records_actor_id_idx").on(table.actorId),
+    targetIdIdx: index("audit_records_target_id_idx").on(table.targetId),
+    actionIdx: index("audit_records_action_idx").on(table.action),
+  }),
+);
+
 export const topics = pgTable("topics", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull().unique(),

@@ -2,6 +2,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import {
+  auditRecords,
   topicProposals,
   topics,
   users,
@@ -54,6 +55,7 @@ export type TopicProposalAdminRepository = {
   decideProposal(input: {
     proposalId: string;
     status: DecideProposalStatus;
+    actorId: string;
     now: Date;
   }): Promise<DecideProposalResult>;
 };
@@ -168,7 +170,7 @@ export function createPostgresTopicProposalRepository(
       return { ok: true };
     },
 
-    async decideProposal({ proposalId: id, status, now }) {
+    async decideProposal({ proposalId: id, status, actorId, now }) {
       const result = await db.transaction(async (tx) => {
         const [proposal] = await tx
           .select({
@@ -209,6 +211,16 @@ export function createPostgresTopicProposalRepository(
           .update(topicProposals)
           .set({ status, updatedAt: now })
           .where(eq(topicProposals.id, id));
+
+        await tx.insert(auditRecords).values({
+          actorId,
+          action:
+            status === "approved" ? "approve-proposal" : "reject-proposal",
+          targetType: "topic-proposal",
+          targetId: id,
+          metadata: { candidateName: proposal.candidateName },
+          createdAt: now,
+        });
 
         return { ok: true, topicId: createdTopicId } as const;
       });

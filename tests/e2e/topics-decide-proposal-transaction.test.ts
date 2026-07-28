@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, inject, it } from "vitest";
 
-import { topicProposals, topics } from "../../src/db/schema";
+import { auditRecords, topicProposals, topics } from "../../src/db/schema";
 import { getTopicAdminRepository } from "../../src/topics/repository";
 import { createAdminTopicsWorkflow } from "../../src/workflow/admin-topics";
 import { USER_FIXTURES, TOPIC_PROPOSAL_FIXTURES } from "../fixtures/seeds";
@@ -58,6 +58,20 @@ describe("E2E: adminTopicsWorkflow.decideProposal transactions", () => {
         .limit(1);
       expect(createdTopic?.status).toBe("active");
       expect(createdTopic?.proposedByUserId).toBe(proposer.id);
+
+      const approveAuditRows = await db
+        .select()
+        .from(auditRecords)
+        .where(eq(auditRecords.action, "approve-proposal"));
+      expect(approveAuditRows.length).toBeGreaterThan(0);
+      const approveAudit = approveAuditRows.find(
+        (row) => row.targetId === targetProposal.id,
+      );
+      expect(approveAudit?.actorId).toBe(USER_FIXTURES[2].id);
+      expect(approveAudit?.targetType).toBe("topic-proposal");
+      expect((approveAudit?.metadata as { candidateName?: string }).candidateName).toBe(
+        targetProposal.candidateName,
+      );
     },
   );
 
@@ -104,6 +118,17 @@ describe("E2E: adminTopicsWorkflow.decideProposal transactions", () => {
         .from(topics)
         .where(eq(topics.name, targetProposal.candidateName));
       expect(afterTopics).toHaveLength(0);
+
+      const rejectAuditRows = await db
+        .select()
+        .from(auditRecords)
+        .where(eq(auditRecords.action, "reject-proposal"));
+      expect(rejectAuditRows.length).toBeGreaterThan(0);
+      const rejectAudit = rejectAuditRows.find(
+        (row) => row.targetId === targetProposal.id,
+      );
+      expect(rejectAudit?.actorId).toBe(USER_FIXTURES[2].id);
+      expect(rejectAudit?.targetType).toBe("topic-proposal");
     },
   );
 
@@ -123,11 +148,13 @@ describe("E2E: adminTopicsWorkflow.decideProposal transactions", () => {
         repository.decideProposal({
           proposalId: targetProposal.id,
           status: "approved",
+          actorId: USER_FIXTURES[2].id,
           now: getTestClock()(),
         }),
         repository.decideProposal({
           proposalId: targetProposal.id,
           status: "approved",
+          actorId: USER_FIXTURES[2].id,
           now: getTestClock()(),
         }),
       ]);

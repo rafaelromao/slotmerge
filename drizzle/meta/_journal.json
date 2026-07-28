@@ -155,6 +155,13 @@
       "when": 1784721600015,
       "tag": "0015_topics_proposed_by_user_id",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1784721600016,
+      "tag": "0016_audit_records",
+      "breakpoints": true
     }
   ]
 }

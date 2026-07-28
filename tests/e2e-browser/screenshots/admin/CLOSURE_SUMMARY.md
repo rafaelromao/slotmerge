@@ -44,16 +44,29 @@ via `aria-describedby`. The `RetireTypedConfirm.test.tsx` suite proves
 the disabled state and unchanged `disabled=true` even when the typed
 name matches the topic.
 
-## Audit-record AC waiver
+## Audit records
 
-Per the implementation plan, the T17 audit-records sub-criterion is
-explicitly **waived** for this ticket (matching the precedent set by
-the T16 Admin Users PR #323, which closed without an `audit_logs`
-table). The repository transactions own the two data writes they
-exercise (Topic + Topic Proposal for `decideProposal`, Topic +
-`user_topics` for `retireTopic`). Adding an `audit_records` table and
-writer is deferred to a future audit-records ticket; the closing PR
-links that decision here as the binding rationale.
+`decideProposal` and `retireTopic` each insert a row into
+`audit_records` in the same Postgres transaction as their primary data
+writes, matching `docs/mvp-spec.md:84, 273, 396, 473`:
+
+- `decideProposal({ status: "approved" })` writes `action: "approve-proposal"`,
+  `targetType: "topic-proposal"`, `targetId: <proposal-id>`, and
+  `metadata: { candidateName }`.
+- `decideProposal({ status: "rejected" })` writes `action: "reject-proposal"`,
+  `targetType: "topic-proposal"`, `targetId: <proposal-id>`, and
+  `metadata: { candidateName }`.
+- `retireTopic` writes `action: "retire-topic"`, `targetType: "topic"`,
+  `targetId: <topic-id>`, and `metadata: { topicName, transitionedAssociationCount }`.
+
+The `audit_records` table (`drizzle/0016_audit_records.sql`) is
+non-personal: actor and target ids are stored as `uuid` columns
+without foreign-key constraints, so a User delete via
+`SET NULL`/`ON DELETE CASCADE` keeps the audit row intact (per
+`docs/mvp-spec.md:114, 424`). The migration is exercised by
+`tests/audit-records-migration.test.ts`; the same-transaction inserts
+are exercised by `tests/e2e/topics-decide-proposal-transaction.test.ts`
+and `tests/e2e/topics-retire-transaction.test.ts`.
 
 ## Legacy `/admin/topic-proposals` lifecycle
 

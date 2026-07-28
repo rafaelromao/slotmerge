@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { describe, expect, inject, it } from "vitest";
 
-import { topics, userTopics } from "../../src/db/schema";
+import { auditRecords, topics, userTopics } from "../../src/db/schema";
 import {
   getTopicAdminRepository,
   createPostgresTopicCatalogueRepository,
@@ -291,6 +291,50 @@ describe("E2E: adminTopicsWorkflow.retireTopic transactions", () => {
           ),
         );
       expect(historicalAssociations.length).toBeGreaterThan(0);
+    },
+  );
+
+  it.runIf(HAS_TEST_DB)(
+    "retireTopic also writes an audit_records row with the transitioned-association count in the same transaction",
+    async () => {
+      const db = getTestDb();
+      expect(db).not.toBeNull();
+      if (!db) return;
+
+      await setupTest();
+
+      const workflow = createAdminTopicsWorkflow({
+        repository: getTopicAdminRepository(),
+        clock: { now: getTestClock() },
+      });
+
+      const topicToRetire = TOPIC_FIXTURES[0];
+      const actor = USER_FIXTURES[0];
+
+      const result = await workflow.retireTopic({
+        actorId: actor.id,
+        topicId: topicToRetire.id,
+        confirmName: topicToRetire.name,
+      });
+
+      expect(result.ok).toBe(true);
+
+      const auditRows = await db
+        .select()
+        .from(auditRecords)
+        .where(eq(auditRecords.action, "retire-topic"));
+      expect(auditRows.length).toBeGreaterThan(0);
+      const target = auditRows.find(
+        (row) => row.targetId === topicToRetire.id,
+      );
+      expect(target?.actorId).toBe(actor.id);
+      expect(target?.targetType).toBe("topic");
+      const metadata = target?.metadata as {
+        topicName?: string;
+        transitionedAssociationCount?: number;
+      };
+      expect(metadata?.topicName).toBe(topicToRetire.name);
+      expect(metadata?.transitionedAssociationCount).toBeGreaterThanOrEqual(0);
     },
   );
 

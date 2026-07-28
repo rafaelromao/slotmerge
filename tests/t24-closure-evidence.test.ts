@@ -303,10 +303,9 @@ describe("T24 closure evidence document", () => {
       "pnpm test",
       "pnpm build",
     ]) {
-      expect(
-        document,
-        `PR-CI gate section must list \`${command}\``,
-      ).toContain(command);
+      expect(document, `PR-CI gate section must list \`${command}\``).toContain(
+        command,
+      );
     }
 
     expect(document).toContain("workflow_dispatch");

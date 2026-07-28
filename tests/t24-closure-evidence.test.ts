@@ -6,6 +6,9 @@ const DOCUMENT_PATH = "docs/t24-closure-evidence.md";
 const AGENTS_PATH = "AGENTS.md";
 const AGENTS_CLOSURE_GATE_FIRST_LINE = 51;
 const AGENTS_CLOSURE_GATE_LAST_LINE = 66;
+const IMPLEMENTATION_GRAPH_PATH = "docs/implementation-graph.md";
+const T24_ENTRY_FIRST_LINE = 218;
+const T24_ENTRY_LAST_LINE = 222;
 
 function sliceLines(text: string, firstLine: number, lastLine: number): string {
   return text
@@ -63,5 +66,18 @@ describe("T24 closure evidence document", () => {
     const fencedBlocks = extractFencedBlocks(document);
 
     expect(fencedBlocks).toContain(agentsClosureGates);
+  });
+
+  it("reproduces the implementation-graph T24 entry verbatim", async () => {
+    const graph = await readFile(IMPLEMENTATION_GRAPH_PATH, "utf8");
+    const t24Entry = sliceLines(
+      graph,
+      T24_ENTRY_FIRST_LINE,
+      T24_ENTRY_LAST_LINE,
+    );
+    const document = await readFile(DOCUMENT_PATH, "utf8");
+    const fencedBlocks = extractFencedBlocks(document);
+
+    expect(fencedBlocks).toContain(t24Entry);
   });
 });

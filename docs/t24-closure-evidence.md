@@ -22,3 +22,15 @@ The following block reproduces `AGENTS.md` lines 51–66 character-for-character
     - **CI gate policy**: PR CI runs `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build` (Vitest only). Playwright and the visual capture run only on the `workflow_dispatch` lanes `browser-tests.yml` and `visual-regression.yml`. PR CI does not run Playwright; the locked "E2E tests are not executed in CI" decision is preserved.
     - **Tracker closure rule**: every implementation ticket body has a `Closure Evidence` section listing the Playwright journey file path, the Vitest test file path, the component test file path, the visual capture artifact path, and the AGENTS.md acceptance bar checked. The closing PR comment reproduces each link verbatim. Sandman performs the PR review with a separate agent; that review is the binding review mechanism for the locked test framework, but the review does not replace the closure-evidence set above. The legacy "Closed by sandman — issue already completed" auto-closure comment is not a substitute for the closure-evidence set and remains disallowed as a stand-alone closure reason.
 ```
+
+## Implementation-graph T24 entry
+
+The following block reproduces `docs/implementation-graph.md` lines 218–222 character-for-character, per the [implementation ticket graph T24 entry](https://github.com/rafaelromao/slotmerge/blob/main/docs/implementation-graph.md#24-top-level-prd-14-closure) referenced by issue #310 and the [SlotMerge MVP PRD](https://github.com/rafaelromao/slotmerge/issues/14) closure contract.
+
+```text
+### T24. Top-level PRD #14 closure
+
+- **Depends on**: T1–T23.
+- **Owns**: the closure of issue #14. The closing comment reproduces the closure evidence set: every screen ticket under the five sub-PRDs is closed with the AGENTS.md closure evidence; the three end-to-end Playwright journeys pass; the visual capture run produces the per-screen baselines; the spec/PRD/E2E plan repair PRs are merged; a human reviewer has signed the closure.
+- **Closure evidence**: the AGENTS.md closure-gate set reproduced verbatim; the link to each end-to-end Playwright journey run; the link to the visual capture artifacts; the human reviewer's sign-off.
+```

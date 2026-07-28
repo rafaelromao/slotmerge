@@ -1,12 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { getServerSession } from "../../src/auth/session";
 import { createProductionSetupHomeWorkflow } from "../../src/workflow/setup-home-production";
-import { requestMagicLinkAction } from "./_actions/request-magic-link";
 
 type SearchParams = Promise<{
-  error?: string | string[];
-  sent?: string | string[];
+  returnTo?: string | string[];
 }>;
 
 type SetupCardConfig = {
@@ -58,53 +57,11 @@ export default async function SetupHomePage({
 
   if (!session) {
     const params = (await searchParams) ?? {};
-    const errorCode = firstString(params.error);
-    const sentFlag = firstString(params.sent) === "1";
-    return (
-      <main className="app-container">
-        <h1>Please sign in to continue.</h1>
-        {sentFlag ? (
-          <p className="sign-in-sent" role="status" data-testid="sign-in-sent">
-            Check your email for a magic link.
-          </p>
-        ) : (
-          <form
-            className="sign-in-form"
-            data-testid="sign-in-form"
-            action={requestMagicLinkAction}
-          >
-            <label className="sign-in-label" htmlFor="sign-in-email">
-              Email
-            </label>
-            <input
-              id="sign-in-email"
-              name="email"
-              type="email"
-              className="sign-in-input"
-              data-testid="sign-in-email"
-              required
-            />
-            <button
-              type="submit"
-              className="btn btn-primary sign-in-submit"
-              data-testid="sign-in-submit"
-            >
-              Send magic link
-            </button>
-            {errorCode ? (
-              <p
-                className="sign-in-error"
-                role="alert"
-                aria-live="polite"
-                data-testid="sign-in-error"
-              >
-                {errorMessageFor(errorCode)}
-              </p>
-            ) : null}
-          </form>
-        )}
-      </main>
-    );
+    const returnTo = firstString(params.returnTo);
+    const target = returnTo
+      ? `/sign-in?returnTo=${encodeURIComponent("/" + (returnTo.startsWith("/") ? returnTo.slice(1) : returnTo))}`
+      : "/sign-in";
+    redirect(target);
   }
 
   const result = await createProductionSetupHomeWorkflow().loadSummary({
@@ -167,21 +124,6 @@ function firstString(value: string | string[] | undefined): string | null {
     return value[0] ?? null;
   }
   return value ?? null;
-}
-
-function errorMessageFor(code: string): string {
-  switch (code) {
-    case "not_invited":
-      return "This email is not on the invite list. Ask an admin to invite you.";
-    case "invalid_email":
-      return "Please enter a valid email address.";
-    case "rate_limited":
-      return "Too many requests. Please try again in a minute.";
-    case "network_error":
-      return "Could not reach the server. Check your connection and try again.";
-    default:
-      return "We could not send a magic link. Please try again.";
-  }
 }
 
 type SetupCardProps = {

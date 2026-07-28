@@ -149,12 +149,12 @@ describe("Setup Home page component", () => {
     expect(html).toContain('data-testid="avatar-dropdown-trigger"');
   });
 
-  it("renders signed-out message when no session", async () => {
+  it("redirects to /sign-in when no session", async () => {
     mockServerSessionNull();
 
     const { default: Page } = await import("../app/(product)/page");
-    const html = renderToString(await Page());
-
-    expect(html).toContain("Please sign in to continue.");
+    await expect(Page()).rejects.toMatchObject({
+      digest: expect.stringMatching(/NEXT_REDIRECT.*\/sign-in/),
+    });
   });
 });

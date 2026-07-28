@@ -24,27 +24,23 @@ test.describe("Admin Status journey", () => {
     await page.goto("/admin#status");
 
     await expect(page.getByTestId("admin-status-section")).toBeVisible();
-    await expect(
-      page.getByTestId("admin-status-email-block"),
-    ).toBeVisible();
-    await expect(
-      page.getByTestId("admin-status-calendar-block"),
-    ).toBeVisible();
-    await expect(
-      page.getByTestId("admin-status-tokens-block"),
-    ).toBeVisible();
+    await expect(page.getByTestId("admin-status-email-block")).toBeVisible();
+    await expect(page.getByTestId("admin-status-calendar-block")).toBeVisible();
+    await expect(page.getByTestId("admin-status-tokens-block")).toBeVisible();
 
-    await expect(
-      page.getByTestId("admin-status-email-pill"),
-    ).toHaveAttribute("data-status", "green");
+    await expect(page.getByTestId("admin-status-email-pill")).toHaveAttribute(
+      "data-status",
+      "green",
+    );
     await expect(
       page.getByTestId("admin-status-calendar-pill"),
     ).toHaveAttribute("data-status", "green");
-    await expect(
-      page.getByTestId("admin-status-tokens-pill"),
-    ).toHaveAttribute("data-status", "green");
+    await expect(page.getByTestId("admin-status-tokens-pill")).toHaveAttribute(
+      "data-status",
+      "green",
+    );
 
-    await captureState(page, "admin", "status-expanded");
+    await captureState(page, "admin/status", "status-expanded");
 
     const html = await page.content();
     expect(html).not.toContain("Refresh now");
@@ -63,9 +59,7 @@ test.describe("Admin Status journey", () => {
     await expect(
       page.getByTestId("admin-status-calendar-warning"),
     ).toBeVisible();
-    await expect(
-      page.getByTestId("admin-status-email-warning"),
-    ).toHaveCount(0);
+    await expect(page.getByTestId("admin-status-email-warning")).toHaveCount(0);
 
     const calendarBanner = await page
       .getByTestId("admin-status-calendar-warning")
@@ -82,7 +76,7 @@ test.describe("Admin Status journey", () => {
       page.getByTestId("admin-status-calendar-pill"),
     ).toHaveAttribute("data-status", "red");
 
-    await captureState(page, "admin", "status-warning-calendar");
+    await captureState(page, "admin/status", "status-warning-calendar");
   });
 
   test("surfaces the Email warning banner when Email failure rate > 5% (Calendar still green)", async ({
@@ -96,12 +90,10 @@ test.describe("Admin Status journey", () => {
 
     await page.goto("/admin#status");
 
-    await expect(
-      page.getByTestId("admin-status-email-warning"),
-    ).toBeVisible();
-    await expect(
-      page.getByTestId("admin-status-calendar-warning"),
-    ).toHaveCount(0);
+    await expect(page.getByTestId("admin-status-email-warning")).toBeVisible();
+    await expect(page.getByTestId("admin-status-calendar-warning")).toHaveCount(
+      0,
+    );
 
     const emailBanner = await page
       .getByTestId("admin-status-email-warning")
@@ -110,7 +102,7 @@ test.describe("Admin Status journey", () => {
     expect(emailBanner).toContain("emailEvent");
     expect(emailBanner).toContain("the next retry window");
 
-    await captureState(page, "admin", "status-warning-email");
+    await captureState(page, "admin/status", "status-warning-email");
   });
 
   test("renders tokens-needing-refresh rows with Refresh and Disconnect forms", async ({
@@ -135,7 +127,7 @@ test.describe("Admin Status journey", () => {
       page.locator('[data-testid^="admin-status-tokens-disconnect-"]').first(),
     ).toBeVisible();
 
-    await captureState(page, "admin", "status-tokens-needing-refresh");
+    await captureState(page, "admin/status", "status-tokens-needing-refresh");
   });
 
   for (const [label, width, height] of [
@@ -154,7 +146,7 @@ test.describe("Admin Status journey", () => {
       await page.goto("/admin#status");
 
       await expect(page.getByTestId("admin-status-section")).toBeVisible();
-      await captureState(page, "admin", `status-expanded-${label}`);
+      await captureState(page, "admin/status", `status-expanded-${label}`);
     });
   }
 });

@@ -15,7 +15,9 @@ type CapturedEmailsResponse = {
   }>;
 };
 
-async function getCapturedEmails(email: string): Promise<CapturedEmailsResponse> {
+async function getCapturedEmails(
+  email: string,
+): Promise<CapturedEmailsResponse> {
   try {
     const response = await fetch(
       `${BASE_URL}/api/local/emails/${encodeURIComponent(email)}`,
@@ -42,7 +44,7 @@ test.describe("Admin users journey", () => {
     await expect(page.getByRole("heading", { name: "Admin" })).toBeVisible();
     await expect(page.getByTestId("admin-users-summary")).toBeVisible();
 
-    await captureState(page, "admin", "users-expanded");
+    await captureState(page, "admin/users", "users-expanded");
 
     await expect(page.getByTestId("invite-form")).toBeVisible();
     await expect(page.getByTestId("users-table")).toBeVisible();
@@ -60,7 +62,7 @@ test.describe("Admin users journey", () => {
     await expect(
       page.getByTestId(`suspend-confirm-input-${ADMIN_USER_ID}`),
     ).toHaveCount(0);
-    await captureState(page, "admin", "self-row-disabled");
+    await captureState(page, "admin/users", "self-row-disabled");
 
     const targetRow = page.getByTestId(`users-row-${TARGET_USER_ID}`);
     await expect(targetRow).toBeVisible();
@@ -81,7 +83,7 @@ test.describe("Admin users journey", () => {
     await expect(banner).toBeVisible();
     await expect(banner).toContainText(MASKED_INVITE_EMAIL);
 
-    await captureState(page, "admin", "users-after-invite");
+    await captureState(page, "admin/users", "users-after-invite");
 
     const previousEmails = await getCapturedEmails(NEW_INVITE_EMAIL);
     const previousCount = previousEmails.emails.filter(
@@ -118,7 +120,7 @@ test.describe("Admin users journey", () => {
 
     await confirmInput.fill(TARGET_USER_EMAIL);
     await expect(suspendButton).toBeEnabled();
-    await captureState(page, "admin", "users-suspend-confirm");
+    await captureState(page, "admin/users", "users-suspend-confirm");
 
     await suspendButton.click();
 
@@ -129,16 +131,14 @@ test.describe("Admin users journey", () => {
     );
     await expect(page.getByTestId("admin-suspend-banner")).toBeVisible();
 
-    await expect(
-      page.getByTestId(`users-status-${TARGET_USER_ID}`),
-    ).toHaveText("Suspended");
+    await expect(page.getByTestId(`users-status-${TARGET_USER_ID}`)).toHaveText(
+      "Suspended",
+    );
 
     await expect(
       page.getByTestId(`users-reinstate-button-${TARGET_USER_ID}`),
     ).toBeVisible();
-    await page
-      .getByTestId(`users-reinstate-button-${TARGET_USER_ID}`)
-      .click();
+    await page.getByTestId(`users-reinstate-button-${TARGET_USER_ID}`).click();
 
     await page.waitForURL(
       (url) =>
@@ -146,9 +146,9 @@ test.describe("Admin users journey", () => {
         url.searchParams.get("action") === "reinstated",
     );
     await expect(page.getByTestId("admin-reinstate-banner")).toBeVisible();
-    await expect(
-      page.getByTestId(`users-status-${TARGET_USER_ID}`),
-    ).toHaveText("Active");
+    await expect(page.getByTestId(`users-status-${TARGET_USER_ID}`)).toHaveText(
+      "Active",
+    );
   });
 
   test("admin cannot invite their own email", async ({ page }) => {
@@ -160,14 +160,15 @@ test.describe("Admin users journey", () => {
     await page.getByTestId("invite-email").fill("admin@example.com");
     await page.getByTestId("invite-submit").click();
 
-    await page.waitForURL((url) =>
-      url.pathname === "/admin" &&
-      url.searchParams.get("error") === "self_invite",
+    await page.waitForURL(
+      (url) =>
+        url.pathname === "/admin" &&
+        url.searchParams.get("error") === "self_invite",
     );
     await expect(page.getByTestId("admin-error-banner")).toBeVisible();
     await expect(page.getByTestId("admin-error-banner")).toContainText(
       "You cannot invite yourself.",
     );
-    await captureState(page, "admin", "users-self-invite-error");
+    await captureState(page, "admin/users", "users-self-invite-error");
   });
 });

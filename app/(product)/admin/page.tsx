@@ -13,12 +13,22 @@ import {
   resendInviteAction,
   suspendAction,
 } from "./_actions/users";
+import {
+  approveProposalAction,
+  rejectProposalAction,
+  retireTopicAction,
+} from "./_actions/topics";
 import { SuspendTypedConfirm } from "./_components/SuspendTypedConfirm";
+import { RetireTypedConfirm } from "./_components/RetireTypedConfirm";
 import { SectionDeepLink } from "./_components/SectionDeepLink";
 import { AdminStatusSection } from "./_components/AdminStatusSection";
 import type { UserListItem } from "../../../src/admin/users.repository";
 import type { UserRole, UserStatus } from "../../../src/db/schema";
 import type { AdminUsersRecentInvite } from "../../../src/workflow/admin-users";
+import type {
+  AdminTopicListItem,
+  AdminTopicProposalListItem,
+} from "../../../src/topics/repository";
 
 type SearchParams = Promise<{
   invited?: string | string[];
@@ -137,6 +147,39 @@ export default async function AdminPage({
           data-testid="admin-suspend-banner"
         >
           User suspended and active sessions revoked.
+        </p>
+      ) : null}
+
+      {firstString(params.action) === "topic_approved" ? (
+        <p
+          className="admin-info-banner"
+          role="status"
+          aria-live="polite"
+          data-testid="admin-topic-approved-banner"
+        >
+          Topic proposal approved and added to the catalogue.
+        </p>
+      ) : null}
+
+      {firstString(params.action) === "topic_rejected" ? (
+        <p
+          className="admin-info-banner"
+          role="status"
+          aria-live="polite"
+          data-testid="admin-topic-rejected-banner"
+        >
+          Topic proposal rejected.
+        </p>
+      ) : null}
+
+      {firstString(params.action) === "topic_retired" ? (
+        <p
+          className="admin-info-banner"
+          role="status"
+          aria-live="polite"
+          data-testid="admin-topic-retired-banner"
+        >
+          Topic retired. Historical associations preserved.
         </p>
       ) : null}
 
@@ -319,10 +362,21 @@ export default async function AdminPage({
           <h2 className="admin-section-heading">Topics</h2>
           <span className="admin-section-summary-line">
             {activeTopicCount} active topic{activeTopicCount === 1 ? "" : "s"}
+            {topicsResult.pendingCount > 0
+              ? ` · ${topicsResult.pendingCount} pending proposal${topicsResult.pendingCount === 1 ? "" : "s"}`
+              : null}
           </span>
         </summary>
         <div className="admin-section-body" data-testid="admin-topics-body">
-          <p>Topics section is a placeholder for T17.</p>
+          <PendingTopicProposals
+            pendingProposals={topicsResult.pendingProposals}
+            csrfToken={context.csrfToken}
+          />
+          <ActiveTopics
+            activeTopics={topicsResult.activeTopics}
+            actorId={context.user.id}
+            csrfToken={context.csrfToken}
+          />
         </div>
       </details>
 
@@ -399,8 +453,28 @@ function errorMessageFor(code: string): string {
     case "invalid_resend":
       return "Choose a valid invite to resend.";
     case "resend_failed":
-    default:
       return "We could not resend the invite. Please try again.";
+    case "topic_proposal_invalid":
+      return "Choose a valid Topic Proposal to decide on.";
+    case "topic_invalid_topic":
+      return "Choose a valid Topic to retire.";
+    case "topic_proposal_not_found":
+      return "That Topic Proposal no longer exists.";
+    case "topic_proposal_already_decided":
+      return "That Topic Proposal has already been decided.";
+    case "topic_cannot_retire_own_proposal":
+      return "You cannot retire a Topic you proposed.";
+    case "topic_not_found":
+      return "That Topic no longer exists.";
+    case "topic_already_retired":
+      return "That Topic is already retired.";
+    case "topic_confirm_name_required":
+      return "Type the Topic's name to confirm retirement.";
+    case "topic_confirm_name_mismatch":
+      return "The typed name does not match the Topic. Type the Topic's exact name to confirm.";
+    case "topic_error_unknown":
+    default:
+      return "We could not complete that Topics action. Please try again.";
   }
 }
 
@@ -555,4 +629,164 @@ function InviteRow({
       </td>
     </tr>
   );
+}
+
+function PendingTopicProposals({
+  pendingProposals,
+  csrfToken,
+}: {
+  pendingProposals: AdminTopicProposalListItem[];
+  csrfToken: string;
+}) {
+  return (
+    <section
+      className="pending-topic-proposals"
+      data-testid="pending-topic-proposals"
+    >
+      <h3 className="pending-topic-proposals-heading">
+        Pending Topic Proposals
+      </h3>
+      {pendingProposals.length === 0 ? (
+        <p className="empty-state" data-testid="topics-pending-empty">
+          No pending Topic Proposals.
+        </p>
+      ) : (
+        <table
+          className="pending-topic-proposals-table"
+          data-testid="pending-topic-proposals-table"
+        >
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Proposing User</th>
+              <th scope="col">Date</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pendingProposals.map((proposal) => (
+              <PendingProposalRow
+                key={proposal.id}
+                proposal={proposal}
+                csrfToken={csrfToken}
+              />
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
+function PendingProposalRow({
+  proposal,
+  csrfToken,
+}: {
+  proposal: AdminTopicProposalListItem;
+  csrfToken: string;
+}) {
+  return (
+    <tr data-testid={`topics-proposal-row-${proposal.id}`}>
+      <td>{proposal.candidateName}</td>
+      <td>{proposal.proposedByUserEmail ?? "(deleted User)"}</td>
+      <td>{formatProposalDate(proposal.createdAt)}</td>
+      <td>
+        <div className="topics-proposal-actions">
+          <form
+            className="topics-proposal-approve-form"
+            data-testid={`topics-approve-form-${proposal.id}`}
+            action={approveProposalAction}
+          >
+            <input type="hidden" name="_csrf" value={csrfToken} />
+            <input type="hidden" name="proposalId" value={proposal.id} />
+            <button
+              type="submit"
+              className="btn btn-primary"
+              data-testid={`topics-approve-${proposal.id}`}
+            >
+              Approve
+            </button>
+          </form>
+          <form
+            className="topics-proposal-reject-form"
+            data-testid={`topics-reject-form-${proposal.id}`}
+            action={rejectProposalAction}
+          >
+            <input type="hidden" name="_csrf" value={csrfToken} />
+            <input type="hidden" name="proposalId" value={proposal.id} />
+            <button
+              type="submit"
+              className="btn btn-secondary"
+              data-testid={`topics-reject-${proposal.id}`}
+            >
+              Reject
+            </button>
+          </form>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function ActiveTopics({
+  activeTopics,
+  actorId,
+  csrfToken,
+}: {
+  activeTopics: AdminTopicListItem[];
+  actorId: string;
+  csrfToken: string;
+}) {
+  return (
+    <section className="active-topics" data-testid="active-topics">
+      <h3 className="active-topics-heading">Active Topics</h3>
+      {activeTopics.length === 0 ? (
+        <p className="empty-state" data-testid="topics-active-empty">
+          No active Topics.
+        </p>
+      ) : (
+        <table
+          className="active-topics-table"
+          data-testid="active-topics-table"
+        >
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activeTopics.map((topic) => (
+              <tr
+                key={topic.id}
+                data-testid={`topics-active-row-${topic.id}`}
+                data-self-action={
+                  topic.proposedByUserId === actorId ? "true" : "false"
+                }
+              >
+                <td>{topic.name}</td>
+                <td>
+                  <RetireTypedConfirm
+                    topicId={topic.id}
+                    topicName={topic.name}
+                    csrfToken={csrfToken}
+                    disabledBySelfAction={topic.proposedByUserId === actorId}
+                    action={retireTopicAction}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
+function formatProposalDate(date: Date): string {
+  try {
+    return date.toISOString().slice(0, 10);
+  } catch {
+    return "";
+  }
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createAdminTopicProposalsHandlers } from "./topic-proposals";
+import type { TopicProposalAdminRepository } from "../topics/proposals.repository";
 
 describe("admin topic-proposals", () => {
   const mockPendingProposal = {
@@ -30,7 +31,7 @@ describe("admin topic-proposals", () => {
         listPending: vi.fn().mockResolvedValue([mockPendingProposal]),
         approve: vi.fn(),
         reject: vi.fn(),
-      },
+      } as unknown as TopicProposalAdminRepository,
     });
 
     const response = await GET(
@@ -65,7 +66,7 @@ describe("admin topic-proposals", () => {
         listPending: vi.fn().mockResolvedValue([]),
         approve: vi.fn(),
         reject: vi.fn(),
-      },
+      } as unknown as TopicProposalAdminRepository,
     });
 
     const response = await GET(
@@ -100,7 +101,7 @@ describe("admin topic-proposals", () => {
         listPending: vi.fn().mockResolvedValue([mockPendingProposal]),
         approve,
         reject: vi.fn(),
-      },
+      } as unknown as TopicProposalAdminRepository,
     });
 
     const response = await POST(
@@ -148,7 +149,7 @@ describe("admin topic-proposals", () => {
         listPending: vi.fn().mockResolvedValue([mockPendingProposal]),
         approve: vi.fn(),
         reject,
-      },
+      } as unknown as TopicProposalAdminRepository,
     });
 
     const response = await POST(
@@ -196,7 +197,7 @@ describe("admin topic-proposals", () => {
         listPending: vi.fn().mockResolvedValue([mockPendingProposal]),
         approve,
         reject: vi.fn(),
-      },
+      } as unknown as TopicProposalAdminRepository,
     });
 
     const response = await POST(
@@ -240,7 +241,7 @@ describe("admin topic-proposals", () => {
         listPending: vi.fn().mockResolvedValue([mockPendingProposal]),
         approve,
         reject: vi.fn(),
-      },
+      } as unknown as TopicProposalAdminRepository,
     });
 
     const response = await POST(
@@ -280,7 +281,7 @@ describe("admin topic-proposals", () => {
         listPending: vi.fn().mockResolvedValue([]),
         approve: vi.fn(),
         reject: vi.fn(),
-      },
+      } as unknown as TopicProposalAdminRepository,
     });
 
     const getResponse = await GET(
@@ -303,7 +304,7 @@ describe("admin topic-proposals", () => {
         listPending: vi.fn().mockResolvedValue([]),
         approve: vi.fn(),
         reject: vi.fn(),
-      },
+      } as unknown as TopicProposalAdminRepository,
     });
 
     const getResponse = await GET(

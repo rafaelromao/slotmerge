@@ -1,86 +1,93 @@
-# T16 Admin Users section closure summary
+# T17 Admin Topics section closure summary
 
-This is the closure summary for issue #302 and PR #323. Each entry
-maps an acceptance criterion to the evidence on the current head
-(`b4ce58f2`) and identifies the remaining workflow-only artifacts.
+This is the closure summary for issue #303 (T17: Admin Topics section).
+It builds on the T16 Users closure summary at the previous head and adds
+the Topics-specific evidence.
 
 ## Rendered-screen completion gates (AGENTS.md)
 
-| Gate                                  | Evidence                                                                                                                              |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Playwright happy-path                 | `tests/e2e-browser/journeys/admin/users.spec.ts:35`                                                                                    |
-| Playwright failure-path               | `tests/e2e-browser/journeys/admin/users.spec.ts:154`                                                                                   |
-| Vitest unit tests at workflow boundary| `src/workflow/admin-users.test.ts` (24 typed-`Result` cases, including email validation and resend-in-place coverage)               |
-| Component tests (renderToString)      | `tests/app-admin-page.test.tsx` — three-section render, empty-state CTA, fragment IDs, masked-email banner, Recent-invites row markup |
-| Visual capture: PNGs                  | `tests/e2e-browser/screenshots/admin/{users-expanded,self-row-disabled,users-after-invite,users-suspend-confirm,users-self-invite-error}.png` |
-| Visual capture: WebM                  | `playwright/.artifacts/test-results/journeys-admin-users-Admin-e0c6e-pends-and-reinstates-a-User-capture/video.webm` (capture lane, not committed) |
-| Vitest e2e: refreshInvite transaction | `tests/e2e/admin-invites-refresh-transaction.test.ts` (3 DB-backed cases)                                                              |
-| Vitest unit: Admin invite/role et al  | `tests/e2e/admin-invites-user-from-admin-users-screen.test.ts`, `tests/e2e/admin-manages-users-role-suspend-reinstate.test.ts` (legacy handler coverage; not regressed) |
-| WCAG 2.1 AA bar                       | `app/(product)/admin/page.tsx` uses `role="status"` / `role="alert"` banners with `aria-live`; every form input has a label (the visible `<label>` on the invite form, the visually-hidden `<label class="visually-hidden">` on the role select). The role dropdown carries a `disabled` + tooltip on the Admin row, and the typed-confirm island uses a labelled `code` reference. |
-| Three-tier responsive bar            | The Admin shell is a single-column flow at <1024px (no float / no media queries are required for the prototype shape — the page renders correctly at 1280px capture width and on phones). |
-| SSR first paint                       | `app/(product)/admin/page.tsx` is an `async function` RSC; no `useEffect` fetches in the page body; the Admin users section content is in the server-rendered HTML. |
-| Empty-state with primary action       | `app/(product)/admin/page.tsx` renders the `.empty-state` block with a deep-linking "Invite a user" CTA when `users.users.length === 0`. |
-| Browser-journey coverage (admin)      | `tests/e2e-browser/journeys/admin/users.spec.ts` (this PR)                                                                              |
+| Gate                                          | Evidence                                                                                                                                                                                                                            |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Playwright happy-path (Topics)                | `tests/e2e-browser/journeys/admin/topics.spec.ts:21`                                                                                                                                                                                |
+| Playwright failure-path (own-proposal guard)  | `tests/e2e-browser/journeys/admin/topics.spec.ts:120`                                                                                                                                                                                |
+| Playwright 308-redirect (legacy alias)        | `tests/e2e-browser/journeys/admin/topics.spec.ts:148` (`GET /admin/topic-proposals` 308-redirects to `/admin#topics`)                                                                                                                |
+| Vitest unit tests at workflow boundary        | `src/workflow/admin-topics.test.ts` (typed `Result<T, E>` coverage for `load`, `decideProposal` approve/reject/error branches, `retireTopic` self-action guard + confirm + mismatch + already-retired + case-insensitive typed match) |
+| Vitest Server Action tests                    | `app/(product)/admin/_actions/topics.test.ts` (CSRF, role enforcement, exact workflow invocation shape, exact redirect targets per branch)                                                                                          |
+| Component tests (renderToString + happy-dom)  | `app/(product)/admin/_components/RetireTypedConfirm.test.tsx` (disabled-by-default, enables on case-insensitive typed match, disabled when `disabledBySelfAction`, exact help text / `title` / `aria-describedby`)                    |
+| Vitest e2e: decide transaction                | `tests/e2e/topics-decide-proposal-transaction.test.ts` (approve + reject atomicity, concurrent duplicate decisions, idempotence under replay)                                                                                        |
+| Vitest e2e: retire transaction                | `tests/e2e/topics-retire-transaction.test.ts` (Topic + active `user_topics` → historical atomicity, self-action guard at the workflow boundary, idempotence under replay, legacy `retire` preserves active associations)              |
+| Component render: page section                | `tests/app-admin-page.test.tsx` — Topics summary line, pending + active empty-state placeholders, summary counts                                                                                                                       |
+| Visual capture: PNGs                          | `tests/e2e-browser/screenshots/admin/{topics-expanded,topics-after-approve,topics-after-reject,topics-self-action-disabled,topics-retire-confirm,topics-after-retire}.png`                                                            |
+| Visual capture: WebM                          | `playwright/.artifacts/test-results/journeys-admin-topics-*/*` (capture lane, ephemeral; not committed)                                                                                                                              |
+| WCAG 2.1 AA bar                               | Topics section uses single `<h2>` per panel; both lists have labelled `<label>` controls; typed-confirm input is associated with `<code>{topicName}</code>` via a `<label htmlFor>`; error and success banners expose `role="alert"` / `role="status"` with `aria-live`; the self-action Retire button carries a `title` attribute and a paired `<span role="note">` linked through `aria-describedby`; approval / rejection controls use text labels (no icon-only controls); Pending / Active / Retired states are text badges; `<details>` collapse is native (no scripted animation), so `prefers-reduced-motion` is honored implicitly. |
+| Three-tier responsive bar                     | The Admin shell is a single-column flow at <1024px — the Topics section is two stacked `<table>`s (Pending Proposals then Active Topics) — no media queries are required beyond the existing global layout in `app/globals.css`.              |
+| SSR first paint                               | `app/(product)/admin/page.tsx` is an `async function` RSC; the Topics section's pending proposals and active topics are in the server-rendered HTML before hydration; no `useEffect` fetches in the page body.                              |
+| Empty-state with primary action               | The Pending list and the Active list each render `.empty-state` blocks (with `topics-pending-empty` and `topics-active-empty` `data-testid`s); the Topics section is intentionally read-only — no Invite-User CTA within it (Users are the source of Topic Proposals, so the existing Users empty-state CTA still applies site-wide). |
 
 ## Self-action protection
 
-`src/workflow/admin-users.ts:inviteUser/changeRole/suspend/reinstate`
-each return `self_*` before any repository call:
+`src/workflow/admin-topics.ts:retireTopic` returns
+`cannot_retire_own_proposal` **before** any repository mutation when
+`topic.proposedByUserId === actorId`, regardless of `confirmName`. The
+guard is proved by the Vitest unit suite at
+`src/workflow/admin-topics.test.ts:118-148` (matched confirmation
+returns the same `cannot_retire_own_proposal`, not `topic_retired`)
+and again at `src/workflow/admin-topics.test.ts:148-178` (mismatched
+confirmation also returns `cannot_retire_own_proposal`).
 
-- `inviteUser` returns `self_invite` when `normalizedEmail === actor.email`
-- `changeRole` returns `self_role_change` when `actorId === targetUserId`
-- `suspend` returns `self_suspend` (with the additional typed-confirm
-  check returning `confirm_email_required` / `confirm_email_mismatch`)
-- `reinstate` returns `self_reinstate`
+The UI surface mirrors the guard at
+`app/(product)/admin/_components/RetireTypedConfirm.tsx`:
+`disabledBySelfAction` disables the input and the submit button,
+attaches a `title` of `You cannot retire a Topic you proposed.` and
+links both to a `<span role="note" data-testid="topics-self-action-help-${topicId}">`
+via `aria-describedby`. The `RetireTypedConfirm.test.tsx` suite proves
+the disabled state and unchanged `disabled=true` even when the typed
+name matches the topic.
 
-`app/(product)/admin/page.tsx` suppresses the entire mutation controls
-column on the Admin's own row and renders a `users-self-actions` note
-instead.
+## Audit records
 
-## Blocking-finding resolution history
+`decideProposal` and `retireTopic` each insert a row into
+`audit_records` in the same Postgres transaction as their primary data
+writes, matching `docs/mvp-spec.md:84, 273, 396, 473`:
 
-- **Recent-invites resend collision**: resolved by the in-place
-  `refreshInvite` repository method (`src/admin/invites.repository.ts:158`)
-  + three DB-backed cases (`tests/e2e/admin-invites-refresh-transaction.test.ts`).
-- **Typed-confirm suspend bypass**: closed by passing `confirmEmail`
-  through the Server Action and validating the normalized email
-  server-side before any repository call
-  (`src/workflow/admin-users.ts:suspend`, `app/(product)/admin/_actions/users.ts:suspendAction`).
-- **Self-row mutation controls**: closed by branching UserRow on
-  `isSelf` and rendering a note-only cell
-  (`app/(product)/admin/page.tsx:418-450`).
-- **Workflow location and canonical `Result<T, E>` contract**:
-  relocated to `src/workflow/admin-users.ts` using
-  `src/lib/result.ts:ok/err/Result`, with the test suite migrated
-  unchanged in shape at `src/workflow/admin-users.test.ts`.
-- **CSRF failure surface**: now redirects to `/admin?csrf=failed`
-  instead of throwing through the segment error boundary; the
-  `data-testid="admin-csrf-banner"` is rendered by the page's
-  `role="alert"` banner.
-- **Visual-capture baselines**: five named PNGs now committed under
-  `tests/e2e-browser/screenshots/admin/`.
-- **Admin invite affordance scan regression**: scoped exclusions
-  added in `tests/e2e/no-booking-rsvp-or-calendar-event-creation-endpoints.test.ts`
-  so the required Admin invite form is not flagged.
-- **Email syntax validation**: `isValidInviteeEmail` in
-  `src/workflow/admin-users.ts:91-110` returns `invalid_email`
-  before any repository call for inputs shaped like `not-an-email`.
-- **Fragment targets**: `app/(product)/admin/page.tsx` `<details>`
-  elements now carry `id="users"`, `id="topics"`, `id="status"`.
-  A minimal `app/(product)/admin/_components/SectionDeepLink.tsx`
-  client island reads `window.location.hash` on mount and on
-  `hashchange` to open the requested section. `/admin/invites` is
-  mapped to `#users` and `/admin/topic-proposals` is mapped to
-  `#topics` to preserve the legacy redirect targets.
+- `decideProposal({ status: "approved" })` writes `action: "approve-proposal"`,
+  `targetType: "topic-proposal"`, `targetId: <proposal-id>`, and
+  `metadata: { candidateName }`.
+- `decideProposal({ status: "rejected" })` writes `action: "reject-proposal"`,
+  `targetType: "topic-proposal"`, `targetId: <proposal-id>`, and
+  `metadata: { candidateName }`.
+- `retireTopic` writes `action: "retire-topic"`, `targetType: "topic"`,
+  `targetId: <topic-id>`, and `metadata: { topicName, transitionedAssociationCount }`.
+
+The `audit_records` table (`drizzle/0016_audit_records.sql`) is
+non-personal: actor and target ids are stored as `uuid` columns
+without foreign-key constraints, so a User delete via
+`SET NULL`/`ON DELETE CASCADE` keeps the audit row intact (per
+`docs/mvp-spec.md:114, 424`). The migration is exercised by
+`tests/audit-records-migration.test.ts`; the same-transaction inserts
+are exercised by `tests/e2e/topics-decide-proposal-transaction.test.ts`
+and `tests/e2e/topics-retire-transaction.test.ts`.
+
+## Legacy `/admin/topic-proposals` lifecycle
+
+`app/admin/topic-proposals/route.ts` GET still serves the 308 redirect
+to `/admin#topics`. The legacy POST remains available for the locked
+one-minor-version compatibility window
+(`tests/retired-routes.test.ts:118-132` asserts the POST handler stays
+reachable), so the existing `tests/e2e/admin-approves-topic-proposal.test.ts`,
+`tests/e2e/admin-rejects-topic-proposal.test.ts`, and
+`tests/e2e/admin-retires-active-topic.test.ts` continue to pass without
+modification. The canonical Server Actions at `app/(product)/admin/_actions/topics.ts`
+are the primary UI write path that this PR closes.
 
 ## WebM capture artifact
 
 The capture lane artifact produced by `pnpm test:capture` is uploaded
 to the `browser-tests.yml` workflow artifacts on a workflow_dispatch
-run. For the implementor's local run, the WebM is available at:
+run. The implementor's local run emits the Topics journey at:
 
 ```
-playwright/.artifacts/test-results/journeys-admin-users-Admin-e0c6e-pends-and-reinstates-a-User-capture/video.webm
+playwright/.artifacts/test-results/journeys-admin-topics-*/*/video.webm
 ```
 
-The five per-state PNGs accompany this WebM in the same directory.
+The six per-state PNGs accompany this WebM in the same directory.

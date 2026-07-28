@@ -60,7 +60,12 @@ vi.mock("../src/workflow/admin-users", () => ({
 
 vi.mock("../src/admin/topics.workflow", () => ({
   createAdminTopicsWorkflow: vi.fn(() => ({
-    load: vi.fn().mockResolvedValue({ activeTopics: [] }),
+    load: vi.fn().mockResolvedValue({
+      activeTopics: [],
+      pendingProposals: [],
+      activeCount: 0,
+      pendingCount: 0,
+    }),
   })),
 }));
 
@@ -145,6 +150,9 @@ describe("Admin page", () => {
           { id: "t-1", name: "Topic One", status: "active", retiredAt: null, createdAt: new Date() },
           { id: "t-2", name: "Topic Two", status: "active", retiredAt: null, createdAt: new Date() },
         ],
+        pendingProposals: [],
+        activeCount: 2,
+        pendingCount: 0,
       }),
     });
     vi.mocked(createAdminStatusWorkflow).mockReturnValue({

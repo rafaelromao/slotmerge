@@ -2,11 +2,20 @@ import { and, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import {
+  auditRecords,
+  topicProposals,
   topics,
   userTopics,
+  users,
   type TopicAssociationStatus,
   type TopicStatus,
 } from "../db/schema";
+import {
+  createPostgresTopicProposalRepository,
+  type TopicProposalAdminRepository,
+} from "./proposals.repository";
+
+export type { DecideProposalResult } from "./proposals.repository";
 
 export type TopicCatalogueEntry = {
   id: string;
@@ -19,10 +28,22 @@ export type AdminTopicListItem = {
   name: string;
   status: TopicStatus;
   retiredAt: Date | null;
+  proposedByUserId: string | null;
+  createdAt: Date;
+};
+
+export type AdminTopicProposalListItem = {
+  id: string;
+  candidateName: string;
+  proposedByUserId: string | null;
+  proposedByUserEmail: string | null;
   createdAt: Date;
 };
 
 export type RetireResult =
+  { ok: true } | { ok: false; reason: "not_found" | "already_retired" };
+
+export type AdminRetireTopicResult =
   { ok: true } | { ok: false; reason: "not_found" | "already_retired" };
 
 export type TopicAssociation = {
@@ -43,7 +64,18 @@ export type TopicCatalogueRepository = {
 
 export type TopicAdminRepository = {
   listActiveAdminTopics(): Promise<AdminTopicListItem[]>;
-  retire(input: { id: string; now: Date }): Promise<RetireResult>;
+  listPendingTopicProposals(): Promise<AdminTopicProposalListItem[]>;
+  findAdminTopicById(id: string): Promise<AdminTopicListItem | null>;
+  retire(input: { topicId: string; now: Date }): Promise<RetireResult>;
+  retireTopic(input: {
+    topicId: string;
+    actorId: string;
+    now: Date;
+  }): Promise<AdminRetireTopicResult>;
+  listActiveTopics(): Promise<AdminTopicListItem[]>;
+  listPendingProposals(): Promise<AdminTopicProposalListItem[]>;
+  findTopic(id: string): Promise<AdminTopicListItem | null>;
+  decideProposal: TopicProposalAdminRepository["decideProposal"];
 };
 
 export type TopicCatalogueAndAdminRepository = TopicCatalogueRepository &
@@ -80,6 +112,7 @@ export function getTopicAdminRepository(): TopicAdminRepository {
 export function createPostgresTopicCatalogueRepository(
   db = getDb(),
 ): TopicCatalogueAndAdminRepository {
+  const proposalRepository = createPostgresTopicProposalRepository(db);
   return {
     listCatalogue: async () => db.select().from(topics).orderBy(topics.name),
     listSelectedTopicIds: async (userId) =>
@@ -129,12 +162,87 @@ export function createPostgresTopicCatalogueRepository(
           name: topics.name,
           status: topics.status,
           retiredAt: topics.retiredAt,
+          proposedByUserId: topics.proposedByUserId,
           createdAt: topics.createdAt,
         })
         .from(topics)
         .where(eq(topics.status, "active"))
         .orderBy(desc(topics.createdAt)),
-    retire: async ({ id, now }) => {
+    listPendingTopicProposals: async () => {
+      const rows = await db
+        .select({
+          id: topicProposals.id,
+          candidateName: topicProposals.candidateName,
+          proposedByUserId: topicProposals.proposedByUserId,
+          proposedByUserEmail: users.email,
+          createdAt: topicProposals.createdAt,
+        })
+        .from(topicProposals)
+        .leftJoin(users, eq(topicProposals.proposedByUserId, users.id))
+        .where(eq(topicProposals.status, "pending"))
+        .orderBy(desc(topicProposals.createdAt));
+      return rows;
+    },
+    listActiveTopics: async () =>
+      db
+        .select({
+          id: topics.id,
+          name: topics.name,
+          status: topics.status,
+          retiredAt: topics.retiredAt,
+          proposedByUserId: topics.proposedByUserId,
+          createdAt: topics.createdAt,
+        })
+        .from(topics)
+        .where(eq(topics.status, "active"))
+        .orderBy(desc(topics.createdAt)),
+    listPendingProposals: async () => {
+      const rows = await db
+        .select({
+          id: topicProposals.id,
+          candidateName: topicProposals.candidateName,
+          proposedByUserId: topicProposals.proposedByUserId,
+          proposedByUserEmail: users.email,
+          createdAt: topicProposals.createdAt,
+        })
+        .from(topicProposals)
+        .leftJoin(users, eq(topicProposals.proposedByUserId, users.id))
+        .where(eq(topicProposals.status, "pending"))
+        .orderBy(desc(topicProposals.createdAt));
+      return rows;
+    },
+    findAdminTopicById: async (id) => {
+      const [row] = await db
+        .select({
+          id: topics.id,
+          name: topics.name,
+          status: topics.status,
+          retiredAt: topics.retiredAt,
+          proposedByUserId: topics.proposedByUserId,
+          createdAt: topics.createdAt,
+        })
+        .from(topics)
+        .where(eq(topics.id, id))
+        .limit(1);
+      return row ?? null;
+    },
+    findTopic: async (id) => {
+      const [row] = await db
+        .select({
+          id: topics.id,
+          name: topics.name,
+          status: topics.status,
+          retiredAt: topics.retiredAt,
+          proposedByUserId: topics.proposedByUserId,
+          createdAt: topics.createdAt,
+        })
+        .from(topics)
+        .where(eq(topics.id, id))
+        .limit(1);
+      return row ?? null;
+    },
+    decideProposal: async (input) => proposalRepository.decideProposal(input),
+    retire: async ({ topicId: id, now }) => {
       const [topic] = await db
         .select({ status: topics.status })
         .from(topics)
@@ -155,6 +263,57 @@ export function createPostgresTopicCatalogueRepository(
         .where(eq(topics.id, id));
 
       return { ok: true };
+    },
+    retireTopic: async ({ topicId: id, actorId, now }) => {
+      const result = await db.transaction(async (tx) => {
+        const [topic] = await tx
+          .select({ status: topics.status, name: topics.name })
+          .from(topics)
+          .where(eq(topics.id, id))
+          .limit(1);
+
+        if (!topic) {
+          return { ok: false, reason: "not_found" } as const;
+        }
+
+        if (topic.status === "retired") {
+          return { ok: false, reason: "already_retired" } as const;
+        }
+
+        const claimResult = await tx
+          .update(topics)
+          .set({ status: "retired", retiredAt: now, updatedAt: now })
+          .where(and(eq(topics.id, id), eq(topics.status, "active")))
+          .returning({ id: topics.id });
+
+        if (claimResult.length === 0) {
+          return { ok: false, reason: "already_retired" } as const;
+        }
+
+        const historical = await tx
+          .update(userTopics)
+          .set({ status: "historical", updatedAt: now })
+          .where(
+            and(eq(userTopics.topicId, id), eq(userTopics.status, "active")),
+          )
+          .returning({ id: userTopics.id });
+
+        await tx.insert(auditRecords).values({
+          actorId,
+          action: "retire-topic",
+          targetType: "topic",
+          targetId: id,
+          metadata: {
+            topicName: topic.name,
+            transitionedAssociationCount: historical.length,
+          },
+          createdAt: now,
+        });
+
+        return { ok: true } as const;
+      });
+
+      return result;
     },
   };
 }

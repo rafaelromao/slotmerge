@@ -115,7 +115,7 @@ export function createAdminTopicsHandlers({
       }
 
       const repository = resolveRepository();
-      const result = await repository.retire({ id, now: clock.now() });
+      const result = await repository.retire({ topicId: id, now: clock.now() });
       if (!result.ok) {
         return htmlResponse(
           renderAdminShell({

@@ -7,7 +7,7 @@ import {
   getSlotsForWeek,
 } from "../../../../src/search/calendar-utils";
 import { getSearchResultRepository } from "../../../../src/search/search-result-repository";
-import { addCivilDays, zonedTimeToUtc } from "../../../../src/search/timezone";
+import { addCivilDays, localDateTimeToUtc } from "../../../../src/time";
 import { listActiveTopics } from "../../../../src/topics/repository";
 import { systemClock } from "../../../../src/system/clock";
 import { createSearchWorkflow } from "../../../../src/workflow/search";
@@ -167,10 +167,14 @@ export default async function SearchResultPage({
   const requestedWeek = parseWeekParam(query.week);
   const weekStart = alignToMonday(
     requestedWeek
-      ? zonedTimeToUtc(
-          requestedWeek.year,
-          requestedWeek.month - 1,
-          requestedWeek.day,
+      ? localDateTimeToUtc(
+          {
+            year: requestedWeek.year,
+            month: requestedWeek.month,
+            day: requestedWeek.day,
+            hour: 0,
+            minute: 0,
+          },
           snapshotDto.search.organizerTimezone,
         )
       : new Date(snapshotDto.snapshot.dateRangeStart),

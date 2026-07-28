@@ -9,10 +9,10 @@ import {
 import type { SearchRecord } from "../search/repository";
 import {
   addCivilDays,
-  calendarDayNumber,
-  isValidIanaTimezone,
+  isValidTimeZone,
+  localDayNumber,
   startOfWeekInTimezone,
-} from "../search/timezone";
+} from "../time";
 import type { Result } from "../lib/result";
 import { err, ok } from "../lib/result";
 import type { SearchResultRepository } from "../search/search-result-repository";
@@ -409,6 +409,10 @@ export function createSearchWorkflow(
   };
 }
 
+function isValidOrganizerTimezone(value: string): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function validateRaw(raw: SearchFormDefaults): SearchFieldErrors {
   const errors: SearchFieldErrors = {};
   const organizerTimezone =
@@ -447,13 +451,19 @@ function validateRaw(raw: SearchFormDefaults): SearchFieldErrors {
     errors.dateRangeEnd = "date_range_invalid";
   } else if (end.getTime() <= start.getTime()) {
     errors.dateRangeEnd = "date_range_invalid";
-  } else if (
-    isValidIanaTimezone(organizerTimezone) &&
-    calendarDayNumber(end, organizerTimezone) -
-      calendarDayNumber(start, organizerTimezone) >
-      DATE_RANGE_MAX_DAYS
-  ) {
-    errors.dateRangeEnd = "date_range_too_long";
+  } else if (isValidOrganizerTimezone(organizerTimezone)) {
+    try {
+      isValidTimeZone(organizerTimezone);
+      if (
+        localDayNumber(end, organizerTimezone) -
+          localDayNumber(start, organizerTimezone) >
+        DATE_RANGE_MAX_DAYS
+      ) {
+        errors.dateRangeEnd = "date_range_too_long";
+      }
+    } catch {
+      // timezone is invalid; the field error is captured below
+    }
   }
 
   if (!organizerTimezone) {

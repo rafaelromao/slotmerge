@@ -9,9 +9,9 @@ import {
   createDefaultSearchSnapshotAssemblerDeps,
   type SearchSnapshotAssemblerDeps,
 } from "./search-snapshot-assembler";
-import { addCivilDays, startOfWeekInTimezone } from "./timezone";
+import { addCivilDays, isValidTimeZone, startOfWeekInTimezone } from "../time";
 
-export { startOfWeekInTimezone } from "./timezone";
+export { startOfWeekInTimezone } from "../time";
 
 export type ActiveTopic = {
   id: string;
@@ -121,18 +121,6 @@ export type SearchInputValidationDeps = {
   matchingPoolSize: number;
 };
 
-function isValidIanaTimezone(value: string): boolean {
-  if (!value) return false;
-  try {
-    return (
-      new Intl.DateTimeFormat("en-US", { timeZone: value }).resolvedOptions()
-        .timeZone === value
-    );
-  } catch {
-    return false;
-  }
-}
-
 function isMinuteAligned(date: Date): boolean {
   return (
     date.getUTCMilliseconds() === 0 &&
@@ -197,7 +185,16 @@ export function validateSearchInput(
     });
   }
 
-  if (!isValidIanaTimezone(input.organizerTimezone)) {
+  if (input.organizerTimezone) {
+    try {
+      isValidTimeZone(input.organizerTimezone);
+    } catch {
+      errors.push({
+        field: "organizerTimezone",
+        message: "Organizer timezone must be a valid IANA zone.",
+      });
+    }
+  } else {
     errors.push({
       field: "organizerTimezone",
       message: "Organizer timezone must be a valid IANA zone.",

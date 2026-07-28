@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { SearchResultClient } from "../../app/(product)/searches/[id]/SearchResultClient";
 import type { SearchSnapshot, Slot } from "../../src/db/schema";
-import { addCivilDays } from "../../src/search/timezone";
+import { addCivilDays } from "../../src/time";
 
 describe("SearchResultClient click-to-open flow", () => {
   const slot1: Slot = {

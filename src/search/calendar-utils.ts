@@ -1,5 +1,5 @@
 import type { SearchSnapshot, Slot } from "../db/schema";
-import { addCivilDays, startOfWeekInTimezone } from "./timezone";
+import { addCivilDays, startOfWeekInTimezone } from "../time";
 
 export function getSlotsForWeek(
   snapshot: SearchSnapshot,

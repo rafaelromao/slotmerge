@@ -80,4 +80,17 @@ describe("T24 closure evidence document", () => {
 
     expect(fencedBlocks).toContain(t24Entry);
   });
+
+  it("contains the four subsections from issue #14's Closure Evidence body", async () => {
+    const document = await readFile(DOCUMENT_PATH, "utf8");
+
+    for (const heading of [
+      "## Screen-level closure (per sub-PRD)",
+      "## End-to-end browser journeys",
+      "## AGENTS.md acceptance bar",
+      "## Implementation-graph T24 parent-PRD closure ticket",
+    ]) {
+      expect(document).toContain(heading);
+    }
+  });
 });

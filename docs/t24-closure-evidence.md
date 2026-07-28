@@ -34,3 +34,29 @@ The following block reproduces `docs/implementation-graph.md` lines 218–222 ch
 - **Owns**: the closure of issue #14. The closing comment reproduces the closure evidence set: every screen ticket under the five sub-PRDs is closed with the AGENTS.md closure evidence; the three end-to-end Playwright journeys pass; the visual capture run produces the per-screen baselines; the spec/PRD/E2E plan repair PRs are merged; a human reviewer has signed the closure.
 - **Closure evidence**: the AGENTS.md closure-gate set reproduced verbatim; the link to each end-to-end Playwright journey run; the link to the visual capture artifacts; the human reviewer's sign-off.
 ```
+
+## Implementation-graph T24 parent-PRD closure ticket
+
+The T24 entry above is the canonical record of the parent-PRD closure ticket. The `## Implementation-graph T24 parent-PRD closure ticket` heading anchors the eventual closing comment on issue #14 to this document.
+
+## AGENTS.md acceptance bar
+
+The verbatim `## AGENTS.md closure gates` block at the top of this document is the source-of-truth reproduction of the AGENTS.md acceptance bar (lines 51–66). The closing PR comment on #14 reproduces the same block.
+
+## Screen-level closure (per sub-PRD)
+
+The screen-level closure of issue #14 requires every screen-level implementation ticket under the five sub-PRDs to be closed with the AGENTS.md closure evidence. Per the `## Closure Evidence` body of issue #14 and the [implementation ticket graph](https://github.com/rafaelromao/slotmerge/blob/main/docs/implementation-graph.md), the per-sub-PRD scope is:
+
+- **Search & Matching** ([#15](https://github.com/rafaelromao/slotmerge/issues/15)): closes when **T10–T15** are closed. T11–T15 are closed; **T10 (#296) is open** and is the end-to-end User journey blocker.
+- **Auth & Invites** ([#16](https://github.com/rafaelromao/slotmerge/issues/16)): closes when **T3** is closed. T3 is closed.
+- **Calendar Connections** ([#17](https://github.com/rafaelromao/slotmerge/issues/17)): closes when **T8** is closed. T8 is closed.
+- **Admin & Notifications** ([#18](https://github.com/rafaelromao/slotmerge/issues/18)): closes when **T16–T19** are closed. T16 is closed; **T17 (#303), T18 (#304), and T19 (#305) are open** and are the Admin journey blockers.
+- **Profile & Setup** ([#19](https://github.com/rafaelromao/slotmerge/issues/19)): closes when **T4, T5, T6, T7, T9** are closed. All five are closed.
+
+## End-to-end browser journeys
+
+The `## End-to-end browser journeys` subsection records the per-role end-to-end Playwright journey status, per the AGENTS.md browser-journey coverage bar (lines 61–64).
+
+- **User** (`tests/e2e-browser/journeys/user/end-to-end.spec.ts`): **not landed** — T10 (#296) is open. The journey drives invite → verify → setup checklist → profile → consent → topics → availability → calendar connection → sign-out.
+- **Organizer** (`tests/e2e-browser/journeys/organizer/end-to-end.spec.ts`): **landed** — closed by PR [#331](https://github.com/rafaelromao/slotmerge/pull/331). The journey drives search form → result → drawer → history → rerun.
+- **Admin** (`tests/e2e-browser/journeys/admin/end-to-end.spec.ts`): **not landed** — T19 (#305) is open. The journey drives invite → role change → suspend → reinstate → approve proposal → reject proposal → retire topic → status page.

@@ -106,12 +106,10 @@ async function resetCalendarState(): Promise<void> {
   await seedAll(db);
 }
 
-// Run the journey serially so the per-surface state mutations (sign-out,
-// calendar OAuth connect/disconnect, availability overrides) do not race
-// against each other on the shared fixtures. Each describe block below is
-// self-contained: a failure in one block is observable on its own surface.
-test.describe.configure({ mode: "serial" });
-
+// Each describe block is self-contained: a failure in one block is
+// observable on its own surface because every block that mutates the shared
+// fixtures has its own beforeEach reseed. The sign-out block sits last so
+// its cookie destruction cannot leak into a later block.
 test.describe("invite + verify", () => {
   test("Admin invite renders a magic-link that signs the User into the setup Home", async ({
     browser,
@@ -227,61 +225,61 @@ test.describe("profile", () => {
       .fill("Computing pioneer and writer on the Analytical Engine.");
     await captureState(page, "user/profile", "filled");
 
-      await page.getByTestId("profile-save-button").click();
+    await page.getByTestId("profile-save-button").click();
 
-      await page.waitForURL(/\/me\/profile\?saved=1/);
-      await expect(page.getByTestId("profile-saved-indicator")).toBeVisible();
-      await expect(page.getByTestId("profile-saved-indicator")).toHaveText(
-        "Saved",
-      );
-      await captureState(page, "user/profile", "saved");
+    await page.waitForURL(/\/me\/profile\?saved=1/);
+    await expect(page.getByTestId("profile-saved-indicator")).toBeVisible();
+    await expect(page.getByTestId("profile-saved-indicator")).toHaveText(
+      "Saved",
+    );
+    await captureState(page, "user/profile", "saved");
 
-      await page.goto("/me/profile");
-      await expect(page.getByTestId("profile-saved-indicator")).toHaveCount(0);
-      await captureState(page, "user/profile", "saved-then-hidden");
-    });
-
-    test("empty display name surfaces an inline error and preserves the other inputs", async ({
-      page,
-    }) => {
-      await page.clock.install({ time: new Date(FIXTURE_DATE) });
-      await page.goto("/me/profile");
-
-      await page.getByTestId("profile-display-name-input").fill("Grace Hopper");
-      await page
-        .getByTestId("profile-timezone-select")
-        .selectOption("America/Los_Angeles");
-      await page.getByTestId("profile-buffer-input").fill("15");
-      await page
-        .getByTestId("profile-avatar-input")
-        .fill("https://example.com/grace.png");
-      await page.getByTestId("profile-bio-input").fill("Compiler pioneer");
-      await page.getByTestId("profile-display-name-input").fill("");
-      await page.getByTestId("profile-save-button").click();
-
-      await expect(
-        page.getByTestId("profile-display-name-error"),
-      ).toBeVisible();
-      await captureState(page, "user/profile", "error-display-name");
-    });
-
-    test("out-of-range buffer surfaces an inline error and preserves the other inputs", async ({
-      page,
-    }) => {
-      await page.clock.install({ time: new Date(FIXTURE_DATE) });
-      await page.goto("/me/profile");
-
-      await page.getByTestId("profile-display-name-input").fill("Grace Hopper");
-      await page
-        .getByTestId("profile-timezone-select")
-        .selectOption("America/Los_Angeles");
-      await page.getByTestId("profile-buffer-input").fill("999");
-      await page.getByTestId("profile-save-button").click();
-
-      await expect(page.getByTestId("profile-buffer-error")).toBeVisible();
-      await captureState(page, "user/profile", "error-buffer");
-    });
+    await page.goto("/me/profile");
+    await expect(page.getByTestId("profile-saved-indicator")).toHaveCount(0);
+    await captureState(page, "user/profile", "saved-then-hidden");
   });
+
+  test("empty display name surfaces an inline error and preserves the other inputs", async ({
+    page,
+  }) => {
+    await page.clock.install({ time: new Date(FIXTURE_DATE) });
+    await page.goto("/me/profile");
+
+    await page.getByTestId("profile-display-name-input").fill("Grace Hopper");
+    await page
+      .getByTestId("profile-timezone-select")
+      .selectOption("America/Los_Angeles");
+    await page.getByTestId("profile-buffer-input").fill("15");
+    await page
+      .getByTestId("profile-avatar-input")
+      .fill("https://example.com/grace.png");
+    await page.getByTestId("profile-bio-input").fill("Compiler pioneer");
+    await page.getByTestId("profile-display-name-input").fill("");
+    await page.getByTestId("profile-save-button").click();
+
+    await expect(
+      page.getByTestId("profile-display-name-error"),
+    ).toBeVisible();
+    await captureState(page, "user/profile", "error-display-name");
+  });
+
+  test("out-of-range buffer surfaces an inline error and preserves the other inputs", async ({
+    page,
+  }) => {
+    await page.clock.install({ time: new Date(FIXTURE_DATE) });
+    await page.goto("/me/profile");
+
+    await page.getByTestId("profile-display-name-input").fill("Grace Hopper");
+    await page
+      .getByTestId("profile-timezone-select")
+      .selectOption("America/Los_Angeles");
+    await page.getByTestId("profile-buffer-input").fill("999");
+    await page.getByTestId("profile-save-button").click();
+
+    await expect(page.getByTestId("profile-buffer-error")).toBeVisible();
+    await captureState(page, "user/profile", "error-buffer");
+  });
+});
 
 test.describe("discoverability consent", () => {
   test.describe.configure({ mode: "serial" });
@@ -522,6 +520,17 @@ test.describe("availability", () => {
     const previewText = await preview.textContent();
     expect(previewText).toBeTruthy();
     expect(previewText).toMatch(/Mon|2026-07/);
+
+    // Advance the clock by seven days so the seeded weekly window and the
+    // overrides are now stale relative to the rendered "now". The page
+    // re-renders with the same data but the dates are in the past — the
+    // canonical "stale" state for the availability surface.
+    await page.clock.fastForward(7 * 24 * 60 * 60 * 1000);
+    await page.goto("/me/availability");
+    await expect(
+      page.getByTestId("availability-preview-section"),
+    ).toBeVisible();
+    await captureState(page, "user/availability", "stale-window");
   });
 
   test("end-before-start renders an inline error and preserves the inputs", async ({

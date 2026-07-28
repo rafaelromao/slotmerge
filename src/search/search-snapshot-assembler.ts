@@ -96,9 +96,9 @@ export type MatchPreparation = {
 export class SearchSnapshotAssembler {
   constructor(private readonly deps: SearchSnapshotAssemblerDeps) {}
 
-  async listEligibleUserIds(
+  async prepareMatches(
     input: SearchSnapshotAssemblerInput,
-  ): Promise<string[]> {
+  ): Promise<MatchPreparation[]> {
     const activeTopics = await this.deps.topicRepository.listActive();
     const topicMap = new Map(activeTopics.map((t) => [t.id, t]));
     const discoverableUserIds =
@@ -111,34 +111,29 @@ export class SearchSnapshotAssembler {
         .filter((userId) => userId !== input.organizerId)
         .map((userId) => this.prepareMatch(userId, input, topicMap)),
     );
-    return prepared
-      .filter((match): match is MatchPreparation => match !== null)
-      .map((match) => match.userId);
+    return prepared.filter(
+      (match): match is MatchPreparation => match !== null,
+    );
   }
 
-  async assemble(input: SearchSnapshotAssemblerInput): Promise<SearchSnapshot> {
-    const activeTopics = await this.deps.topicRepository.listActive();
-    const topicMap = new Map(activeTopics.map((t) => [t.id, t]));
+  async listEligibleUserIds(
+    input: SearchSnapshotAssemblerInput,
+  ): Promise<string[]> {
+    const prepared = await this.prepareMatches(input);
+    return prepared.map((match) => match.userId);
+  }
 
-    const discoverableUserIds =
-      await this.deps.discoverableUserRepository.listDiscoverableUserIds(
-        input.selectedTopicIds,
-        { excludeUserId: input.organizerId, requireAllTopics: true },
-      );
+  async assemble(
+    input: SearchSnapshotAssemblerInput,
+    preparedMatches?: MatchPreparation[],
+  ): Promise<SearchSnapshot> {
+    const eligible = preparedMatches ?? (await this.prepareMatches(input));
 
     const slots = generateHourlySlots(
       input.dateRangeStart,
       input.dateRangeEnd,
       input.organizerTimezone,
     );
-
-    const prepared = await Promise.all(
-      discoverableUserIds
-        .filter((userId) => userId !== input.organizerId)
-        .map((userId) => this.prepareMatch(userId, input, topicMap)),
-    );
-
-    const eligible = prepared.filter((c) => c !== null);
 
     const snapshotSlots: Slot[] = [];
     for (const slotStart of slots) {

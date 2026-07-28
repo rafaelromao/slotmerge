@@ -7,6 +7,7 @@ import type {
 
 import {
   SearchSnapshotAssembler,
+  type MatchPreparation,
   type SearchSnapshotAssemblerDeps,
 } from "./search-snapshot-assembler";
 
@@ -21,27 +22,31 @@ export type RunSearchParams = {
   searchRecord: SearchRecord;
   input: SearchInput;
   generatedAt: Date;
+  preparedMatches?: MatchPreparation[];
 };
 
 export async function runSearch(
   params: RunSearchParams,
   deps: RunSearchDeps,
 ): Promise<SearchResultRecord> {
-  const { searchRecord, input, generatedAt } = params;
+  const { searchRecord, input, generatedAt, preparedMatches } = params;
   const { searchResultRepository, assemblerDependencies } = deps;
 
   const assembler = new SearchSnapshotAssembler(assemblerDependencies);
 
-  const snapshot: SearchSnapshot = await assembler.assemble({
-    organizerId: input.organizerId,
-    selectedTopicIds: input.selectedTopicIds,
-    durationMinutes: input.durationMinutes ?? 60,
-    dateRangeStart: input.dateRangeStart,
-    dateRangeEnd: input.dateRangeEnd,
-    organizerTimezone: input.organizerTimezone,
-    minimumMatchingUsers: input.minimumMatchingUsers,
-    now: generatedAt,
-  });
+  const snapshot: SearchSnapshot = await assembler.assemble(
+    {
+      organizerId: input.organizerId,
+      selectedTopicIds: input.selectedTopicIds,
+      durationMinutes: input.durationMinutes ?? 60,
+      dateRangeStart: input.dateRangeStart,
+      dateRangeEnd: input.dateRangeEnd,
+      organizerTimezone: input.organizerTimezone,
+      minimumMatchingUsers: input.minimumMatchingUsers,
+      now: generatedAt,
+    },
+    preparedMatches,
+  );
 
   const resultRecord: SearchResultRecord = {
     searchId: searchRecord.id!,

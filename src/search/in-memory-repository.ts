@@ -9,8 +9,13 @@ import type {
 import { deriveSearchSnapshotStaleness } from "./match-detail";
 
 export class InMemorySearchRepository implements SearchRepository {
+  static lastInstance: InMemorySearchRepository | null = null;
   private readonly byId = new Map<string, SearchRecord>();
   private readonly snapshotIdsBySearchId = new Map<string, string>();
+
+  constructor() {
+    InMemorySearchRepository.lastInstance = this;
+  }
 
   async save(record: SearchRecord): Promise<SearchRecord> {
     await Promise.resolve();

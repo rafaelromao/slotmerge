@@ -325,6 +325,9 @@ describe("E2E: complete Search path", () => {
         createElement(SearchResultClient, {
           snapshot: body.snapshot,
           organizerTimezone: ORGANIZER_TIMEZONE,
+          weekStart: new Date(body.snapshot.dateRangeStart),
+          weekEnd: new Date(body.snapshot.dateRangeEnd),
+          slots: body.snapshot.slots,
         }),
       );
       expect(markup).toContain("Search Result");

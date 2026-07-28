@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import {
@@ -12,7 +12,7 @@ import type { DiscoverableUserRepository } from "./discoverable-user-repository"
 
 export function createPostgresDiscoverableUserRepository(): DiscoverableUserRepository {
   return {
-    async listDiscoverableUserIds(selectedTopicIds) {
+    async listDiscoverableUserIds(selectedTopicIds, options) {
       if (selectedTopicIds.length === 0) {
         return [];
       }
@@ -38,8 +38,20 @@ export function createPostgresDiscoverableUserRepository(): DiscoverableUserRepo
           ),
         )
         .leftJoin(availabilityWindows, eq(availabilityWindows.userId, users.id))
-        .where(inArray(userTopics.topicId, selectedTopicIds))
+        .where(
+          and(
+            inArray(userTopics.topicId, selectedTopicIds),
+            options?.excludeUserId
+              ? ne(userTopics.userId, options.excludeUserId)
+              : undefined,
+          ),
+        )
         .groupBy(userTopics.userId)
+        .having(
+          options?.requireAllTopics
+            ? sql`count(distinct ${userTopics.topicId}) = ${selectedTopicIds.length}`
+            : undefined,
+        )
         .orderBy(desc(sql`count(*)`));
 
       return rows.map((r) => r.userId);

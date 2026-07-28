@@ -16,6 +16,7 @@ interface ClosedTicket {
   pr: number;
   journey: string;
   vitest: string;
+  component: string;
   capture: string;
 }
 
@@ -26,6 +27,7 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     pr: 316,
     journey: "tests/e2e-browser/journeys/user/setup-home.spec.ts",
     vitest: "src/workflow/setup-home.test.ts",
+    component: "tests/app-setup-home-page.test.tsx",
     capture: "tests/e2e-browser/screenshots/setup-home/",
   },
   {
@@ -33,7 +35,8 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     issue: 288,
     pr: 317,
     journey: "tests/e2e-browser/journeys/user/role-guard.spec.ts",
-    vitest: "src/auth/page-context.test.ts",
+    vitest: "src/lib/page-context.test.ts",
+    component: "tests/app-shell.test.ts",
     capture: "n/a",
   },
   {
@@ -42,6 +45,8 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     pr: 318,
     journey: "tests/e2e-browser/journeys/user/magic-link.spec.ts",
     vitest: "src/workflow/auth.test.ts",
+    component:
+      "tests/app-sign-in-page.test.tsx, tests/app-sign-in-sent-page.test.tsx, tests/app-sign-in-verify-page.test.tsx",
     capture: "tests/e2e-browser/screenshots/sign-in/",
   },
   {
@@ -49,7 +54,9 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     issue: 290,
     pr: 319,
     journey: "tests/e2e-browser/journeys/user/profile.spec.ts",
-    vitest: "src/workflow/profile.test.ts",
+    vitest: "src/profile/profile-workflow.test.ts",
+    component:
+      "tests/app-me-profile-page.test.tsx, tests/app-me-profile-action.test.ts",
     capture: "n/a",
   },
   {
@@ -58,6 +65,7 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     pr: 320,
     journey: "tests/e2e-browser/journeys/user/discoverability.spec.ts",
     vitest: "src/workflow/discoverability.test.ts",
+    component: "tests/discoverability-view.test.tsx",
     capture: "n/a",
   },
   {
@@ -65,7 +73,8 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     issue: 292,
     pr: 321,
     journey: "tests/e2e-browser/journeys/user/topics.spec.ts",
-    vitest: "src/topics/topic-workflow.ts",
+    vitest: "src/topics/topic-workflow.test.ts",
+    component: "tests/app-me-topics-page.test.tsx",
     capture: "n/a",
   },
   {
@@ -74,6 +83,7 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     pr: 322,
     journey: "tests/e2e-browser/journeys/user/availability.spec.ts",
     vitest: "src/workflow/availability.test.ts",
+    component: "tests/app-me-availability-page.test.tsx",
     capture: "n/a",
   },
   {
@@ -82,6 +92,7 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     pr: 324,
     journey: "tests/e2e-browser/journeys/user/calendar-connection.spec.ts",
     vitest: "src/workflow/calendar-connection.test.ts",
+    component: "tests/app-me-calendar-connections-page.test.tsx",
     capture: "tests/e2e-browser/screenshots/calendar-connections/",
   },
   {
@@ -90,6 +101,8 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     pr: 327,
     journey: "tests/e2e-browser/journeys/user/self-delete.spec.ts",
     vitest: "src/workflow/account.test.ts",
+    component:
+      "tests/app-me-delete-page.test.tsx, app/(product)/me/_components/DeleteAccountConfirm.test.tsx",
     capture: "tests/e2e-browser/screenshots/self-delete/",
   },
   {
@@ -97,7 +110,8 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     issue: 297,
     pr: 325,
     journey: "tests/e2e-browser/journeys/organizer/search-form.spec.ts",
-    vitest: "src/workflow/search.ts",
+    vitest: "tests/workflow-search.test.ts",
+    component: "tests/app-searches-page.test.tsx",
     capture: "tests/e2e-browser/screenshots/search-form/",
   },
   {
@@ -105,7 +119,9 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     issue: 298,
     pr: 328,
     journey: "tests/e2e-browser/journeys/organizer/search-result.spec.ts",
-    vitest: "src/workflow/search.ts",
+    vitest: "tests/workflow-search.test.ts",
+    component:
+      "tests/search-result-page.test.tsx, tests/slot-details-drawer.test.tsx",
     capture: "tests/e2e-browser/screenshots/search-result/",
   },
   {
@@ -113,7 +129,8 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     issue: 299,
     pr: 329,
     journey: "tests/e2e-browser/journeys/organizer/search-history.spec.ts",
-    vitest: "src/workflow/search.ts",
+    vitest: "tests/workflow-search.test.ts",
+    component: "tests/search-history-page.test.tsx",
     capture: "tests/e2e-browser/screenshots/search-history/",
   },
   {
@@ -122,6 +139,7 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     pr: 330,
     journey: "tests/e2e-browser/journeys/organizer/api-v1.spec.ts",
     vitest: "src/api/serializers.test.ts",
+    component: "tests/api-v1-me-setup-status.test.ts",
     capture: "n/a",
   },
   {
@@ -129,7 +147,9 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     issue: 301,
     pr: 331,
     journey: "tests/e2e-browser/journeys/organizer/end-to-end.spec.ts",
-    vitest: "src/workflow/search.ts",
+    vitest: "tests/workflow-search.test.ts",
+    component:
+      "tests/app-searches-page.test.tsx, tests/search-result-page.test.tsx, tests/search-history-page.test.tsx",
     capture: "tests/e2e-browser/screenshots/organizer/",
   },
   {
@@ -138,6 +158,7 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     pr: 323,
     journey: "tests/e2e-browser/journeys/admin/users.spec.ts",
     vitest: "src/workflow/admin-users.test.ts",
+    component: "tests/app-admin-page.test.tsx",
     capture: "tests/e2e-browser/screenshots/admin/",
   },
   {
@@ -146,6 +167,7 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     pr: 313,
     journey: "n/a",
     vitest: "n/a",
+    component: "n/a",
     capture: "n/a",
   },
   {
@@ -154,6 +176,7 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     pr: 312,
     journey: "n/a",
     vitest: "n/a",
+    component: "n/a",
     capture: "n/a",
   },
   {
@@ -162,6 +185,7 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     pr: 314,
     journey: "n/a",
     vitest: "n/a",
+    component: "n/a",
     capture: "n/a",
   },
   {
@@ -170,6 +194,7 @@ const CLOSED_TICKETS: readonly ClosedTicket[] = [
     pr: 315,
     journey: "n/a",
     vitest: "n/a",
+    component: "n/a",
     capture: "n/a",
   },
 ] as const;
@@ -269,6 +294,24 @@ describe("T24 closure evidence document", () => {
         document,
         `Closed-table row for ${ticket.t} must reference PR #${ticket.pr}`,
       ).toContain(expectedPrUrl);
+    }
+  });
+
+  it("lists Vitest test files that exist on disk for every closed screen-level ticket", async () => {
+    const document = await readFile(DOCUMENT_PATH, "utf8");
+
+    for (const ticket of CLOSED_TICKETS) {
+      if (ticket.vitest === "n/a") {
+        continue;
+      }
+      const candidates = ticket.vitest.split(",").map((entry) => entry.trim());
+      for (const candidate of candidates) {
+        const found = document.includes(candidate);
+        expect(
+          found,
+          `Closed-table row for ${ticket.t} must list Vitest file \`${candidate}\``,
+        ).toBe(true);
+      }
     }
   });
 

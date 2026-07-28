@@ -1,0 +1,78 @@
+# T19 Admin end-to-end journey closure summary
+
+This is the closure summary for issue #305 (T19: End-to-end Admin
+journey). Each entry maps the issue's acceptance criterion to the
+evidence on the current branch head, and identifies the inherited
+per-screen evidence from the closed T16–T18 dependencies.
+
+## Acceptance criteria
+
+| AC                                                                                                                                                                                                                                                      | Evidence                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/e2e-browser/journeys/admin/end-to-end.spec.ts` is a single Playwright spec with distinct `test.describe` blocks per Admin surface (invite → role change → suspend → reinstate → approve proposal → reject proposal → retire topic → status page) | `tests/e2e-browser/journeys/admin/end-to-end.spec.ts` — 8 top-level `test.describe` blocks (no outer wrapper, no file-level `test.describe.configure({ mode: "serial" })`); matches the Organizer pattern at `tests/e2e-browser/journeys/organizer/end-to-end.spec.ts:72` for file-level `test.use` |
+| Uses the Admin `storageState` (`playwright/.auth/admin.json`)                                                                                                                                                                                           | File-top `test.use({ storageState: "playwright/.auth/admin.json" })` at `tests/e2e-browser/journeys/admin/end-to-end.spec.ts:30`; the `storageState` is sealed by `tests/helpers/playwright/global-setup.ts:108`                                                                                    |
+| Each `test.describe` block is self-contained: a failure points at the right Admin surface, not at the whole journey                                                                                                                                     | 8 flat sibling `test.describe` blocks; each block has its own `beforeEach` reseed (via `seedAll(db)` plus per-surface cleanup) so a failure in one block does not block the others from running                                                                                                     |
+| `tests/e2e-browser/screenshots/admin/{users,topics,status}/<state>.png` baselines committed for every named visible state                                                                                                                               | 27 per-state PNGs committed under the three surface subdirectories; full table in `tests/e2e-browser/screenshots/admin/README.md`; the `CAPTURE=true` capture project produces them and `visual-regression.yml` commits them on `workflow_dispatch`                                                 |
+| Capture project run produces WebM screencasts for the full journey; PR links the artifacts                                                                                                                                                              | `playwright/.artifacts/test-results/journeys-admin-end-to-end-Admin-*-*-capture/video.webm` (capture lane) — linked from the PR comment by the `visual-regression.yml` and `browser-tests.yml` workflow run URLs                                                                                    |
+| Green on a clean local stack and on the `workflow_dispatch` lane. PR CI does not run the journey                                                                                                                                                        | `browser-tests.yml` and `visual-regression.yml` run on `workflow_dispatch` only; PR CI runs `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build` (Vitest only)                                                                                                             |
+| `AGENTS.md` Rendered-screen completion gates honored for the Admin end-to-end closure                                                                                                                                                                   | Inherited per-screen evidence listed below; T19 itself adds the cross-surface happy path, the cross-surface failure path per surface (delegated to the per-surface specs), the cross-surface visual-capture baselines, and the closure-evidence anchor for the Admin & Notifications sub-PRD #18    |
+
+## Rendered-screen completion gates (AGENTS.md)
+
+| Gate                                             | Evidence                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Playwright happy-path (per surface, T16–T18)     | `tests/e2e-browser/journeys/admin/users.spec.ts`, `tests/e2e-browser/journeys/admin/topics.spec.ts`, `tests/e2e-browser/journeys/admin/status.spec.ts`                                                                                                                                                                                        |
+| Playwright failure-path (per surface)            | `users.spec.ts:154-172` (self-invite error), `users.spec.ts:116-121` (suspend typed-confirm mismatch), `topics.spec.ts:146-185` (own-proposal retire protection), `status.spec.ts:54-114` (warning banners)                                                                                                                                   |
+| Playwright end-to-end (T19, per surface)         | `tests/e2e-browser/journeys/admin/end-to-end.spec.ts` — 8 top-level `test.describe` blocks                                                                                                                                                                                                                                                    |
+| Vitest unit (workflow boundary)                  | `src/workflow/admin-users.test.ts` (typed `Result<T, E>` for `inviteUser`, `changeRole`, `suspend`, `reinstate`, `resendInvite`), `src/workflow/admin-topics.test.ts` (typed `Result<T, E>` for `decideProposal`, `retireTopic`)                                                                                                              |
+| Vitest Server Action tests                       | `app/(product)/admin/_actions/users.test.ts` (CSRF, role enforcement, redirect targets per branch), `app/(product)/admin/_actions/topics.test.ts` (CSRF, exact workflow invocation shape, redirect targets per branch)                                                                                                                        |
+| Component tests (`renderToString` + `happy-dom`) | `app/(product)/admin/_components/RetireTypedConfirm.test.tsx`, `app/(product)/admin/_components/SuspendTypedConfirm.test.tsx`                                                                                                                                                                                                                 |
+| Vitest e2e: admin transaction tests              | `tests/e2e/admin-suspends-user-transaction.test.ts`, `tests/e2e/admin-reinstates-user-transaction.test.ts`, `tests/e2e/admin-approves-topic-proposal.test.ts`, `tests/e2e/admin-rejects-topic-proposal.test.ts`, `tests/e2e/admin-retires-active-topic.test.ts`                                                                               |
+| Visual capture (T19 journey)                     | `tests/e2e-browser/screenshots/admin/{users,topics,status}/<state>.png` per the README; capture lane `playwright/.artifacts/**/*.webm`                                                                                                                                                                                                        |
+| WCAG 2.1 AA bar                                  | Per-page server component + section + drawer carry labelled inputs, `role="alert"` / `aria-describedby` on errors, single `h1` per page, colour not the sole carrier of state, `prefers-reduced-motion` honored; the T19 journey re-asserts the role/suspend/role-change disabled state on the Admin's own row (`end-to-end.spec.ts:393-398`) |
+| Three-tier responsive bar                        | The Admin shell is a single-column flow at <1024px; the T18 Status journey proves the three-tier responsive bar (`status.spec.ts:141-159`)                                                                                                                                                                                                    |
+| SSR first paint                                  | `app/(product)/admin/page.tsx` is an `async function` RSC; the three sections' data is in the server-rendered HTML before hydration; no `useEffect` fetches in the page body; the T19 journey asserts the server-rendered heading `Admin` and per-section blocks on first navigation                                                          |
+| Empty-state with primary action                  | The Users empty-state CTA (`users-empty-state-cta → #invite-form`), the Topics Pending empty-state, the Topics Active empty-state, and the Status Tokens empty-state CTA (`admin-status-tokens-empty-cta → /admin#users`) are all defined and reach the existing `.empty-state` primitive                                                     |
+| Browser-journey coverage (Admin)                 | `tests/e2e-browser/journeys/admin/end-to-end.spec.ts` (this PR)                                                                                                                                                                                                                                                                               |
+| CI gate policy                                   | PR CI runs `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build` (Vitest only); Playwright runs on `workflow_dispatch` only                                                                                                                                                                                           |
+
+## Self-contained block contract
+
+The eight `test.describe` blocks (invite, role change, suspend,
+reinstate, approve proposal, reject proposal, retire topic, status)
+each own a single Admin surface. A test failure in a block points to
+that surface in the Playwright HTML report and in the per-test WebM.
+The blocks that mutate the shared seeded fixtures (role change,
+suspend, reinstate, approve, reject, retire) each carry a `beforeEach`
+reseed via `seedAll(db)` from `tests/fixtures/seeds.ts` plus the
+per-surface cleanup (e.g. delete the test invite email for the invite
+block, delete the new Topic created by approve for the approve
+block, set the target user to suspended for the reinstate block).
+This matches the Organizer end-to-end pattern
+(`tests/e2e-browser/journeys/organizer/end-to-end.spec.ts:15-55`) and
+ensures per-block failure isolation holds under `fullyParallel` mode
+without any file-level `test.describe.configure({ mode: "serial" })`.
+
+## Sub-PRD closure anchor
+
+This document is the closure-evidence anchor for the
+Admin & Notifications sub-PRD #18. The per-screen evidence for the
+six Admin sections (Users, Topics, Status, plus the per-action
+self-action protection and audit-records guarantees) is inherited
+from the closed T16, T17, and T18 PRs (`#323`, `#336`, `#334`).
+
+## Capture artifact
+
+The capture lane artifact produced by `pnpm test:capture` is uploaded
+to the `visual-regression.yml` and `browser-tests.yml` workflow
+artifacts on a `workflow_dispatch` run. For the implementor's local
+run, the WebM is available at:
+
+```
+playwright/.artifacts/test-results/journeys-admin-end-to-end-Admin-*-*-capture/video.webm
+```
+
+The 27 per-state PNGs accompany this WebM in the same
+`visual-regression.yml` workflow artifact and are auto-committed to
+`tests/e2e-browser/screenshots/admin/{users,topics,status}/` by the
+workflow.

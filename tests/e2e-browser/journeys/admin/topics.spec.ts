@@ -5,8 +5,7 @@ import { captureState } from "../../../helpers/playwright/screenshot-helper";
 const SELF_PROPOSED_TOPIC_ID = "00000000-0000-0000-0000-000000000014";
 const RETIRE_TOPIC_NAME = "Product strategy";
 
-const TOPIC_PROPOSAL_APPROVE_ID =
-  "00000000-0000-0000-0000-000000000060";
+const TOPIC_PROPOSAL_APPROVE_ID = "00000000-0000-0000-0000-000000000060";
 const TOPIC_PROPOSAL_REJECT_ID = "00000000-0000-0000-0000-000000000061";
 
 test.describe("Admin topics journey", () => {
@@ -27,7 +26,7 @@ test.describe("Admin topics journey", () => {
     await expect(page.getByTestId("pending-topic-proposals")).toBeVisible();
     await expect(page.getByTestId("active-topics")).toBeVisible();
 
-    await captureState(page, "admin", "topics-expanded");
+    await captureState(page, "admin/topics", "topics-expanded");
 
     const approveButton = page.getByTestId(
       `topics-approve-${TOPIC_PROPOSAL_APPROVE_ID}`,
@@ -46,10 +45,10 @@ test.describe("Admin topics journey", () => {
     );
 
     await page.goto("/admin#topics");
-    await expect(page.getByTestId(`topics-proposal-row-${TOPIC_PROPOSAL_APPROVE_ID}`)).toHaveCount(
-      0,
-    );
-    await captureState(page, "admin", "topics-after-approve");
+    await expect(
+      page.getByTestId(`topics-proposal-row-${TOPIC_PROPOSAL_APPROVE_ID}`),
+    ).toHaveCount(0);
+    await captureState(page, "admin/topics", "topics-after-approve");
 
     const rejectButton = page.getByTestId(
       `topics-reject-${TOPIC_PROPOSAL_REJECT_ID}`,
@@ -71,7 +70,7 @@ test.describe("Admin topics journey", () => {
     await expect(
       page.getByTestId(`topics-proposal-row-${TOPIC_PROPOSAL_REJECT_ID}`),
     ).toHaveCount(0);
-    await captureState(page, "admin", "topics-after-reject");
+    await captureState(page, "admin/topics", "topics-after-reject");
 
     const retireInput = page.getByTestId(
       `topics-retire-input-${SELF_PROPOSED_TOPIC_ID}`,
@@ -93,11 +92,9 @@ test.describe("Admin topics journey", () => {
     await expect(selfHelp).toContainText(
       "You cannot retire a Topic you proposed.",
     );
-    await captureState(page, "admin", "topics-self-action-disabled");
+    await captureState(page, "admin/topics", "topics-self-action-disabled");
 
-    const activeTopicRow = page.locator(
-      `[data-testid^="topics-active-row-"]`,
-    );
+    const activeTopicRow = page.locator(`[data-testid^="topics-active-row-"]`);
     const targetRow = activeTopicRow.filter({
       hasText: RETIRE_TOPIC_NAME,
     });
@@ -122,7 +119,7 @@ test.describe("Admin topics journey", () => {
 
     await typedConfirmInput.fill(RETIRE_TOPIC_NAME);
     await expect(typedConfirmButton).toBeEnabled();
-    await captureState(page, "admin", "topics-retire-confirm");
+    await captureState(page, "admin/topics", "topics-retire-confirm");
 
     await typedConfirmButton.click();
 
@@ -137,10 +134,10 @@ test.describe("Admin topics journey", () => {
     );
 
     await page.goto("/admin#topics");
-    await expect(
-      page.getByTestId(`topics-active-row-${topicId}`),
-    ).toHaveCount(0);
-    await captureState(page, "admin", "topics-after-retire");
+    await expect(page.getByTestId(`topics-active-row-${topicId}`)).toHaveCount(
+      0,
+    );
+    await captureState(page, "admin/topics", "topics-after-retire");
   });
 
   test("admin cannot retire a Topic they proposed (own-proposal protection)", async ({
@@ -156,10 +153,7 @@ test.describe("Admin topics journey", () => {
       `topics-active-row-${SELF_PROPOSED_TOPIC_ID}`,
     );
     await expect(selfProposedRow).toBeVisible();
-    await expect(selfProposedRow).toHaveAttribute(
-      "data-self-action",
-      "true",
-    );
+    await expect(selfProposedRow).toHaveAttribute("data-self-action", "true");
 
     const input = page.getByTestId(
       `topics-retire-input-${SELF_PROPOSED_TOPIC_ID}`,
@@ -179,9 +173,7 @@ test.describe("Admin topics journey", () => {
       `topics-self-action-help-${SELF_PROPOSED_TOPIC_ID}`,
     );
     await expect(help).toBeVisible();
-    await expect(help).toContainText(
-      "You cannot retire a Topic you proposed.",
-    );
+    await expect(help).toContainText("You cannot retire a Topic you proposed.");
   });
 
   test("GET /admin/topic-proposals 308-redirects to /admin#topics", async ({

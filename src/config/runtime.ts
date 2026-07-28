@@ -11,6 +11,10 @@ const envSchema = z.object({
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
   LOCAL_PROVIDER_OVERRIDE_URL: z.string().optional(),
+  LOCAL_PROVIDER_BROWSER_URL: z.string().optional(),
+  LOCAL_EMAIL_OUTBOX_URL: z.string().optional(),
+  OFFLINE_MOCKS_ENABLED: z.enum(["true", "false"]).optional(),
+  FIXTURE_DATE: z.string().datetime().optional(),
   MAGIC_LINK_SECRET: z.string().optional(),
   MICROSOFT_OAUTH_CLIENT_ID: z.string().optional(),
   MICROSOFT_OAUTH_CLIENT_SECRET: z.string().optional(),
@@ -28,6 +32,9 @@ export type RuntimeConfig = {
   databaseUrl: string;
   emailAdapter: "mock" | "postmark";
   localProviderOverrideUrl: string | undefined;
+  localProviderBrowserUrl: string | undefined;
+  localEmailOutboxUrl: string | undefined;
+  offlineMocksEnabled: boolean;
   magicLinkSecret: string;
   requirePublicWebhookHttps: boolean;
   sessionSecret: string;
@@ -41,6 +48,7 @@ export function loadRuntimeConfig(
 ): RuntimeConfig {
   const parsed = envSchema.parse(env);
   const isLocal = parsed.APP_ENV === "local" || parsed.APP_ENV === "test";
+  const offlineMocksEnabled = parsed.OFFLINE_MOCKS_ENABLED === "true";
 
   const config: RuntimeConfig = {
     appBaseUrl: parsed.APP_BASE_URL ?? "http://localhost:3000",
@@ -54,6 +62,9 @@ export function loadRuntimeConfig(
     databaseUrl: parsed.DATABASE_URL,
     emailAdapter: parsed.EMAIL_ADAPTER ?? (isLocal ? "mock" : "postmark"),
     localProviderOverrideUrl: parsed.LOCAL_PROVIDER_OVERRIDE_URL,
+    localProviderBrowserUrl: parsed.LOCAL_PROVIDER_BROWSER_URL,
+    localEmailOutboxUrl: parsed.LOCAL_EMAIL_OUTBOX_URL,
+    offlineMocksEnabled,
     magicLinkSecret:
       parsed.MAGIC_LINK_SECRET ??
       "local-magic-link-secret-do-not-use-in-production",
@@ -64,6 +75,11 @@ export function loadRuntimeConfig(
   };
 
   if (!isLocal) {
+    if (offlineMocksEnabled) {
+      throw new Error(
+        "OFFLINE_MOCKS_ENABLED is only available in local/test mode",
+      );
+    }
     requireEnv(parsed.APP_BASE_URL, "APP_BASE_URL");
     requireEnv(parsed.MAGIC_LINK_SECRET, "MAGIC_LINK_SECRET");
     requireEnv(parsed.SESSION_SECRET, "SESSION_SECRET");
@@ -84,6 +100,26 @@ export function loadRuntimeConfig(
       requireEnv(
         parsed.MICROSOFT_OAUTH_CLIENT_SECRET,
         "MICROSOFT_OAUTH_CLIENT_SECRET",
+      );
+    }
+  }
+
+  if (offlineMocksEnabled) {
+    requireEnv(
+      parsed.LOCAL_PROVIDER_OVERRIDE_URL,
+      "LOCAL_PROVIDER_OVERRIDE_URL",
+    );
+    requireEnv(parsed.LOCAL_PROVIDER_BROWSER_URL, "LOCAL_PROVIDER_BROWSER_URL");
+    requireEnv(parsed.LOCAL_EMAIL_OUTBOX_URL, "LOCAL_EMAIL_OUTBOX_URL");
+    requireEnv(parsed.FIXTURE_DATE, "FIXTURE_DATE");
+    if (config.emailAdapter !== "mock") {
+      throw new Error(
+        "EMAIL_ADAPTER=mock is required when offline mocks are enabled",
+      );
+    }
+    if (config.calendarProviderMode !== "mock") {
+      throw new Error(
+        "CALENDAR_PROVIDER_MODE=mock is required when offline mocks are enabled",
       );
     }
   }

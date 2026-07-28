@@ -100,6 +100,8 @@ export function createProviderFetchImpl(
       return baseFetch(rewrittenUrl, init);
     }
 
-    return baseFetch(input, init);
+    throw new Error(
+      `Provider URL is not allowed in offline mock mode: ${originalUrl}`,
+    );
   };
 }

@@ -387,9 +387,11 @@ test.describe("status surface", () => {
 
     await captureState(page, "admin/status", "expanded");
 
-    // Self-action protection cross-check: the Admin cannot change
-    // their own role, cannot suspend themselves, and the role-change
-    // and suspend actions on the Admin's own row are disabled.
+    // Self-action protection cross-check: the Admin's own role-change
+    // controls are disabled. The deeper self-suspend and self-retire
+    // guards are exercised by the per-surface specs
+    // (`users.spec.ts:50-63` for self-row-disabled and
+    // `topics.spec.ts:146-185` for own-proposal retire).
     await expect(
       page.getByTestId(`users-role-select-${ADMIN_ID}`),
     ).toBeDisabled();

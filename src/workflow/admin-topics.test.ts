@@ -17,7 +17,7 @@ function buildRepository(
     decideProposal: vi.fn(),
     retireTopic: vi.fn(),
     ...overrides,
-  } as unknown as AdminTopicsRepository;
+  };
 }
 
 const fixedClock = { now: () => fixedNow };

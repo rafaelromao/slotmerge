@@ -21,9 +21,7 @@ export type AdminTopicsDecideOk = {
 };
 
 export type AdminTopicsDecideError =
-  | "proposal_not_found"
-  | "proposal_already_decided"
-  | "internal_error";
+  "proposal_not_found" | "proposal_already_decided" | "internal_error";
 
 export type AdminTopicsRetireError =
   | "cannot_retire_own_proposal"
@@ -42,9 +40,12 @@ export type AdminTopicsRepository = {
     status: DecideProposalStatus;
     now: Date;
   }): Promise<DecideProposalResult>;
-  retireTopic(input: { topicId: string; now: Date }): Promise<{
-    ok: true;
-  } | { ok: false; reason: "not_found" | "already_retired" }>;
+  retireTopic(input: { topicId: string; now: Date }): Promise<
+    | {
+        ok: true;
+      }
+    | { ok: false; reason: "not_found" | "already_retired" }
+  >;
 };
 
 export type AdminTopicsWorkflowDependencies = {

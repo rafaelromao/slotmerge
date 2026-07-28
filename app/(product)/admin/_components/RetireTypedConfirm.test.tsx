@@ -88,9 +88,7 @@ describe("RetireTypedConfirm", () => {
     const help = screen.getByTestId<HTMLSpanElement>(
       "topics-self-action-help-topic-1",
     );
-    expect(help.textContent).toBe(
-      "You cannot retire a Topic you proposed.",
-    );
+    expect(help.textContent).toBe("You cannot retire a Topic you proposed.");
     expect(help.getAttribute("role")).toBe("note");
     expect(input.getAttribute("aria-describedby")).toBe(help.id);
     expect(button.getAttribute("aria-describedby")).toBe(help.id);
@@ -115,8 +113,6 @@ describe("RetireTypedConfirm", () => {
     const props = buildProps({ disabledBySelfAction: false });
     render(<RetireTypedConfirm {...props} />);
 
-    expect(
-      screen.queryByTestId("topics-self-action-help-topic-1"),
-    ).toBeNull();
+    expect(screen.queryByTestId("topics-self-action-help-topic-1")).toBeNull();
   });
 });

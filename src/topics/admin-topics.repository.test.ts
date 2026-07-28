@@ -53,7 +53,7 @@ describe("topic catalogue admin repository", () => {
       >[0],
     );
 
-    const result = await repo.retire({ id: "topic-1", now });
+    const result = await repo.retire({ topicId: "topic-1", now });
 
     expect(result).toEqual({ ok: true });
     expect(updateSet).toHaveBeenCalledWith({
@@ -78,7 +78,7 @@ describe("topic catalogue admin repository", () => {
     );
 
     const result = await repo.retire({
-      id: "missing",
+      topicId: "missing",
       now: new Date("2026-05-01T00:00:00.000Z"),
     });
 
@@ -101,7 +101,7 @@ describe("topic catalogue admin repository", () => {
     );
 
     const result = await repo.retire({
-      id: "topic-1",
+      topicId: "topic-1",
       now: new Date("2026-05-01T00:00:00.000Z"),
     });
 

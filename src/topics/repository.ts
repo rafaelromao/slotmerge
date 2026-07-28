@@ -7,16 +7,14 @@ import {
   userTopics,
   users,
   type TopicAssociationStatus,
-  type TopicProposalStatus,
   type TopicStatus,
 } from "../db/schema";
 import {
   createPostgresTopicProposalRepository,
-  type DecideProposalStatus,
   type TopicProposalAdminRepository,
 } from "./proposals.repository";
 
-export type { DecideProposalStatus, DecideProposalResult } from "./proposals.repository";
+export type { DecideProposalResult } from "./proposals.repository";
 
 export type TopicCatalogueEntry = {
   id: string;
@@ -45,8 +43,7 @@ export type RetireResult =
   { ok: true } | { ok: false; reason: "not_found" | "already_retired" };
 
 export type AdminRetireTopicResult =
-  | { ok: true }
-  | { ok: false; reason: "not_found" | "already_retired" };
+  { ok: true } | { ok: false; reason: "not_found" | "already_retired" };
 
 export type TopicAssociation = {
   topicId: string;
@@ -68,9 +65,9 @@ export type TopicAdminRepository = {
   listActiveAdminTopics(): Promise<AdminTopicListItem[]>;
   listPendingTopicProposals(): Promise<AdminTopicProposalListItem[]>;
   findAdminTopicById(id: string): Promise<AdminTopicListItem | null>;
-  retire(input: { id: string; now: Date }): Promise<RetireResult>;
+  retire(input: { topicId: string; now: Date }): Promise<RetireResult>;
   retireTopic(input: {
-    id: string;
+    topicId: string;
     now: Date;
   }): Promise<AdminRetireTopicResult>;
   listActiveTopics(): Promise<AdminTopicListItem[]>;
@@ -242,8 +239,8 @@ export function createPostgresTopicCatalogueRepository(
         .limit(1);
       return row ?? null;
     },
-    decideProposal: proposalRepository.decideProposal,
-    retire: async ({ id, now }) => {
+    decideProposal: async (input) => proposalRepository.decideProposal(input),
+    retire: async ({ topicId: id, now }) => {
       const [topic] = await db
         .select({ status: topics.status })
         .from(topics)
@@ -265,7 +262,7 @@ export function createPostgresTopicCatalogueRepository(
 
       return { ok: true };
     },
-    retireTopic: async ({ id, now }) => {
+    retireTopic: async ({ topicId: id, now }) => {
       const result = await db.transaction(async (tx) => {
         const [topic] = await tx
           .select({ status: topics.status })
@@ -281,19 +278,21 @@ export function createPostgresTopicCatalogueRepository(
           return { ok: false, reason: "already_retired" } as const;
         }
 
-        await tx
+        const claimResult = await tx
           .update(topics)
           .set({ status: "retired", retiredAt: now, updatedAt: now })
-          .where(eq(topics.id, id));
+          .where(and(eq(topics.id, id), eq(topics.status, "active")))
+          .returning({ id: topics.id });
+
+        if (claimResult.length === 0) {
+          return { ok: false, reason: "already_retired" } as const;
+        }
 
         await tx
           .update(userTopics)
           .set({ status: "historical", updatedAt: now })
           .where(
-            and(
-              eq(userTopics.topicId, id),
-              eq(userTopics.status, "active"),
-            ),
+            and(eq(userTopics.topicId, id), eq(userTopics.status, "active")),
           );
 
         return { ok: true } as const;

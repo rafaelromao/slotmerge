@@ -112,7 +112,7 @@ describe("admin topics", () => {
       "http://localhost/admin/topics",
     );
     expect(retire).toHaveBeenCalledWith({
-      id: "topic-1",
+      topicId: "topic-1",
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       now: expect.any(Date),
     });

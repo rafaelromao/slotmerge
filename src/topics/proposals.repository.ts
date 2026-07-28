@@ -52,7 +52,7 @@ export type TopicProposalAdminRepository = {
   approve(input: { id: string; now: Date }): Promise<ApproveResult>;
   reject(input: { id: string; now: Date }): Promise<RejectResult>;
   decideProposal(input: {
-    id: string;
+    proposalId: string;
     status: DecideProposalStatus;
     now: Date;
   }): Promise<DecideProposalResult>;
@@ -168,7 +168,7 @@ export function createPostgresTopicProposalRepository(
       return { ok: true };
     },
 
-    async decideProposal({ id, status, now }) {
+    async decideProposal({ proposalId: id, status, now }) {
       const result = await db.transaction(async (tx) => {
         const [proposal] = await tx
           .select({

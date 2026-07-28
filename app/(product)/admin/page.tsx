@@ -713,9 +713,7 @@ function ActiveTopics({
                     topicId={topic.id}
                     topicName={topic.name}
                     csrfToken={csrfToken}
-                    disabledBySelfAction={
-                      topic.proposedByUserId === actorId
-                    }
+                    disabledBySelfAction={topic.proposedByUserId === actorId}
                     action={retireTopicAction}
                   />
                 </td>

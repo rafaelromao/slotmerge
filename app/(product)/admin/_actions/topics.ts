@@ -41,7 +41,9 @@ function buildWorkflow() {
   });
 }
 
-function adminErrorSlug(error: AdminTopicsDecideError | AdminTopicsRetireError) {
+function adminErrorSlug(
+  error: AdminTopicsDecideError | AdminTopicsRetireError,
+) {
   switch (error) {
     case "cannot_retire_own_proposal":
       return "topic_cannot_retire_own_proposal";

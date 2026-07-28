@@ -44,7 +44,9 @@ vi.mock("../../../../src/topics/repository", () => ({
 }));
 
 vi.mock("../../../../src/system/clock", () => ({
-  systemClock: vi.fn(() => ({ now: () => new Date("2026-07-12T12:00:00.000Z") })),
+  systemClock: vi.fn(() => ({
+    now: () => new Date("2026-07-12T12:00:00.000Z"),
+  })),
 }));
 
 import * as sessionModule from "../../../../src/auth/session";
@@ -79,22 +81,22 @@ function setSession(role: "admin" | "user" | null) {
   });
 }
 
-function captureRedirect(
-  promise: Promise<unknown>,
-): Promise<string> {
+function captureRedirect(promise: Promise<unknown>): Promise<string> {
   return promise
     .then(() => "")
     .catch((error: Error & { digest?: string }) => error.digest ?? "");
 }
 
-function mockWorkflow(
-  decideProposal: unknown,
-  retireTopic: unknown,
-): void {
+function mockWorkflow(decideProposal: unknown, retireTopic: unknown): void {
   vi.mocked(createAdminTopicsWorkflow).mockReturnValue({
     load: vi.fn().mockResolvedValue({
       ok: true,
-      value: { activeTopics: [], pendingProposals: [], activeCount: 0, pendingCount: 0 },
+      value: {
+        activeTopics: [],
+        pendingProposals: [],
+        activeCount: 0,
+        pendingCount: 0,
+      },
     }),
     decideProposal: vi.fn().mockImplementation(decideProposal as never),
     retireTopic: vi.fn().mockImplementation(retireTopic as never),
@@ -158,7 +160,9 @@ describe("approveProposalAction", () => {
       ok: true,
       value: { topicId: "topic-new" },
     });
-    mockWorkflow(decideProposal, () => Promise.resolve({ ok: true, value: undefined }));
+    mockWorkflow(decideProposal, () =>
+      Promise.resolve({ ok: true, value: undefined }),
+    );
     const { approveProposalAction } = await import("./topics");
     const digest = await captureRedirect(
       approveProposalAction(
@@ -206,7 +210,9 @@ describe("approveProposalAction", () => {
         buildFormData({ proposalId: "decided", _csrf: "csrf-admin-1" }),
       ),
     );
-    expect(digest).toContain("/admin?error=topic_proposal_already_decided#topics");
+    expect(digest).toContain(
+      "/admin?error=topic_proposal_already_decided#topics",
+    );
   });
 });
 
@@ -220,7 +226,9 @@ describe("rejectProposalAction", () => {
     const decideProposal = vi
       .fn()
       .mockResolvedValue({ ok: true, value: { topicId: null } });
-    mockWorkflow(decideProposal, () => Promise.resolve({ ok: true, value: undefined }));
+    mockWorkflow(decideProposal, () =>
+      Promise.resolve({ ok: true, value: undefined }),
+    );
     const { rejectProposalAction } = await import("./topics");
     const digest = await captureRedirect(
       rejectProposalAction(
@@ -255,7 +263,9 @@ describe("retireTopicAction", () => {
   });
 
   it("invokes retireTopic with the typed-confirm name and redirects on success", async () => {
-    const retireTopic = vi.fn().mockResolvedValue({ ok: true, value: undefined });
+    const retireTopic = vi
+      .fn()
+      .mockResolvedValue({ ok: true, value: undefined });
     mockWorkflow(
       () => Promise.resolve({ ok: true, value: { topicId: null } }),
       retireTopic,
@@ -321,9 +331,7 @@ describe("retireTopicAction", () => {
         }),
       ),
     );
-    expect(digest).toContain(
-      "/admin?error=topic_confirm_name_mismatch#topics",
-    );
+    expect(digest).toContain("/admin?error=topic_confirm_name_mismatch#topics");
   });
 
   it("redirects with topic_confirm_name_required when the confirmName is empty", async () => {
@@ -345,9 +353,7 @@ describe("retireTopicAction", () => {
         }),
       ),
     );
-    expect(digest).toContain(
-      "/admin?error=topic_confirm_name_required#topics",
-    );
+    expect(digest).toContain("/admin?error=topic_confirm_name_required#topics");
   });
 
   it("redirects with topic_not_found when the topic id is missing", async () => {

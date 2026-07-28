@@ -101,3 +101,15 @@ Four implementation tickets remain open and gate the actual `Closes #14` step. E
 ## Downstream
 
 T25 ([#311](https://github.com/rafaelromao/slotmerge/issues/311), "Sub-PRD closures") depends on T24 (this document) per `docs/implementation-graph.md:224-232`. T25 is therefore downstream, not a blocker for the T24 closure work. Once this PR lands, T25 closes the five sub-PRDs (#15, #16, #17, #18, #19) by reproducing the per-sub-PRD subset of the AGENTS.md closure gates in each sub-PRD's closing comment.
+
+## PR-CI gate
+
+Per `AGENTS.md:65`, the locked PR CI gate runs Vitest only and the Playwright suite runs on `workflow_dispatch` lanes (`browser-tests.yml` and `visual-regression.yml`). The five PR-CI commands are:
+
+1. `pnpm typecheck`
+2. `pnpm lint`
+3. `pnpm format:check`
+4. `pnpm test`
+5. `pnpm build`
+
+The T24 PR does not change any of these commands' expected output, does not introduce a new dependency, and does not modify `playwright.config.ts` or `.github/workflows/browser-tests.yml`. The `workflow_dispatch`-only Playwright lane is preserved; PR CI does not run Playwright; the "E2E tests are not executed in CI" decision is preserved.

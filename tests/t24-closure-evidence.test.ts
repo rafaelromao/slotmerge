@@ -290,4 +290,25 @@ describe("T24 closure evidence document", () => {
       "https://github.com/rafaelromao/slotmerge/issues/311",
     );
   });
+
+  it("records the PR-CI gate policy per AGENTS.md", async () => {
+    const document = await readFile(DOCUMENT_PATH, "utf8");
+
+    expect(document).toContain("## PR-CI gate");
+
+    for (const command of [
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm format:check",
+      "pnpm test",
+      "pnpm build",
+    ]) {
+      expect(
+        document,
+        `PR-CI gate section must list \`${command}\``,
+      ).toContain(command);
+    }
+
+    expect(document).toContain("workflow_dispatch");
+  });
 });

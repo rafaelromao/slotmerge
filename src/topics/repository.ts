@@ -7,8 +7,16 @@ import {
   userTopics,
   users,
   type TopicAssociationStatus,
+  type TopicProposalStatus,
   type TopicStatus,
 } from "../db/schema";
+import {
+  createPostgresTopicProposalRepository,
+  type DecideProposalStatus,
+  type TopicProposalAdminRepository,
+} from "./proposals.repository";
+
+export type { DecideProposalStatus, DecideProposalResult } from "./proposals.repository";
 
 export type TopicCatalogueEntry = {
   id: string;
@@ -65,6 +73,10 @@ export type TopicAdminRepository = {
     id: string;
     now: Date;
   }): Promise<AdminRetireTopicResult>;
+  listActiveTopics(): Promise<AdminTopicListItem[]>;
+  listPendingProposals(): Promise<AdminTopicProposalListItem[]>;
+  findTopic(id: string): Promise<AdminTopicListItem | null>;
+  decideProposal: TopicProposalAdminRepository["decideProposal"];
 };
 
 export type TopicCatalogueAndAdminRepository = TopicCatalogueRepository &
@@ -101,6 +113,7 @@ export function getTopicAdminRepository(): TopicAdminRepository {
 export function createPostgresTopicCatalogueRepository(
   db = getDb(),
 ): TopicCatalogueAndAdminRepository {
+  const proposalRepository = createPostgresTopicProposalRepository(db);
   return {
     listCatalogue: async () => db.select().from(topics).orderBy(topics.name),
     listSelectedTopicIds: async (userId) =>
@@ -171,6 +184,34 @@ export function createPostgresTopicCatalogueRepository(
         .orderBy(desc(topicProposals.createdAt));
       return rows;
     },
+    listActiveTopics: async () =>
+      db
+        .select({
+          id: topics.id,
+          name: topics.name,
+          status: topics.status,
+          retiredAt: topics.retiredAt,
+          proposedByUserId: topics.proposedByUserId,
+          createdAt: topics.createdAt,
+        })
+        .from(topics)
+        .where(eq(topics.status, "active"))
+        .orderBy(desc(topics.createdAt)),
+    listPendingProposals: async () => {
+      const rows = await db
+        .select({
+          id: topicProposals.id,
+          candidateName: topicProposals.candidateName,
+          proposedByUserId: topicProposals.proposedByUserId,
+          proposedByUserEmail: users.email,
+          createdAt: topicProposals.createdAt,
+        })
+        .from(topicProposals)
+        .leftJoin(users, eq(topicProposals.proposedByUserId, users.id))
+        .where(eq(topicProposals.status, "pending"))
+        .orderBy(desc(topicProposals.createdAt));
+      return rows;
+    },
     findAdminTopicById: async (id) => {
       const [row] = await db
         .select({
@@ -186,6 +227,22 @@ export function createPostgresTopicCatalogueRepository(
         .limit(1);
       return row ?? null;
     },
+    findTopic: async (id) => {
+      const [row] = await db
+        .select({
+          id: topics.id,
+          name: topics.name,
+          status: topics.status,
+          retiredAt: topics.retiredAt,
+          proposedByUserId: topics.proposedByUserId,
+          createdAt: topics.createdAt,
+        })
+        .from(topics)
+        .where(eq(topics.id, id))
+        .limit(1);
+      return row ?? null;
+    },
+    decideProposal: proposalRepository.decideProposal,
     retire: async ({ id, now }) => {
       const [topic] = await db
         .select({ status: topics.status })

@@ -17,24 +17,10 @@ function buildRepository(
     decideProposal: vi.fn(),
     retireTopic: vi.fn(),
     ...overrides,
-  } as AdminTopicsRepository;
+  } as unknown as AdminTopicsRepository;
 }
 
 const fixedClock = { now: () => fixedNow };
-
-function expectOk<T>(
-  result: { ok: true; value: T } | { ok: false; error: unknown },
-): T {
-  expect(result.ok).toBe(true);
-  return (result as { ok: true; value: T }).value;
-}
-
-function expectErr<E>(
-  result: { ok: true; value: unknown } | { ok: false; error: E },
-): E {
-  expect(result.ok).toBe(false);
-  return (result as { ok: false; error: E }).error;
-}
 
 describe("adminTopicsWorkflow", () => {
   describe("load", () => {
@@ -88,7 +74,7 @@ describe("adminTopicsWorkflow", () => {
   describe("decideProposal (approve)", () => {
     it("approves a pending proposal through the repository decideProposal method", async () => {
       const decideProposal = vi.fn().mockResolvedValue({
-        ok: true as const,
+        ok: true,
         topicId: "topic-new",
       });
       const workflow = createAdminTopicsWorkflow({
@@ -102,7 +88,8 @@ describe("adminTopicsWorkflow", () => {
         status: "approved",
       });
 
-      expectOk(result);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
       expect(result.value).toEqual({ topicId: "topic-new" });
       expect(decideProposal).toHaveBeenCalledWith({
         proposalId: "proposal-1",
@@ -113,7 +100,7 @@ describe("adminTopicsWorkflow", () => {
 
     it("rejects a pending proposal through the repository decideProposal method", async () => {
       const decideProposal = vi.fn().mockResolvedValue({
-        ok: true as const,
+        ok: true,
         topicId: null,
       });
       const workflow = createAdminTopicsWorkflow({
@@ -127,7 +114,8 @@ describe("adminTopicsWorkflow", () => {
         status: "rejected",
       });
 
-      expectOk(result);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
       expect(result.value).toEqual({ topicId: null });
       expect(decideProposal).toHaveBeenCalledWith({
         proposalId: "proposal-1",
@@ -138,8 +126,8 @@ describe("adminTopicsWorkflow", () => {
 
     it("surfaces the proposal_not_found branch from the repository", async () => {
       const decideProposal = vi.fn().mockResolvedValue({
-        ok: false as const,
-        reason: "proposal_not_found" as const,
+        ok: false,
+        reason: "proposal_not_found",
       });
       const workflow = createAdminTopicsWorkflow({
         repository: buildRepository({ decideProposal }),
@@ -152,14 +140,15 @@ describe("adminTopicsWorkflow", () => {
         status: "approved",
       });
 
-      expectErr(result);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
       expect(result.error).toBe("proposal_not_found");
     });
 
     it("surfaces the proposal_already_decided branch from the repository", async () => {
       const decideProposal = vi.fn().mockResolvedValue({
-        ok: false as const,
-        reason: "proposal_already_decided" as const,
+        ok: false,
+        reason: "proposal_already_decided",
       });
       const workflow = createAdminTopicsWorkflow({
         repository: buildRepository({ decideProposal }),
@@ -172,7 +161,8 @@ describe("adminTopicsWorkflow", () => {
         status: "approved",
       });
 
-      expectErr(result);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
       expect(result.error).toBe("proposal_already_decided");
     });
   });
@@ -199,7 +189,8 @@ describe("adminTopicsWorkflow", () => {
         confirmName: "Identity and access",
       });
 
-      expectErr(result);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
       expect(result.error).toBe("cannot_retire_own_proposal");
       expect(retireTopic).not.toHaveBeenCalled();
     });
@@ -225,7 +216,8 @@ describe("adminTopicsWorkflow", () => {
         confirmName: "wrong-name",
       });
 
-      expectErr(result);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
       expect(result.error).toBe("cannot_retire_own_proposal");
       expect(retireTopic).not.toHaveBeenCalled();
     });
@@ -244,7 +236,8 @@ describe("adminTopicsWorkflow", () => {
         confirmName: "Sailing",
       });
 
-      expectErr(result);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
       expect(result.error).toBe("topic_not_found");
       expect(retireTopic).not.toHaveBeenCalled();
     });
@@ -270,7 +263,8 @@ describe("adminTopicsWorkflow", () => {
         confirmName: null,
       });
 
-      expectErr(result);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
       expect(result.error).toBe("confirm_name_required");
       expect(retireTopic).not.toHaveBeenCalled();
     });
@@ -296,7 +290,8 @@ describe("adminTopicsWorkflow", () => {
         confirmName: "   ",
       });
 
-      expectErr(result);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
       expect(result.error).toBe("confirm_name_required");
       expect(retireTopic).not.toHaveBeenCalled();
     });
@@ -322,7 +317,8 @@ describe("adminTopicsWorkflow", () => {
         confirmName: "wrong-name",
       });
 
-      expectErr(result);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
       expect(result.error).toBe("confirm_name_mismatch");
       expect(retireTopic).not.toHaveBeenCalled();
     });
@@ -336,7 +332,7 @@ describe("adminTopicsWorkflow", () => {
         retiredAt: null,
         createdAt: fixedNow,
       });
-      const retireTopic = vi.fn().mockResolvedValue({ ok: true as const });
+      const retireTopic = vi.fn().mockResolvedValue({ ok: true });
       const workflow = createAdminTopicsWorkflow({
         repository: buildRepository({ findTopic, retireTopic }),
         clock: fixedClock,
@@ -348,7 +344,8 @@ describe("adminTopicsWorkflow", () => {
         confirmName: "SAILING",
       });
 
-      expectOk(result);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
       expect(retireTopic).toHaveBeenCalledWith({
         topicId: "topic-1",
         now: fixedNow,
@@ -375,7 +372,8 @@ describe("adminTopicsWorkflow", () => {
         confirmName: "Sailing",
       });
 
-      expectErr(result);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
       expect(result.error).toBe("topic_already_retired");
     });
 
@@ -388,7 +386,7 @@ describe("adminTopicsWorkflow", () => {
         retiredAt: null,
         createdAt: fixedNow,
       });
-      const retireTopic = vi.fn().mockResolvedValue({ ok: true as const });
+      const retireTopic = vi.fn().mockResolvedValue({ ok: true });
       const workflow = createAdminTopicsWorkflow({
         repository: buildRepository({ findTopic, retireTopic }),
         clock: fixedClock,
@@ -400,7 +398,8 @@ describe("adminTopicsWorkflow", () => {
         confirmName: "  Sailing  ",
       });
 
-      expectOk(result);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
       expect(retireTopic).toHaveBeenCalledWith({
         topicId: "topic-1",
         now: fixedNow,

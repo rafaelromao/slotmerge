@@ -2,11 +2,15 @@ import type { Clock } from "../system/clock";
 import {
   getTopicAdminRepository,
   type AdminTopicListItem,
+  type AdminTopicProposalListItem,
   type TopicAdminRepository,
 } from "../topics/repository";
 
 export type AdminTopicsLoadResult = {
   activeTopics: AdminTopicListItem[];
+  pendingProposals: AdminTopicProposalListItem[];
+  pendingCount: number;
+  activeCount: number;
 };
 
 export type AdminTopicsWorkflow = {
@@ -26,8 +30,16 @@ export function createAdminTopicsWorkflow(
   return {
     async load() {
       void clock;
-      const activeTopics = await topicRepository.listActiveAdminTopics();
-      return { activeTopics };
+      const [activeTopics, pendingProposals] = await Promise.all([
+        topicRepository.listActiveAdminTopics(),
+        topicRepository.listPendingTopicProposals(),
+      ]);
+      return {
+        activeTopics,
+        pendingProposals,
+        activeCount: activeTopics.length,
+        pendingCount: pendingProposals.length,
+      };
     },
   };
 }

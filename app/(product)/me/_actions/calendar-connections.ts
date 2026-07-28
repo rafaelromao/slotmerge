@@ -7,7 +7,10 @@ import {
   getSessionFromRequest,
   type Session,
 } from "../../../../src/auth/session";
-import { getCalendarConnectionRepository } from "../../../../src/calendar/repository";
+import {
+  findCalendarConnectionById,
+  getCalendarConnectionRepository,
+} from "../../../../src/calendar/repository";
 import { getCalendarProvider } from "../../../../src/calendar/providers";
 import { loadRuntimeConfig } from "../../../../src/config/runtime";
 import { enqueueSyncCalendarConnectionJob } from "../../../../src/worker/sync";
@@ -200,9 +203,16 @@ async function runRefresh(args: {
   if (!connectionId) {
     redirect(buildErrorRedirect("refresh", "missing_connection"));
   }
+  const targetUserId = await resolveTargetUserId({
+    session: args.session,
+    connectionId,
+  });
+  if (!targetUserId) {
+    redirect(buildErrorRedirect("refresh", "forbidden", connectionId));
+  }
   const result = await createMutationWorkflow().mutateConnection({
     kind: "refresh",
-    userId: args.session.user.id,
+    userId: targetUserId,
     connectionId,
   });
   if (!result.ok) {
@@ -214,9 +224,7 @@ async function runRefresh(args: {
       ),
     );
   }
-  redirect(
-    `/me/calendar-connections?intent=refresh&success=1&connectionId=${encodeURIComponent(connectionId)}`,
-  );
+  redirect(refreshRedirectTarget(args.session, connectionId));
 }
 
 async function runDisconnect(args: {
@@ -227,9 +235,16 @@ async function runDisconnect(args: {
   if (!connectionId) {
     redirect(buildErrorRedirect("disconnect", "missing_connection"));
   }
+  const targetUserId = await resolveTargetUserId({
+    session: args.session,
+    connectionId,
+  });
+  if (!targetUserId) {
+    redirect(buildErrorRedirect("disconnect", "forbidden", connectionId));
+  }
   const result = await createMutationWorkflow().mutateConnection({
     kind: "disconnect",
-    userId: args.session.user.id,
+    userId: targetUserId,
     connectionId,
     confirmAccountIdentifier:
       extractFieldString(args.formData, "confirmAccountIdentifier") ?? "",
@@ -243,7 +258,7 @@ async function runDisconnect(args: {
       ),
     );
   }
-  redirect("/me/calendar-connections?intent=disconnect&success=1");
+  redirect(disconnectRedirectTarget(args.session));
 }
 
 async function runDispatch(args: {
@@ -303,3 +318,33 @@ export async function disconnectConnectionAction(
   const { origin } = await loadCurrentRequest();
   await runDispatch({ formData, intent: "disconnect", origin });
 }
+
+async function resolveTargetUserId(args: {
+  session: Session;
+  connectionId: string;
+}): Promise<string | null> {
+  if (args.session.user.role === "admin") {
+    const connection = await findCalendarConnectionById(args.connectionId);
+    return connection?.userId ?? null;
+  }
+  return args.session.user.id;
+}
+
+export function refreshRedirectTarget(
+  session: Session,
+  connectionId: string,
+): string {
+  if (session.user.role === "admin") {
+    return `/admin?action=refresh_ok&connectionId=${encodeURIComponent(connectionId)}`;
+  }
+  return `/me/calendar-connections?intent=refresh&success=1&connectionId=${encodeURIComponent(connectionId)}`;
+}
+
+export function disconnectRedirectTarget(session: Session): string {
+  if (session.user.role === "admin") {
+    return "/admin?action=disconnect_ok";
+  }
+  return "/me/calendar-connections?intent=disconnect&success=1";
+}
+
+export const __testing = { resolveTargetUserId };

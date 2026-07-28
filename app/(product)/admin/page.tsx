@@ -309,7 +309,10 @@ export default async function AdminPage({
           </span>
         </summary>
         <div className="admin-section-body" data-testid="admin-status-body">
-          <AdminStatusSection statusResult={statusResult} />
+          <AdminStatusSection
+            statusResult={statusResult}
+            csrfToken={context.csrfToken}
+          />
         </div>
       </details>
     </main>

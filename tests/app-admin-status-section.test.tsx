@@ -7,6 +7,16 @@ import {
   type AdminStatusSectionProps,
 } from "../app/(product)/admin/_components/AdminStatusSection";
 
+const CSRF_TOKEN = "csrf-admin-status-test";
+
+function render(props: AdminStatusSectionProps): string {
+  return renderToString(<AdminStatusSection {...props} />);
+}
+
+function defaultProps(): AdminStatusSectionProps {
+  return { statusResult: makeResult(), csrfToken: CSRF_TOKEN };
+}
+
 function makeResult(
   overrides: Partial<AdminStatusSectionProps["statusResult"]> = {},
 ): AdminStatusSectionProps["statusResult"] {
@@ -40,7 +50,7 @@ function makeResult(
 describe("AdminStatusSection", () => {
   it("renders the generated-at timestamp and three sub-blocks when empty", () => {
     const html = renderToString(
-      <AdminStatusSection statusResult={makeResult()} />,
+      <AdminStatusSection statusResult={makeResult()} csrfToken={CSRF_TOKEN} />,
     );
 
     expect(html).toContain("data-testid=\"admin-status-body\"");
@@ -56,7 +66,7 @@ describe("AdminStatusSection", () => {
 
   it("does not render a global Refresh now button", () => {
     const html = renderToString(
-      <AdminStatusSection statusResult={makeResult()} />,
+      <AdminStatusSection statusResult={makeResult()} csrfToken={CSRF_TOKEN} />,
     );
 
     expect(html).not.toContain("Refresh now");
@@ -65,7 +75,7 @@ describe("AdminStatusSection", () => {
 
   it("uses the admin-status inner-block wrapper classes", () => {
     const html = renderToString(
-      <AdminStatusSection statusResult={makeResult()} />,
+      <AdminStatusSection statusResult={makeResult()} csrfToken={CSRF_TOKEN} />,
     );
 
     expect(html).toContain("admin-status-section");
@@ -118,6 +128,7 @@ describe("AdminStatusSection", () => {
           tokensCount: 0,
           health: { email: "green", calendar: "green", tokens: "green" },
         })}
+        csrfToken={CSRF_TOKEN}
       />,
     );
 
@@ -144,6 +155,7 @@ describe("AdminStatusSection", () => {
           tokensCount: 1,
           health: { email: "amber", calendar: "amber", tokens: "amber" },
         })}
+        csrfToken={CSRF_TOKEN}
       />,
     );
 
@@ -161,6 +173,7 @@ describe("AdminStatusSection", () => {
           tokensCount: 4,
           health: { email: "red", calendar: "red", tokens: "red" },
         })}
+        csrfToken={CSRF_TOKEN}
       />,
     );
 
@@ -175,6 +188,7 @@ describe("AdminStatusSection", () => {
         statusResult={makeResult({
           health: { email: "green", calendar: "green", tokens: "green" },
         })}
+        csrfToken={CSRF_TOKEN}
       />,
     );
 
@@ -191,6 +205,7 @@ describe("AdminStatusSection", () => {
           tokensCount: 0,
           health: { email: "amber", calendar: "green", tokens: "green" },
         })}
+        csrfToken={CSRF_TOKEN}
       />,
     );
 
@@ -215,6 +230,7 @@ describe("AdminStatusSection", () => {
           tokensCount: 0,
           health: { email: "green", calendar: "red", tokens: "green" },
         })}
+        csrfToken={CSRF_TOKEN}
       />,
     );
 
@@ -237,6 +253,7 @@ describe("AdminStatusSection", () => {
           tokensCount: 4,
           health: { email: "red", calendar: "red", tokens: "red" },
         })}
+        csrfToken={CSRF_TOKEN}
       />,
     );
 
@@ -256,6 +273,98 @@ describe("AdminStatusSection", () => {
       expect(block).not.toContain("Alice");
       expect(block).not.toContain("Carol");
     }
+  });
+
+  it("renders the empty-state CTA when no tokens need refresh", () => {
+    const html = renderToString(
+      <AdminStatusSection statusResult={makeResult()} csrfToken={CSRF_TOKEN} />,
+    );
+
+    expect(html).toContain('data-testid="admin-status-tokens-empty"');
+    expect(html).toContain('data-testid="admin-status-tokens-empty-cta"');
+    expect(html).toContain('href="/admin#users"');
+    expect(html).toContain("No tokens need refresh right now");
+  });
+
+  it("renders one row per tokensNeedingRefresh entry with Refresh and Disconnect forms", () => {
+    const expiredAt = new Date("2026-07-12T11:00:00.000Z");
+    const html = renderToString(
+      <AdminStatusSection
+        statusResult={makeResult({
+          calendar: {
+            counts: {
+              pending: 0,
+              connected: 2,
+              disconnected: 0,
+              needsReconnect: 0,
+            },
+            byProvider: [],
+            tokensNeedingRefresh: [
+              {
+                connectionId: "conn-1",
+                userId: "user-1",
+                provider: "google",
+                accountIdentifier: "alice@example.com",
+                status: "connected",
+                accessTokenExpiresAt: expiredAt,
+                bucket: "expired",
+              },
+              {
+                connectionId: "conn-2",
+                userId: "user-2",
+                provider: "microsoft",
+                accountIdentifier: "bob@example.com",
+                status: "connected",
+                accessTokenExpiresAt: null,
+                bucket: "unset",
+              },
+            ],
+          },
+          tokensCount: 2,
+        })}
+        csrfToken={CSRF_TOKEN}
+      />,
+    );
+
+    expect(html).toContain('data-testid="admin-status-tokens-row-conn-1"');
+    expect(html).toContain('data-testid="admin-status-tokens-row-conn-2"');
+    expect(html).toContain(
+      'data-testid="admin-status-tokens-refresh-form-conn-1"',
+    );
+    expect(html).toContain(
+      'data-testid="admin-status-tokens-refresh-conn-1"',
+    );
+    expect(html).toContain(
+      'data-testid="admin-status-tokens-disconnect-form-conn-1"',
+    );
+    expect(html).toContain(
+      'data-testid="admin-status-tokens-disconnect-conn-1"',
+    );
+    expect(html).toContain(
+      'data-testid="admin-status-tokens-disconnect-confirm-conn-1"',
+    );
+    // Each row has a unique confirm-input id and a unique aria-describedby
+    expect(html).toContain('id="admin-status-tokens-confirm-conn-1"');
+    expect(html).toContain('id="admin-status-tokens-confirm-conn-2"');
+    expect(html).toContain(
+      'aria-describedby="admin-status-tokens-confirm-hint-conn-1"',
+    );
+    expect(html).toContain(
+      'aria-describedby="admin-status-tokens-confirm-hint-conn-2"',
+    );
+    // Hidden CSRF + connectionId are present
+    expect(html).toContain(`type="hidden" name="_csrf" value="${CSRF_TOKEN}"`);
+    expect(html).toContain('type="hidden" name="connectionId" value="conn-1"');
+    expect(html).toContain('type="hidden" name="connectionId" value="conn-2"');
+  });
+
+  it("does not render any 'Refresh now' or 'Send critical operational email' button", () => {
+    const html = renderToString(
+      <AdminStatusSection statusResult={makeResult()} csrfToken={CSRF_TOKEN} />,
+    );
+
+    expect(html).not.toContain("Refresh now");
+    expect(html).not.toContain("Send critical operational email");
   });
 });
 

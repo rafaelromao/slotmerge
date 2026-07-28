@@ -15,6 +15,7 @@ import {
 } from "./_actions/users";
 import { SuspendTypedConfirm } from "./_components/SuspendTypedConfirm";
 import { SectionDeepLink } from "./_components/SectionDeepLink";
+import { AdminStatusSection } from "./_components/AdminStatusSection";
 import type { UserListItem } from "../../../src/admin/users.repository";
 import type { UserRole, UserStatus } from "../../../src/db/schema";
 import type { AdminUsersRecentInvite } from "../../../src/workflow/admin-users";
@@ -308,7 +309,7 @@ export default async function AdminPage({
           </span>
         </summary>
         <div className="admin-section-body" data-testid="admin-status-body">
-          <p>Status section is a placeholder for T18.</p>
+          <AdminStatusSection statusResult={statusResult} />
         </div>
       </details>
     </main>

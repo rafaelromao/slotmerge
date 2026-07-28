@@ -73,6 +73,12 @@ function formatLocal(local: LocalDateTime): string {
   );
 }
 
+/**
+ * Validates that `timezone` is an IANA zone that Node's `Intl` runtime can
+ * resolve. Accepts canonical names and aliases (e.g. both `Asia/Katmandu` and
+ * the older `Asia/Kathmandu` spelling). Throws `RangeError` for empty input,
+ * unknown names, and names whose resolver returns no canonical form.
+ */
 export function isValidTimeZone(timezone: string): void {
   if (typeof timezone !== "string" || timezone.length === 0) {
     throw new RangeError(`Invalid IANA timezone: ${JSON.stringify(timezone)}`);

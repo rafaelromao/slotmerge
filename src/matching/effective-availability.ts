@@ -2,7 +2,11 @@ import type { WeeklyAvailabilityWindow } from "../profile/availability-windows";
 import type { AvailabilityOverride } from "../profile/availability-overrides";
 import { expandOverrideToUtcRange } from "../profile/availability-overrides";
 import type { ImportedBusyIntervalRecord } from "../calendar/imported-busy-intervals";
-import { getLocalDayHour, localDateTimeToUtc } from "../time";
+import {
+  getLocalDayHour,
+  getLocalDateParts,
+  localDateTimeToUtc,
+} from "../time";
 
 export type EffectiveAvailabilityInputs = {
   userId: string;
@@ -67,11 +71,16 @@ function expandWindowsInTimezone(
           window.endTime,
         );
 
+        const localDateAtNoon = getLocalDateParts(
+          noonOnDate,
+          window.profileTimezone,
+        );
+
         const startUtc = localDateTimeToUtc(
           {
-            year: utcYear,
-            month: utcMonth + 1,
-            day: utcDay,
+            year: localDateAtNoon.year,
+            month: localDateAtNoon.month,
+            day: localDateAtNoon.day,
             hour: startHours,
             minute: startMinutes,
           },
@@ -80,9 +89,9 @@ function expandWindowsInTimezone(
 
         const endUtc = localDateTimeToUtc(
           {
-            year: utcYear,
-            month: utcMonth + 1,
-            day: utcDay,
+            year: localDateAtNoon.year,
+            month: localDateAtNoon.month,
+            day: localDateAtNoon.day,
             hour: endHours,
             minute: endMinutes,
           },

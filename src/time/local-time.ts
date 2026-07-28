@@ -331,8 +331,8 @@ export function localDateTimeToUtc(
     const sortedOffsets = Array.from(offsets).sort((a, b) => a - b);
     const smallestOffset = sortedOffsets[0] ?? 0;
     const largestOffset = sortedOffsets[sortedOffsets.length - 1] ?? 0;
-    const utcBefore = new Date(candidateForOffset(baseUtcMs, smallestOffset));
-    const utcAfter = new Date(candidateForOffset(baseUtcMs, largestOffset));
+    const utcBefore = new Date(candidateForOffset(baseUtcMs, largestOffset));
+    const utcAfter = new Date(candidateForOffset(baseUtcMs, smallestOffset));
     throw new NonexistentLocalTimeError(local, timezone, utcBefore, utcAfter);
   }
 

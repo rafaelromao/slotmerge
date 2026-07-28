@@ -321,6 +321,10 @@ describe("NonexistentLocalTimeError (spring-forward)", () => {
       expect(err.timezone).toBe("America/New_York");
       expect(err.utcBefore).toBeInstanceOf(Date);
       expect(err.utcAfter).toBeInstanceOf(Date);
+      expect(err.utcBefore.getTime()).toBeLessThan(err.utcAfter.getTime());
+      expect(err.utcAfter.getTime() - err.utcBefore.getTime()).toBe(
+        60 * 60 * 1000,
+      );
     }
   });
 });

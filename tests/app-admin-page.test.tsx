@@ -73,11 +73,22 @@ vi.mock("../src/admin/operational-status.workflow", () => ({
         recentFailures: [],
       },
       calendar: {
-        counts: { pending: 0, connected: 0, disconnected: 0 },
+        counts: {
+          pending: 0,
+          connected: 0,
+          disconnected: 0,
+          needsReconnect: 0,
+        },
+        byProvider: [],
         tokensNeedingRefresh: [],
       },
       windowHours: 24,
       generatedAt: new Date("2026-07-12T12:00:00.000Z"),
+      emailFailureRate: 0,
+      pendingEmailCount: 0,
+      needsReconnectCount: 0,
+      tokensCount: 0,
+      health: { email: "green", calendar: "green", tokens: "green" },
     }),
   })),
 }));
@@ -144,11 +155,22 @@ describe("Admin page", () => {
           recentFailures: [],
         },
         calendar: {
-          counts: { pending: 1, connected: 2, disconnected: 0 },
+          counts: {
+            pending: 1,
+            connected: 2,
+            disconnected: 0,
+            needsReconnect: 0,
+          },
+          byProvider: [],
           tokensNeedingRefresh: [],
         },
         windowHours: 24,
         generatedAt: new Date("2026-07-12T12:00:00.000Z"),
+        emailFailureRate: 100,
+        pendingEmailCount: 0,
+        needsReconnectCount: 0,
+        tokensCount: 0,
+        health: { email: "red", calendar: "green", tokens: "green" },
       }),
     });
 

@@ -41,6 +41,24 @@ export const USER_FIXTURES = [
     profileTimezone: "Europe/London",
     bufferMinutes: 0,
   },
+  {
+    id: "00000000-0000-0000-0000-000000000004",
+    email: "dana@example.com",
+    displayName: "Dana Discoverable",
+    role: "user" as const,
+    status: "active" as const,
+    profileTimezone: "UTC",
+    bufferMinutes: 0,
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000005",
+    email: "eli@example.com",
+    displayName: "Eli Discoverable",
+    role: "user" as const,
+    status: "active" as const,
+    profileTimezone: "UTC",
+    bufferMinutes: 0,
+  },
 ];
 
 export const TOPIC_FIXTURES = [
@@ -90,6 +108,22 @@ export const AVAILABILITY_WINDOW_FIXTURES = [
     startTime: "08:00",
     endTime: "16:00",
     profileTimezone: "America/Los_Angeles",
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000023",
+    userId: USER_FIXTURES[3].id,
+    dayOfWeek: 1,
+    startTime: "09:00",
+    endTime: "17:00",
+    profileTimezone: "UTC",
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000024",
+    userId: USER_FIXTURES[4].id,
+    dayOfWeek: 1,
+    startTime: "09:00",
+    endTime: "17:00",
+    profileTimezone: "UTC",
   },
 ];
 
@@ -184,6 +218,41 @@ export const USER_TOPIC_FIXTURES = [
     userId: USER_FIXTURES[1].id,
     topicId: TOPIC_FIXTURES[1].id,
     status: "active" as const,
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000054",
+    userId: USER_FIXTURES[3].id,
+    topicId: TOPIC_FIXTURES[0].id,
+    status: "active" as const,
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000055",
+    userId: USER_FIXTURES[3].id,
+    topicId: TOPIC_FIXTURES[1].id,
+    status: "active" as const,
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000056",
+    userId: USER_FIXTURES[4].id,
+    topicId: TOPIC_FIXTURES[0].id,
+    status: "active" as const,
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000057",
+    userId: USER_FIXTURES[4].id,
+    topicId: TOPIC_FIXTURES[1].id,
+    status: "active" as const,
+  },
+];
+
+export const DISCOVERABILITY_CONSENT_FIXTURES = [
+  {
+    userId: USER_FIXTURES[3].id,
+    grantedAt: new Date(FIXTURE_DATE),
+  },
+  {
+    userId: USER_FIXTURES[4].id,
+    grantedAt: new Date(FIXTURE_DATE),
   },
 ];
 
@@ -382,6 +451,23 @@ export async function seedAll(db: AppDb): Promise<void> {
           topicId: ut.topicId,
           status: ut.status,
           updatedAt: now,
+        },
+      });
+  }
+
+  for (const consent of DISCOVERABILITY_CONSENT_FIXTURES) {
+    await db
+      .insert(discoverabilityConsents)
+      .values({
+        userId: consent.userId,
+        grantedAt: consent.grantedAt,
+        revokedAt: null,
+      })
+      .onConflictDoUpdate({
+        target: discoverabilityConsents.userId,
+        set: {
+          grantedAt: consent.grantedAt,
+          revokedAt: null,
         },
       });
   }

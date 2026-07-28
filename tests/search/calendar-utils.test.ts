@@ -257,5 +257,12 @@ describe("calendar-utils", () => {
 
       expect(result.getTime()).toBe(new Date("2026-07-13T04:00:00Z").getTime());
     });
+
+    it("keeps Monday midnight across the fall DST boundary", () => {
+      const date = new Date("2026-11-01T18:00:00Z");
+      const result = alignToMonday(date, "America/New_York");
+
+      expect(result.getTime()).toBe(new Date("2026-10-26T04:00:00Z").getTime());
+    });
   });
 });

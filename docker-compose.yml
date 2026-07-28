@@ -35,7 +35,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: pnpm exec drizzle-kit migrate
+    command: ./node_modules/.bin/drizzle-kit migrate
     environment:
       DATABASE_URL: postgres://slotmerge:slotmerge@postgres:5432/slotmerge
     depends_on:
@@ -46,7 +46,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: pnpm dev:web
+    command: ./node_modules/.bin/next dev --webpack -H 0.0.0.0
     environment:
       APP_ENV: local
       APP_PUBLIC_URL: http://localhost:3000
@@ -76,7 +76,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: pnpm dev:worker
+    command: ./node_modules/.bin/tsx src/worker/run.ts
     environment:
       APP_ENV: local
       CALENDAR_PROVIDER_MODE: mock

@@ -45,7 +45,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "pnpm local:up",
+    command: "docker compose up --build",
     url: `${BASE_URL}/api/local/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

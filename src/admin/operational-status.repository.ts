@@ -11,7 +11,11 @@ import {
 } from "drizzle-orm";
 
 import { getDb } from "../db/client";
-import { calendarConnections, emailEvents } from "../db/schema";
+import {
+  calendarConnections,
+  emailEvents,
+  type CalendarProvider,
+} from "../db/schema";
 
 const RECENT_FAILURE_LIMIT = 5;
 const TOKEN_EXPIRING_SOON_MS = 5 * 60 * 1000;
@@ -44,12 +48,24 @@ export type TokenRefreshRow = {
   bucket: "expired" | "expiring_soon" | "unset";
 };
 
+export type CalendarProviderConnectionCounts = {
+  pending: number;
+  connected: number;
+  needsReconnect: number;
+  disconnected: number;
+};
+
 export type CalendarConnectionSummary = {
   counts: {
     pending: number;
     connected: number;
     disconnected: number;
+    needsReconnect: number;
   };
+  byProvider: Array<{
+    provider: CalendarProvider;
+    counts: CalendarProviderConnectionCounts;
+  }>;
   tokensNeedingRefresh: TokenRefreshRow[];
 };
 
@@ -120,15 +136,63 @@ export function createPostgresOperationalStatusRepository(
         .from(calendarConnections)
         .groupBy(calendarConnections.status)
         .then((rows) => {
-          const empty = { pending: 0, connected: 0, disconnected: 0 };
+          const empty = {
+            pending: 0,
+            connected: 0,
+            disconnected: 0,
+            needsReconnect: 0,
+          };
           for (const row of rows) {
             if (row.status === "pending") empty.pending = Number(row.value);
             else if (row.status === "connected")
               empty.connected = Number(row.value);
             else if (row.status === "disconnected")
               empty.disconnected = Number(row.value);
+            else if (row.status === "needs_reconnect")
+              empty.needsReconnect = Number(row.value);
           }
           return empty;
+        });
+
+      const byProviderRows = await db
+        .select({
+          provider: calendarConnections.provider,
+          status: calendarConnections.status,
+          value: count(),
+        })
+        .from(calendarConnections)
+        .groupBy(
+          calendarConnections.provider,
+          calendarConnections.status,
+        )
+        .then((rows) => {
+          const byProvider = new Map<
+            CalendarProvider,
+            CalendarProviderConnectionCounts
+          >();
+          for (const row of rows) {
+            let bucket = byProvider.get(row.provider);
+            if (!bucket) {
+              bucket = {
+                pending: 0,
+                connected: 0,
+                needsReconnect: 0,
+                disconnected: 0,
+              };
+              byProvider.set(row.provider, bucket);
+            }
+            if (row.status === "pending") bucket.pending = Number(row.value);
+            else if (row.status === "connected")
+              bucket.connected = Number(row.value);
+            else if (row.status === "needs_reconnect")
+              bucket.needsReconnect = Number(row.value);
+            else if (row.status === "disconnected")
+              bucket.disconnected = Number(row.value);
+          }
+          return Array.from(byProvider.entries()).map(([provider, c]) => ({
+            provider,
+            counts: c,
+          }));
         });
 
       const expiringSoon = new Date(now.getTime() + TOKEN_EXPIRING_SOON_MS);
@@ -189,6 +253,7 @@ export function createPostgresOperationalStatusRepository(
 
       return {
         counts,
+        byProvider: byProviderRows,
         tokensNeedingRefresh: [
           ...expired.map((r) => ({ ...r, bucket: "expired" as const })),
           ...expiringSoonRows.map((r) => ({

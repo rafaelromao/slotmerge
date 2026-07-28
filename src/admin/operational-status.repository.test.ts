@@ -74,11 +74,55 @@ describe("createPostgresOperationalStatusRepository", () => {
                 { status: "pending", value: "1" },
                 { status: "connected", value: "5" },
                 { status: "disconnected", value: "2" },
+                { status: "needs_reconnect", value: "3" },
               ]),
             }),
           };
         }
         if (callIndex === 2) {
+          return {
+            from: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockResolvedValue([
+                {
+                  provider: "google",
+                  status: "pending",
+                  value: "1",
+                },
+                {
+                  provider: "google",
+                  status: "connected",
+                  value: "4",
+                },
+                {
+                  provider: "google",
+                  status: "needs_reconnect",
+                  value: "2",
+                },
+                {
+                  provider: "google",
+                  status: "disconnected",
+                  value: "1",
+                },
+                {
+                  provider: "microsoft",
+                  status: "connected",
+                  value: "1",
+                },
+                {
+                  provider: "microsoft",
+                  status: "needs_reconnect",
+                  value: "1",
+                },
+                {
+                  provider: "microsoft",
+                  status: "disconnected",
+                  value: "1",
+                },
+              ]),
+            }),
+          };
+        }
+        if (callIndex === 3) {
           return {
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockResolvedValue([
@@ -94,7 +138,7 @@ describe("createPostgresOperationalStatusRepository", () => {
             }),
           };
         }
-        if (callIndex === 3) {
+        if (callIndex === 4) {
           return {
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockResolvedValue([
@@ -139,7 +183,18 @@ describe("createPostgresOperationalStatusRepository", () => {
       pending: 1,
       connected: 5,
       disconnected: 2,
+      needsReconnect: 3,
     });
+    expect(summary.byProvider).toEqual([
+      {
+        provider: "google",
+        counts: { pending: 1, connected: 4, needsReconnect: 2, disconnected: 1 },
+      },
+      {
+        provider: "microsoft",
+        counts: { pending: 0, connected: 1, needsReconnect: 1, disconnected: 1 },
+      },
+    ]);
     expect(summary.tokensNeedingRefresh).toHaveLength(3);
     expect(summary.tokensNeedingRefresh[0].bucket).toBe("expired");
     expect(summary.tokensNeedingRefresh[1].bucket).toBe("expiring_soon");

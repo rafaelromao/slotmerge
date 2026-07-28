@@ -409,7 +409,7 @@ export function createSearchWorkflow(
   };
 }
 
-function isValidOrganizerTimezone(value: string): boolean {
+function hasOrganizerTimezone(value: string): boolean {
   return typeof value === "string" && value.trim().length > 0;
 }
 
@@ -451,7 +451,7 @@ function validateRaw(raw: SearchFormDefaults): SearchFieldErrors {
     errors.dateRangeEnd = "date_range_invalid";
   } else if (end.getTime() <= start.getTime()) {
     errors.dateRangeEnd = "date_range_invalid";
-  } else if (isValidOrganizerTimezone(organizerTimezone)) {
+  } else if (hasOrganizerTimezone(organizerTimezone)) {
     try {
       isValidTimeZone(organizerTimezone);
       if (

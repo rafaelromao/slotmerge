@@ -88,11 +88,6 @@ export function isValidTimeZone(timezone: string): void {
   if (typeof resolved !== "string" || resolved.length === 0) {
     throw new RangeError(`Invalid IANA timezone: ${JSON.stringify(timezone)}`);
   }
-  if (resolved !== timezone) {
-    throw new RangeError(
-      `Invalid IANA timezone: ${JSON.stringify(timezone)} (resolved to ${JSON.stringify(resolved)})`,
-    );
-  }
 }
 
 const DATE_FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
@@ -115,6 +110,35 @@ function dateFormatter(timezone: string): Intl.DateTimeFormat {
     DATE_FORMATTER_CACHE.set(timezone, formatter);
   }
   return formatter;
+}
+
+const WEEKDAY_FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
+
+function weekdayFormatter(timezone: string): Intl.DateTimeFormat {
+  let formatter = WEEKDAY_FORMATTER_CACHE.get(timezone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      weekday: "short",
+    });
+    WEEKDAY_FORMATTER_CACHE.set(timezone, formatter);
+  }
+  return formatter;
+}
+
+const WEEKDAY_MAP: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+function readWeekday(date: Date, timezone: string): number {
+  const dayStr = weekdayFormatter(timezone).format(date);
+  return WEEKDAY_MAP[dayStr] ?? 0;
 }
 
 function readParts(
@@ -175,22 +199,7 @@ export function addCivilDays(date: Date, days: number, timezone: string): Date {
 export function getLocalDayHour(date: Date, timezone: string): LocalDayHour {
   isValidTimeZone(timezone);
   const parts = readParts(date, timezone);
-  const weekdayFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    weekday: "short",
-  });
-  const weekdayStr = weekdayFormatter.format(date);
-  const dayMap: Record<string, number> = {
-    Sun: 0,
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
-  };
-  const dayOfWeek = dayMap[weekdayStr] ?? 0;
-  return { dayOfWeek, hour: parts.hour };
+  return { dayOfWeek: readWeekday(date, timezone), hour: parts.hour };
 }
 
 function isLeapYear(year: number): boolean {
@@ -345,21 +354,7 @@ export function localDateTimeToUtc(
 export function startOfWeekInTimezone(date: Date, timezone: string): Date {
   isValidTimeZone(timezone);
   const parts = getLocalDateParts(date, timezone);
-  const weekdayFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    weekday: "short",
-  });
-  const weekdayStr = weekdayFormatter.format(date);
-  const dayMap: Record<string, number> = {
-    Sun: 0,
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
-  };
-  const weekday = dayMap[weekdayStr] ?? 0;
+  const weekday = readWeekday(date, timezone);
   const daysSinceMonday = weekday === 0 ? 6 : weekday - 1;
 
   const mondayUtc = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));

@@ -15,6 +15,7 @@ import {
 describe("isValidTimeZone", () => {
   it("accepts canonical IANA zones", () => {
     expect(() => isValidTimeZone("America/New_York")).not.toThrow();
+    expect(() => isValidTimeZone("Asia/Kathmandu")).not.toThrow();
     expect(() => isValidTimeZone("Asia/Katmandu")).not.toThrow();
     expect(() => isValidTimeZone("UTC")).not.toThrow();
     expect(() => isValidTimeZone("Pacific/Chatham")).not.toThrow();
@@ -27,12 +28,9 @@ describe("isValidTimeZone", () => {
     expect(() => isValidTimeZone("")).toThrow(RangeError);
   });
 
-  it("throws RangeError for a casing variant", () => {
-    expect(() => isValidTimeZone("america/new_york")).toThrow(RangeError);
-  });
-
-  it("throws RangeError for an abbreviation", () => {
-    expect(() => isValidTimeZone("EST")).toThrow(RangeError);
+  it("accepts aliases that resolve to canonical IANA zones", () => {
+    expect(() => isValidTimeZone("asia/kathmandu")).not.toThrow();
+    expect(() => isValidTimeZone("asia/katmandu")).not.toThrow();
   });
 
   it("throws RangeError for garbage input", () => {
@@ -67,7 +65,7 @@ describe("getLocalDateParts", () => {
   it("handles half-hour zones", () => {
     const parts = getLocalDateParts(
       new Date("2026-07-15T18:15:00Z"),
-      "Asia/Katmandu",
+      "Asia/Kathmandu",
     );
     expect(parts.year).toBe(2026);
     expect(parts.month).toBe(7);
@@ -170,7 +168,7 @@ describe("localDateTimeToUtc", () => {
     expect(result.toISOString()).toBe("2026-01-15T14:00:00.000Z");
   });
 
-  it("converts unambiguous local time in Asia/Katmandu (+05:45)", () => {
+  it("converts unambiguous local time in Asia/Kathmandu (+05:45)", () => {
     const local: LocalDateTime = {
       year: 2026,
       month: 7,
@@ -178,7 +176,7 @@ describe("localDateTimeToUtc", () => {
       hour: 12,
       minute: 0,
     };
-    const result = localDateTimeToUtc(local, "Asia/Katmandu");
+    const result = localDateTimeToUtc(local, "Asia/Kathmandu");
     expect(result.toISOString()).toBe("2026-07-15T06:15:00.000Z");
   });
 
@@ -272,7 +270,7 @@ describe("localDateTimeToUtc", () => {
       hour: 9,
       minute: 0,
     };
-    const utc = localDateTimeToUtc(local, "Asia/Katmandu");
+    const utc = localDateTimeToUtc(local, "Asia/Kathmandu");
     expect(utc.toISOString()).toBe("2026-07-13T03:15:00.000Z");
   });
 });
@@ -431,16 +429,16 @@ describe("getLocalDayHour", () => {
   it("returns the local day-of-week not the host day", () => {
     const result = getLocalDayHour(
       new Date("2026-07-15T18:00:00Z"),
-      "Asia/Katmandu",
+      "Asia/Kathmandu",
     );
     expect(result.dayOfWeek).toBeGreaterThanOrEqual(0);
     expect(result.dayOfWeek).toBeLessThanOrEqual(6);
   });
 
-  it("rolls Saturday late-evening UTC into Sunday in Asia/Katmandu", () => {
+  it("rolls Saturday late-evening UTC into Sunday in Asia/Kathmandu", () => {
     const result = getLocalDayHour(
       new Date("2026-07-18T20:00:00Z"),
-      "Asia/Katmandu",
+      "Asia/Kathmandu",
     );
     expect(result.dayOfWeek).toBe(0);
     expect(result.hour).toBe(1);

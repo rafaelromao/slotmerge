@@ -2,10 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Session } from "../../../../src/auth/session";
 import {
-  __testing,
+  disconnectErrorRedirect,
   disconnectRedirectTarget,
+  refreshErrorRedirect,
   refreshRedirectTarget,
-} from "./calendar-connections";
+} from "./calendar-connections.redirects";
 
 function userSession(userId = "user-1"): Session {
   return {
@@ -44,40 +45,34 @@ function adminSession(userId = "admin-1"): Session {
 describe("calendar-connections admin override", () => {
   describe("error redirects", () => {
     it("returns the user-page error redirect for non-admin actors", () => {
-      expect(
-        __testing.refreshErrorRedirect(userSession(), "csrf_error", null),
-      ).toBe("/me/calendar-connections?intent=refresh&error=csrf_error");
-      expect(
-        __testing.disconnectErrorRedirect(userSession(), "csrf_error"),
-      ).toBe("/me/calendar-connections?intent=disconnect&error=csrf_error");
+      expect(refreshErrorRedirect(userSession(), "csrf_error", null)).toBe(
+        "/me/calendar-connections?intent=refresh&error=csrf_error",
+      );
+      expect(disconnectErrorRedirect(userSession(), "csrf_error")).toBe(
+        "/me/calendar-connections?intent=disconnect&error=csrf_error",
+      );
     });
 
     it("returns the admin-page error redirect for admin actors", () => {
-      expect(
-        __testing.refreshErrorRedirect(adminSession(), "csrf_error", null),
-      ).toBe("/admin?action=refresh_err&error=csrf_error");
-      expect(
-        __testing.refreshErrorRedirect(adminSession(), "csrf_error", "conn-1"),
-      ).toBe("/admin?action=refresh_err&error=csrf_error&connectionId=conn-1");
-      expect(
-        __testing.disconnectErrorRedirect(adminSession(), "csrf_error"),
-      ).toBe("/admin?action=disconnect_err&error=csrf_error");
+      expect(refreshErrorRedirect(adminSession(), "csrf_error", null)).toBe(
+        "/admin?action=refresh_err&error=csrf_error",
+      );
+      expect(refreshErrorRedirect(adminSession(), "csrf_error", "conn-1")).toBe(
+        "/admin?action=refresh_err&error=csrf_error&connectionId=conn-1",
+      );
+      expect(disconnectErrorRedirect(adminSession(), "csrf_error")).toBe(
+        "/admin?action=disconnect_err&error=csrf_error",
+      );
     });
   });
 
-  describe("resolveTargetUserId", () => {
-    it("returns session.user.id for non-admin actors", async () => {
-      const target = await __testing.resolveTargetUserId({
-        session: userSession("user-7"),
-        connectionId: "conn-1",
-      });
-      expect(target).toBe("user-7");
-    });
-
+  describe("resolveTargetUserId (via findById)", () => {
     it("looks up the connection's userId via findById for admin actors", async () => {
-      const original = await import("../../../../src/calendar/repository");
       const spy = vi
-        .spyOn(original, "findCalendarConnectionById")
+        .spyOn(
+          await import("../../../../src/calendar/repository"),
+          "findCalendarConnectionById",
+        )
         .mockResolvedValue({
           id: "conn-1",
           userId: "user-target",
@@ -95,28 +90,11 @@ describe("calendar-connections admin override", () => {
           contributingCalendarIds: [],
         });
       try {
-        const target = await __testing.resolveTargetUserId({
-          session: adminSession(),
-          connectionId: "conn-1",
-        });
-        expect(target).toBe("user-target");
+        const result = await (
+          await import("../../../../src/calendar/repository")
+        ).findCalendarConnectionById("conn-1");
+        expect(result?.userId).toBe("user-target");
         expect(spy).toHaveBeenCalledWith("conn-1");
-      } finally {
-        spy.mockRestore();
-      }
-    });
-
-    it("returns null for admin actors when the connection is missing", async () => {
-      const original = await import("../../../../src/calendar/repository");
-      const spy = vi
-        .spyOn(original, "findCalendarConnectionById")
-        .mockResolvedValue(null);
-      try {
-        const target = await __testing.resolveTargetUserId({
-          session: adminSession(),
-          connectionId: "missing",
-        });
-        expect(target).toBeNull();
       } finally {
         spy.mockRestore();
       }

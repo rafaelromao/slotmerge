@@ -1,3 +1,5 @@
+import { loadRuntimeConfig } from "../config/runtime";
+
 export type ProviderFetchImpl = typeof fetch;
 
 const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
@@ -116,4 +118,3 @@ export function configuredProviderFetchImpl(
 
   return createProviderFetchImpl(baseFetch, config.localProviderOverrideUrl!);
 }
-import { loadRuntimeConfig } from "../config/runtime";

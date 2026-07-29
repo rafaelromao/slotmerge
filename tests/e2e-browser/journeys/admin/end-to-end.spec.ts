@@ -2,9 +2,10 @@ import { test, expect } from "@playwright/test";
 import { eq } from "drizzle-orm";
 
 import { getDb } from "../../../../src/db/client";
-import { invites, topics, users } from "../../../../src/db/schema";
+import { invites, users } from "../../../../src/db/schema";
 import { FIXTURE_DATE, USER_FIXTURES, seedAll } from "../../../fixtures/seeds";
 import { captureState } from "../../../helpers/playwright/screenshot-helper";
+import { resetAdminFixtures } from "../../../helpers/playwright/admin-fixtures";
 
 const FIXED_DATE = new Date(FIXTURE_DATE);
 const ADMIN_ID = USER_FIXTURES[2].id;
@@ -29,9 +30,8 @@ const RETIRE_TOPIC_NAME = "Product strategy";
 // per-test WebM.
 test.use({ storageState: "playwright/.auth/admin.json" });
 
-async function reseed(): Promise<void> {
-  const db = getDb();
-  await seedAll(db);
+async function resetFixtures(): Promise<void> {
+  await resetAdminFixtures(getDb());
 }
 
 test.describe("invite surface", () => {
@@ -74,7 +74,7 @@ test.describe("invite surface", () => {
 
 test.describe("role change surface", () => {
   test.beforeEach(async () => {
-    await reseed();
+    await resetFixtures();
   });
 
   test("admin changes a non-self User's role, the page re-renders with the Role updated banner", async ({
@@ -113,7 +113,10 @@ test.describe("role change surface", () => {
 
 test.describe("suspend surface", () => {
   test.beforeEach(async () => {
-    await reseed();
+    await resetFixtures();
+  });
+  test.afterEach(async () => {
+    await resetFixtures();
   });
 
   test("admin suspends a non-self User with typed-confirm, the page re-renders with the Suspended banner", async ({
@@ -212,14 +215,10 @@ test.describe("reinstate surface", () => {
 
 test.describe("approve proposal surface", () => {
   test.beforeEach(async () => {
-    const db = getDb();
-    await seedAll(db);
-    // The approve action creates a new Topic with the proposal's
-    // candidateName. Resetting the proposal to pending is not enough
-    // because the new Topic would block the next insert via the unique
-    // name constraint. Delete any Topic named "Engineering management"
-    // (the proposal 060 candidateName) before each run.
-    await db.delete(topics).where(eq(topics.name, APPROVE_PROPOSAL_NAME));
+    await resetFixtures();
+  });
+  test.afterEach(async () => {
+    await resetFixtures();
   });
 
   test("admin approves a pending Topic Proposal, the page re-renders with the Topic proposal approved banner", async ({
@@ -262,7 +261,7 @@ test.describe("approve proposal surface", () => {
 
 test.describe("reject proposal surface", () => {
   test.beforeEach(async () => {
-    await reseed();
+    await resetFixtures();
   });
 
   test("admin rejects a pending Topic Proposal, the page re-renders with the Topic proposal rejected banner", async ({
@@ -359,7 +358,7 @@ test.describe("retire topic surface", () => {
 
 test.describe("status surface", () => {
   test.beforeEach(async () => {
-    await reseed();
+    await resetFixtures();
   });
 
   test("admin opens the Status section, all three sub-blocks render with green pills", async ({

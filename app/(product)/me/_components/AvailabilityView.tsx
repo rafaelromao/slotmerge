@@ -93,32 +93,75 @@ export function AvailabilityView(props: AvailabilityViewProps) {
     overrides.length > 0;
 
   const pageErrorCode = errorCode && errorTarget === "page" ? errorCode : null;
+  const weekWindowCount = Object.values(windowsByDay).reduce(
+    (acc, list) => acc + list.length,
+    0,
+  );
 
   return (
-    <main className="app-container" data-testid="availability-page">
-      <h1 data-testid="availability-page-heading">Availability</h1>
-      <p className="availability-page-intro">
-        Define when you are available. Weekly windows apply to every week;
-        one-off overrides add or block specific dates.
-      </p>
+    <main
+      className="app-container me-page availability-page"
+      data-testid="availability-page"
+    >
+      <header className="page-header">
+        <div className="page-header-copy">
+          <p className="eyebrow">Availability</p>
+          <h1 data-testid="availability-page-heading">Availability</h1>
+          <p className="page-description">
+            Define when you are available. Weekly windows apply to every week;
+            one-off overrides add or block specific dates.
+          </p>
+        </div>
+        <div className="page-header-actions">
+          <span
+            className="me-page-header-pill"
+            data-tone={
+              hasAnyAvailability && !timezoneRequired
+                ? "ok"
+                : timezoneRequired
+                  ? "danger"
+                  : "warn"
+            }
+            data-testid="availability-page-status-pill"
+          >
+            <strong>
+              {timezoneRequired
+                ? "Set timezone first"
+                : hasAnyAvailability
+                  ? `${weekWindowCount + overrides.length} windows`
+                  : "No windows yet"}
+            </strong>
+            <span>
+              {timezoneRequired
+                ? "Required before adding windows"
+                : hasAnyAvailability
+                  ? `${weekWindowCount} weekly · ${overrides.length} override`
+                  : "Add a weekly window to start"}
+            </span>
+          </span>
+        </div>
+      </header>
 
       {saved ? (
         <p
-          className="availability-saved-indicator"
+          className="saved-banner"
           role="status"
           aria-live="polite"
           data-testid="availability-saved-indicator"
         >
-          Saved
+          Availability saved.
         </p>
       ) : null}
 
       <section
-        className="availability-section"
+        className="surface-section"
         aria-labelledby="availability-timezone-heading"
         data-testid="availability-timezone-section"
       >
-        <h2 id="availability-timezone-heading">Profile timezone</h2>
+        <div className="surface-section-header">
+          <h2 id="availability-timezone-heading">Profile timezone</h2>
+          <p>Sets the clock for every window below.</p>
+        </div>
         {timezoneRequired ? (
           <div
             className="availability-timezone-required"
@@ -163,11 +206,14 @@ export function AvailabilityView(props: AvailabilityViewProps) {
       {timezoneRequired ? null : (
         <>
           <section
-            className="availability-section"
+            className="surface-section"
             aria-labelledby="availability-weekly-heading"
             data-testid="availability-weekly-section"
           >
-            <h2 id="availability-weekly-heading">Weekly Availability</h2>
+            <div className="surface-section-header">
+              <h2 id="availability-weekly-heading">Weekly Availability</h2>
+              <p>Repeats every week in your timezone.</p>
+            </div>
             <div
               className="availability-weekly-grid"
               data-testid="availability-weekly-grid"
@@ -327,7 +373,7 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                     {showDayError ? (
                       <p
                         id={`availability-day-${dayIndex}-error`}
-                        className="availability-form-error"
+                        className="form-field-error"
                         role="alert"
                         aria-live="polite"
                         data-testid={`availability-day-${dayIndex}-error`}
@@ -342,11 +388,14 @@ export function AvailabilityView(props: AvailabilityViewProps) {
           </section>
 
           <section
-            className="availability-section"
+            className="surface-section"
             aria-labelledby="availability-overrides-heading"
             data-testid="availability-overrides-section"
           >
-            <h2 id="availability-overrides-heading">One-off overrides</h2>
+            <div className="surface-section-header">
+              <h2 id="availability-overrides-heading">One-off overrides</h2>
+              <p>{overrides.length} added.</p>
+            </div>
             {overrides.length === 0 ? (
               <p
                 className="availability-overrides-empty"
@@ -367,11 +416,14 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                     data-override-id={override.id}
                     data-type={override.type}
                   >
-                    <span className="availability-override-type">
-                      {override.type}
-                    </span>
                     <span className="availability-override-date">
-                      {override.date}
+                      {override.date}{" "}
+                      <span
+                        className="availability-override-pill"
+                        data-type={override.type}
+                      >
+                        {override.type === "add" ? "Add" : "Block"}
+                      </span>
                     </span>
                     <span className="availability-override-range">
                       {override.startTime}–{override.endTime}
@@ -404,7 +456,7 @@ export function AvailabilityView(props: AvailabilityViewProps) {
             <form
               method="POST"
               action={addOverrideAction}
-              className="availability-override-add-form"
+              className="availability-override-form"
               data-testid="availability-override-add-form"
             >
               <input type="hidden" name="_csrf" value={csrfToken} />
@@ -413,18 +465,14 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                 name="profileTimezone"
                 value={profileTimezone ?? ""}
               />
-              <div className="availability-override-add-row">
-                <label
-                  htmlFor="availability-override-date"
-                  className="availability-override-add-label"
-                >
-                  Date
-                </label>
+              <div className="availability-override-form-row">
+                <label htmlFor="availability-override-date">Date</label>
                 <input
                   id="availability-override-date"
                   type="date"
                   name="date"
                   required
+                  className="availability-override-input"
                   aria-invalid={
                     isOverrideErrorTarget(errorTarget, null) &&
                     errorField === "date"
@@ -439,14 +487,7 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                   }
                   data-testid="availability-override-date-input"
                 />
-              </div>
-              <div className="availability-override-add-row">
-                <label
-                  htmlFor="availability-override-start"
-                  className="availability-override-add-label"
-                >
-                  Start
-                </label>
+                <label htmlFor="availability-override-start">Start</label>
                 <input
                   id="availability-override-start"
                   type="time"
@@ -454,6 +495,7 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                   step={900}
                   defaultValue="09:00"
                   required
+                  className="availability-override-input"
                   aria-invalid={
                     isOverrideErrorTarget(errorTarget, null) &&
                     errorField === "startTime"
@@ -468,14 +510,7 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                   }
                   data-testid="availability-override-start-input"
                 />
-              </div>
-              <div className="availability-override-add-row">
-                <label
-                  htmlFor="availability-override-end"
-                  className="availability-override-add-label"
-                >
-                  End
-                </label>
+                <label htmlFor="availability-override-end">End</label>
                 <input
                   id="availability-override-end"
                   type="time"
@@ -483,6 +518,7 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                   step={900}
                   defaultValue="10:00"
                   required
+                  className="availability-override-input"
                   aria-invalid={
                     isOverrideErrorTarget(errorTarget, null) &&
                     errorField === "endTime"
@@ -498,9 +534,9 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                   data-testid="availability-override-end-input"
                 />
               </div>
-              <div className="availability-override-add-row">
-                <span className="availability-override-add-label">Type</span>
-                <label className="availability-override-type-label">
+              <fieldset className="availability-override-form-type">
+                <legend>Type</legend>
+                <label>
                   <input
                     type="radio"
                     name="type"
@@ -508,32 +544,34 @@ export function AvailabilityView(props: AvailabilityViewProps) {
                     defaultChecked
                     data-testid="availability-override-type-add"
                   />
-                  Add
+                  Add this window
                 </label>
-                <label className="availability-override-type-label">
+                <label>
                   <input
                     type="radio"
                     name="type"
                     value="block"
                     data-testid="availability-override-type-block"
                   />
-                  Block
+                  Block this time
                 </label>
+              </fieldset>
+              <div className="availability-actions">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  data-testid="availability-override-add-submit"
+                >
+                  Add override
+                </button>
               </div>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                data-testid="availability-override-add-submit"
-              >
-                Add override
-              </button>
             </form>
             {isOverrideErrorTarget(errorTarget, null) &&
             errorCode &&
             errorField ? (
               <p
                 id="availability-override-error"
-                className="availability-form-error"
+                className="form-field-error"
                 role="alert"
                 aria-live="polite"
                 data-testid="availability-override-error"
@@ -547,14 +585,17 @@ export function AvailabilityView(props: AvailabilityViewProps) {
           </section>
 
           <section
-            className="availability-section"
+            className="surface-section"
             aria-labelledby="availability-buffer-heading"
             data-testid="availability-buffer-section"
           >
-            <h2 id="availability-buffer-heading">Calendar conflict buffer</h2>
+            <div className="surface-section-header">
+              <h2 id="availability-buffer-heading">Calendar conflict buffer</h2>
+              <p>Subtracted from every window by Calendar conflicts.</p>
+            </div>
             {bufferIsInvalid ? (
               <p
-                className="availability-form-error"
+                className="form-field-error"
                 role="alert"
                 aria-live="polite"
                 data-testid="availability-buffer-error"
@@ -571,7 +612,7 @@ export function AvailabilityView(props: AvailabilityViewProps) {
               </p>
             ) : (
               <p
-                className="availability-buffer-summary"
+                className="availability-timezone-summary"
                 data-testid="availability-buffer-summary"
               >
                 Calendar conflict buffer:{" "}
@@ -589,13 +630,16 @@ export function AvailabilityView(props: AvailabilityViewProps) {
           </section>
 
           <section
-            className="availability-section"
+            className="surface-section"
             aria-labelledby="availability-preview-heading"
             data-testid="availability-preview-section"
           >
-            <h2 id="availability-preview-heading">
-              Effective Availability (next 7 days)
-            </h2>
+            <div className="surface-section-header">
+              <h2 id="availability-preview-heading">
+                Effective Availability (next 7 days)
+              </h2>
+              <p>{previewLines.length} days previewed.</p>
+            </div>
             {previewLines.length === 0 ? (
               <p
                 className="availability-preview-empty"
@@ -650,7 +694,7 @@ export function AvailabilityView(props: AvailabilityViewProps) {
 
       {pageErrorCode ? (
         <p
-          className="availability-form-error"
+          className="form-field-error"
           role="alert"
           aria-live="polite"
           data-testid="availability-page-error"

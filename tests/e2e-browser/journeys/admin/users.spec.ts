@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { captureState } from "../../../helpers/playwright/screenshot-helper";
 
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = `http://localhost:${process.env.PORT ?? "3000"}`;
 const ADMIN_USER_ID = "00000000-0000-0000-0000-000000000003";
 const TARGET_USER_ID = "00000000-0000-0000-0000-000000000001";
 const TARGET_USER_EMAIL = "user@example.com";

@@ -94,9 +94,15 @@ export default async function SearchHistoryPage({
   if (!historyResult.ok) {
     return (
       <main className="app-container search-history-page">
-        <header>
-          <h1>Search History</h1>
-          <p>Visible to every Organizer and Admin.</p>
+        <header className="page-header search-history-header-page">
+          <div className="page-header-copy">
+            <p className="eyebrow">Searches</p>
+            <h1>Search History</h1>
+            <p>Visible to every Organizer and Admin.</p>
+          </div>
+          <Link href="/searches" className="btn btn-primary">
+            Run a Search
+          </Link>
         </header>
         <p
           className="form-error-banner"
@@ -121,11 +127,19 @@ export default async function SearchHistoryPage({
 
   if (pageHistory.length === 0) {
     return (
-      <main className="app-container">
+      <main className="app-container search-history-page">
         <div className="empty-state" data-testid="search-history-empty-state">
-          <p className="empty-state-title">No Searches yet.</p>
-          <p>Run a Search to populate history.</p>
-          <Link href="/searches">Run your first Search</Link>
+          <p className="empty-state-title">No Searches yet</p>
+          <p className="empty-state-description">
+            Run a Search to populate history.
+          </p>
+          <Link
+            href="/searches"
+            className="btn btn-primary"
+            data-testid="search-history-empty-state-cta"
+          >
+            Run your first Search
+          </Link>
         </div>
       </main>
     );
@@ -133,81 +147,114 @@ export default async function SearchHistoryPage({
 
   return (
     <main className="app-container search-history-page">
-      <header>
-        <h1>Search History</h1>
-        <p>Visible to every Organizer and Admin.</p>
+      <header className="page-header">
+        <div className="page-header-copy">
+          <p className="eyebrow">Searches</p>
+          <h1>Search History</h1>
+          <p className="page-description">
+            Immutable snapshots, newest first. Visible to every Organizer and
+            Admin.
+          </p>
+        </div>
+        <div className="page-header-actions">
+          <Link href="/searches" className="btn btn-primary">
+            Run a Search
+          </Link>
+        </div>
       </header>
 
-      <ol className="search-history-list" data-testid="search-history-list">
-        {pageHistory.map((item) => {
-          const openHref = `/searches/${item.id}?week=${formatWeekParam(new Date(item.dateRangeStart), item.organizerTimezone)}`;
-          return (
-            <li
-              key={item.id}
-              className="search-history-row"
-              data-testid="search-history-row"
-            >
-              <article>
-                <h2>{item.organizerDisplayName}</h2>
-                <p>
-                  <time dateTime={item.generatedAt}>
-                    {formatDateTimeLabel(
-                      new Date(item.generatedAt),
+      <div className="data-table-wrapper" data-testid="search-history-list">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Organizer</th>
+              <th scope="col">Status</th>
+              <th scope="col">Topics</th>
+              <th scope="col">Minimum</th>
+              <th scope="col">Duration</th>
+              <th scope="col">Date range</th>
+              <th scope="col">Generated</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pageHistory.map((item) => {
+              const openHref = `/searches/${item.id}?week=${formatWeekParam(new Date(item.dateRangeStart), item.organizerTimezone)}`;
+              return (
+                <tr key={item.id} data-testid="search-history-row">
+                  <td>
+                    <strong>{item.organizerDisplayName}</strong>
+                  </td>
+                  <td>
+                    <span
+                      className={`status-pill ${
+                        item.stale ? "status-pill-warn" : "status-pill-ok"
+                      }`}
+                      data-testid={`search-history-status-${item.id}`}
+                    >
+                      {item.stale ? "Stale" : "Fresh"}
+                    </span>
+                  </td>
+                  <td>{item.selectedTopicNames.join(", ")}</td>
+                  <td className="data-table-numeric">
+                    {item.minimumMatchingUsers} people
+                  </td>
+                  <td className="data-table-numeric">
+                    {item.durationMinutes} min
+                  </td>
+                  <td className="search-history-daterange">
+                    {formatDateLabel(
+                      new Date(item.dateRangeStart),
                       item.organizerTimezone,
                     )}
-                  </time>
-                </p>
-                <p>Topics: {item.selectedTopicNames.join(", ")}</p>
-                <p>
-                  Minimum {item.minimumMatchingUsers}, {item.durationMinutes}{" "}
-                  minutes
-                </p>
-                <p>
-                  Date Range:{" "}
-                  {formatDateLabel(
-                    new Date(item.dateRangeStart),
-                    item.organizerTimezone,
-                  )}{" "}
-                  -{" "}
-                  {formatDateLabel(
-                    new Date(item.dateRangeEnd),
-                    item.organizerTimezone,
-                  )}
-                </p>
-                <p>Organizer timezone: {item.organizerTimezone}</p>
-                <p>
-                  {item.stale
-                    ? "⚠ include stale calendar data"
-                    : "Fresh snapshot"}
-                </p>
-                <div className="search-history-actions">
-                  <Link
-                    href={openHref}
-                    data-testid="search-history-open-snapshot"
-                  >
-                    Open snapshot
-                  </Link>
-                  <form action={rerunSearchAction}>
-                    <input
-                      type="hidden"
-                      name="_csrf"
-                      value={context.csrfToken}
-                    />
-                    <input type="hidden" name="searchId" value={item.id} />
-                    <button type="submit" data-testid="search-history-rerun">
-                      Re-run
-                    </button>
-                  </form>
-                </div>
-              </article>
-            </li>
-          );
-        })}
-      </ol>
+                    <span aria-hidden="true">→</span>
+                    {formatDateLabel(
+                      new Date(item.dateRangeEnd),
+                      item.organizerTimezone,
+                    )}
+                  </td>
+                  <td className="data-table-numeric">
+                    <time dateTime={item.generatedAt}>
+                      {formatDateTimeLabel(
+                        new Date(item.generatedAt),
+                        item.organizerTimezone,
+                      )}
+                    </time>
+                  </td>
+                  <td className="data-table-actions">
+                    <Link
+                      href={openHref}
+                      className="btn btn-secondary"
+                      data-testid="search-history-open-snapshot"
+                    >
+                      Open
+                    </Link>
+                    <form action={rerunSearchAction}>
+                      <input
+                        type="hidden"
+                        name="_csrf"
+                        value={context.csrfToken}
+                      />
+                      <input type="hidden" name="searchId" value={item.id} />
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        data-testid="search-history-rerun"
+                      >
+                        Re-run
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {hasMore ? (
         <Link
-          className="search-history-load-more"
+          className="btn btn-secondary search-history-load-more"
           data-testid="search-history-load-more"
           href={`/searches/history?before=${encodeURIComponent(pageHistory.at(-1)?.id ?? "")}`}
         >

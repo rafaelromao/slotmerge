@@ -19,7 +19,10 @@ import type {
 } from "../db/schema";
 import { calendarConnections, topicProposals } from "../db/schema";
 import { getDb } from "../db/client";
-import { getDiscoverabilityConsent } from "../profile/discoverability-consent";
+import {
+  type DiscoverabilityConsentRepository,
+  createPostgresDiscoverabilityConsentRepository,
+} from "../profile/discoverability-consent";
 import { getTopicCatalogueRepository } from "../topics/repository";
 import { createPostgresWeeklyAvailabilityWindowRepository } from "../profile/availability-windows";
 import { listAvailabilityOverridesByUserId } from "../profile/availability-overrides";
@@ -307,10 +310,24 @@ export function createDefaultSearchSnapshotAssemblerDeps(
   deps: Pick<
     SearchSnapshotAssemblerDeps,
     "discoverableUserRepository" | "topicRepository" | "profileRepository"
-  > & { clock: Clock },
+  > & {
+    clock: Clock;
+    discoverabilityConsentRepository?: DiscoverabilityConsentRepository;
+    weeklyAvailabilityWindowRepository?: ReturnType<
+      typeof createPostgresWeeklyAvailabilityWindowRepository
+    >;
+  },
 ): SearchSnapshotAssemblerDeps {
-  const { clock } = deps;
-  const weeklyAvailabilityWindowRepository =
+  const {
+    clock,
+    discoverabilityConsentRepository,
+    weeklyAvailabilityWindowRepository,
+  } = deps;
+  const consentRepo =
+    discoverabilityConsentRepository ??
+    createPostgresDiscoverabilityConsentRepository(clock);
+  const windowRepo =
+    weeklyAvailabilityWindowRepository ??
     createPostgresWeeklyAvailabilityWindowRepository(clock);
   return {
     discoverableUserRepository: deps.discoverableUserRepository,
@@ -320,7 +337,7 @@ export function createDefaultSearchSnapshotAssemblerDeps(
       getTopicCatalogueRepository().listSelectedTopicIds(userId),
     loadUserAvailabilityData: async (userId, range) => {
       const [windows, overrides, busyIntervals] = await Promise.all([
-        weeklyAvailabilityWindowRepository.listByUserId(userId),
+        windowRepo.listByUserId(userId),
         listAvailabilityOverridesByUserId(userId),
         createPostgresImportedBusyIntervalRepository(
           clock,
@@ -330,7 +347,7 @@ export function createDefaultSearchSnapshotAssemblerDeps(
     },
     loadCalendarConnectionLastSyncAt: (userId) =>
       findLatestCalendarConnectionSyncAt(userId),
-    getDiscoverabilityConsent: (userId) => getDiscoverabilityConsent(userId),
+    getDiscoverabilityConsent: (userId) => consentRepo.findByUserId(userId),
     hasTopicProposal: (userId) => hasAnyTopicProposal(userId),
     computeEffectiveAvailability: (inputs) =>
       computeEffectiveAvailability(inputs),

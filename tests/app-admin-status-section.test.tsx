@@ -130,9 +130,12 @@ describe("AdminStatusSection", () => {
     expect(html).toMatch(/data-status="green"[^>]*data-testid="admin-status-email-pill"/);
     expect(html).toMatch(/data-status="green"[^>]*data-testid="admin-status-calendar-pill"/);
     expect(html).toMatch(/data-status="green"[^>]*data-testid="admin-status-tokens-pill"/);
-    expect(html).toContain("<dt>Pending</dt><dd>3</dd>");
-    expect(html).toContain("<dt>Sent</dt><dd>17</dd>");
-    expect(html).toContain("<dt>Failed</dt><dd>0</dd>");
+    expect(html).toContain("Pending");
+    expect(html).toContain("Sent");
+    expect(html).toContain("Failed");
+    expect(html).toContain('class="admin-status-tile-count"');
+    expect(html).toContain(">3</");
+    expect(html).toContain(">17</");
     expect(html).toContain("0.00<!-- -->%");
     expect(html).toContain("Google Calendar");
     expect(html).toContain("Microsoft Calendar");

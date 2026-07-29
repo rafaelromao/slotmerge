@@ -14,8 +14,8 @@ export default function PublicError({
   }, [error]);
 
   return (
-    <main className="app-container">
-      <div className="error-banner" role="alert">
+    <main className="public-state-page">
+      <div className="error-banner public-state-panel" role="alert">
         <h1>Something went wrong</h1>
         <p>
           An unexpected error occurred. Please try again. You can still sign in

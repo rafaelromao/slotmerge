@@ -47,6 +47,7 @@ export function RetireTypedConfirm({
         data-testid={`topics-retire-input-${topicId}`}
         aria-describedby={disabledBySelfAction ? helpId : undefined}
         autoComplete="off"
+        className="topics-retire-input"
       />
       <button
         type="submit"

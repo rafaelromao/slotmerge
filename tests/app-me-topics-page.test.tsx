@@ -154,10 +154,9 @@ describe("/me/topics (topics page)", () => {
     const html = renderToString(await TopicsPage({}));
 
     expect(html).toContain("topics-proposals-list");
-    expect(html).toContain("topics-proposal-badge--pending");
-    expect(html).toContain("topics-proposal-badge--active");
-    expect(html).toContain("topics-proposal-badge--rejected");
-    expect(html).toContain("topics-proposal-badge--retired");
+    expect(html).toContain("status-pill-warn");
+    expect(html).toContain("status-pill-ok");
+    expect(html).toContain("status-pill-muted");
     expect(html).toContain("Pending review");
     expect(html).toContain("Active");
     expect(html).toContain("Rejected");
@@ -202,7 +201,7 @@ describe("/me/topics (topics page)", () => {
     );
 
     expect(html).toContain("topics-saved-indicator");
-    expect(html).toContain("Saved");
+    expect(html).toMatch(/Topic selection saved/i);
   });
 
   it("does not show the Saved indicator when searchParams.saved is absent", async () => {

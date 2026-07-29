@@ -161,9 +161,15 @@ describe("/searches page", () => {
 
     expect(html).toContain("Run a Search");
     expect(html).toContain("searches-form");
+    expect(html).toContain("searches-page-header");
+    expect(html).toContain("searches-history-link");
+    expect(html).toContain("searches-constraints-heading");
     expect(html).toContain('name="minimumMatchingUsers"');
     expect(html).toContain('name="durationMinutes"');
     expect(html).toContain('name="organizerTimezone"');
+    expect(html).toContain('list="organizer-timezone-options"');
+    expect(html).toContain('data-testid="searches-timezone-picker"');
+    expect(html).toContain('value="America/New_York"');
     expect(html).toContain("Users must have all selected active Topics.");
   });
 
@@ -259,7 +265,7 @@ describe("/searches page", () => {
 
     expect(html).toContain("searches-error-banner");
     expect(html).toContain(
-      "Set your profile timezone before running a Search.",
+      "Set a timezone in your profile before running a Search.",
     );
   });
 
@@ -288,7 +294,7 @@ describe("/searches page", () => {
     );
 
     expect(html).toContain("searches-field-error-selectedTopics");
-    expect(html).toContain("Select at least one active Topic.");
+    expect(html).toContain("Select at least one active Topic to run a Search.");
   });
 
   it("preserves submitted values when rendering an inline validation error", async () => {
@@ -349,7 +355,7 @@ describe("/searches page", () => {
     );
 
     expect(html).toContain("searches-field-error-selectedTopics");
-    expect(html).toContain("no longer active");
+    expect(html).toContain("were retired since this Search");
   });
 
   it("renders every populated field error for a multi-invalid submission", async () => {

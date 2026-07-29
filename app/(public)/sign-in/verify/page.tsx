@@ -25,41 +25,44 @@ export default async function VerifyPage({
   }
 
   return (
-    <main className="app-container">
-      <h1>Signing you in</h1>
-      <p
-        className="verify-auto-submit"
-        role="status"
-        aria-live="polite"
-        data-testid="verify-auto-submit"
-      >
-        Finishing sign-in to SlotMerge...
-      </p>
-      <noscript>
+    <main className="public-state-page">
+      <section className="public-state-panel" aria-labelledby="verify-title">
+        <p className="eyebrow">Secure sign-in</p>
+        <h1 id="verify-title">Signing you in</h1>
+        <p
+          className="verify-auto-submit"
+          role="status"
+          aria-live="polite"
+          data-testid="verify-auto-submit"
+        >
+          Finishing sign-in to SlotMerge...
+        </p>
+        <noscript>
+          <form
+            method="POST"
+            action="/auth/magic-link/verify"
+            className="verify-form"
+          >
+            <input type="hidden" name="token" value={token ?? ""} />
+            <button type="submit" className="btn btn-primary">
+              Click here if not redirected automatically
+            </button>
+          </form>
+        </noscript>
         <form
           method="POST"
           action="/auth/magic-link/verify"
           className="verify-form"
+          data-testid="verify-form"
         >
           <input type="hidden" name="token" value={token ?? ""} />
-          <button type="submit" className="btn btn-primary">
-            Click here if not redirected automatically
-          </button>
         </form>
-      </noscript>
-      <form
-        method="POST"
-        action="/auth/magic-link/verify"
-        className="verify-form"
-        data-testid="verify-form"
-      >
-        <input type="hidden" name="token" value={token ?? ""} />
-      </form>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `window.setTimeout(() => document.forms[document.forms.length - 1].submit(), 1500);`,
-        }}
-      />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.setTimeout(() => document.forms[document.forms.length - 1].submit(), 1500);`,
+          }}
+        />
+      </section>
     </main>
   );
 }
@@ -76,36 +79,42 @@ function renderErrorState(
   const copy = copyForErrorState(state);
 
   return (
-    <main className="app-container">
-      <h1>{copy.heading}</h1>
-      <p
-        className="verify-error-copy"
-        role="alert"
-        aria-live="polite"
-        data-testid={`verify-error-${state}`}
+    <main className="public-state-page">
+      <section
+        className="public-state-panel"
+        aria-labelledby="verify-error-title"
       >
-        {copy.body}
-      </p>
-      <span hidden data-verify-reason={reason}>
-        {reason}
-      </span>
-      {state === "link_expired" && token ? (
-        <form method="POST" action="/auth/magic-link/resend">
-          <input type="hidden" name="token" value={token} />
-          <button type="submit" className="btn btn-primary">
-            Send a new link
-          </button>
-        </form>
-      ) : null}
-      <p>
-        <Link
-          href={signInHref}
-          className="verify-request-new-link"
-          data-testid={`verify-request-new-link-${state}`}
+        <p className="eyebrow">Magic link</p>
+        <h1 id="verify-error-title">{copy.heading}</h1>
+        <p
+          className="verify-error-copy"
+          role="alert"
+          aria-live="polite"
+          data-testid={`verify-error-${state}`}
         >
-          Request a new link
-        </Link>
-      </p>
+          {copy.body}
+        </p>
+        <span hidden data-verify-reason={reason}>
+          {reason}
+        </span>
+        {state === "link_expired" && token ? (
+          <form method="POST" action="/auth/magic-link/resend">
+            <input type="hidden" name="token" value={token} />
+            <button type="submit" className="btn btn-primary">
+              Send a new link
+            </button>
+          </form>
+        ) : null}
+        <p className="public-state-actions">
+          <Link
+            href={signInHref}
+            className="btn btn-secondary verify-request-new-link"
+            data-testid={`verify-request-new-link-${state}`}
+          >
+            Request a new link
+          </Link>
+        </p>
+      </section>
     </main>
   );
 }

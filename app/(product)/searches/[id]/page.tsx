@@ -156,7 +156,9 @@ export default async function SearchResultPage({
               ? "Search not found."
               : "No snapshot available for this search."}
           </p>
-          <Link href="/searches">Run a Search</Link>
+          <Link href="/searches" className="btn btn-primary">
+            Run a Search
+          </Link>
         </div>
       </main>
     );
@@ -210,10 +212,16 @@ export default async function SearchResultPage({
 
   const actions = (
     <div className="search-result-actions">
-      <Link href="/searches/history">Open in history</Link>
-      <button type="button" popoverTarget={`rerun-search-confirm-${id}`}>
+      <button
+        type="button"
+        className="btn btn-primary"
+        popoverTarget={`rerun-search-confirm-${id}`}
+      >
         Re-run Search
       </button>
+      <Link href="/searches/history" className="btn btn-secondary">
+        Open in history
+      </Link>
       <div id={`rerun-search-confirm-${id}`} popover="auto">
         <div className="rerun-search-confirm-panel">
           <p>Re-run this Search?</p>
@@ -223,7 +231,9 @@ export default async function SearchResultPage({
           >
             <input type="hidden" name="_csrf" value={context.csrfToken} />
             <input type="hidden" name="searchId" value={id} />
-            <button type="submit">Re-run</button>
+            <button type="submit" className="btn btn-primary">
+              Re-run
+            </button>
           </form>
         </div>
       </div>
@@ -231,50 +241,76 @@ export default async function SearchResultPage({
   );
 
   return (
-    <main className="search-result-page">
+    <main className="app-container search-result-page">
       <header className="search-result-header">
-        <h1>Search Result</h1>
-        <p className="search-result-header-meta">
-          <span>
-            <strong>Selected Topics:</strong>{" "}
-            {snapshotDto.selectedTopics.map((topic) => topic.name).join(", ")}
-          </span>
-          <span>
-            <strong>Minimum:</strong> {snapshotDto.search.minimumMatchingUsers}
-          </span>
-          <span>
-            <strong>Duration:</strong> {snapshotDto.search.durationMinutes}{" "}
-            minutes
-          </span>
-          <span>
-            <strong>Date Range:</strong>{" "}
-            {formatDateLabel(
-              dateRangeStart,
-              snapshotDto.search.organizerTimezone,
-            )}{" "}
-            -{" "}
-            {formatDateLabel(
-              dateRangeEnd,
-              snapshotDto.search.organizerTimezone,
-            )}
-          </span>
-          <span>
-            <strong>Organizer timezone:</strong>{" "}
-            {snapshotDto.search.organizerTimezone}
-          </span>
-          <span>
-            <strong>Generated:</strong>{" "}
-            <time dateTime={snapshotDto.search.generatedAt}>
-              {formatDateTimeLabel(
-                new Date(snapshotDto.search.generatedAt),
-                snapshotDto.search.organizerTimezone,
-              )}
-            </time>
-          </span>
-          <span>
-            <strong>Search ID:</strong> {snapshotDto.search.id}
-          </span>
-        </p>
+        <div className="search-result-header-head">
+          <div className="search-result-header-copy">
+            <p className="eyebrow">Immutable snapshot</p>
+            <h1>Search Result</h1>
+            <p className="search-result-header-description">
+              Slots and Matches reflect the Search at its generation time. They
+              never live-update.
+            </p>
+          </div>
+          <div className="search-result-header-actions">{actions}</div>
+        </div>
+        <dl className="search-result-header-meta">
+          <div>
+            <dt>Selected Topics</dt>
+            <dd>
+              <ul className="search-result-topic-chips">
+                {snapshotDto.selectedTopics.map((topic) => (
+                  <li key={topic.id}>{topic.name}</li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+          <div>
+            <dt>Minimum</dt>
+            <dd>{snapshotDto.search.minimumMatchingUsers} people</dd>
+          </div>
+          <div>
+            <dt>Duration</dt>
+            <dd>{snapshotDto.search.durationMinutes} minutes</dd>
+          </div>
+          <div>
+            <dt>Date range</dt>
+            <dd className="search-result-header-meta-stack">
+              <span>
+                {formatDateLabel(
+                  dateRangeStart,
+                  snapshotDto.search.organizerTimezone,
+                )}
+              </span>
+              <span>
+                →{" "}
+                {formatDateLabel(
+                  dateRangeEnd,
+                  snapshotDto.search.organizerTimezone,
+                )}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>Organizer timezone</dt>
+            <dd>{snapshotDto.search.organizerTimezone}</dd>
+          </div>
+          <div>
+            <dt>Generated</dt>
+            <dd>
+              <time dateTime={snapshotDto.search.generatedAt}>
+                {formatDateTimeLabel(
+                  new Date(snapshotDto.search.generatedAt),
+                  snapshotDto.search.organizerTimezone,
+                )}
+              </time>
+            </dd>
+          </div>
+          <div>
+            <dt>Search ID</dt>
+            <dd className="search-result-id">{snapshotDto.search.id}</dd>
+          </div>
+        </dl>
       </header>
 
       {rerunReason ? (
@@ -289,25 +325,44 @@ export default async function SearchResultPage({
       >
         {prevWeekStart ? (
           <Link
+            className="btn btn-secondary search-result-week-nav-btn"
             href={`/searches/${id}?week=${formatWeekParam(prevWeekStart, snapshotDto.search.organizerTimezone)}`}
           >
-            Previous week
+            <span aria-hidden="true">←</span>
+            <span>Previous week</span>
           </Link>
         ) : (
-          <span aria-disabled="true">Previous week</span>
+          <span
+            className="btn btn-secondary search-result-week-nav-btn"
+            aria-disabled="true"
+          >
+            <span aria-hidden="true">←</span>
+            <span>Previous week</span>
+          </span>
         )}
-        <span>
-          Week of{" "}
-          {formatDateLabel(weekStart, snapshotDto.search.organizerTimezone)}
+        <span className="search-result-week-label">
+          <span className="search-result-week-label-eyebrow">Showing</span>
+          <strong>
+            Week of{" "}
+            {formatDateLabel(weekStart, snapshotDto.search.organizerTimezone)}
+          </strong>
         </span>
         {nextWeekStart ? (
           <Link
+            className="btn btn-secondary search-result-week-nav-btn"
             href={`/searches/${id}?week=${formatWeekParam(nextWeekStart, snapshotDto.search.organizerTimezone)}`}
           >
-            Next week
+            <span>Next week</span>
+            <span aria-hidden="true">→</span>
           </Link>
         ) : (
-          <span aria-disabled="true">Next week</span>
+          <span
+            className="btn btn-secondary search-result-week-nav-btn"
+            aria-disabled="true"
+          >
+            <span>Next week</span>
+            <span aria-hidden="true">→</span>
+          </span>
         )}
       </nav>
 
@@ -328,13 +383,19 @@ export default async function SearchResultPage({
         </>
       ) : (
         <div className="empty-state" data-testid="search-result-empty-state">
-          <p className="empty-state-title">No matching Slots this week.</p>
-          <p>Try the next week or review Search history.</p>
-          <Link href={emptyStatePrimaryHref}>{emptyStatePrimaryLabel}</Link>
+          <p className="empty-state-title">No matching Slots this week</p>
+          <p className="empty-state-description">
+            Try the next week or review Search history.
+          </p>
+          <Link
+            href={emptyStatePrimaryHref}
+            className="btn btn-primary"
+            data-testid="search-result-empty-state-cta"
+          >
+            {emptyStatePrimaryLabel}
+          </Link>
         </div>
       )}
-
-      {actions}
     </main>
   );
 }

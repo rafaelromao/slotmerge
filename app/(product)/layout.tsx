@@ -11,6 +11,7 @@ import {
   calendarConnections,
 } from "../../src/db/schema";
 import { HeaderMenuToggle } from "./_components/HeaderMenuToggle";
+import { ThemeToggle } from "../components/ThemeToggle";
 import {
   buildCalendarBadgeState,
   renderCalendarBadgeLabel,
@@ -86,6 +87,12 @@ export default async function ProductLayout({
   return (
     <div className="product-shell">
       <header className="top-bar">
+        <Link href="/" className="top-bar-brand" aria-label="SlotMerge home">
+          <span className="wordmark-mark" aria-hidden="true">
+            S
+          </span>
+          <span className="top-bar-brand-name">SlotMerge</span>
+        </Link>
         <details
           open
           className="primary-nav"
@@ -118,15 +125,16 @@ export default async function ProductLayout({
             ) : null}
           </nav>
         </details>
-        <div className="top-bar-right">
+        <div className="top-bar-right top-bar-status-cluster">
+          <ThemeToggle />
           {setupIncomplete && (
-            <span className="setup-chip" data-testid="setup-chip">
+            <Link href="/" className="setup-chip" data-testid="setup-chip">
               Setup
-            </span>
+            </Link>
           )}
           <Link
             href="/me/calendar-connections"
-            className={`calendar-badge calendar-badge-${calendarBadge.status}`}
+            className="calendar-badge"
             data-status={calendarBadge.status}
             data-testid={`calendar-badge-${calendarBadge.status}`}
             aria-label={calendarBadgeLabel}
@@ -163,7 +171,7 @@ export default async function ProductLayout({
           </HeaderMenuToggle>
         </div>
       </header>
-      <main className="main-content">{children}</main>
+      <div className="main-content">{children}</div>
     </div>
   );
 }

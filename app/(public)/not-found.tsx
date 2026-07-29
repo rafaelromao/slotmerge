@@ -2,12 +2,12 @@ import Link from "next/link";
 
 export default function PublicNotFound() {
   return (
-    <main className="app-container">
-      <div className="empty-state">
+    <main className="public-state-page">
+      <div className="empty-state public-state-panel">
         <h1>Page not found</h1>
         <p>The page you are looking for does not exist.</p>
-        <Link href="/" className="btn btn-primary">
-          Go to Home
+        <Link href="/sign-in" className="btn btn-primary">
+          Go to sign in
         </Link>
       </div>
     </main>

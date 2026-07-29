@@ -140,20 +140,58 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
 
   return (
     <main
-      className="app-container calendar-connection-page"
+      className="app-container me-page"
       data-testid="calendar-connection-page"
     >
-      <h1 data-testid="calendar-connection-page-heading">
-        Calendar connections
-      </h1>
-      <p className="calendar-connection-intro">
-        Connect a calendar to import busy times. SlotMerge only ever reads your
-        free/busy data and never your event titles, locations, or attendees.
-      </p>
+      <header className="page-header">
+        <div className="page-header-copy">
+          <p className="eyebrow">Calendar</p>
+          <h1 data-testid="calendar-connection-page-heading">
+            Calendar connections
+          </h1>
+          <p className="page-description">
+            Connect a calendar to import busy times. SlotMerge only ever reads
+            your free/busy data and never your event titles, locations, or
+            attendees.
+          </p>
+        </div>
+        <div className="page-header-actions">
+          <span
+            className="me-page-header-pill"
+            data-tone={
+              connections.length === 0
+                ? "warn"
+                : connections.some(
+                      (c) =>
+                        c.displayStatus === "needs_reconnect" ||
+                        c.displayStatus === "failed",
+                    )
+                  ? "danger"
+                  : "ok"
+            }
+            data-testid="calendar-connection-page-status-pill"
+          >
+            <strong>
+              {connections.length === 0
+                ? "Not connected"
+                : `${connections.length} connected`}
+            </strong>
+            <span>
+              {connections.length === 0
+                ? "Connect a calendar to import conflicts"
+                : "Free/busy only"}
+            </span>
+          </span>
+        </div>
+      </header>
 
       {banner ? (
         <div
-          className={banner.tone}
+          className={
+            outcome.kind === "failed"
+              ? "form-error-banner"
+              : "admin-info-banner"
+          }
           role={outcome.kind === "failed" ? "alert" : "status"}
           aria-live={outcome.kind === "failed" ? "assertive" : "polite"}
           data-testid={`calendar-connection-banner-${outcome.kind}`}
@@ -166,7 +204,11 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
       {mutationBanner &&
       (mutationOutcome.kind === "success" || !mutationOutcome.connectionId) ? (
         <div
-          className={`calendar-connection-banner calendar-connection-banner-${mutationOutcome.kind === "error" ? "error" : "success"}`}
+          className={
+            mutationOutcome.kind === "error"
+              ? "form-error-banner"
+              : "admin-info-banner"
+          }
           role={mutationOutcome.kind === "error" ? "alert" : "status"}
           aria-live={mutationOutcome.kind === "error" ? "assertive" : "polite"}
           data-testid={`calendar-connection-mutation-${mutationOutcome.kind}`}
@@ -176,11 +218,14 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
       ) : null}
 
       <section
-        className="calendar-connection-section"
+        className="surface-section"
         aria-labelledby="calendar-connection-connect-heading"
         data-testid="calendar-connection-connect-section"
       >
-        <h2 id="calendar-connection-connect-heading">Connect a calendar</h2>
+        <div className="surface-section-header">
+          <h2 id="calendar-connection-connect-heading">Connect a calendar</h2>
+          <p>Pick a provider to begin OAuth.</p>
+        </div>
         <div className="calendar-connection-connect-grid">
           <form
             method="POST"
@@ -216,11 +261,16 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
       </section>
 
       <section
-        className="calendar-connection-section"
+        className="surface-section"
         aria-labelledby="calendar-connection-list-heading"
         data-testid="calendar-connection-list-section"
       >
-        <h2 id="calendar-connection-list-heading">Your calendar connections</h2>
+        <div className="surface-section-header">
+          <h2 id="calendar-connection-list-heading">
+            Your calendar connections
+          </h2>
+          <p>{connections.length} connected.</p>
+        </div>
         {!pageState ? (
           <p
             role="alert"

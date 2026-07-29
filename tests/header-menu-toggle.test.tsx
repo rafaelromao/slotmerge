@@ -22,17 +22,10 @@ describe("HeaderMenuToggle", () => {
     );
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
 
-    const details = trigger.closest("details");
-    expect(details).not.toBeNull();
-    Object.defineProperty(details, "open", { value: true, configurable: true });
-    fireEvent(details!, new Event("toggle"));
+    fireEvent.click(trigger);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
 
-    Object.defineProperty(details, "open", {
-      value: false,
-      configurable: true,
-    });
-    fireEvent(details!, new Event("toggle"));
+    fireEvent.click(trigger);
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 });

@@ -23,6 +23,7 @@ import {
   type SearchSnapshotAssemblerDeps,
 } from "../search/search-snapshot-assembler";
 import type { DiscoverableUserRepository } from "../search/discoverable-user-repository";
+import type { DiscoverabilityConsentRepository } from "../profile/discoverability-consent";
 import type { Clock } from "../system/clock";
 import { getSearchRepository } from "../search/repository";
 import { getTopicCatalogueRepository } from "../topics/repository";
@@ -128,6 +129,7 @@ export type CreateSearchWorkflowDeps = {
   activeTopicsRepository: ActiveTopicsRepository;
   discoverableUserRepository: DiscoverableUserRepository;
   searchResultRepository: SearchResultRepository;
+  discoverabilityConsentRepository?: DiscoverabilityConsentRepository;
   assemblerDependencies?: SearchSnapshotAssemblerDeps;
 };
 
@@ -147,6 +149,7 @@ export function createSearchWorkflow(
     activeTopicsRepository,
     discoverableUserRepository,
     searchResultRepository,
+    discoverabilityConsentRepository,
     assemblerDependencies,
   } = deps;
 
@@ -230,6 +233,7 @@ export function createSearchWorkflow(
           },
           profileRepository,
           clock: deps.clock,
+          discoverabilityConsentRepository,
         });
       const assembler = new SearchSnapshotAssembler({
         ...effectiveAssemblerDependencies,

@@ -62,9 +62,8 @@ test.describe("Organizer search result journey", () => {
     await page.clock.install({ time: FIXED_DATE });
     await page.goto("/searches");
 
-    const topicCheckboxes = page.getByTestId(/^searches-topic-checkbox-/);
-    await topicCheckboxes.nth(0).check();
-    await topicCheckboxes.nth(1).check();
+    await page.getByRole("checkbox", { name: "AI engineering" }).check();
+    await page.getByRole("checkbox", { name: "Product strategy" }).check();
     await page.getByTestId("searches-run-button").click();
 
     await page.waitForURL(/\/searches\/[a-f0-9-]+$/);
@@ -147,9 +146,8 @@ test.describe("Organizer search result journey", () => {
     await page.clock.install({ time: FIXED_DATE });
     await page.goto("/searches");
 
-    const topicCheckboxes = page.getByTestId(/^searches-topic-checkbox-/);
-    await topicCheckboxes.nth(0).check();
-    await topicCheckboxes.nth(1).check();
+    await page.getByRole("checkbox", { name: "AI engineering" }).check();
+    await page.getByRole("checkbox", { name: "Product strategy" }).check();
     await page.getByTestId("searches-run-button").click();
 
     await page.waitForURL(/\/searches\/[a-f0-9-]+$/);

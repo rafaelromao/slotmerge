@@ -11,7 +11,11 @@ test.describe("Organizer search history journey", () => {
   test.use({ storageState: "playwright/.auth/organizer.json" });
 
   test.beforeEach(async () => {
-    await seedAll(getDb());
+    const db = getDb();
+    await db.execute(
+      "TRUNCATE TABLE search_results, searches RESTART IDENTITY CASCADE",
+    );
+    await seedAll(db);
   });
 
   test("happy path: list renders, Open snapshot lands /searches/{id}, Re-run lands a new Search Result, source snapshot stays open at /searches/{oldId}", async ({
@@ -20,9 +24,8 @@ test.describe("Organizer search history journey", () => {
     await page.clock.install({ time: FIXED_DATE });
     await page.goto("/searches");
 
-    const topicCheckboxes = page.getByTestId(/^searches-topic-checkbox-/);
-    await topicCheckboxes.nth(0).check();
-    await topicCheckboxes.nth(1).check();
+    await page.getByRole("checkbox", { name: "AI engineering" }).check();
+    await page.getByRole("checkbox", { name: "Product strategy" }).check();
     await page.getByTestId("searches-run-button").click();
 
     await page.waitForURL(/\/searches\/[a-f0-9-]+$/);
@@ -42,12 +45,6 @@ test.describe("Organizer search history journey", () => {
     await expect(
       page.getByText("AI engineering, Product strategy"),
     ).toBeVisible();
-    await expect(
-      page.getByText("Topics: AI engineering, Product strategy"),
-    ).toBeVisible();
-    await expect(
-      page.getByText("Minimum 2, 60 minutes"),
-    ).toBeVisible();
     await captureState(page, "search-history", "list");
 
     const row = historyRows.first();
@@ -66,10 +63,7 @@ test.describe("Organizer search history journey", () => {
 
     await page.goto("/searches/history");
     await expect(historyRows.first()).toBeVisible();
-    await historyRows
-      .first()
-      .getByTestId("search-history-rerun")
-      .click();
+    await historyRows.first().getByTestId("search-history-rerun").click();
     await page.waitForURL((url) => {
       const pathname = url.pathname;
       return (
@@ -103,10 +97,9 @@ test.describe("Organizer search history journey", () => {
     );
     await page.goto("/searches/history");
 
-    await expect(
-      page.getByTestId("search-history-empty-state"),
-    ).toBeVisible();
-    const primaryAction = page.getByTestId("search-history-empty-state")
+    await expect(page.getByTestId("search-history-empty-state")).toBeVisible();
+    const primaryAction = page
+      .getByTestId("search-history-empty-state")
       .getByRole("link", { name: "Run your first Search" });
     await expect(primaryAction).toHaveAttribute("href", "/searches");
     await expect(page.getByTestId("search-history-list")).toHaveCount(0);

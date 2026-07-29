@@ -5,6 +5,7 @@ import {
 } from "../../../../src/profile/profile-workflow";
 import { systemClock } from "../../../../src/system/clock";
 import { ProfileForm } from "../_components/ProfileForm";
+import Link from "next/link";
 
 type SearchParams = Promise<{
   saved?: string | string[];
@@ -27,9 +28,9 @@ export default async function ProfileEditPage({
       <main className="app-container">
         <div className="empty-state" data-testid="profile-empty">
           <p className="empty-state-title">Profile not found</p>
-          <p>
-            We could not load your profile. Please refresh, or contact support
-            if the problem persists.
+          <p className="empty-state-description">
+            We could not load your profile. Refresh, or contact support if the
+            problem persists.
           </p>
         </div>
       </main>
@@ -45,31 +46,61 @@ export default async function ProfileEditPage({
   const supportedTimeZones = Array.from(defaultSupportedTimeZones()).sort();
 
   return (
-    <main className="app-container">
-      <h1>Edit profile</h1>
+    <main className="app-container me-page" data-testid="me-profile-page">
+      <header className="page-header">
+        <div className="page-header-copy">
+          <p className="eyebrow">Profile</p>
+          <h1 data-testid="me-profile-page-heading">Edit profile</h1>
+          <p className="page-description">
+            Your display name and timezone are required. Email is fixed by the
+            sign-in you accepted.
+          </p>
+        </div>
+        <div className="page-header-actions">
+          <Link
+            href="/me"
+            className="btn btn-secondary"
+            data-testid="me-profile-back-link"
+          >
+            Back to profile
+          </Link>
+        </div>
+      </header>
 
       {showSavedIndicator ? (
         <p
-          className="profile-saved-indicator"
+          className="saved-banner"
           role="status"
+          aria-live="polite"
           data-testid="profile-saved-indicator"
         >
-          Saved
+          Profile saved.
         </p>
       ) : null}
 
-      <ProfileForm
-        csrfToken={context.csrfToken}
-        supportedTimeZones={supportedTimeZones}
-        defaultValues={{
-          displayName: profile.displayName ?? "",
-          email: profile.email,
-          profileTimezone: profile.profileTimezone ?? "",
-          bufferMinutes: profile.bufferMinutes,
-          avatarUrl: profile.avatarUrl ?? "",
-          shortBio: profile.shortBio ?? "",
-        }}
-      />
+      <section className="me-section-card">
+        <div className="me-section-card-header">
+          <h2>Profile details</h2>
+          <p>
+            Email is fixed by the sign-in you accepted; the other fields are
+            editable.
+          </p>
+        </div>
+        <div className="me-section-card-body">
+          <ProfileForm
+            csrfToken={context.csrfToken}
+            supportedTimeZones={supportedTimeZones}
+            defaultValues={{
+              displayName: profile.displayName ?? "",
+              email: profile.email,
+              profileTimezone: profile.profileTimezone ?? "",
+              bufferMinutes: profile.bufferMinutes,
+              avatarUrl: profile.avatarUrl ?? "",
+              shortBio: profile.shortBio ?? "",
+            }}
+          />
+        </div>
+      </section>
     </main>
   );
 }

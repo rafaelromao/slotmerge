@@ -1,10 +1,12 @@
 import { test, expect, type Browser } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 import { createMagicLinkTokenIssuer } from "../../../../src/auth/magic-link";
 import { captureState } from "../../../helpers/playwright/screenshot-helper";
 
-const BASE_URL = "http://localhost:3000";
-const INVITED_EMAIL = "magic-link-journey@example.com";
-const RESEND_EMAIL = "magic-link-resend-journey@example.com";
+const BASE_URL = `http://localhost:${process.env.PORT ?? "3000"}`;
+const RUN_ID = randomUUID().slice(0, 8);
+const INVITED_EMAIL = `magic-link-journey-${RUN_ID}@example.com`;
+const RESEND_EMAIL = `magic-link-resend-journey-${RUN_ID}@example.com`;
 const UNINVITED_EMAIL = "stranger@example.com";
 
 type CapturedEmailsResponse = {
@@ -104,15 +106,27 @@ function absoluteUrl(maybeRelativeUrl: string): string {
   return `${BASE_URL}${maybeRelativeUrl}`;
 }
 
+async function openVerifyErrorPage(browser: Browser, url: string) {
+  const context = await browser.newContext({ baseURL: BASE_URL });
+  const page = await context.newPage();
+  await page.goto(url);
+  return { context, page };
+}
+
 test.describe("Magic-link request, verify, and resend", () => {
   test.describe.configure({ mode: "serial" });
+
+  test.beforeEach(async ({ page }) => {
+    await page.setExtraHTTPHeaders({
+      "x-forwarded-for": `magic-link-test-${randomUUID()}`,
+    });
+  });
 
   test("happy path: Admin invite → public /sign-in form → sent → verify → setup checklist", async ({
     browser,
     page,
   }) => {
     await adminInvite(browser, INVITED_EMAIL);
-    await page.clock.install({ time: new Date("2026-07-12T12:00:00.000Z") });
     await page.goto("/sign-in");
 
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
@@ -133,12 +147,15 @@ test.describe("Magic-link request, verify, and resend", () => {
     expect(magicLinkUrl).toContain("/sign-in/verify?token=");
 
     const absoluteMagicLinkUrl = absoluteUrl(magicLinkUrl!);
-    await page.goto(absoluteMagicLinkUrl);
+    const verificationNavigation = page.waitForURL(
+      (url) => url.pathname === "/",
+    );
+    await page.goto(absoluteMagicLinkUrl, { waitUntil: "commit" });
 
     await expect(page.getByTestId("verify-auto-submit")).toBeVisible();
     await captureState(page, "sign-in", "verify-auto-submit");
 
-    await page.waitForURL((url) => url.pathname === "/");
+    await verificationNavigation;
     await expect(
       page.getByRole("heading", { name: "Welcome to SlotMerge" }),
     ).toBeVisible();
@@ -176,9 +193,9 @@ test.describe("Magic-link request, verify, and resend", () => {
   });
 
   test("replaying a used token returns link_used with a Request a new link link", async ({
+    browser,
     page,
   }) => {
-    await page.clock.install({ time: new Date("2026-07-12T12:00:00.000Z") });
     await page.goto("/sign-in");
 
     const previousCount = await getMagicLinkCount(INVITED_EMAIL);
@@ -197,15 +214,22 @@ test.describe("Magic-link request, verify, and resend", () => {
         url.pathname === "/sign-in/verify" &&
         url.searchParams.get("error") === "link_used",
     );
-    await expect(page.getByTestId("verify-error-link_used")).toBeVisible();
-    const requestNewLink = page.getByTestId(
+    const errorPage = await openVerifyErrorPage(
+      browser,
+      `${BASE_URL}/sign-in/verify?error=link_used&email=${encodeURIComponent(INVITED_EMAIL)}`,
+    );
+    await expect(
+      errorPage.page.getByTestId("verify-error-link_used"),
+    ).toBeVisible();
+    const requestNewLink = errorPage.page.getByTestId(
       "verify-request-new-link-link_used",
     );
     await expect(requestNewLink).toHaveAttribute(
       "href",
       `/sign-in?email=${encodeURIComponent(INVITED_EMAIL)}`,
     );
-    await captureState(page, "sign-in", "verify-error-used");
+    await captureState(errorPage.page, "sign-in", "verify-error-used");
+    await errorPage.context.close();
   });
 
   test("waiting past expiry returns link_expired and resends through the typed screen", async ({
@@ -228,30 +252,40 @@ test.describe("Magic-link request, verify, and resend", () => {
       generation: 0,
     });
 
-    await page.clock.install({ time: new Date("2026-07-12T12:00:00.000Z") });
     await page.goto(expired.magicLinkUrl);
     await page.waitForURL(
       (url) =>
         url.pathname === "/sign-in/verify" &&
         url.searchParams.get("error") === "link_expired",
     );
-    await expect(page.getByTestId("verify-error-link_expired")).toBeVisible();
+    const errorPage = await openVerifyErrorPage(
+      browser,
+      `${BASE_URL}/sign-in/verify?error=link_expired&email=${encodeURIComponent(RESEND_EMAIL)}&token=${encodeURIComponent(expired.token)}`,
+    );
     await expect(
-      page.getByTestId("verify-request-new-link-link_expired"),
+      errorPage.page.getByTestId("verify-error-link_expired"),
+    ).toBeVisible();
+    await expect(
+      errorPage.page.getByTestId("verify-request-new-link-link_expired"),
     ).toHaveAttribute(
       "href",
       `/sign-in?email=${encodeURIComponent(RESEND_EMAIL)}`,
     );
-    await captureState(page, "sign-in", "verify-error-expired");
-
-    await page.getByRole("button", { name: "Send a new link" }).click();
+    await captureState(errorPage.page, "sign-in", "verify-error-expired");
+    await errorPage.page
+      .getByRole("button", { name: "Send a new link" })
+      .click();
     await expect(
-      page.getByRole("heading", { name: "Check your email" }),
+      errorPage.page.getByRole("heading", { name: "Check your inbox" }),
     ).toBeVisible();
-    await expect(page.locator("body")).not.toContainText(RESEND_EMAIL);
+    await expect(errorPage.page.locator("body")).not.toContainText(
+      RESEND_EMAIL,
+    );
+    await errorPage.context.close();
   });
 
   test("a malformed token returns link_invalid with a Request a new link link", async ({
+    browser,
     page,
   }) => {
     await page.goto("/sign-in/verify?token=not-a-real-token");
@@ -260,10 +294,17 @@ test.describe("Magic-link request, verify, and resend", () => {
         url.pathname === "/sign-in/verify" &&
         url.searchParams.get("error") === "link_invalid",
     );
-    await expect(page.getByTestId("verify-error-link_invalid")).toBeVisible();
+    const errorPage = await openVerifyErrorPage(
+      browser,
+      `${BASE_URL}/sign-in/verify?error=link_invalid`,
+    );
     await expect(
-      page.getByTestId("verify-request-new-link-link_invalid"),
+      errorPage.page.getByTestId("verify-error-link_invalid"),
+    ).toBeVisible();
+    await expect(
+      errorPage.page.getByTestId("verify-request-new-link-link_invalid"),
     ).toHaveAttribute("href", "/sign-in");
-    await captureState(page, "sign-in", "verify-error-invalid");
+    await captureState(errorPage.page, "sign-in", "verify-error-invalid");
+    await errorPage.context.close();
   });
 });

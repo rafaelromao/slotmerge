@@ -1,4 +1,5 @@
 import { requirePageContext } from "../../../../src/lib/page-context";
+import { systemClock } from "../../../../src/system/clock";
 import { createTopicWorkflow } from "../../../../src/topics/topic-workflow";
 import { buildTopicsPageRepositories } from "../../../../src/topics/page-repositories";
 import { ProposeForm } from "../_components/ProposeForm";
@@ -27,7 +28,7 @@ export default async function TopicsPage({
   const workflow = createTopicWorkflow({
     catalogue,
     proposals,
-    clock: { now: () => new Date() },
+    clock: systemClock(),
   });
 
   const pageStateResult = await workflow.loadPageState({

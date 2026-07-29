@@ -92,9 +92,9 @@ describe("calendar-connections admin override", () => {
       try {
         const result = await (
           await import("../../../../src/calendar/repository")
-        ).findCalendarConnectionById("conn-1");
+        ).findCalendarConnectionById("conn-1", { now: () => new Date() });
         expect(result?.userId).toBe("user-target");
-        expect(spy).toHaveBeenCalledWith("conn-1");
+        expect(spy).toHaveBeenCalledWith("conn-1", expect.any(Object));
       } finally {
         spy.mockRestore();
       }

@@ -3,7 +3,6 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../db/client";
 import { discoverabilityConsents } from "../db/schema";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 
 export type DiscoverabilityConsentGrant = {
   state: "granted";
@@ -121,18 +120,14 @@ export function createPostgresDiscoverabilityConsentRepository(
   };
 }
 
-let cachedDefaultRepository: DiscoverabilityConsentRepository | null = null;
-
 function getRepository(): DiscoverabilityConsentRepository {
   return repositoryOverride ?? getDefaultDiscoverabilityConsentRepository();
 }
 
 function getDefaultDiscoverabilityConsentRepository(): DiscoverabilityConsentRepository {
-  if (!cachedDefaultRepository) {
-    cachedDefaultRepository =
-      createPostgresDiscoverabilityConsentRepository(systemClock());
-  }
-  return cachedDefaultRepository;
+  throw new Error(
+    "getDefaultDiscoverabilityConsentRepository() requires a Clock; pass a repository via setDiscoverabilityConsentRepositoryForTests or call createPostgresDiscoverabilityConsentRepository(clock) directly.",
+  );
 }
 
 export async function getDiscoverabilityConsent(
@@ -162,8 +157,10 @@ export function consentStateIsGranted(
 let cachedDiscoverabilityConsentRepository: DiscoverabilityConsentRepository | null =
   null;
 
-export function getDiscoverabilityConsentRepository(): DiscoverabilityConsentRepository {
-  cachedDiscoverabilityConsentRepository ??=
-    createPostgresDiscoverabilityConsentRepository(systemClock());
+export function getDiscoverabilityConsentRepository(
+  clock: Clock,
+): DiscoverabilityConsentRepository {
+  cachedDiscoverabilityConsentRepository =
+    createPostgresDiscoverabilityConsentRepository(clock);
   return cachedDiscoverabilityConsentRepository;
 }

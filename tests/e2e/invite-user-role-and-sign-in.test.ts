@@ -267,6 +267,7 @@ describe("E2E: invite role selection is explicit for User", () => {
         new Request("http://localhost/", {
           headers: { cookie: cookieValue },
         }),
+        { clock: { now: () => new Date() } },
       );
       expect(resolvedSession).not.toBeNull();
       expect(resolvedSession?.user.email).toBe(inviteeEmail);

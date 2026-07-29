@@ -1,6 +1,7 @@
 "use server";
 
 import { createHash } from "node:crypto";
+import { systemClock } from "../../../../src/system/clock";
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -11,7 +12,6 @@ import { listActiveTopics } from "../../../../src/topics/repository";
 import { getSearchResultRepository } from "../../../../src/search/search-result-repository";
 import { getDiscoverableUserRepository } from "../../../../src/search/discoverable-user-repository";
 import { getProfileByUserId } from "../../../../src/profile/repository";
-import { systemClock } from "../../../../src/system/clock";
 import {
   SEARCH_FORM_ID,
   sealSearchFeedbackToken,
@@ -23,10 +23,11 @@ import {
 } from "./run-search-handler";
 
 function buildWorkflow() {
+  const clock = systemClock();
   return createSearchWorkflow({
-    clock: systemClock(),
+    clock,
     profileRepository: {
-      findByUserId: getProfileByUserId,
+      findByUserId: (userId) => getProfileByUserId(userId, systemClock()),
     },
     activeTopicsRepository: {
       async listActive() {
@@ -57,7 +58,7 @@ async function buildRequest(url: string): Promise<Request> {
 
 async function handleResult(
   result: SearchActionResult,
-  context: { path: string },
+  context: { path: string; clock: ReturnType<typeof systemClock> },
 ): Promise<never> {
   if (result.kind === "redirect") {
     redirect(result.to);
@@ -72,7 +73,7 @@ async function handleResult(
     formId: SEARCH_FORM_ID,
     path: context.path,
     csrfTokenHash: createHash("sha256").update(result.csrfToken).digest("hex"),
-    issuedAt: Date.now(),
+    issuedAt: context.clock.now().getTime(),
   });
   redirect(`/searches?feedback=${encodeURIComponent(sealed)}`);
   throw new Error("redirect() should not return");
@@ -80,16 +81,18 @@ async function handleResult(
 
 export async function runSearchAction(formData: FormData): Promise<void> {
   const workflow = buildWorkflow();
+  const clock = systemClock();
   const handler = buildSearchActionHandler({
     workflow,
-    loadSession: async (request) => getSessionFromRequest(request),
+    loadSession: async (request) =>
+      getSessionFromRequest(request, { clock: systemClock() }),
   });
 
   const headerList = await headers();
   const path = headerList.get("x-pathname") ?? "/searches";
   const request = await buildRequest("http://localhost/searches/run");
   const result = await handler.runSearch({ formData, request });
-  await handleResult(result, { path });
+  await handleResult(result, { path, clock });
   throw new Error("runSearchAction should not reach this line");
 }
 export { buildSearchActionHandler };

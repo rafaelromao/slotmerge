@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { buildTestClock } from "../../tests/test-clock";
 import { createAdminTopicsHandlers } from "./topics";
 import type { TopicAdminRepository } from "../topics/repository";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 describe("admin topics", () => {
   const mockActiveTopic = {
@@ -14,6 +17,7 @@ describe("admin topics", () => {
 
   it("renders a list of active topics with retire forms", async () => {
     const { GET } = createAdminTopicsHandlers({
+      clock: testClock,
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -46,6 +50,7 @@ describe("admin topics", () => {
 
   it("shows empty state when no active topics", async () => {
     const { GET } = createAdminTopicsHandlers({
+      clock: testClock,
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -75,6 +80,7 @@ describe("admin topics", () => {
     const retire = vi.fn().mockResolvedValue({ ok: true });
 
     const { POST } = createAdminTopicsHandlers({
+      clock: testClock,
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -125,6 +131,7 @@ describe("admin topics", () => {
     });
 
     const { POST } = createAdminTopicsHandlers({
+      clock: testClock,
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -169,6 +176,7 @@ describe("admin topics", () => {
     });
 
     const { POST } = createAdminTopicsHandlers({
+      clock: testClock,
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -210,6 +218,7 @@ describe("admin topics", () => {
     const retire = vi.fn();
 
     const { POST } = createAdminTopicsHandlers({
+      clock: testClock,
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -248,6 +257,7 @@ describe("admin topics", () => {
 
   it("returns 403 for non-admin session", async () => {
     const { GET, POST } = createAdminTopicsHandlers({
+      clock: testClock,
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "user-1",
@@ -279,6 +289,7 @@ describe("admin topics", () => {
 
   it("returns 401 for unauthenticated session", async () => {
     const { GET, POST } = createAdminTopicsHandlers({
+      clock: testClock,
       getSession: vi.fn().mockResolvedValue(null),
       topicRepository: {
         listActiveAdminTopics: vi.fn().mockResolvedValue([]),

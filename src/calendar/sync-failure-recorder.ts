@@ -7,7 +7,7 @@ import {
 import { getConnectionActionRequiredDispatchLookup } from "./action-required-email.repository";
 import { getEmailDeliveryService } from "./action-required-email-singleton";
 import { loadRuntimeConfig } from "../config/runtime";
-import { systemClock } from "../system/clock";
+import type { Clock } from "../system/clock";
 
 export type RecordCalendarConnectionSyncFailureInput = {
   connectionId: string;
@@ -27,7 +27,7 @@ export type CalendarConnectionUserLookup = {
 
 type Recorder = (
   input: RecordCalendarConnectionSyncFailureInput,
-  deps: { connectionLookup: CalendarConnectionUserLookup },
+  deps: { connectionLookup: CalendarConnectionUserLookup; clock: Clock },
 ) => Promise<
   TriggerCalendarActionRequiredEmailResult | { status: "failed"; error: string }
 >;
@@ -54,13 +54,14 @@ const defaultRecordCalendarConnectionSyncFailure: Recorder = async (
   input,
   deps,
 ) => {
+  const { clock } = deps;
   const connection = await deps.connectionLookup(input.connectionId);
   if (!connection) {
     return { status: "failed", error: "calendar_connection_not_found" };
   }
 
   try {
-    await updateConnectionErrorMetadata(input);
+    await updateConnectionErrorMetadata(input, clock);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return { status: "failed", error: message };
@@ -74,25 +75,26 @@ const defaultRecordCalendarConnectionSyncFailure: Recorder = async (
         provider: connection.provider,
         user: connection.user,
         baseUrl: loadRuntimeConfig().appPublicUrl,
-        occurredAt: systemClock().now(),
+        occurredAt: clock.now(),
       },
       reason: "sync-failure" satisfies CalendarActionRequiredReason,
     },
     {
       emailDeliveryService: getEmailDeliveryService(),
       lastDispatchLookup: getConnectionActionRequiredDispatchLookup(),
-      clock: systemClock(),
+      clock,
     },
   );
 };
 
 async function updateConnectionErrorMetadata(
   input: RecordCalendarConnectionSyncFailureInput,
+  clock: Clock,
 ): Promise<void> {
   const needsReconnect =
     input.code === "invalid_grant" || input.code === "token_revoked";
 
-  await getCalendarConnectionRepository().updateById(input.connectionId, {
+  await getCalendarConnectionRepository(clock).updateById(input.connectionId, {
     lastErrorCode: input.code,
     lastErrorMessage: input.message,
     ...(needsReconnect ? { status: "needs_reconnect" } : {}),

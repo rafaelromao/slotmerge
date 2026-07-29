@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { systemClock } from "../../../../src/system/clock";
 import { redirect } from "next/navigation";
 
 import { getSessionFromRequest } from "../../../../src/auth/session";
@@ -13,7 +14,6 @@ import {
   createTopicsActionHandler,
   type ProposeActionState,
 } from "../../../../src/topics/topics-action";
-import { systemClock } from "../../../../src/system/clock";
 
 function buildWorkflow() {
   const { catalogue, proposals } = buildTopicsPageRepositories();
@@ -38,7 +38,7 @@ function buildWorkflow() {
 }
 
 async function loadSession(request: Request) {
-  return getSessionFromRequest(request);
+  return getSessionFromRequest(request, { clock: systemClock() });
 }
 
 async function buildTopicsRequest(url: string): Promise<Request> {

@@ -1,12 +1,12 @@
 "use server";
 
 import { headers } from "next/headers";
+import { systemClock } from "../../../../src/system/clock";
 import { redirect } from "next/navigation";
 
 import { getSessionFromRequest } from "../../../../src/auth/session";
 import { CsrfError } from "../../../../src/lib/csrf";
 import { createPostgresDiscoverabilityConsentRepository } from "../../../../src/profile/discoverability-consent";
-import { systemClock } from "../../../../src/system/clock";
 import {
   createSetDiscoverabilityActionHandler,
   type SetDiscoverabilityActionResult,
@@ -15,7 +15,9 @@ import {
 const handler = createSetDiscoverabilityActionHandler({
   repository: createPostgresDiscoverabilityConsentRepository(systemClock()),
   loadSession: async (request) => {
-    const session = await getSessionFromRequest(request);
+    const session = await getSessionFromRequest(request, {
+      clock: systemClock(),
+    });
     return session;
   },
 });

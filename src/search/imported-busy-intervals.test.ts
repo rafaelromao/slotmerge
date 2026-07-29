@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImportedBusyIntervalRecord } from "../calendar/imported-busy-intervals";
 import {
   clearInMemoryImportedBusyIntervalStore,
-  getImportedBusyIntervalRepository,
+  createInMemoryImportedBusyIntervalRepository,
+  setImportedBusyIntervalRepositoryForTests,
 } from "../calendar/imported-busy-intervals";
 import {
   expandBusyIntervalsWithBuffer,
@@ -31,6 +32,11 @@ const busyInterval: ImportedBusyIntervalRecord = {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(fixedNow);
+  setImportedBusyIntervalRepositoryForTests(
+    createInMemoryImportedBusyIntervalRepository({
+      now: () => new Date(fixedNow),
+    }),
+  );
 });
 
 describe("ImportedBusyIntervalLookup", () => {
@@ -41,10 +47,19 @@ describe("ImportedBusyIntervalLookup", () => {
   });
 
   it("returns stored busy intervals for a user within date range", async () => {
-    const repo = getImportedBusyIntervalRepository();
+    const repo = createInMemoryImportedBusyIntervalRepository({
+      now: () => new Date(fixedNow),
+    });
     await repo.upsertBatch([busyInterval]);
 
-    const lookup = getImportedBusyIntervalLookup();
+    const lookup = {
+      findByUserIdAndDateRange: (
+        userId: string,
+        rangeStart: Date,
+        rangeEnd: Date,
+      ) => repo.findByUserIdAndDateRange(userId, rangeStart, rangeEnd),
+    };
+    setImportedBusyIntervalLookupForTests(lookup);
     const found = await lookup.findByUserIdAndDateRange(
       "user-1",
       new Date("2026-07-01T00:00:00.000Z"),
@@ -57,7 +72,17 @@ describe("ImportedBusyIntervalLookup", () => {
   });
 
   it("returns empty array when no intervals match user", async () => {
-    const lookup = getImportedBusyIntervalLookup();
+    const repo = createInMemoryImportedBusyIntervalRepository({
+      now: () => new Date(fixedNow),
+    });
+    const lookup = {
+      findByUserIdAndDateRange: (
+        userId: string,
+        rangeStart: Date,
+        rangeEnd: Date,
+      ) => repo.findByUserIdAndDateRange(userId, rangeStart, rangeEnd),
+    };
+    setImportedBusyIntervalLookupForTests(lookup);
     const found = await lookup.findByUserIdAndDateRange(
       "user-999",
       new Date("2026-07-01T00:00:00.000Z"),
@@ -68,12 +93,21 @@ describe("ImportedBusyIntervalLookup", () => {
   });
 
   it("does not call provider APIs when looking up busy intervals", async () => {
-    const repo = getImportedBusyIntervalRepository();
+    const repo = createInMemoryImportedBusyIntervalRepository({
+      now: () => new Date(fixedNow),
+    });
     await repo.upsertBatch([busyInterval]);
 
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 
-    const lookup = getImportedBusyIntervalLookup();
+    const lookup = {
+      findByUserIdAndDateRange: (
+        userId: string,
+        rangeStart: Date,
+        rangeEnd: Date,
+      ) => repo.findByUserIdAndDateRange(userId, rangeStart, rangeEnd),
+    };
+    setImportedBusyIntervalLookupForTests(lookup);
     await lookup.findByUserIdAndDateRange(
       "user-1",
       new Date("2026-07-01T00:00:00.000Z"),

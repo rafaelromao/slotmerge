@@ -12,7 +12,7 @@ import { createCalendarConnectionWorkflow } from "../../../../src/workflow/calen
 export function createCalendarConnectPost(provider: CalendarProvider) {
   return async function POST(request: Request): Promise<Response> {
     const [session, sessionId] = await Promise.all([
-      getSessionFromRequest(request),
+      getSessionFromRequest(request, { clock: systemClock() }),
       extractSessionIdFromRequest(request),
     ]);
     if (!session || !sessionId) {
@@ -34,9 +34,10 @@ export function createCalendarConnectPost(provider: CalendarProvider) {
       typeof connectionIdValue === "string" && connectionIdValue.length > 0
         ? connectionIdValue
         : undefined;
+    const clock = systemClock();
     const workflow = createCalendarConnectionWorkflow({
-      repository: getCalendarConnectionRepository(),
-      clock: systemClock(),
+      repository: getCalendarConnectionRepository(clock),
+      clock,
       listProviderCalendars: () => Promise.resolve([]),
       oauth: {
         baseUrl: process.env.APP_PUBLIC_URL ?? new URL(request.url).origin,

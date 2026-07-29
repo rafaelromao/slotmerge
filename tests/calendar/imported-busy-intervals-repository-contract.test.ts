@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createPostgresImportedBusyIntervalRepository } from "../../src/calendar/imported-busy-intervals.repository";
 import {
   clearInMemoryImportedBusyIntervalStore,
-  getImportedBusyIntervalRepository,
+  createInMemoryImportedBusyIntervalRepository,
 } from "../../src/calendar/imported-busy-intervals";
 import type { ImportedBusyIntervalRecord } from "../../src/calendar/imported-busy-intervals";
 
@@ -88,7 +88,7 @@ describe("ImportedBusyIntervalRepository contract", () => {
     });
 
     it("upsertBatch replaces all intervals for a connectionId (not additive)", async () => {
-      const repo = getImportedBusyIntervalRepository();
+      const repo = createInMemoryImportedBusyIntervalRepository({ now: () => new Date() });
       const connId = `conn-replace-${Math.random().toString(36).slice(2)}`;
 
       const first: ImportedBusyIntervalRecord[] = [
@@ -125,7 +125,7 @@ describe("ImportedBusyIntervalRepository contract", () => {
     });
 
     it("upsertBatch with multiple connectionIds only replaces the specified connectionId", async () => {
-      const repo = getImportedBusyIntervalRepository();
+      const repo = createInMemoryImportedBusyIntervalRepository({ now: () => new Date() });
       const connA = `conn-a-${Math.random().toString(36).slice(2)}`;
       const connB = `conn-b-${Math.random().toString(36).slice(2)}`;
 
@@ -163,7 +163,7 @@ describe("ImportedBusyIntervalRepository contract", () => {
     });
 
     it("upsertBatch updates existing intervals with same id within same connectionId", async () => {
-      const repo = getImportedBusyIntervalRepository();
+      const repo = createInMemoryImportedBusyIntervalRepository({ now: () => new Date() });
       const connId = `conn-update-${Math.random().toString(36).slice(2)}`;
 
       await repo.upsertBatch([
@@ -206,7 +206,7 @@ describe("ImportedBusyIntervalRepository contract", () => {
     afterEach(async () => {
       if (postgresAvailable) {
         try {
-          const cleanupRepo = createPostgresImportedBusyIntervalRepository();
+          const cleanupRepo = createPostgresImportedBusyIntervalRepository({ now: () => new Date() });
           await cleanupRepo.deleteExpiredBefore(fixedEnd);
         } catch {
           // cleanup failures should not fail tests
@@ -221,7 +221,7 @@ describe("ImportedBusyIntervalRepository contract", () => {
       if (!postgresAvailable || !schemaReady) {
         return; // skip
       }
-      const repo = createPostgresImportedBusyIntervalRepository();
+      const repo = createPostgresImportedBusyIntervalRepository({ now: () => new Date() });
       const connId = "00000000-0000-0000-0000-000000000001";
       const userId = "00000000-0000-0000-0000-000000000001";
 
@@ -268,7 +268,7 @@ describe("ImportedBusyIntervalRepository contract", () => {
       if (!postgresAvailable || !schemaReady) {
         return; // skip
       }
-      const repo = createPostgresImportedBusyIntervalRepository();
+      const repo = createPostgresImportedBusyIntervalRepository({ now: () => new Date() });
       const connA = "00000000-0000-0000-0000-000000000001";
       const connB = "00000000-0000-0000-0000-000000000002";
       const userId = "00000000-0000-0000-0000-000000000001";
@@ -318,7 +318,7 @@ describe("ImportedBusyIntervalRepository contract", () => {
       if (!postgresAvailable || !schemaReady) {
         return; // skip
       }
-      const repo = createPostgresImportedBusyIntervalRepository();
+      const repo = createPostgresImportedBusyIntervalRepository({ now: () => new Date() });
       const connId = "00000000-0000-0000-0000-000000000003";
       const userId = "00000000-0000-0000-0000-000000000001";
       const intervalId = "00000000-0000-0000-0000-000000000011";

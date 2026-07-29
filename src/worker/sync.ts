@@ -56,7 +56,7 @@ export async function handleSyncCalendarConnectionJob(
   const { clock, randomSource } = deps;
   const job = parseSyncCalendarConnectionPayload(payload);
 
-  const connection = await findCalendarConnectionById(job.connectionId);
+  const connection = await findCalendarConnectionById(job.connectionId, clock);
   if (!connection) {
     return;
   }
@@ -81,7 +81,7 @@ export async function handleSyncCalendarConnectionJob(
     });
 
     connectionLookup = async (connId) => {
-      const conn = await findCalendarConnectionById(connId);
+      const conn = await findCalendarConnectionById(connId, clock);
       if (!conn) return null;
 
       const [user] = await getDb()
@@ -109,12 +109,13 @@ export async function handleSyncCalendarConnectionJob(
         code: "SYNC_ERROR",
         message,
       },
-      { connectionLookup: () => Promise.resolve(null) },
+      { connectionLookup: () => Promise.resolve(null), clock },
     );
     throw error;
   }
 
-  const busyIntervalRepository = createPostgresImportedBusyIntervalRepository();
+  const busyIntervalRepository =
+    createPostgresImportedBusyIntervalRepository(clock);
 
   const now = clock.now();
   const timeMax = now.toISOString();
@@ -143,12 +144,12 @@ export async function handleSyncCalendarConnectionJob(
             code: input.code,
             message: input.message,
           },
-          { connectionLookup },
+          { connectionLookup, clock },
         ),
       clock: () => clock.now(),
     });
 
-    await updateLastSyncAt(connection.id, clock.now());
+    await updateLastSyncAt(connection.id, clock.now(), clock);
   } catch (error) {
     if (error instanceof RateLimitError || error instanceof ServerError) {
       const baseDelayMs =
@@ -168,8 +169,12 @@ export async function handleSyncCalendarConnectionJob(
   }
 }
 
-async function updateLastSyncAt(connectionId: string, lastSyncAt: Date) {
-  await getCalendarConnectionRepository().updateById(connectionId, {
+async function updateLastSyncAt(
+  connectionId: string,
+  lastSyncAt: Date,
+  clock: Clock,
+) {
+  await getCalendarConnectionRepository(clock).updateById(connectionId, {
     lastSyncAt,
   });
 }

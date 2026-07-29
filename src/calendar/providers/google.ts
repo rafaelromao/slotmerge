@@ -4,7 +4,6 @@ import {
   getGoogleFreeBusyScope,
 } from "../google-oauth";
 import type { CalendarProvider, CalendarProviderCompletion } from "../provider";
-import { systemClock } from "../../system/clock";
 
 const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 
@@ -32,16 +31,18 @@ async function revokeGoogleAuthorization({
   }
 }
 
-async function completeGoogleAuthorization({
-  baseUrl,
-  clientId,
-  clientSecret,
-  code,
-  codeVerifier,
-  fetchImpl,
-}: Parameters<
-  CalendarProvider["completeAuthorization"]
->[0]): Promise<CalendarProviderCompletion> {
+async function completeGoogleAuthorization(
+  input: Parameters<CalendarProvider["completeAuthorization"]>[0],
+): Promise<CalendarProviderCompletion> {
+  const {
+    baseUrl,
+    clientId,
+    clientSecret,
+    code,
+    codeVerifier,
+    fetchImpl,
+    clock,
+  } = input;
   const response = await fetchImpl(GOOGLE_TOKEN_ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -78,7 +79,7 @@ async function completeGoogleAuthorization({
     accessToken: payload.access_token,
     refreshToken: payload.refresh_token,
     accessTokenExpiresAt: payload.expires_in
-      ? new Date(systemClock().now().getTime() + payload.expires_in * 1000)
+      ? new Date(clock.now().getTime() + payload.expires_in * 1000)
       : null,
     scopes: payload.scope ?? getGoogleFreeBusyScope(),
     contributingCalendarIds: ["primary"],

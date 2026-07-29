@@ -4,7 +4,6 @@ import {
   type Session,
 } from "../auth/session";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 import {
   getSearchRepository,
   type SearchHistoryItem,
@@ -16,21 +15,24 @@ import {
 } from "./search-result-repository";
 
 export type SearchHistoryDependencies = {
-  getSession?: (request: Request) => Promise<Session | null>;
+  getSession?: (
+    request: Request,
+    deps: { clock: Clock },
+  ) => Promise<Session | null>;
   searchRepository?: SearchRepository;
   searchResultRepository?: SearchResultRepository;
-  clock?: Clock;
+  clock: Clock;
 };
 
 export function createSearchHistoryHandlers({
   getSession = getSessionFromRequest,
   searchRepository = getSearchRepository(),
   searchResultRepository = getSearchResultRepository(),
-  clock = systemClock(),
-}: SearchHistoryDependencies = {}) {
+  clock,
+}: SearchHistoryDependencies) {
   return {
     async getHistory(request: Request): Promise<Response> {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock });
 
       if (!isOrganizerOrAdminSession(session)) {
         return Response.json({ error: "forbidden" }, { status: 403 });
@@ -57,7 +59,7 @@ export function createSearchHistoryHandlers({
     },
 
     async getSnapshot(request: Request, searchId: string): Promise<Response> {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock });
 
       if (!isOrganizerOrAdminSession(session)) {
         return Response.json({ error: "forbidden" }, { status: 403 });

@@ -10,6 +10,8 @@ import type {
   CalendarConnectionRepository,
 } from "./connection";
 
+const testClock = { now: () => new Date() };
+
 const baseRecord = (
   overrides: Partial<CalendarConnectionRecord>,
 ): CalendarConnectionRecord => ({
@@ -44,7 +46,7 @@ describe("shared CalendarConnectionRepository", () => {
 
     setCalendarConnectionRepositoryForTests(repository);
 
-    expect(getCalendarConnectionRepository()).toBe(repository);
+    expect(getCalendarConnectionRepository(testClock)).toBe(repository);
   });
 
   it("findCalendarConnectionById queries the shared repository exactly once", async () => {
@@ -61,7 +63,7 @@ describe("shared CalendarConnectionRepository", () => {
       updateById: vi.fn(),
     });
 
-    const found = await findCalendarConnectionById("connection-1");
+    const found = await findCalendarConnectionById("connection-1", testClock);
 
     expect(findById).toHaveBeenCalledTimes(1);
     expect(findById).toHaveBeenCalledWith("connection-1");
@@ -99,11 +101,15 @@ describe("shared CalendarConnectionRepository", () => {
       updateById: vi.fn(),
     });
 
-    const foundGoogle = await findCalendarConnectionById("google-connection");
+    const foundGoogle = await findCalendarConnectionById(
+      "google-connection",
+      testClock,
+    );
     const foundMicrosoft = await findCalendarConnectionById(
       "microsoft-connection",
+      testClock,
     );
-    const missing = await findCalendarConnectionById("nonexistent");
+    const missing = await findCalendarConnectionById("nonexistent", testClock);
 
     expect(foundGoogle).toMatchObject({
       id: "google-connection",

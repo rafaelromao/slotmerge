@@ -66,7 +66,7 @@ describe("E2E: Admin retires an active Topic", () => {
       const adminCookie = await sealSessionCookie({
         sessionId: adminSessionId,
       });
-      const { POST } = createAdminTopicsHandlers();
+      const { POST } = createAdminTopicsHandlers({ clock: testClock });
 
       const response = await POST(
         new Request("http://localhost/admin/topics", {
@@ -148,7 +148,7 @@ describe("E2E: Admin retires an active Topic", () => {
       const adminCookie = await sealSessionCookie({
         sessionId: adminSessionId,
       });
-      const { POST } = createAdminTopicsHandlers();
+      const { POST } = createAdminTopicsHandlers({ clock: testClock });
 
       await POST(
         new Request("http://localhost/admin/topics", {
@@ -209,7 +209,7 @@ describe("E2E: Admin retires an active Topic", () => {
       const adminCookie = await sealSessionCookie({
         sessionId: adminSessionId,
       });
-      const { POST } = createAdminTopicsHandlers();
+      const { POST } = createAdminTopicsHandlers({ clock: testClock });
 
       await POST(
         new Request("http://localhost/admin/topics", {
@@ -265,7 +265,7 @@ describe("E2E: Admin retires an active Topic", () => {
       const adminCookie = await sealSessionCookie({
         sessionId: adminSessionId,
       });
-      const { POST } = createAdminTopicsHandlers();
+      const { POST } = createAdminTopicsHandlers({ clock: testClock });
 
       await POST(
         new Request("http://localhost/admin/topics", {
@@ -339,7 +339,7 @@ describe("E2E: Admin retires an active Topic", () => {
       const adminCookie = await sealSessionCookie({
         sessionId: adminSessionId,
       });
-      const { POST } = createAdminTopicsHandlers();
+      const { POST } = createAdminTopicsHandlers({ clock: testClock });
 
       await POST(
         new Request("http://localhost/admin/topics", {
@@ -375,7 +375,7 @@ describe("E2E: Admin retires an active Topic", () => {
             },
             profileRepository: {
               async findByUserId(uid) {
-                return getProfileByUserId(uid);
+                return getProfileByUserId(uid, testClock);
               },
             },
             clock: { now: getTestClock() },
@@ -400,3 +400,6 @@ describe("E2E: Admin retires an active Topic", () => {
     },
   );
 });
+
+const testClock = { now: () => new Date() };
+

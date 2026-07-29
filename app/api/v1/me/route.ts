@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
+import { systemClock } from "../../../../src/system/clock";
 import { getAccountRepository } from "../../../../src/account/repository";
 import {
   clearSessionCookie,
@@ -219,13 +220,15 @@ const profileUpdateSchema = z
   .strict();
 
 export async function GET(request: Request): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });
   }
 
-  const profile = await getProfileByUserId(session.user.id);
+  const profile = await getProfileByUserId(session.user.id, systemClock());
 
   if (!profile) {
     return Response.json({ error: "profile_not_found" }, { status: 404 });
@@ -257,7 +260,9 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function PATCH(request: Request): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });
@@ -284,6 +289,7 @@ export async function PATCH(request: Request): Promise<Response> {
   const updatedProfile = await updateProfileByUserId(
     session.user.id,
     parsed.data,
+    systemClock(),
   );
 
   if (!updatedProfile) {
@@ -385,7 +391,9 @@ function isSupportedTimeZone(timeZone: string): boolean {
 }
 
 export async function DELETE(request: Request): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });

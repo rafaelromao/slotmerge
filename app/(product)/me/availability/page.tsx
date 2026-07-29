@@ -71,8 +71,9 @@ export default async function AvailabilityPage({
   const validErrorTarget =
     errorTarget && VALID_TARGETS.has(errorTarget) ? errorTarget : null;
 
-  const repositories = buildAvailabilityPageRepositories();
+  const repositories = buildAvailabilityPageRepositories(systemClock());
   const workflow = createAvailabilityWorkflow({
+    clock: systemClock(),
     listWindows: async (userId) => {
       return repositories.windows.listByUserId(userId);
     },

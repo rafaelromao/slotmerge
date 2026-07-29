@@ -1,6 +1,5 @@
 import type { BusyIntervalStatus } from "../db/schema";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 
 export const ROLLING_WINDOW_DAYS = 90;
 
@@ -48,26 +47,54 @@ export function setImportedBusyIntervalRepositoryForTests(
 }
 
 export function getImportedBusyIntervalRepository(): ImportedBusyIntervalRepository {
-  return repositoryOverride ?? inMemoryImportedBusyIntervalRepository;
+  return repositoryOverride ?? getDefaultInMemoryRepository();
 }
 
-const inMemoryImportedBusyIntervalRepository: ImportedBusyIntervalRepository = {
-  async upsertBatch(intervals) {
-    const filtered = intervals.filter((i) =>
-      isWithinRollingWindow(i.startAt, systemClock()),
-    );
-    if (filtered.length === 0) return;
+function getDefaultInMemoryRepository(): ImportedBusyIntervalRepository {
+  throw new Error(
+    "getImportedBusyIntervalRepository() default requires a Clock; pass a repository via setImportedBusyIntervalRepositoryForTests or call createInMemoryImportedBusyIntervalRepository(clock) directly.",
+  );
+}
 
-    const groups = new Map<string, ImportedBusyIntervalRecord[]>();
-    for (const interval of filtered) {
-      const key = `${interval.connectionId}:${interval.providerCalendarId}`;
-      const group = groups.get(key) ?? [];
-      group.push(interval);
-      groups.set(key, group);
-    }
+export function createInMemoryImportedBusyIntervalRepository(
+  clock: Clock,
+): ImportedBusyIntervalRepository {
+  return {
+    async upsertBatch(intervals) {
+      const filtered = intervals.filter((i) =>
+        isWithinRollingWindow(i.startAt, clock),
+      );
+      if (filtered.length === 0) return;
 
-    for (const [, groupIntervals] of groups) {
-      const { connectionId, providerCalendarId } = groupIntervals[0];
+      const groups = new Map<string, ImportedBusyIntervalRecord[]>();
+      for (const interval of filtered) {
+        const key = `${interval.connectionId}:${interval.providerCalendarId}`;
+        const group = groups.get(key) ?? [];
+        group.push(interval);
+        groups.set(key, group);
+      }
+
+      for (const [, groupIntervals] of groups) {
+        const { connectionId, providerCalendarId } = groupIntervals[0];
+        inMemoryStore = inMemoryStore.filter(
+          (i) =>
+            !(
+              i.connectionId === connectionId &&
+              i.providerCalendarId === providerCalendarId
+            ),
+        );
+        inMemoryStore.push(...groupIntervals);
+      }
+
+      await Promise.resolve();
+    },
+    async deleteByConnectionId(connectionId) {
+      inMemoryStore = inMemoryStore.filter(
+        (i) => i.connectionId !== connectionId,
+      );
+      await Promise.resolve();
+    },
+    async deleteByConnectionIdAndCalendarId(connectionId, providerCalendarId) {
       inMemoryStore = inMemoryStore.filter(
         (i) =>
           !(
@@ -75,41 +102,23 @@ const inMemoryImportedBusyIntervalRepository: ImportedBusyIntervalRepository = {
             i.providerCalendarId === providerCalendarId
           ),
       );
-      inMemoryStore.push(...groupIntervals);
-    }
-
-    await Promise.resolve();
-  },
-  async deleteByConnectionId(connectionId) {
-    inMemoryStore = inMemoryStore.filter(
-      (i) => i.connectionId !== connectionId,
-    );
-    await Promise.resolve();
-  },
-  async deleteByConnectionIdAndCalendarId(connectionId, providerCalendarId) {
-    inMemoryStore = inMemoryStore.filter(
-      (i) =>
-        !(
-          i.connectionId === connectionId &&
-          i.providerCalendarId === providerCalendarId
+      await Promise.resolve();
+    },
+    async findByUserIdAndDateRange(userId, start, end) {
+      return Promise.resolve(
+        inMemoryStore.filter(
+          (i) => i.userId === userId && i.startAt < end && i.endAt > start,
         ),
-    );
-    await Promise.resolve();
-  },
-  async findByUserIdAndDateRange(userId, start, end) {
-    return Promise.resolve(
-      inMemoryStore.filter(
-        (i) => i.userId === userId && i.startAt < end && i.endAt > start,
-      ),
-    );
-  },
-  async deleteExpiredBefore(before) {
-    const expired = inMemoryStore.filter((i) => i.startAt < before);
-    const deletedCount = expired.length;
-    inMemoryStore = inMemoryStore.filter((i) => i.startAt >= before);
-    return Promise.resolve(deletedCount);
-  },
-};
+      );
+    },
+    async deleteExpiredBefore(before) {
+      const expired = inMemoryStore.filter((i) => i.startAt < before);
+      const deletedCount = expired.length;
+      inMemoryStore = inMemoryStore.filter((i) => i.startAt >= before);
+      return Promise.resolve(deletedCount);
+    },
+  };
+}
 
 let inMemoryStore: ImportedBusyIntervalRecord[] = [];
 

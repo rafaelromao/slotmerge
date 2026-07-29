@@ -130,9 +130,10 @@ export default async function CalendarConnectionsPage({
       ? (scenarioValue as "connected" | "denied" | "expired" | "personal")
       : undefined;
 
+  const clock = systemClock();
   const workflow = createCalendarConnectionWorkflow({
-    repository: getCalendarConnectionRepository(),
-    clock: systemClock(),
+    repository: getCalendarConnectionRepository(clock),
+    clock,
     listProviderCalendars: async (connection) => {
       const tokenEncryptionKey = process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
       if (!tokenEncryptionKey || !connection.accessTokenEncrypted) {

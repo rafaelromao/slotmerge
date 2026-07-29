@@ -13,7 +13,7 @@ import {
   createPostgresProfileRepository,
   type ProfileRepository,
 } from "./repository";
-import { systemClock } from "../system/clock";
+import type { Clock } from "../system/clock";
 
 export type AvailabilityPageRepositories = {
   windows: WeeklyAvailabilityWindowRepository;
@@ -55,13 +55,15 @@ export function clearAvailabilityPageRepositoryOverrides(): void {
   setProfileRepositoryForTests(null);
 }
 
-export function buildAvailabilityPageRepositories(): AvailabilityPageRepositories {
+export function buildAvailabilityPageRepositories(
+  clock: Clock,
+): AvailabilityPageRepositories {
   return {
     windows:
       windowsOverride ??
-      createPostgresWeeklyAvailabilityWindowRepository(systemClock()),
+      createPostgresWeeklyAvailabilityWindowRepository(clock),
     overrides:
       overridesOverride ?? createPostgresAvailabilityOverrideRepository(),
-    profile: profileOverride ?? createPostgresProfileRepository(systemClock()),
+    profile: profileOverride ?? createPostgresProfileRepository(clock),
   };
 }

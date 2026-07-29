@@ -4,7 +4,6 @@ import {
   getMicrosoftCalendarScopes,
 } from "../microsoft-oauth";
 import type { CalendarProvider, CalendarProviderCompletion } from "../provider";
-import { systemClock } from "../../system/clock";
 
 const MICROSOFT_TOKEN_ENDPOINT =
   "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
@@ -37,16 +36,18 @@ async function revokeMicrosoftAuthorization({
   }
 }
 
-async function completeMicrosoftAuthorization({
-  baseUrl,
-  clientId,
-  clientSecret,
-  code,
-  codeVerifier,
-  fetchImpl,
-}: Parameters<
-  CalendarProvider["completeAuthorization"]
->[0]): Promise<CalendarProviderCompletion> {
+async function completeMicrosoftAuthorization(
+  input: Parameters<CalendarProvider["completeAuthorization"]>[0],
+): Promise<CalendarProviderCompletion> {
+  const {
+    baseUrl,
+    clientId,
+    clientSecret,
+    code,
+    codeVerifier,
+    fetchImpl,
+    clock,
+  } = input;
   const response = await fetchImpl(MICROSOFT_TOKEN_ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -107,7 +108,7 @@ async function completeMicrosoftAuthorization({
     accessToken: payload.access_token,
     refreshToken: payload.refresh_token,
     accessTokenExpiresAt: payload.expires_in
-      ? new Date(systemClock().now().getTime() + payload.expires_in * 1000)
+      ? new Date(clock.now().getTime() + payload.expires_in * 1000)
       : null,
     scopes: payload.scope ?? getMicrosoftCalendarScopes(),
     contributingCalendarIds: [primaryCalendarId],

@@ -3,7 +3,6 @@ import { z } from "zod";
 import { getSessionFromRequest, type Session } from "../auth/session";
 import type { TopicStatus } from "../db/schema";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 import {
   adminAccessDeniedResponse,
   escapeHtml,
@@ -21,12 +20,13 @@ import {
 export type { RetireResult } from "../topics/repository";
 
 export type AdminTopicsDependencies = {
-  getSession?: (request: Request) => Promise<Session | null>;
+  getSession?: (
+    request: Request,
+    deps: { clock: Clock },
+  ) => Promise<Session | null>;
   topicRepository?: TopicAdminRepository;
-  clock?: Clock;
+  clock: Clock;
 };
-
-const systemClockBoundary = systemClock();
 
 const actionSchema = z.object({
   action: z.literal("retire"),
@@ -36,12 +36,12 @@ const actionSchema = z.object({
 export function createAdminTopicsHandlers({
   getSession = getSessionFromRequest,
   topicRepository,
-  clock = systemClockBoundary,
-}: AdminTopicsDependencies = {}) {
+  clock,
+}: AdminTopicsDependencies) {
   const resolveRepository = () => topicRepository ?? getTopicAdminRepository();
   return {
     GET: async (request: Request): Promise<Response> => {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock });
       if (!isAdminSession(session)) {
         return adminAccessDeniedResponse(session);
       }
@@ -59,7 +59,7 @@ export function createAdminTopicsHandlers({
     },
 
     POST: async (request: Request): Promise<Response> => {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock });
       if (!isAdminSession(session)) {
         return adminAccessDeniedResponse(session);
       }

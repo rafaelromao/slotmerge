@@ -87,9 +87,12 @@ export function validateProfilePatch(
 }
 
 type DepOverrides = {
-  getProfileByUserId?: typeof getProfileByUserId;
-  updateProfileByUserId?: typeof updateProfileByUserId;
-  clock?: Clock;
+  getProfileByUserId?: (userId: string) => Promise<UserProfile | null>;
+  updateProfileByUserId?: (
+    userId: string,
+    patch: ProfilePatch,
+  ) => Promise<UserProfile | null>;
+  clock: Clock;
   supportedTimeZones?: ReadonlySet<string>;
 };
 
@@ -108,16 +111,17 @@ export type ProfileWorkflow = {
   >;
 };
 
-export function createProfileWorkflow(
-  deps: DepOverrides = {},
-): ProfileWorkflow {
-  const getProfile = deps.getProfileByUserId ?? getProfileByUserId;
-  const updateProfile = deps.updateProfileByUserId ?? updateProfileByUserId;
+export function createProfileWorkflow(deps: DepOverrides): ProfileWorkflow {
+  const { clock } = deps;
+  const getProfile =
+    deps.getProfileByUserId ??
+    ((userId: string) => getProfileByUserId(userId, clock));
+  const updateProfile =
+    deps.updateProfileByUserId ??
+    ((userId: string, patch: ProfilePatch) =>
+      updateProfileByUserId(userId, patch, clock));
   const supportedTimeZones =
     deps.supportedTimeZones ?? defaultSupportedTimeZones();
-  // Keep `clock` for future audit timestamps; the workflow does not currently
-  // emit one, but the seam is preserved so callers can inject a fixed clock.
-  void deps.clock;
 
   return {
     async loadMe({ userId }) {

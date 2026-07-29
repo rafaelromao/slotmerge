@@ -66,7 +66,11 @@ describe("sealCalendarConnectionState", () => {
     );
 
     await expect(
-      unsealCalendarConnectionState({ state, secret }),
+      unsealCalendarConnectionState({
+        state,
+        secret,
+        now: new Date("2026-07-12T12:00:00.000Z"),
+      }),
     ).rejects.toThrow();
   });
 

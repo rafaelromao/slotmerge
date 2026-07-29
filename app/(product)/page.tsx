@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { systemClock } from "../../src/system/clock";
 
 import { getServerSession } from "../../src/auth/session";
 import { createProductionSetupHomeWorkflow } from "../../src/workflow/setup-home-production";
@@ -54,7 +55,7 @@ export default async function SetupHomePage({
 }: {
   searchParams?: SearchParams;
 } = {}) {
-  const session = await getServerSession();
+  const session = await getServerSession({ clock: systemClock() });
 
   if (!session) {
     const params = (await searchParams) ?? {};
@@ -107,7 +108,9 @@ export default async function SetupHomePage({
     );
   }
 
-  const result = await createProductionSetupHomeWorkflow().loadSummary({
+  const result = await createProductionSetupHomeWorkflow(
+    systemClock(),
+  ).loadSummary({
     userId: session.user.id,
   });
 

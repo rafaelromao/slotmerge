@@ -21,6 +21,9 @@ import {
   USER_FIXTURES,
 } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -155,7 +158,7 @@ describe("E2E: run a Search and render weekly calendar result", () => {
         },
         profileRepository: {
           async findByUserId(userId: string) {
-            return getProfileByUserId(userId);
+            return getProfileByUserId(userId, testClock);
           },
         },
         clock: { now: getTestClock() },

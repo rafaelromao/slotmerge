@@ -27,6 +27,9 @@ import {
 } from "../../src/search/search-snapshot-assembler";
 import { TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
 const HAS_TEST_DB = !!TEST_DB_URL;
@@ -258,6 +261,7 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
         new Request("http://localhost/", {
           headers: { cookie: cookieValue },
         }),
+        { clock: { now: () => new Date() } },
       );
       expect(resolvedSession).not.toBeNull();
       expect(resolvedSession?.user.email).toBe(inviteeEmail);
@@ -298,9 +302,10 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
         },
         profileRepository: {
           findByUserId(uid) {
-            return getProfileByUserId(uid);
+            return getProfileByUserId(uid, testClock);
           },
         },
+        clock: { now: () => new Date() },
       }),
     );
     const snapshot = await assembler.assemble({

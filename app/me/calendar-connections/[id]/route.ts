@@ -16,7 +16,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });
@@ -32,7 +34,8 @@ export async function PATCH(
     return Response.json({ error: "oauth_not_configured" }, { status: 500 });
   }
 
-  const repository = getCalendarConnectionRepository();
+  const clock = systemClock();
+  const repository = getCalendarConnectionRepository(clock);
   const found = await repository.findById(expectedId);
 
   if (!found || found.userId !== session.user.id) {

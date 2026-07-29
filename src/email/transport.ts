@@ -1,15 +1,18 @@
 import nodemailer from "nodemailer";
 
 import { captureEmail } from "../local/email-capture";
+import type { Clock } from "../system/clock";
 import type { QueueEmailJobInput } from "./service";
 
 type EmailTransportOptions = {
   adapter: "mock" | "postmark";
+  clock: Clock;
   env?: typeof process.env;
 };
 
 export function createEmailTransport({
   adapter,
+  clock,
   env = process.env,
 }: EmailTransportOptions): EmailTransport {
   if (adapter === "mock") {
@@ -20,11 +23,12 @@ export function createEmailTransport({
           env.EMAIL_CAPTURE_ENABLED === "true";
 
         if (shouldCapture) {
+          const capturedAt = clock.now().toISOString();
           captureEmail({
             recipient: job.recipient,
             type: job.type,
             payload: job.payload,
-            capturedAt: new Date().toISOString(),
+            capturedAt,
           });
 
           const baseUrl = env.LOCAL_WEB_URL ?? "http://localhost:3000";
@@ -35,7 +39,7 @@ export function createEmailTransport({
               recipient: job.recipient,
               type: job.type,
               payload: job.payload,
-              capturedAt: new Date().toISOString(),
+              capturedAt,
             }),
           }).catch(() => {});
         }

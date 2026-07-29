@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
 import { getSessionFromRequest } from "../../../src/auth/session";
+import { systemClock } from "../../../src/system/clock";
 import {
   grantDiscoverabilityConsent,
   revokeDiscoverabilityConsent,
@@ -15,7 +16,9 @@ const consentGrantSchema = z
   .strict();
 
 export async function POST(request: Request): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });
@@ -50,7 +53,9 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 export async function DELETE(request: Request): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });

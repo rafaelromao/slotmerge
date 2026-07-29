@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { systemClock } from "../../../../src/system/clock";
 import { redirect } from "next/navigation";
 
 import {
@@ -19,7 +20,6 @@ import { decryptCalendarToken } from "../../../../src/calendar/token-encryption"
 import { configuredProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
 import { CsrfError, assertCsrfFromFormData } from "../../../../src/lib/csrf";
 import { listProviderCalendarsForProvider } from "../../../../src/calendar/providers";
-import { systemClock } from "../../../../src/system/clock";
 import {
   createCalendarConnectionWorkflow,
   type CalendarConnectionMutationError,
@@ -82,7 +82,7 @@ function buildErrorRedirect(
 async function loadSessionForRequest(
   request: Request,
 ): Promise<Session | null> {
-  return getSessionFromRequest(request);
+  return getSessionFromRequest(request, { clock: systemClock() });
 }
 
 async function loadCurrentRequest(): Promise<{
@@ -115,11 +115,11 @@ function providerFetchImpl(): typeof fetch {
   return configuredProviderFetchImpl();
 }
 
-function createMutationWorkflow() {
-  const repository = getCalendarConnectionRepository();
+function createMutationWorkflow(clock: ReturnType<typeof systemClock>) {
+  const repository = getCalendarConnectionRepository(clock);
   return createCalendarConnectionWorkflow({
     repository,
-    clock: systemClock(),
+    clock,
     listProviderCalendars: async (connection) => {
       const tokenEncryptionKey = process.env.CALENDAR_TOKEN_ENCRYPTION_KEY;
       if (!tokenEncryptionKey || !connection.accessTokenEncrypted) {
@@ -178,7 +178,7 @@ async function runSave(args: {
   if (!connectionId) {
     redirect(buildErrorRedirect("save", "missing_connection"));
   }
-  const result = await createMutationWorkflow().mutateConnection({
+  const result = await createMutationWorkflow(systemClock()).mutateConnection({
     kind: "save",
     userId: args.session.user.id,
     connectionId,
@@ -202,14 +202,16 @@ async function runRefresh(args: {
   if (!connectionId) {
     redirect(refreshErrorRedirect(args.session, "missing_connection", null));
   }
+  const clock = systemClock();
   const targetUserId = await resolveTargetUserId({
     session: args.session,
     connectionId,
+    clock,
   });
   if (!targetUserId) {
     redirect(refreshErrorRedirect(args.session, "forbidden", connectionId));
   }
-  const result = await createMutationWorkflow().mutateConnection({
+  const result = await createMutationWorkflow(clock).mutateConnection({
     kind: "refresh",
     userId: targetUserId,
     connectionId,
@@ -234,14 +236,16 @@ async function runDisconnect(args: {
   if (!connectionId) {
     redirect(disconnectErrorRedirect(args.session, "missing_connection"));
   }
+  const clock = systemClock();
   const targetUserId = await resolveTargetUserId({
     session: args.session,
     connectionId,
+    clock,
   });
   if (!targetUserId) {
     redirect(disconnectErrorRedirect(args.session, "forbidden"));
   }
-  const result = await createMutationWorkflow().mutateConnection({
+  const result = await createMutationWorkflow(clock).mutateConnection({
     kind: "disconnect",
     userId: targetUserId,
     connectionId,
@@ -329,9 +333,13 @@ export async function disconnectConnectionAction(
 async function resolveTargetUserId(args: {
   session: Session;
   connectionId: string;
+  clock: ReturnType<typeof systemClock>;
 }): Promise<string | null> {
   if (args.session.user.role === "admin") {
-    const connection = await findCalendarConnectionById(args.connectionId);
+    const connection = await findCalendarConnectionById(
+      args.connectionId,
+      args.clock,
+    );
     return connection?.userId ?? null;
   }
   return args.session.user.id;

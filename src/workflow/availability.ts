@@ -15,6 +15,7 @@ import {
   removeAvailabilityOverrideById,
 } from "../profile/availability-overrides";
 import { getProfileByUserId, type UserProfile } from "../profile/repository";
+import type { Clock } from "../system/clock";
 import {
   computeEffectiveAvailability,
   type Interval,
@@ -119,6 +120,7 @@ export type AvailabilityWorkflow = {
 };
 
 export type CreateAvailabilityWorkflowDeps = {
+  clock: Clock;
   listWindows?: typeof listWeeklyAvailabilityWindowsByUserId;
   addWindow?: typeof addWeeklyAvailabilityWindow;
   findWindow?: typeof findWeeklyAvailabilityWindowById;
@@ -126,7 +128,7 @@ export type CreateAvailabilityWorkflowDeps = {
   listOverrides?: typeof listAvailabilityOverridesByUserId;
   addOverride?: typeof addAvailabilityOverride;
   removeOverrideById?: typeof removeAvailabilityOverrideById;
-  getProfile?: typeof getProfileByUserId;
+  getProfile?: (userId: string) => Promise<UserProfile | null>;
 };
 
 export const PROFILE_BUFFER_MINUTES_MIN = 0;
@@ -285,8 +287,9 @@ function buildPreviewLines(
 }
 
 export function createAvailabilityWorkflow(
-  deps: CreateAvailabilityWorkflowDeps = {},
+  deps: CreateAvailabilityWorkflowDeps,
 ): AvailabilityWorkflow {
+  const { clock } = deps;
   const listWindows = deps.listWindows ?? listWeeklyAvailabilityWindowsByUserId;
   const addWindowFn = deps.addWindow ?? addWeeklyAvailabilityWindow;
   const findWindow = deps.findWindow ?? findWeeklyAvailabilityWindowById;
@@ -296,7 +299,8 @@ export function createAvailabilityWorkflow(
   const addOverrideFn = deps.addOverride ?? addAvailabilityOverride;
   const removeOverrideById =
     deps.removeOverrideById ?? removeAvailabilityOverrideById;
-  const getProfile = deps.getProfile ?? getProfileByUserId;
+  const getProfile =
+    deps.getProfile ?? ((userId: string) => getProfileByUserId(userId, clock));
 
   async function loadProfile(userId: string): Promise<UserProfile | null> {
     return getProfile(userId);

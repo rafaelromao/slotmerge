@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 
+import { systemClock } from "../../../src/system/clock";
 import {
   clearSessionCookie,
   extractSessionIdFromRequest,
@@ -20,7 +21,9 @@ async function handleSignOut(
   };
 
   if (mode === "POST") {
-    const session = await getSessionFromRequest(request);
+    const session = await getSessionFromRequest(request, {
+      clock: systemClock(),
+    });
     if (!session) {
       return new Response(null, {
         status: 302,

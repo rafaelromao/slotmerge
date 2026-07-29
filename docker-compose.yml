@@ -69,6 +69,10 @@ services:
       CALENDAR_TOKEN_ENCRYPTION_KEY: "local-calendar-token-encryption-key-do-not-use-in-production"
     ports:
       - "3002:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
     depends_on:
       migrate:
         condition: service_completed_successfully

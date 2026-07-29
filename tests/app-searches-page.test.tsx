@@ -161,6 +161,9 @@ describe("/searches page", () => {
 
     expect(html).toContain("Run a Search");
     expect(html).toContain("searches-form");
+    expect(html).toContain("searches-page-header");
+    expect(html).toContain("searches-history-link");
+    expect(html).toContain("searches-constraints-heading");
     expect(html).toContain('name="minimumMatchingUsers"');
     expect(html).toContain('name="durationMinutes"');
     expect(html).toContain('name="organizerTimezone"');

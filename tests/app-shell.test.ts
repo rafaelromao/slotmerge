@@ -154,7 +154,7 @@ describe("Setup Home page component", () => {
 
     const { default: Page } = await import("../app/(product)/page");
     await expect(Page()).rejects.toMatchObject({
-      digest: expect.stringMatching(/NEXT_REDIRECT.*\/sign-in/),
+      digest: expect.stringMatching(/NEXT_REDIRECT.*\/sign-in/) as unknown,
     });
   });
 });

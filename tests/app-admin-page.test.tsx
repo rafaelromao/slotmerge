@@ -184,8 +184,8 @@ describe("Admin page", () => {
 
     const { default: AdminPage } = await import("../app/(product)/admin/page");
     const html = renderToString(await AdminPage());
-    expect(html).toMatch(/2<!-- --> active topic<!-- -->s/);
-    expect(html).toMatch(/3<!-- --> email failures in the last<!-- --> <!-- -->24<!-- -->h/);
+    expect(html).toMatch(/2<!-- --> active/);
+    expect(html).toMatch(/3<!-- --> email failure<!-- -->s/);
     expect(html).toMatch(/3<!-- --> calendar connection<!-- -->s/);
   });
 

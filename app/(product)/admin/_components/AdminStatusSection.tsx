@@ -126,34 +126,36 @@ export function AdminStatusSection({
             account to reconnect.
           </p>
         ) : null}
-        <table
-          className="admin-status-calendar-table"
-          data-testid="admin-status-calendar-table"
-        >
-          <thead>
-            <tr>
-              <th scope="col">Provider</th>
-              <th scope="col">Pending</th>
-              <th scope="col">Connected</th>
-              <th scope="col">Needs reconnect</th>
-              <th scope="col">Disconnected</th>
-            </tr>
-          </thead>
-          <tbody>
-            {statusResult.calendar.byProvider.map((row) => (
-              <tr
-                key={row.provider}
-                data-testid={`admin-status-calendar-row-${row.provider}`}
-              >
-                <th scope="row">{providerLabel(row.provider)}</th>
-                <td>{row.counts.pending}</td>
-                <td>{row.counts.connected}</td>
-                <td>{row.counts.needsReconnect}</td>
-                <td>{row.counts.disconnected}</td>
+        <div className="admin-status-tokens-table-wrap">
+          <table
+            className="admin-status-tokens-table"
+            data-testid="admin-status-calendar-table"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Provider</th>
+                <th scope="col">Pending</th>
+                <th scope="col">Connected</th>
+                <th scope="col">Needs reconnect</th>
+                <th scope="col">Disconnected</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {statusResult.calendar.byProvider.map((row) => (
+                <tr
+                  key={row.provider}
+                  data-testid={`admin-status-calendar-row-${row.provider}`}
+                >
+                  <th scope="row">{providerLabel(row.provider)}</th>
+                  <td>{row.counts.pending}</td>
+                  <td>{row.counts.connected}</td>
+                  <td>{row.counts.needsReconnect}</td>
+                  <td>{row.counts.disconnected}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section
@@ -198,29 +200,31 @@ export function AdminStatusSection({
             </a>
           </div>
         ) : (
-          <table
-            className="admin-status-tokens-table"
-            data-testid="admin-status-tokens-table"
-          >
-            <thead>
-              <tr>
-                <th scope="col">User</th>
-                <th scope="col">Provider</th>
-                <th scope="col">Account</th>
-                <th scope="col">Access token expires</th>
-                <th scope="col">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {statusResult.calendar.tokensNeedingRefresh.map((row) => (
-                <TokenRow
-                  key={row.connectionId}
-                  row={row}
-                  csrfToken={csrfToken}
-                />
-              ))}
-            </tbody>
-          </table>
+          <div className="admin-status-tokens-table-wrap">
+            <table
+              className="admin-status-tokens-table"
+              data-testid="admin-status-tokens-table"
+            >
+              <thead>
+                <tr>
+                  <th scope="col">User</th>
+                  <th scope="col">Provider</th>
+                  <th scope="col">Account</th>
+                  <th scope="col">Access token expires</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {statusResult.calendar.tokensNeedingRefresh.map((row) => (
+                  <TokenRow
+                    key={row.connectionId}
+                    row={row}
+                    csrfToken={csrfToken}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>

@@ -14,6 +14,9 @@ describe("local MVP stack contract", () => {
     expect(compose).toContain("postgres:");
     expect(compose).toContain("web:");
     expect(compose).toContain("worker:");
+    expect(compose).toMatch(
+      /web:[\s\S]*?volumes:\s*\n\s*- \.:\/app\s*\n\s*- \/app\/node_modules/,
+    );
     expect(docs).toContain("pnpm local:up");
     expect(docs).toContain("pnpm local:verify");
   });

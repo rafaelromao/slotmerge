@@ -44,6 +44,7 @@ export function SuspendTypedConfirm({
         value={typedEmail}
         onChange={(e) => setTypedEmail(e.target.value)}
         aria-describedby={helpId}
+        data-ready={matches ? "true" : "false"}
       />
       <span id={helpId} className="visually-hidden">
         Suspending a user revokes their active sessions.

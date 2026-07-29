@@ -15,6 +15,12 @@ test.describe("Search form journey", () => {
     await expect(
       page.getByRole("heading", { name: "Run a Search" }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "SlotMerge home" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Search history" }),
+    ).toBeVisible();
     await expect(page.getByTestId("searches-form")).toBeVisible();
     await expect(page.getByTestId("searches-matching-rule")).toContainText(
       "Users must have all selected active Topics.",
@@ -34,8 +40,8 @@ test.describe("Search form journey", () => {
     );
     expect(checkedCount).toBe(0);
 
-    await topicCheckboxes.nth(0).check();
-    await topicCheckboxes.nth(1).check();
+    await page.getByRole("checkbox", { name: "AI engineering" }).check();
+    await page.getByRole("checkbox", { name: "Product strategy" }).check();
     await captureState(page, "search-form", "topics-selected");
 
     await page.getByTestId("searches-run-button").click();

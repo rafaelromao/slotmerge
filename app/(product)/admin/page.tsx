@@ -83,10 +83,32 @@ export default async function AdminPage({
     statusResult.calendar.counts.connected +
     statusResult.calendar.counts.pending;
   const recentEmailFailures = statusResult.email.counts.failed;
+  const suspendedCount = users.users.filter(
+    (u) => u.status === "suspended",
+  ).length;
+  const activeUsersCount = users.users.length - suspendedCount;
 
   return (
-    <main className="app-container">
-      <h1>Admin</h1>
+    <main className="app-container admin-page">
+      <header className="admin-page-header">
+        <div className="admin-page-header-copy">
+          <p className="eyebrow">Administration</p>
+          <h1>Admin</h1>
+          <p className="page-description">
+            Invite Users, curate Topics, and monitor the system. Self-action
+            protection is enforced on every destructive control.
+          </p>
+        </div>
+        <nav
+          className="admin-nav-pills"
+          aria-label="Admin sections"
+          data-testid="admin-nav-pills"
+        >
+          <a href="#users">Users</a>
+          <a href="#topics">Topics</a>
+          <a href="#status">Status</a>
+        </nav>
+      </header>
       <SectionDeepLink
         sections={[
           { id: "users", targetIds: ["users", "invites"] },
@@ -95,134 +117,152 @@ export default async function AdminPage({
         ]}
       />
 
-      {invitedEmail ? (
-        <p
-          className="invite-banner"
-          role="status"
-          aria-live="polite"
-          data-testid="invite-banner"
-        >
-          Invitation sent to {invitedEmail}.
-        </p>
-      ) : null}
-
-      {errorCode ? (
-        <p
-          className="admin-error-banner"
-          role="alert"
-          aria-live="polite"
-          data-testid="admin-error-banner"
-        >
-          {errorMessageFor(errorCode)}
-        </p>
-      ) : null}
-
-      {firstString(params.csrf) === "failed" ? (
-        <p
-          className="admin-error-banner"
-          role="alert"
-          aria-live="polite"
-          data-testid="admin-csrf-banner"
-        >
-          Your session token was invalid. Refresh and try again.
-        </p>
-      ) : null}
-
-      {firstString(params.role_change) === "saved" ? (
-        <p
-          className="admin-info-banner"
-          role="status"
-          aria-live="polite"
-          data-testid="admin-role-change-banner"
-        >
-          Role updated.
-        </p>
-      ) : null}
-
-      {firstString(params.action) === "suspended" ? (
-        <p
-          className="admin-info-banner"
-          role="status"
-          aria-live="polite"
-          data-testid="admin-suspend-banner"
-        >
-          User suspended and active sessions revoked.
-        </p>
-      ) : null}
-
-      {firstString(params.action) === "topic_approved" ? (
-        <p
-          className="admin-info-banner"
-          role="status"
-          aria-live="polite"
-          data-testid="admin-topic-approved-banner"
-        >
-          Topic proposal approved and added to the catalogue.
-        </p>
-      ) : null}
-
-      {firstString(params.action) === "topic_rejected" ? (
-        <p
-          className="admin-info-banner"
-          role="status"
-          aria-live="polite"
-          data-testid="admin-topic-rejected-banner"
-        >
-          Topic proposal rejected.
-        </p>
-      ) : null}
-
-      {firstString(params.action) === "topic_retired" ? (
-        <p
-          className="admin-info-banner"
-          role="status"
-          aria-live="polite"
-          data-testid="admin-topic-retired-banner"
-        >
-          Topic retired. Historical associations preserved.
-        </p>
-      ) : null}
-
-      {firstString(params.action) === "reinstated" ? (
-        <p
-          className="admin-info-banner"
-          role="status"
-          aria-live="polite"
-          data-testid="admin-reinstate-banner"
-        >
-          User reinstated.
-        </p>
-      ) : null}
-
-      {(() => {
-        const actionValue = firstString(params.action);
-        if (
-          actionValue === "refresh_ok" ||
-          actionValue === "refresh_err" ||
-          actionValue === "disconnect_ok" ||
-          actionValue === "disconnect_err"
-        ) {
-          const isError = actionValue.endsWith("_err");
-          const intent = actionValue.startsWith("refresh_")
-            ? "Refresh"
-            : "Disconnect";
-          const message = isError
-            ? `${intent} failed. Refresh and try again.`
-            : `${intent} succeeded.`;
-          return (
+      {invitedEmail ||
+      errorCode ||
+      firstString(params.csrf) === "failed" ||
+      firstString(params.role_change) === "saved" ||
+      firstString(params.action) === "suspended" ||
+      firstString(params.action) === "topic_approved" ||
+      firstString(params.action) === "topic_rejected" ||
+      firstString(params.action) === "topic_retired" ||
+      firstString(params.action) === "reinstated" ||
+      firstString(params.action) === "refresh_ok" ||
+      firstString(params.action) === "refresh_err" ||
+      firstString(params.action) === "disconnect_ok" ||
+      firstString(params.action) === "disconnect_err" ? (
+        <div className="admin-banner-row">
+          {invitedEmail ? (
             <p
-              className={isError ? "admin-error-banner" : "admin-info-banner"}
-              role={isError ? "alert" : "status"}
-              aria-live={isError ? "assertive" : "polite"}
-              data-testid="admin-status-action-banner"
-              data-outcome={isError ? "error" : "success"}
+              className="invite-banner"
+              role="status"
+              aria-live="polite"
+              data-testid="invite-banner"
             >
-              {message}
+              Invitation sent to {invitedEmail}.
             </p>
-          );
-        }
-        return null;
-      })()}
+          ) : null}
+
+          {errorCode ? (
+            <p
+              className="admin-error-banner"
+              role="alert"
+              aria-live="polite"
+              data-testid="admin-error-banner"
+            >
+              {errorMessageFor(errorCode)}
+            </p>
+          ) : null}
+
+          {firstString(params.csrf) === "failed" ? (
+            <p
+              className="admin-error-banner"
+              role="alert"
+              aria-live="polite"
+              data-testid="admin-csrf-banner"
+            >
+              Your session token was invalid. Refresh and try again.
+            </p>
+          ) : null}
+
+          {firstString(params.role_change) === "saved" ? (
+            <p
+              className="admin-info-banner"
+              role="status"
+              aria-live="polite"
+              data-testid="admin-role-change-banner"
+            >
+              Role updated.
+            </p>
+          ) : null}
+
+          {firstString(params.action) === "suspended" ? (
+            <p
+              className="admin-info-banner"
+              role="status"
+              aria-live="polite"
+              data-testid="admin-suspend-banner"
+            >
+              User suspended and active sessions revoked.
+            </p>
+          ) : null}
+
+          {firstString(params.action) === "topic_approved" ? (
+            <p
+              className="admin-info-banner"
+              role="status"
+              aria-live="polite"
+              data-testid="admin-topic-approved-banner"
+            >
+              Topic proposal approved and added to the catalogue.
+            </p>
+          ) : null}
+
+          {firstString(params.action) === "topic_rejected" ? (
+            <p
+              className="admin-info-banner"
+              role="status"
+              aria-live="polite"
+              data-testid="admin-topic-rejected-banner"
+            >
+              Topic proposal rejected.
+            </p>
+          ) : null}
+
+          {firstString(params.action) === "topic_retired" ? (
+            <p
+              className="admin-info-banner"
+              role="status"
+              aria-live="polite"
+              data-testid="admin-topic-retired-banner"
+            >
+              Topic retired. Historical associations preserved.
+            </p>
+          ) : null}
+
+          {firstString(params.action) === "reinstated" ? (
+            <p
+              className="admin-info-banner"
+              role="status"
+              aria-live="polite"
+              data-testid="admin-reinstate-banner"
+            >
+              User reinstated.
+            </p>
+          ) : null}
+
+          {(() => {
+            const actionValue = firstString(params.action);
+            if (
+              actionValue === "refresh_ok" ||
+              actionValue === "refresh_err" ||
+              actionValue === "disconnect_ok" ||
+              actionValue === "disconnect_err"
+            ) {
+              const isError = actionValue.endsWith("_err");
+              const intent = actionValue.startsWith("refresh_")
+                ? "Refresh"
+                : "Disconnect";
+              const message = isError
+                ? `${intent} failed. Refresh and try again.`
+                : `${intent} succeeded.`;
+              return (
+                <p
+                  className={
+                    isError ? "admin-error-banner" : "admin-info-banner"
+                  }
+                  role={isError ? "alert" : "status"}
+                  aria-live={isError ? "assertive" : "polite"}
+                  data-testid="admin-status-action-banner"
+                  data-outcome={isError ? "error" : "success"}
+                >
+                  {message}
+                </p>
+              );
+            }
+            return null;
+          })()}
+        </div>
+      ) : null}
 
       <details id="users" className="admin-section" open>
         <summary
@@ -231,73 +271,102 @@ export default async function AdminPage({
         >
           <h2 className="admin-section-heading">Users</h2>
           <span className="admin-section-summary-line">
-            {users.users.length} user
-            {users.users.length === 1 ? "" : "s"}
+            <span className="admin-section-summary-pill">
+              {activeUsersCount} active
+            </span>
+            {suspendedCount > 0 ? (
+              <span className="admin-section-summary-pill" data-tone="danger">
+                {suspendedCount} suspended
+              </span>
+            ) : null}
+            <span>· {users.users.length} total</span>
           </span>
         </summary>
         <div className="admin-section-body" data-testid="admin-users-body">
-          <form
-            id="invite-form"
-            className="invite-form"
-            data-testid="invite-form"
-            action={inviteUserAction}
-          >
-            <input type="hidden" name="_csrf" value={context.csrfToken} />
-            <label className="invite-form-label" htmlFor="invite-email">
-              Email
-            </label>
-            <input
-              id="invite-email"
-              name="email"
-              type="email"
-              required
-              className="invite-form-input"
-              data-testid="invite-email"
-              placeholder="newuser@example.com"
-            />
-            <label className="invite-form-label" htmlFor="invite-role">
-              Role
-            </label>
-            <select
-              id="invite-role"
-              name="role"
-              className="invite-form-select"
-              data-testid="invite-role"
-              defaultValue="user"
+          <div className="invite-card">
+            <div className="invite-card-header">
+              <h3>Invite a teammate</h3>
+              <p>
+                Invitations are magic-link emails. Role can be changed later.
+              </p>
+            </div>
+            <form
+              id="invite-form"
+              className="invite-form"
+              data-testid="invite-form"
+              action={inviteUserAction}
             >
-              <option value="user">User</option>
-              <option value="organizer">Organizer</option>
-              <option value="admin">Admin</option>
-            </select>
-            <button
-              type="submit"
-              className="btn btn-primary invite-form-submit"
-              data-testid="invite-submit"
-            >
-              Send invite
-            </button>
-          </form>
-
-          <table className="users-table" data-testid="users-table">
-            <thead>
-              <tr>
-                <th scope="col">Email</th>
-                <th scope="col">Role</th>
-                <th scope="col">Status</th>
-                <th scope="col">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.users.map((u) => (
-                <UserRow
-                  key={u.id}
-                  user={u}
-                  isSelf={u.id === context.user.id}
-                  csrfToken={context.csrfToken}
+              <input type="hidden" name="_csrf" value={context.csrfToken} />
+              <div className="invite-form-field">
+                <label className="invite-form-label" htmlFor="invite-email">
+                  Email
+                </label>
+                <input
+                  id="invite-email"
+                  name="email"
+                  type="email"
+                  required
+                  className="invite-form-input"
+                  data-testid="invite-email"
+                  placeholder="newuser@example.com"
                 />
-              ))}
-            </tbody>
-          </table>
+              </div>
+              <div className="invite-form-field">
+                <label className="invite-form-label" htmlFor="invite-role">
+                  Role
+                </label>
+                <select
+                  id="invite-role"
+                  name="role"
+                  className="invite-form-select"
+                  data-testid="invite-role"
+                  defaultValue="user"
+                >
+                  <option value="user">User</option>
+                  <option value="organizer">Organizer</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <button
+                type="submit"
+                className="btn btn-primary invite-form-submit"
+                data-testid="invite-submit"
+              >
+                Send invite
+              </button>
+            </form>
+          </div>
+
+          <div className="users-card">
+            <div className="users-card-header">
+              <h3>Members</h3>
+              <p>{users.users.length} on the team.</p>
+            </div>
+            <div className="users-table-wrap">
+              <table className="users-table" data-testid="users-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Email</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" className="users-actions-heading">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.users.map((u) => (
+                    <UserRow
+                      key={u.id}
+                      user={u}
+                      isSelf={u.id === context.user.id}
+                      csrfToken={context.csrfToken}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
           {users.users.length === 0 ? (
             <div
@@ -330,25 +399,27 @@ export default async function AdminPage({
                 No invites yet.
               </p>
             ) : (
-              <table className="recent-invites-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Email</th>
-                    <th scope="col">Role</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.recentInvites.map((invite) => (
-                    <InviteRow
-                      key={invite.id}
-                      invite={invite}
-                      csrfToken={context.csrfToken}
-                    />
-                  ))}
-                </tbody>
-              </table>
+              <div className="recent-invites-table-wrap">
+                <table className="recent-invites-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Email</th>
+                      <th scope="col">Role</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.recentInvites.map((invite) => (
+                      <InviteRow
+                        key={invite.id}
+                        invite={invite}
+                        csrfToken={context.csrfToken}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
         </div>
@@ -361,10 +432,14 @@ export default async function AdminPage({
         >
           <h2 className="admin-section-heading">Topics</h2>
           <span className="admin-section-summary-line">
-            {activeTopicCount} active topic{activeTopicCount === 1 ? "" : "s"}
-            {topicsResult.pendingCount > 0
-              ? ` · ${topicsResult.pendingCount} pending proposal${topicsResult.pendingCount === 1 ? "" : "s"}`
-              : null}
+            <span className="admin-section-summary-pill">
+              {activeTopicCount} active
+            </span>
+            {topicsResult.pendingCount > 0 ? (
+              <span className="admin-section-summary-pill" data-tone="warning">
+                {topicsResult.pendingCount} pending
+              </span>
+            ) : null}
           </span>
         </summary>
         <div className="admin-section-body" data-testid="admin-topics-body">
@@ -387,9 +462,32 @@ export default async function AdminPage({
         >
           <h2 className="admin-section-heading">Status</h2>
           <span className="admin-section-summary-line">
-            {recentEmailFailures} email failures in the last{" "}
-            {statusResult.windowHours}h · {calendarConnectionCount} calendar
-            connection{calendarConnectionCount === 1 ? "" : "s"}
+            <span
+              className="admin-section-summary-pill"
+              data-tone={
+                statusResult.health.email === "red" ||
+                statusResult.health.calendar === "red" ||
+                statusResult.health.tokens === "red"
+                  ? "danger"
+                  : statusResult.health.email === "amber" ||
+                      statusResult.health.calendar === "amber" ||
+                      statusResult.health.tokens === "amber"
+                    ? "warning"
+                    : "ok"
+              }
+              data-testid="admin-section-status-tone"
+            >
+              {recentEmailFailures === 0 &&
+              statusResult.calendar.tokensNeedingRefresh.length === 0
+                ? "All systems healthy"
+                : "Needs attention"}
+            </span>
+            <span>
+              {recentEmailFailures} email failure
+              {recentEmailFailures === 1 ? "" : "s"} · {calendarConnectionCount}{" "}
+              calendar connection
+              {calendarConnectionCount === 1 ? "" : "s"}
+            </span>
           </span>
         </summary>
         <div
@@ -508,12 +606,13 @@ function UserRow({
 }) {
   const selectId = `role-select-${user.id}`;
   const selfHelpId = `role-self-help-${user.id}`;
+  const isSuspended = user.status === "suspended";
   return (
     <tr
       data-testid={`users-row-${user.id}`}
       data-self={isSelf ? "true" : "false"}
     >
-      <td>{user.email}</td>
+      <td className="users-email-cell">{user.email}</td>
       <td>
         <form
           className="users-role-form"
@@ -532,6 +631,7 @@ function UserRow({
             disabled={isSelf}
             data-testid={`users-role-select-${user.id}`}
             aria-describedby={isSelf ? selfHelpId : undefined}
+            className="users-role-select"
           >
             <option value="user">User</option>
             <option value="organizer">Organizer</option>
@@ -553,26 +653,24 @@ function UserRow({
           ) : null}
         </form>
       </td>
-      <td data-testid={`users-status-${user.id}`}>
-        {labelUserStatus(user.status)}
+      <td className="users-status-cell" data-testid={`users-status-${user.id}`}>
+        <span
+          className="users-status-pill"
+          data-status={isSuspended ? "suspended" : "active"}
+        >
+          {labelUserStatus(user.status)}
+        </span>
       </td>
-      <td>
+      <td className="users-actions-cell">
         {isSelf ? (
           <span
-            className="users-self-help users-self-actions"
+            className="users-self-actions"
             role="note"
             data-testid={`users-self-actions-${user.id}`}
           >
             You cannot suspend or reinstate yourself.
           </span>
-        ) : user.status === "active" ? (
-          <SuspendTypedConfirm
-            userId={user.id}
-            userEmail={user.email}
-            csrfToken={csrfToken}
-            action={suspendAction}
-          />
-        ) : (
+        ) : isSuspended ? (
           <form
             className="users-reinstate-form"
             data-testid={`users-reinstate-form-${user.id}`}
@@ -588,6 +686,13 @@ function UserRow({
               Reinstate
             </button>
           </form>
+        ) : (
+          <SuspendTypedConfirm
+            userId={user.id}
+            userEmail={user.email}
+            csrfToken={csrfToken}
+            action={suspendAction}
+          />
         )}
       </td>
     </tr>
@@ -605,27 +710,33 @@ function InviteRow({
   const actionLabel = isResendable ? "Resend" : "Re-invite";
   return (
     <tr data-testid={`recent-invites-row-${invite.id}`}>
-      <td>{invite.email}</td>
+      <td className="users-email-cell">{invite.email}</td>
       <td>{labelUserRole(invite.role)}</td>
       <td data-testid={`recent-invites-status-${invite.id}`}>
-        {labelInviteStatus(invite.effectiveStatus)}
+        <span
+          className="recent-invites-status"
+          data-status={invite.effectiveStatus}
+        >
+          {labelInviteStatus(invite.effectiveStatus)}
+        </span>
       </td>
       <td>
-        <form
-          className="recent-invites-action"
-          data-testid={`recent-invites-action-${invite.id}`}
-          action={resendInviteAction}
-        >
-          <input type="hidden" name="_csrf" value={csrfToken} />
-          <input type="hidden" name="inviteId" value={invite.id} />
-          <button
-            type="submit"
-            className="btn btn-secondary"
-            data-testid={`recent-invites-button-${invite.id}`}
+        <div className="recent-invites-action">
+          <form
+            data-testid={`recent-invites-action-${invite.id}`}
+            action={resendInviteAction}
           >
-            {actionLabel}
-          </button>
-        </form>
+            <input type="hidden" name="_csrf" value={csrfToken} />
+            <input type="hidden" name="inviteId" value={invite.id} />
+            <button
+              type="submit"
+              className="btn btn-secondary"
+              data-testid={`recent-invites-button-${invite.id}`}
+            >
+              {actionLabel}
+            </button>
+          </form>
+        </div>
       </td>
     </tr>
   );
@@ -640,39 +751,42 @@ function PendingTopicProposals({
 }) {
   return (
     <section
-      className="pending-topic-proposals"
+      className="topics-admin-section pending-topic-proposals"
       data-testid="pending-topic-proposals"
     >
-      <h3 className="pending-topic-proposals-heading">
-        Pending Topic Proposals
-      </h3>
+      <div className="topics-admin-section-header">
+        <h3>Pending Topic Proposals</h3>
+        <p>{pendingProposals.length} awaiting review.</p>
+      </div>
       {pendingProposals.length === 0 ? (
         <p className="empty-state" data-testid="topics-pending-empty">
           No pending Topic Proposals.
         </p>
       ) : (
-        <table
-          className="pending-topic-proposals-table"
-          data-testid="pending-topic-proposals-table"
-        >
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Proposing User</th>
-              <th scope="col">Date</th>
-              <th scope="col">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pendingProposals.map((proposal) => (
-              <PendingProposalRow
-                key={proposal.id}
-                proposal={proposal}
-                csrfToken={csrfToken}
-              />
-            ))}
-          </tbody>
-        </table>
+        <div className="pending-topic-proposals-table-wrap">
+          <table
+            className="pending-topic-proposals-table"
+            data-testid="pending-topic-proposals-table"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Proposing User</th>
+                <th scope="col">Date</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingProposals.map((proposal) => (
+                <PendingProposalRow
+                  key={proposal.id}
+                  proposal={proposal}
+                  csrfToken={csrfToken}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
@@ -687,10 +801,10 @@ function PendingProposalRow({
 }) {
   return (
     <tr data-testid={`topics-proposal-row-${proposal.id}`}>
-      <td>{proposal.candidateName}</td>
+      <td className="users-email-cell">{proposal.candidateName}</td>
       <td>{proposal.proposedByUserEmail ?? "(deleted User)"}</td>
       <td>{formatProposalDate(proposal.createdAt)}</td>
-      <td>
+      <td className="actions-cell">
         <div className="topics-proposal-actions">
           <form
             className="topics-proposal-approve-form"
@@ -738,46 +852,54 @@ function ActiveTopics({
   csrfToken: string;
 }) {
   return (
-    <section className="active-topics" data-testid="active-topics">
-      <h3 className="active-topics-heading">Active Topics</h3>
+    <section
+      className="topics-admin-section active-topics"
+      data-testid="active-topics"
+    >
+      <div className="topics-admin-section-header">
+        <h3>Active Topics</h3>
+        <p>{activeTopics.length} in the catalogue.</p>
+      </div>
       {activeTopics.length === 0 ? (
         <p className="empty-state" data-testid="topics-active-empty">
           No active Topics.
         </p>
       ) : (
-        <table
-          className="active-topics-table"
-          data-testid="active-topics-table"
-        >
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {activeTopics.map((topic) => (
-              <tr
-                key={topic.id}
-                data-testid={`topics-active-row-${topic.id}`}
-                data-self-action={
-                  topic.proposedByUserId === actorId ? "true" : "false"
-                }
-              >
-                <td>{topic.name}</td>
-                <td>
-                  <RetireTypedConfirm
-                    topicId={topic.id}
-                    topicName={topic.name}
-                    csrfToken={csrfToken}
-                    disabledBySelfAction={topic.proposedByUserId === actorId}
-                    action={retireTopicAction}
-                  />
-                </td>
+        <div className="active-topics-table-wrap">
+          <table
+            className="active-topics-table"
+            data-testid="active-topics-table"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {activeTopics.map((topic) => (
+                <tr
+                  key={topic.id}
+                  data-testid={`topics-active-row-${topic.id}`}
+                  data-self-action={
+                    topic.proposedByUserId === actorId ? "true" : "false"
+                  }
+                >
+                  <td className="users-email-cell">{topic.name}</td>
+                  <td className="actions-cell">
+                    <RetireTypedConfirm
+                      topicId={topic.id}
+                      topicName={topic.name}
+                      csrfToken={csrfToken}
+                      disabledBySelfAction={topic.proposedByUserId === actorId}
+                      action={retireTopicAction}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );

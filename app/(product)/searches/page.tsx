@@ -184,8 +184,23 @@ export default async function SearchesPage({
       : null;
 
   return (
-    <main className="app-container" data-testid="searches-page">
-      <h1 data-testid="searches-page-heading">Run a Search</h1>
+    <main className="app-container searches-page" data-testid="searches-page">
+      <header className="page-header searches-page-header">
+        <div className="page-header-copy">
+          <p className="eyebrow">Organizer workspace</p>
+          <h1 data-testid="searches-page-heading">Run a Search</h1>
+          <p className="page-description">
+            Find Slots where enough discoverable Users share every selected
+            Topic.
+          </p>
+        </div>
+        <Link
+          className="btn btn-secondary searches-history-link"
+          href="/searches/history"
+        >
+          Search history
+        </Link>
+      </header>
 
       {errorMessage ? (
         <p
@@ -203,10 +218,12 @@ export default async function SearchesPage({
         className="searches-defaults-summary"
         data-testid="searches-defaults-summary"
       >
-        Snapshot range:{" "}
-        {formatDateForInput(defaults.dateRangeStart, displayTimezone)} →{" "}
-        {formatDateForInput(defaults.dateRangeEnd, displayTimezone)} (
-        {defaults.organizerTimezone || "not set"})
+        <span>Default snapshot window</span>
+        <strong>
+          {formatDateForInput(defaults.dateRangeStart, displayTimezone)} to{" "}
+          {formatDateForInput(defaults.dateRangeEnd, displayTimezone)}
+        </strong>
+        <span>{defaults.organizerTimezone || "Timezone not set"}</span>
       </p>
 
       <form
@@ -283,6 +300,11 @@ export default async function SearchesPage({
             </p>
           ) : null}
         </fieldset>
+
+        <div className="searches-constraints-heading">
+          <h2>Search constraints</h2>
+          <p>Set the group size, duration, date window, and result timezone.</p>
+        </div>
 
         <div className="searches-field" data-testid="searches-minimum-field">
           <label htmlFor="minimumMatchingUsers">Minimum matching Users</label>

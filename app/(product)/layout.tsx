@@ -86,6 +86,12 @@ export default async function ProductLayout({
   return (
     <div className="product-shell">
       <header className="top-bar">
+        <Link href="/" className="top-bar-brand" aria-label="SlotMerge home">
+          <span className="wordmark-mark" aria-hidden="true">
+            S
+          </span>
+          <span className="top-bar-brand-name">SlotMerge</span>
+        </Link>
         <details
           open
           className="primary-nav"
@@ -164,7 +170,7 @@ export default async function ProductLayout({
           </HeaderMenuToggle>
         </div>
       </header>
-      <main className="main-content">{children}</main>
+      <div className="main-content">{children}</div>
     </div>
   );
 }

@@ -94,9 +94,15 @@ export default async function SearchHistoryPage({
   if (!historyResult.ok) {
     return (
       <main className="app-container search-history-page">
-        <header>
-          <h1>Search History</h1>
-          <p>Visible to every Organizer and Admin.</p>
+        <header className="page-header search-history-header-page">
+          <div className="page-header-copy">
+            <p className="eyebrow">Searches</p>
+            <h1>Search History</h1>
+            <p>Visible to every Organizer and Admin.</p>
+          </div>
+          <Link href="/searches" className="btn btn-primary">
+            Run a Search
+          </Link>
         </header>
         <p
           className="form-error-banner"
@@ -121,11 +127,13 @@ export default async function SearchHistoryPage({
 
   if (pageHistory.length === 0) {
     return (
-      <main className="app-container">
+      <main className="app-container search-history-page">
         <div className="empty-state" data-testid="search-history-empty-state">
           <p className="empty-state-title">No Searches yet.</p>
           <p>Run a Search to populate history.</p>
-          <Link href="/searches">Run your first Search</Link>
+          <Link href="/searches" className="btn btn-primary">
+            Run your first Search
+          </Link>
         </div>
       </main>
     );
@@ -133,9 +141,18 @@ export default async function SearchHistoryPage({
 
   return (
     <main className="app-container search-history-page">
-      <header>
-        <h1>Search History</h1>
-        <p>Visible to every Organizer and Admin.</p>
+      <header className="page-header search-history-header-page">
+        <div className="page-header-copy">
+          <p className="eyebrow">Searches</p>
+          <h1>Search History</h1>
+          <p>
+            Immutable snapshots, newest first. Visible to every Organizer and
+            Admin.
+          </p>
+        </div>
+        <Link href="/searches" className="btn btn-primary">
+          Run a Search
+        </Link>
       </header>
 
       <ol className="search-history-list" data-testid="search-history-list">
@@ -236,7 +253,7 @@ export default async function SearchHistoryPage({
 
       {hasMore ? (
         <Link
-          className="search-history-load-more"
+          className="btn btn-secondary search-history-load-more"
           data-testid="search-history-load-more"
           href={`/searches/history?before=${encodeURIComponent(pageHistory.at(-1)?.id ?? "")}`}
         >

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { captureState } from "../../../helpers/playwright/screenshot-helper";
 
 const TEST_USER_EMAIL = "invited-user@example.com";
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = `http://localhost:${process.env.PORT ?? "3000"}`;
 
 type CapturedEmailsResponse = {
   emails: Array<{
@@ -11,7 +11,9 @@ type CapturedEmailsResponse = {
   }>;
 };
 
-async function getCapturedEmails(email: string): Promise<CapturedEmailsResponse> {
+async function getCapturedEmails(
+  email: string,
+): Promise<CapturedEmailsResponse> {
   const response = await fetch(
     `${BASE_URL}/api/local/emails/${encodeURIComponent(email)}`,
   );

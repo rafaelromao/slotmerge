@@ -156,7 +156,9 @@ export default async function SearchResultPage({
               ? "Search not found."
               : "No snapshot available for this search."}
           </p>
-          <Link href="/searches">Run a Search</Link>
+          <Link href="/searches" className="btn btn-primary">
+            Run a Search
+          </Link>
         </div>
       </main>
     );
@@ -227,50 +229,65 @@ export default async function SearchResultPage({
   );
 
   return (
-    <main className="search-result-page">
+    <main className="app-container search-result-page">
       <header className="search-result-header">
-        <h1>Search Result</h1>
-        <p className="search-result-header-meta">
-          <span>
-            <strong>Selected Topics:</strong>{" "}
-            {snapshotDto.selectedTopics.map((topic) => topic.name).join(", ")}
-          </span>
-          <span>
-            <strong>Minimum:</strong> {snapshotDto.search.minimumMatchingUsers}
-          </span>
-          <span>
-            <strong>Duration:</strong> {snapshotDto.search.durationMinutes}{" "}
-            minutes
-          </span>
-          <span>
-            <strong>Date Range:</strong>{" "}
-            {formatDateLabel(
-              dateRangeStart,
-              snapshotDto.search.organizerTimezone,
-            )}{" "}
-            -{" "}
-            {formatDateLabel(
-              dateRangeEnd,
-              snapshotDto.search.organizerTimezone,
-            )}
-          </span>
-          <span>
-            <strong>Organizer timezone:</strong>{" "}
-            {snapshotDto.search.organizerTimezone}
-          </span>
-          <span>
-            <strong>Generated:</strong>{" "}
-            <time dateTime={snapshotDto.search.generatedAt}>
-              {formatDateTimeLabel(
-                new Date(snapshotDto.search.generatedAt),
+        <div className="search-result-header-copy">
+          <p className="eyebrow">Immutable snapshot</p>
+          <h1>Search Result</h1>
+          <p className="search-result-header-description">
+            Slots and Matches reflect the Search at its generation time. They
+            never live-update.
+          </p>
+        </div>
+        <dl className="search-result-header-meta">
+          <div>
+            <dt>Selected Topics</dt>
+            <dd>
+              {snapshotDto.selectedTopics.map((topic) => topic.name).join(", ")}
+            </dd>
+          </div>
+          <div>
+            <dt>Minimum</dt>
+            <dd>{snapshotDto.search.minimumMatchingUsers} people</dd>
+          </div>
+          <div>
+            <dt>Duration</dt>
+            <dd>{snapshotDto.search.durationMinutes} minutes</dd>
+          </div>
+          <div>
+            <dt>Date range</dt>
+            <dd>
+              {formatDateLabel(
+                dateRangeStart,
+                snapshotDto.search.organizerTimezone,
+              )}{" "}
+              -{" "}
+              {formatDateLabel(
+                dateRangeEnd,
                 snapshotDto.search.organizerTimezone,
               )}
-            </time>
-          </span>
-          <span>
-            <strong>Search ID:</strong> {snapshotDto.search.id}
-          </span>
-        </p>
+            </dd>
+          </div>
+          <div>
+            <dt>Organizer timezone</dt>
+            <dd>{snapshotDto.search.organizerTimezone}</dd>
+          </div>
+          <div>
+            <dt>Generated</dt>
+            <dd>
+              <time dateTime={snapshotDto.search.generatedAt}>
+                {formatDateTimeLabel(
+                  new Date(snapshotDto.search.generatedAt),
+                  snapshotDto.search.organizerTimezone,
+                )}
+              </time>
+            </dd>
+          </div>
+          <div>
+            <dt>Search ID</dt>
+            <dd className="search-result-id">{snapshotDto.search.id}</dd>
+          </div>
+        </dl>
       </header>
 
       {rerunReason ? (
@@ -285,25 +302,31 @@ export default async function SearchResultPage({
       >
         {prevWeekStart ? (
           <Link
+            className="btn btn-secondary"
             href={`/searches/${id}?week=${formatWeekParam(prevWeekStart, snapshotDto.search.organizerTimezone)}`}
           >
             Previous week
           </Link>
         ) : (
-          <span aria-disabled="true">Previous week</span>
+          <span className="btn btn-secondary" aria-disabled="true">
+            Previous week
+          </span>
         )}
-        <span>
+        <span className="search-result-week-label">
           Week of{" "}
           {formatDateLabel(weekStart, snapshotDto.search.organizerTimezone)}
         </span>
         {nextWeekStart ? (
           <Link
+            className="btn btn-secondary"
             href={`/searches/${id}?week=${formatWeekParam(nextWeekStart, snapshotDto.search.organizerTimezone)}`}
           >
             Next week
           </Link>
         ) : (
-          <span aria-disabled="true">Next week</span>
+          <span className="btn btn-secondary" aria-disabled="true">
+            Next week
+          </span>
         )}
       </nav>
 
@@ -326,7 +349,9 @@ export default async function SearchResultPage({
         <div className="empty-state" data-testid="search-result-empty-state">
           <p className="empty-state-title">No matching Slots this week.</p>
           <p>Try the next week or review Search history.</p>
-          <Link href={emptyStatePrimaryHref}>{emptyStatePrimaryLabel}</Link>
+          <Link href={emptyStatePrimaryHref} className="btn btn-primary">
+            {emptyStatePrimaryLabel}
+          </Link>
         </div>
       )}
 

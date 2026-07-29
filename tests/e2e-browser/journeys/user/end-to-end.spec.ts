@@ -13,7 +13,7 @@ import {
 import { FIXTURE_DATE, USER_FIXTURES, seedAll } from "../../../fixtures/seeds";
 import { captureState } from "../../../helpers/playwright/screenshot-helper";
 
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = `http://localhost:${process.env.PORT ?? "3000"}`;
 const USER_ID = USER_FIXTURES[0].id;
 const INVITED_EMAIL = "end-to-end-user-journey-296@example.com";
 const PROPOSED_TOPIC_NAME = "Brand-new T10 topic";
@@ -45,9 +45,7 @@ async function waitForMagicLink(
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const { emails } = await getCapturedEmails(email);
-    const magicLinkEmails = emails.filter(
-      (item) => item.type === "magic-link",
-    );
+    const magicLinkEmails = emails.filter((item) => item.type === "magic-link");
     if (magicLinkEmails.length > previousCount) {
       const url = magicLinkEmails.at(-1)?.payload["magicLinkUrl"];
       return typeof url === "string" ? url : null;
@@ -119,9 +117,7 @@ test.describe("invite + verify", () => {
     await page.clock.install({ time: new Date(FIXTURE_DATE) });
 
     await page.goto("/sign-in");
-    await expect(
-      page.getByRole("heading", { name: "Sign in" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
     await captureState(page, "user/setup-home", "signed-out");
 
     const previousCount = (
@@ -161,7 +157,9 @@ test.describe("setup checklist Home", () => {
     await expect(
       page.getByRole("heading", { name: "Welcome to SlotMerge" }),
     ).toBeVisible();
-    await expect(page.getByText("Complete your profile setup to get started.")).toBeVisible();
+    await expect(
+      page.getByText("Complete your profile setup to get started."),
+    ).toBeVisible();
 
     const cards = page.locator(".setup-card");
     await expect(cards).toHaveCount(5);
@@ -174,9 +172,7 @@ test.describe("setup checklist Home", () => {
       "Availability",
       "Calendar Connection",
     ]) {
-      await expect(
-        page.getByRole("heading", { name: heading }),
-      ).toBeVisible();
+      await expect(page.getByRole("heading", { name: heading })).toBeVisible();
     }
 
     await expect(page.getByTestId("setup-chip")).toBeVisible();
@@ -257,9 +253,7 @@ test.describe("profile", () => {
     await page.getByTestId("profile-display-name-input").fill("");
     await page.getByTestId("profile-save-button").click();
 
-    await expect(
-      page.getByTestId("profile-display-name-error"),
-    ).toBeVisible();
+    await expect(page.getByTestId("profile-display-name-error")).toBeVisible();
     await captureState(page, "user/profile", "error-display-name");
   });
 
@@ -374,12 +368,10 @@ test.describe("topics", () => {
     await expect(page.getByTestId("topics-my-proposals-section")).toBeVisible();
     await captureState(page, "user/topics", "loaded");
 
-    const catalogueCheckboxes = page.getByTestId(
-      /^topics-catalogue-checkbox-/,
-    );
+    const catalogueCheckboxes = page.getByTestId(/^topics-catalogue-checkbox-/);
     await expect(catalogueCheckboxes.first()).toBeVisible();
-    const checkedCount = await catalogueCheckboxes.evaluateAll((els) =>
-      els.filter((el) => (el as HTMLInputElement).checked).length,
+    const checkedCount = await catalogueCheckboxes.evaluateAll(
+      (els) => els.filter((el) => (el as HTMLInputElement).checked).length,
     );
     expect(checkedCount).toBeGreaterThanOrEqual(1);
 
@@ -387,9 +379,8 @@ test.describe("topics", () => {
     // because `input:not([checked])` only matches the absence of the
     // static HTML attribute that React leaves on server-rendered inputs.
     const uncheckedTestId = await catalogueCheckboxes.evaluateAll((els) => {
-      const match = els.find(
-        (el) => !(el as HTMLInputElement).checked,
-      ) as HTMLElement | undefined;
+      const match = els.find((el) => !(el as HTMLInputElement).checked) as
+        HTMLElement | undefined;
       return match?.dataset["testid"] ?? null;
     });
     if (uncheckedTestId) {
@@ -458,9 +449,7 @@ test.describe("availability", () => {
     await page.clock.install({ time: new Date(FIXTURE_DATE) });
     await page.goto("/me/availability");
 
-    await expect(
-      page.getByTestId("availability-page-heading"),
-    ).toBeVisible();
+    await expect(page.getByTestId("availability-page-heading")).toBeVisible();
     await expect(
       page.getByTestId("availability-timezone-section"),
     ).toBeVisible();
@@ -469,7 +458,9 @@ test.describe("availability", () => {
       page.getByTestId("availability-overrides-section"),
     ).toBeVisible();
     await expect(page.getByTestId("availability-buffer-section")).toBeVisible();
-    await expect(page.getByTestId("availability-preview-section")).toBeVisible();
+    await expect(
+      page.getByTestId("availability-preview-section"),
+    ).toBeVisible();
     await captureState(page, "user/availability", "loaded");
 
     const sundayStart = page.getByTestId("availability-day-0-start");
@@ -479,11 +470,15 @@ test.describe("availability", () => {
     await page.getByTestId("availability-day-0-save").click();
 
     await page.waitForURL(/\/me\/availability\?saved=1/);
-    await expect(page.getByTestId("availability-saved-indicator")).toBeVisible();
+    await expect(
+      page.getByTestId("availability-saved-indicator"),
+    ).toBeVisible();
     await captureState(page, "user/availability", "saved");
 
     await page.goto("/me/availability");
-    await page.getByTestId("availability-override-date-input").fill("2026-08-20");
+    await page
+      .getByTestId("availability-override-date-input")
+      .fill("2026-08-20");
     await page.getByTestId("availability-override-start-input").fill("18:00");
     await page.getByTestId("availability-override-end-input").fill("20:00");
     await page.getByTestId("availability-override-type-add").check();
@@ -493,7 +488,9 @@ test.describe("availability", () => {
     await captureState(page, "user/availability", "add-override");
 
     await page.goto("/me/availability");
-    await page.getByTestId("availability-override-date-input").fill("2026-08-25");
+    await page
+      .getByTestId("availability-override-date-input")
+      .fill("2026-08-25");
     await page.getByTestId("availability-override-start-input").fill("09:00");
     await page.getByTestId("availability-override-end-input").fill("17:00");
     await page.getByTestId("availability-override-type-block").check();

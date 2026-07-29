@@ -19,16 +19,12 @@ import type {
 } from "../db/schema";
 import { calendarConnections, topicProposals } from "../db/schema";
 import { getDb } from "../db/client";
-import { getDiscoverabilityConsent } from "../profile/discoverability-consent";
 import {
   type DiscoverabilityConsentRepository,
   createPostgresDiscoverabilityConsentRepository,
 } from "../profile/discoverability-consent";
 import { getTopicCatalogueRepository } from "../topics/repository";
-import {
-  createPostgresWeeklyAvailabilityWindowRepository,
-  listWeeklyAvailabilityWindowsByUserId,
-} from "../profile/availability-windows";
+import { createPostgresWeeklyAvailabilityWindowRepository } from "../profile/availability-windows";
 import { listAvailabilityOverridesByUserId } from "../profile/availability-overrides";
 import { createPostgresImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals.repository";
 import type { Clock } from "../system/clock";

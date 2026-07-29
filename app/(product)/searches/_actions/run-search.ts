@@ -42,7 +42,8 @@ function buildWorkflow() {
     },
     discoverableUserRepository: getDiscoverableUserRepository(),
     searchResultRepository: getSearchResultRepository(),
-    discoverabilityConsentRepository: getDiscoverabilityConsentRepository(clock),
+    discoverabilityConsentRepository:
+      getDiscoverabilityConsentRepository(clock),
   });
 }
 

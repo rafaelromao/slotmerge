@@ -15,9 +15,10 @@ The legacy `/admin/status` route still 308-redirects to `/admin#status` (unchang
 - `tests/e2e-browser/screenshots/admin/status-expanded-tablet.png` — viewport 768–1023px.
 - `tests/e2e-browser/screenshots/admin/status-expanded-mobile.png` — viewport <768px.
 
-### Warning path (Email + Calendar degraded, two needs_reconnect rows)
+### Warning paths
 
-- `tests/e2e-browser/screenshots/admin/status-warning.png` — desktop warning-path capture.
+- `tests/e2e-browser/screenshots/admin/status-warning-calendar.png` — Calendar warning capture.
+- `tests/e2e-browser/screenshots/admin/status-warning-email.png` — Email warning capture.
 
 ### Tokens-needing-refresh path
 

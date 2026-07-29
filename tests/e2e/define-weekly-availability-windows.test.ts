@@ -1,12 +1,9 @@
 import { describe, expect, inject, it } from "vitest";
 
 import { computeEffectiveAvailability } from "../../src/matching/effective-availability";
-import {
-  addWeeklyAvailabilityWindow,
-  listWeeklyAvailabilityWindowsByUserId,
-} from "../../src/profile/availability-windows";
+import { createPostgresWeeklyAvailabilityWindowRepository } from "../../src/profile/availability-windows";
 import { USER_FIXTURES } from "../fixtures/seeds";
-import { getTestDb, setupTest } from "../helpers/setup";
+import { getTestClockObject, getTestDb, setupTest } from "../helpers/setup";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 const FIXTURE_USER = USER_FIXTURES[0];
@@ -46,9 +43,13 @@ describe("E2E: define weekly Availability Windows in profile timezone", () => {
       }
 
       await setupTest();
+      const repository =
+        createPostgresWeeklyAvailabilityWindowRepository(getTestClockObject());
+      const seeded = await repository.listByUserId(FIXTURE_USER.id);
+      expect(seeded).toHaveLength(2);
       await setUserToSaoPaulo();
 
-      const window = await addWeeklyAvailabilityWindow(
+      const window = await repository.add(
         FIXTURE_USER.id,
         {
           dayOfWeek: MONDAY_DAY_OF_WEEK,
@@ -95,8 +96,10 @@ describe("E2E: define weekly Availability Windows in profile timezone", () => {
 
       await setupTest();
       await setUserToSaoPaulo();
+      const repository =
+        createPostgresWeeklyAvailabilityWindowRepository(getTestClockObject());
 
-      await addWeeklyAvailabilityWindow(
+      await repository.add(
         FIXTURE_USER.id,
         {
           dayOfWeek: MONDAY_DAY_OF_WEEK,
@@ -106,9 +109,7 @@ describe("E2E: define weekly Availability Windows in profile timezone", () => {
         PROFILE_TIMEZONE,
       );
 
-      const windows = await listWeeklyAvailabilityWindowsByUserId(
-        FIXTURE_USER.id,
-      );
+      const windows = await repository.listByUserId(FIXTURE_USER.id);
       expect(windows).toHaveLength(1);
       expect(windows[0].profileTimezone).toBe(PROFILE_TIMEZONE);
       expect(windows[0].dayOfWeek).toBe(MONDAY_DAY_OF_WEEK);
@@ -155,6 +156,60 @@ describe("E2E: define weekly Availability Windows in profile timezone", () => {
         expect(interval.startUtc.getUTCHours()).toBe(12);
         expect(interval.endUtc.getUTCHours()).toBe(15);
       }
+    },
+  );
+
+  it.runIf(HAS_TEST_DB)(
+    "finds, updates, and removes seeded windows with user ownership and the injected Clock",
+    async () => {
+      const db = getTestDb();
+      expect(db).not.toBeNull();
+      if (!db) {
+        return;
+      }
+
+      await setupTest();
+      const clock = getTestClockObject();
+      const repository =
+        createPostgresWeeklyAvailabilityWindowRepository(clock);
+      const seeded = await repository.listByUserId(FIXTURE_USER.id);
+      const existing = seeded[0];
+      expect(existing).toBeDefined();
+      if (!existing) {
+        return;
+      }
+
+      expect(await repository.findById(existing.id, FIXTURE_USER.id)).toEqual(
+        existing,
+      );
+      expect(await repository.findById(existing.id, USER_FIXTURES[1].id)).toBe(
+        null,
+      );
+
+      const updated = await repository.updateById(
+        existing.id,
+        FIXTURE_USER.id,
+        {
+          startTime: "10:00",
+        },
+      );
+      expect(updated?.startTime).toBe("10:00");
+      expect(updated?.updatedAt).toEqual(clock.now());
+      expect(
+        await repository.updateById(existing.id, USER_FIXTURES[1].id, {
+          startTime: "11:00",
+        }),
+      ).toBeNull();
+
+      expect(
+        await repository.removeById(existing.id, USER_FIXTURES[1].id),
+      ).toBe(false);
+      expect(await repository.removeById(existing.id, FIXTURE_USER.id)).toBe(
+        true,
+      );
+      expect(
+        await repository.findById(existing.id, FIXTURE_USER.id),
+      ).toBeNull();
     },
   );
 });

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { getSessionFromRequest } from "../../../../src/auth/session";
 import { CsrfError } from "../../../../src/lib/csrf";
+import { buildAvailabilityPageRepositories } from "../../../../src/profile/availability-page-repositories";
 import { createAvailabilityWorkflow } from "../../../../src/workflow/availability";
 import {
   buildAvailabilityActionHandler,
@@ -13,10 +14,25 @@ import {
   type AvailabilityActionResult,
 } from "./availability-handler";
 
+const clock = systemClock();
+const repositories = buildAvailabilityPageRepositories(clock);
 const handler = buildAvailabilityActionHandler({
-  workflow: createAvailabilityWorkflow({ clock: systemClock() }),
-  loadSession: async (request) =>
-    getSessionFromRequest(request, { clock: systemClock() }),
+  workflow: createAvailabilityWorkflow({
+    clock,
+    listWindows: (userId) => repositories.windows.listByUserId(userId),
+    addWindow: (userId, request, profileTimezone) =>
+      repositories.windows.add(userId, request, profileTimezone),
+    findWindow: (id, userId) => repositories.windows.findById(id, userId),
+    removeWindowById: (id, userId) =>
+      repositories.windows.removeById(id, userId),
+    listOverrides: (userId) => repositories.overrides.listByUserId(userId),
+    addOverride: (userId, request, profileTimezone) =>
+      repositories.overrides.add(userId, request, profileTimezone),
+    removeOverrideById: (id, userId) =>
+      repositories.overrides.removeById(id, userId),
+    getProfile: (userId) => repositories.profile.findByUserId(userId),
+  }),
+  loadSession: async (request) => getSessionFromRequest(request, { clock }),
 });
 
 async function buildRequest(url: string): Promise<Request> {

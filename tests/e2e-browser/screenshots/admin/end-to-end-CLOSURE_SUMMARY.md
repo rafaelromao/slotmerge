@@ -77,14 +77,12 @@ head is:
 
 - `tests/e2e-browser/screenshots/admin/users/` — 5 PNGs inherited from T16 (`users-expanded`, `self-row-disabled`, `users-after-invite`, `users-suspend-confirm`, `users-self-invite-error`).
 - `tests/e2e-browser/screenshots/admin/topics/` — 6 PNGs inherited from T17 (`topics-expanded`, `topics-after-approve`, `topics-after-reject`, `topics-self-action-disabled`, `topics-retire-confirm`, `topics-after-retire`).
-- `tests/e2e-browser/screenshots/admin/status/` — 1 closure summary inherited from T18 (`CLOSURE_SUMMARY.md`); the 7 named status PNGs (`status-expanded`, `status-warning-calendar`, `status-warning-email`, `status-tokens-needing-refresh`, `status-expanded-desktop`, `status-expanded-tablet`, `status-expanded-mobile`) are not yet committed at the PR head.
+- `tests/e2e-browser/screenshots/admin/status/` — 1 closure summary plus the 7 named status PNGs (`status-expanded`, `status-warning-calendar`, `status-warning-email`, `status-tokens-needing-refresh`, `status-expanded-desktop`, `status-expanded-tablet`, `status-expanded-mobile`) committed at the PR head.
 
-The T18 status PNGs and the T19-named captures (5 in `users/`, 4 in
-`topics/`, 1 in `status/`) are produced by the `CAPTURE=true` capture
-project and committed by the `visual-regression.yml` `workflow_dispatch`
-lane on its first run after merge. The implementor cannot run the
-local capture project without the Docker-backed local stack, and
-this matches the T18 PR (#334) convention, which also did not commit
-the Status PNGs at the PR head. The `browser-tests.yml` workflow
-gates the WebM on `workflow_dispatch` only; the workflow run URL is
-linked from the PR comment after dispatch.
+The T19-named captures (5 in `users/`, 4 in `topics/`, 1 in `status/`)
+were produced by the `CAPTURE=true` capture project and committed by the
+`visual-regression.yml` `workflow_dispatch` lane at the PR head. The
+implementor cannot run the local capture project without the Docker-backed
+local stack. The `browser-tests.yml` workflow gates the WebM on
+`workflow_dispatch` only; the workflow run URL is linked from the PR comment
+after dispatch.

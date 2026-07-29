@@ -1,6 +1,6 @@
 import { getCalendarConnectionRepository } from "../calendar/repository";
 import { getAvailabilityOverrideRepository } from "../profile/availability-overrides";
-import { getWeeklyAvailabilityWindowRepository } from "../profile/availability-windows";
+import { createPostgresWeeklyAvailabilityWindowRepository } from "../profile/availability-windows";
 import { getDiscoverabilityConsentRepository } from "../profile/discoverability-consent";
 import { getProfileByUserId } from "../profile/repository";
 import type { Clock } from "../system/clock";
@@ -20,7 +20,8 @@ export function createProductionSetupHomeWorkflow(
       getDiscoverabilityConsentRepository(clock),
     topicRepository: getTopicCatalogueRepository(),
     topicProposalRepository: getTopicProposalRepository(),
-    weeklyAvailabilityWindowRepository: getWeeklyAvailabilityWindowRepository(),
+    weeklyAvailabilityWindowRepository:
+      createPostgresWeeklyAvailabilityWindowRepository(clock),
     availabilityOverrideRepository: getAvailabilityOverrideRepository(),
     calendarConnectionRepository: getCalendarConnectionRepository(clock),
   });

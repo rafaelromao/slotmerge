@@ -189,6 +189,7 @@ export const CALENDAR_CONNECTION_FIXTURES = [
     accountIdentifier: "user@gmail.com",
     scopes: "https://www.googleapis.com/auth/calendar.freebusy",
     status: "connected" as const,
+    accessTokenExpiresAt: new Date("2026-07-13T12:00:00.000Z"),
     contributingCalendarIds: [] as string[],
   },
   {
@@ -199,6 +200,7 @@ export const CALENDAR_CONNECTION_FIXTURES = [
     accountIdentifier: "user@outlook.com",
     scopes: "Calendars.Read",
     status: "connected" as const,
+    accessTokenExpiresAt: new Date("2026-07-13T12:00:00.000Z"),
     contributingCalendarIds: [] as string[],
   },
 ];
@@ -441,6 +443,7 @@ export async function seedAll(db: AppDb): Promise<void> {
         accountIdentifier: conn.accountIdentifier,
         scopes: conn.scopes,
         status: conn.status,
+        accessTokenExpiresAt: conn.accessTokenExpiresAt,
         contributingCalendarIds: conn.contributingCalendarIds,
         createdAt: now,
         updatedAt: now,
@@ -454,6 +457,7 @@ export async function seedAll(db: AppDb): Promise<void> {
           accountIdentifier: conn.accountIdentifier,
           scopes: conn.scopes,
           status: conn.status,
+          accessTokenExpiresAt: conn.accessTokenExpiresAt,
           contributingCalendarIds: conn.contributingCalendarIds,
           updatedAt: now,
         },

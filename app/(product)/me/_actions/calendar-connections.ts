@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { systemClock } from "../../../../src/system/clock";
 import { redirect } from "next/navigation";
 
 import {
@@ -19,7 +20,6 @@ import { decryptCalendarToken } from "../../../../src/calendar/token-encryption"
 import { configuredProviderFetchImpl } from "../../../../src/lib/fetch-wrapper";
 import { CsrfError, assertCsrfFromFormData } from "../../../../src/lib/csrf";
 import { listProviderCalendarsForProvider } from "../../../../src/calendar/providers";
-import { systemClock } from "../../../../src/system/clock";
 import {
   createCalendarConnectionWorkflow,
   type CalendarConnectionMutationError,
@@ -82,7 +82,7 @@ function buildErrorRedirect(
 async function loadSessionForRequest(
   request: Request,
 ): Promise<Session | null> {
-  return getSessionFromRequest(request);
+  return getSessionFromRequest(request, { clock: systemClock() });
 }
 
 async function loadCurrentRequest(): Promise<{

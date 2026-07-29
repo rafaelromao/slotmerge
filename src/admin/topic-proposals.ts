@@ -22,7 +22,10 @@ export type {
 } from "../topics/proposals.repository";
 
 export type AdminTopicProposalsDependencies = {
-  getSession?: (request: Request) => Promise<Session | null>;
+  getSession?: (
+    request: Request,
+    deps: { clock: Clock },
+  ) => Promise<Session | null>;
   topicProposalRepository?: TopicProposalAdminRepository;
   clock: Clock;
 };
@@ -50,7 +53,7 @@ export function createAdminTopicProposalsHandlers({
     topicProposalRepository ?? getTopicProposalRepository();
   return {
     GET: async (request: Request): Promise<Response> => {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock });
       if (!isAdminSession(session)) {
         return adminAccessDeniedResponse(session);
       }
@@ -68,7 +71,7 @@ export function createAdminTopicProposalsHandlers({
     },
 
     POST: async (request: Request): Promise<Response> => {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock });
       if (!isAdminSession(session)) {
         return adminAccessDeniedResponse(session);
       }

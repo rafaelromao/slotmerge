@@ -50,6 +50,9 @@ import {
   USER_FIXTURES,
 } from "../fixtures/seeds";
 import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -798,7 +801,7 @@ async function runMatchingForSlot(
       },
       profileRepository: {
         findByUserId(uid) {
-          return getProfileByUserId(uid);
+          return getProfileByUserId(uid, testClock);
         },
       },
       clock: { now: () => new Date() },

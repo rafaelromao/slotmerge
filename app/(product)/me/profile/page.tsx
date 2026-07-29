@@ -3,6 +3,7 @@ import {
   createProfileWorkflow,
   defaultSupportedTimeZones,
 } from "../../../../src/profile/profile-workflow";
+import { systemClock } from "../../../../src/system/clock";
 import { ProfileForm } from "../_components/ProfileForm";
 
 type SearchParams = Promise<{
@@ -18,7 +19,7 @@ export default async function ProfileEditPage({
     roles: ["user", "organizer", "admin"],
   });
 
-  const workflow = createProfileWorkflow();
+  const workflow = createProfileWorkflow({ clock: systemClock() });
   const result = await workflow.loadMe({ userId: context.user.id });
 
   if (!result.ok) {

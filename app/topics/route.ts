@@ -1,8 +1,11 @@
 import { getSessionFromRequest } from "../../src/auth/session";
+import { systemClock } from "../../src/system/clock";
 import { listActiveTopics } from "../../src/topics/repository";
 
 export async function GET(request: Request): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });

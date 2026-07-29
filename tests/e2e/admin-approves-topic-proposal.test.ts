@@ -149,7 +149,7 @@ describe("E2E: Admin approves a pending Topic Proposal", () => {
           },
           profileRepository: {
             findByUserId(uid) {
-              return getProfileByUserId(uid);
+              return getProfileByUserId(uid, testClock);
             },
           },
           clock: { now: () => new Date() },

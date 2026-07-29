@@ -8,7 +8,6 @@ import {
   type WeeklyAvailabilityWindowUpdate,
 } from "../db/schema";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 import { localDateTimeToUtc } from "../time";
 
 export type {
@@ -56,7 +55,11 @@ export function getWeeklyAvailabilityWindowRepository(): WeeklyAvailabilityWindo
   return getRepository();
 }
 
-let cachedDefaultRepository: WeeklyAvailabilityWindowRepository | null = null;
+function getDefaultRepository(): WeeklyAvailabilityWindowRepository {
+  throw new Error(
+    "getWeeklyAvailabilityWindowRepository() default requires a Clock; pass a repository via setWeeklyAvailabilityWindowRepositoryForTests or call createPostgresWeeklyAvailabilityWindowRepository(clock) directly.",
+  );
+}
 
 export function createPostgresWeeklyAvailabilityWindowRepository(
   clock: Clock,
@@ -150,14 +153,6 @@ export function createPostgresWeeklyAvailabilityWindowRepository(
       return deleted.length > 0;
     },
   };
-}
-
-function getDefaultRepository(): WeeklyAvailabilityWindowRepository {
-  if (!cachedDefaultRepository) {
-    cachedDefaultRepository =
-      createPostgresWeeklyAvailabilityWindowRepository(systemClock());
-  }
-  return cachedDefaultRepository;
 }
 
 export async function addWeeklyAvailabilityWindow(

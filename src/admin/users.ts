@@ -24,7 +24,10 @@ export type {
 export type { AdminUserRepository } from "./users.repository";
 
 export type AdminUsersDependencies = {
-  getSession?: (request: Request) => Promise<Session | null>;
+  getSession?: (
+    request: Request,
+    deps: { clock: Clock },
+  ) => Promise<Session | null>;
   userRepository?: AdminUserRepository;
   clock: Clock;
 };
@@ -67,7 +70,7 @@ export function createAdminUsersHandlers({
   const resolveRepository = () => userRepository ?? getUserRepository();
   return {
     GET: async (request: Request): Promise<Response> => {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock });
       if (!isAdminSession(session)) {
         return adminAccessDeniedResponse(session);
       }
@@ -84,7 +87,7 @@ export function createAdminUsersHandlers({
       );
     },
     POST: async (request: Request): Promise<Response> => {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock });
       if (!isAdminSession(session)) {
         return adminAccessDeniedResponse(session);
       }

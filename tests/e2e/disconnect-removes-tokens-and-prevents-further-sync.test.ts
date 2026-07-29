@@ -39,6 +39,9 @@ import {
   USER_FIXTURES,
 } from "../fixtures/seeds";
 import { getTestClock, getTestDb } from "../helpers/setup";
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
@@ -262,7 +265,7 @@ async function runMatchingViaAssembler(): Promise<string[]> {
       },
       profileRepository: {
         findByUserId(uid) {
-          return getProfileByUserId(uid);
+          return getProfileByUserId(uid, testClock);
         },
       },
       clock: { now: () => new Date() },

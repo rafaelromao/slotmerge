@@ -23,6 +23,9 @@ import { getSearchResultRepository } from "../../src/search/search-result-reposi
 import { listActiveTopics } from "../../src/topics/repository";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
 const HAS_TEST_DB = !!TEST_DB_URL;
@@ -93,7 +96,7 @@ function buildSubmitDeps(): SubmitDeps {
         }));
       },
     },
-    profileRepository: { findByUserId: getProfileByUserId },
+    profileRepository: { findByUserId: (userId) => getProfileByUserId(userId, testClock) },
     clock: { now: getTestClock() },
     matchingPoolSize: 5,
     discoverableUserRepository: getDiscoverableUserRepository(),
@@ -115,7 +118,7 @@ function buildRerunDeps(): Parameters<typeof rerunSearch>[1] {
         }));
       },
     },
-    profileRepository: { findByUserId: getProfileByUserId },
+    profileRepository: { findByUserId: (userId) => getProfileByUserId(userId, testClock) },
   };
 }
 

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { getSessionFromRequest, type Session } from "../auth/session";
 import type { UserRole } from "../db/schema";
+import { systemClock } from "../system/clock";
 
 export type Capability = {
   roles: ReadonlyArray<UserRole>;
@@ -55,11 +56,12 @@ export async function requirePageContext(
 }
 
 async function resolveSession(request?: Request): Promise<Session | null> {
+  const clock = systemClock();
   if (request) {
-    return getSessionFromRequest(request);
+    return getSessionFromRequest(request, { clock });
   }
   const built = await currentRequestFromHeaders();
-  return getSessionFromRequest(built);
+  return getSessionFromRequest(built, { clock });
 }
 
 async function currentRequestFromHeaders(): Promise<Request> {

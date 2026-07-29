@@ -3,7 +3,7 @@ import { and, eq, gt } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { sessions, users, type UserRole, type UserStatus } from "../db/schema";
-import { systemClock } from "../system/clock";
+import type { Clock } from "../system/clock";
 
 export type SessionUser = {
   id: string;
@@ -61,6 +61,7 @@ export function clearSessionCookie(): string {
 
 export async function getSessionFromRequest(
   request: Request,
+  deps: { clock: Clock },
 ): Promise<Session | null> {
   const sessionToken = getCookie(
     request.headers.get("cookie"),
@@ -80,7 +81,7 @@ export async function getSessionFromRequest(
 
     const session = await getSessionRepository().findById(
       payload.sessionId,
-      systemClock().now(),
+      deps.clock.now(),
     );
     return session;
   } catch {
@@ -167,7 +168,9 @@ export function isOrganizerOrAdminSession(
   return session?.user.role === "organizer" || session?.user.role === "admin";
 }
 
-export async function getServerSession(): Promise<Session | null> {
+export async function getServerSession(deps: {
+  clock: Clock;
+}): Promise<Session | null> {
   const { cookies } = await import("next/headers");
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(sessionCookieName)?.value;
@@ -185,7 +188,7 @@ export async function getServerSession(): Promise<Session | null> {
 
     const session = await getSessionRepository().findById(
       payload.sessionId,
-      systemClock().now(),
+      deps.clock.now(),
     );
     return session;
   } catch {

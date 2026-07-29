@@ -20,6 +20,9 @@ import {
   USER_FIXTURES,
 } from "../fixtures/seeds";
 import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -83,7 +86,7 @@ async function runSearch(slotStart: Date): Promise<string> {
           }));
         },
       },
-      profileRepository: { findByUserId: getProfileByUserId },
+      profileRepository: { findByUserId: (userId) => getProfileByUserId(userId, testClock) },
       clock: { now: getTestClock() },
       matchingPoolSize: 10,
       discoverableUserRepository: getDiscoverableUserRepository(),
@@ -349,7 +352,7 @@ describe("E2E: global Calendar Connection buffer applies to imported busy interv
               }));
             },
           },
-          profileRepository: { findByUserId: getProfileByUserId },
+          profileRepository: { findByUserId: (userId) => getProfileByUserId(userId, testClock) },
           clock: { now: getTestClock() },
           matchingPoolSize: 10,
           discoverableUserRepository: getDiscoverableUserRepository(),

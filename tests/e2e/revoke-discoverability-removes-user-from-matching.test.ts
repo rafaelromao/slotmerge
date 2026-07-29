@@ -28,6 +28,9 @@ import {
   USER_FIXTURES,
 } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -156,7 +159,7 @@ async function submitDiscoverableSearch(): Promise<string> {
           }));
         },
       },
-      profileRepository: { findByUserId: getProfileByUserId },
+      profileRepository: { findByUserId: (userId) => getProfileByUserId(userId, testClock) },
       clock: { now: getTestClock() },
       matchingPoolSize: MATCHING_POOL_SIZE,
       discoverableUserRepository: createPostgresDiscoverableUserRepository(),

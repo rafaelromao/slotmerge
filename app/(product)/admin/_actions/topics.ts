@@ -1,10 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { systemClock } from "../../../../src/system/clock";
 
 import { getServerSession } from "../../../../src/auth/session";
 import { CsrfError, assertCsrfFromFormData } from "../../../../src/lib/csrf";
-import { systemClock } from "../../../../src/system/clock";
 import {
   createAdminTopicsWorkflow,
   type AdminTopicsDecideError,
@@ -13,7 +13,7 @@ import {
 import { getTopicAdminRepository } from "../../../../src/topics/repository";
 
 async function authorize(formData: FormData) {
-  const session = await getServerSession();
+  const session = await getServerSession({ clock: systemClock() });
   if (!session || session.user.role !== "admin") {
     redirect("/sign-in?returnTo=%2Fadmin");
   }

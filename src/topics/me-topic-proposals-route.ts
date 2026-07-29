@@ -1,4 +1,5 @@
 import { getSessionFromRequest, type Session } from "../auth/session";
+import type { Clock } from "../system/clock";
 import {
   createPostgresTopicProposalRepository,
   type TopicProposalUserRepository,
@@ -10,17 +11,22 @@ export type {
 } from "./proposals.repository";
 
 export type MeTopicProposalsDependencies = {
-  getSession?: (request: Request) => Promise<Session | null>;
+  getSession?: (
+    request: Request,
+    deps: { clock: Clock },
+  ) => Promise<Session | null>;
   repository?: TopicProposalUserRepository;
+  clock: Clock;
 };
 
 export function createMeTopicProposalsHandlers({
   getSession = getSessionFromRequest,
   repository,
-}: MeTopicProposalsDependencies = {}) {
+  clock,
+}: MeTopicProposalsDependencies) {
   return {
     async GET(request: Request): Promise<Response> {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock });
 
       if (!session) {
         return Response.json({ error: "unauthenticated" }, { status: 401 });

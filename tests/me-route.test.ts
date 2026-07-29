@@ -913,7 +913,9 @@ describe("DELETE /me", () => {
     expect(response.headers.get("set-cookie")).toContain("slotmerge_session=");
     expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
 
-    await expect(getProfileByUserId("user-1")).resolves.toBeNull();
+    await expect(
+      getProfileByUserId("user-1", { now: () => new Date() }),
+    ).resolves.toBeNull();
     await expect(listTopicsForUserInTests("user-1")).resolves.toEqual([]);
     await expect(
       listAvailabilityWindowsForUserInTests("user-1"),

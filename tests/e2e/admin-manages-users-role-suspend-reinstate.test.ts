@@ -150,7 +150,7 @@ async function runSearch(organizerId: string, poolSize: number): Promise<string>
       },
       profileRepository: {
         async findByUserId(uid) {
-          return getProfileByUserId(uid);
+          return getProfileByUserId(uid, testClock);
         },
       },
       clock: { now: getTestClock() },

@@ -14,9 +14,10 @@ export function createProductionSetupHomeWorkflow(
 ): SetupHomeWorkflow {
   return createSetupHomeWorkflow({
     profileRepository: {
-      findByUserId: getProfileByUserId,
+      findByUserId: (userId) => getProfileByUserId(userId, clock),
     },
-    discoverabilityConsentRepository: getDiscoverabilityConsentRepository(),
+    discoverabilityConsentRepository:
+      getDiscoverabilityConsentRepository(clock),
     topicRepository: getTopicCatalogueRepository(),
     topicProposalRepository: getTopicProposalRepository(),
     weeklyAvailabilityWindowRepository: getWeeklyAvailabilityWindowRepository(),

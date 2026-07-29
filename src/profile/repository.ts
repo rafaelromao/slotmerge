@@ -3,7 +3,6 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../db/client";
 import { users, type UserRole, type UserStatus } from "../db/schema";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 
 export type UserProfile = {
   id: string;
@@ -44,23 +43,28 @@ export function setProfileRepositoryForTests(
 
 export async function getProfileByUserId(
   userId: string,
+  clock: Clock,
 ): Promise<UserProfile | null> {
-  return getProfileRepository().findByUserId(userId);
+  return getProfileRepository(clock).findByUserId(userId);
 }
 
 export async function updateProfileByUserId(
   userId: string,
   update: UserProfileUpdate,
+  clock: Clock,
 ): Promise<UserProfile | null> {
-  return getProfileRepository().updateByUserId(userId, update);
+  return getProfileRepository(clock).updateByUserId(userId, update);
 }
 
-export async function deleteProfileByUserId(userId: string): Promise<boolean> {
-  return getProfileRepository().deleteByUserId(userId);
+export async function deleteProfileByUserId(
+  userId: string,
+  clock: Clock,
+): Promise<boolean> {
+  return getProfileRepository(clock).deleteByUserId(userId);
 }
 
-function getProfileRepository(): ProfileRepository {
-  return repositoryOverride ?? getDefaultProfileRepository();
+function getProfileRepository(clock: Clock): ProfileRepository {
+  return repositoryOverride ?? getDefaultProfileRepository(clock);
 }
 
 let cachedDefaultProfileRepository: ProfileRepository | null = null;
@@ -89,7 +93,7 @@ export function createPostgresProfileRepository(
       return row ?? null;
     },
     updateByUserId: async (userId, update) => {
-      const fallback = getDefaultProfileRepository();
+      const fallback = getDefaultProfileRepository(clock);
 
       const current = await fallback.findByUserId(userId);
 
@@ -152,10 +156,9 @@ export function createPostgresProfileRepository(
   };
 }
 
-function getDefaultProfileRepository(): ProfileRepository {
+function getDefaultProfileRepository(clock: Clock): ProfileRepository {
   if (!cachedDefaultProfileRepository) {
-    cachedDefaultProfileRepository =
-      createPostgresProfileRepository(systemClock());
+    cachedDefaultProfileRepository = createPostgresProfileRepository(clock);
   }
   return cachedDefaultProfileRepository;
 }

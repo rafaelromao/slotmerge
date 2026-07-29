@@ -8,6 +8,9 @@ import { getTopicCatalogueRepository } from "../../src/topics/repository";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -112,7 +115,7 @@ async function runSearchWithMinimum(minimumMatchingUsers: number): Promise<strin
       },
       profileRepository: {
         async findByUserId(userId) {
-          return getProfileByUserId(userId);
+          return getProfileByUserId(userId, testClock);
         },
       },
       clock: { now: getTestClock() },

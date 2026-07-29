@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { systemClock } from "../../src/system/clock";
 
 import { getServerSession } from "../../src/auth/session";
-import { systemClock } from "../../src/system/clock";
 import { createProductionSetupHomeWorkflow } from "../../src/workflow/setup-home-production";
 import { requestMagicLinkAction } from "./_actions/request-magic-link";
 
@@ -55,7 +55,7 @@ export default async function SetupHomePage({
 }: {
   searchParams?: SearchParams;
 } = {}) {
-  const session = await getServerSession();
+  const session = await getServerSession({ clock: systemClock() });
 
   if (!session) {
     const params = (await searchParams) ?? {};

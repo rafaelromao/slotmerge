@@ -126,7 +126,9 @@ function mapOverrideError(error: AvailabilityOverrideError): {
 export function buildAvailabilityActionHandler(
   deps: CreateAvailabilityActionHandlerDeps,
 ): AvailabilityActionHandler {
-  const workflow = deps.workflow ?? createAvailabilityWorkflow();
+  const workflow =
+    deps.workflow ??
+    createAvailabilityWorkflow({ clock: { now: () => new Date() } });
   const loadSession = deps.loadSession;
 
   async function loadAuthedSession(request: Request): Promise<Session | null> {

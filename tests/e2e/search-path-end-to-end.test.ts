@@ -3,6 +3,10 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { eq } from "drizzle-orm";
 
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
+
 import { GET } from "../../app/api/v1/searches/[id]/route";
 import { SearchResultClient } from "../../app/(product)/searches/[id]/SearchResultClient";
 import { sealSessionCookie } from "../../src/auth/session";
@@ -22,7 +26,6 @@ import {
 } from "../../src/search/search-result-repository";
 import { submitSearch } from "../../src/search/search-input";
 import { listActiveTopics } from "../../src/topics/repository";
-import { buildTestClock } from "../test-clock";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, setupTest } from "../helpers/setup";
 
@@ -192,7 +195,7 @@ describe("E2E: complete Search path", () => {
               }));
             },
           },
-          profileRepository: { findByUserId: getProfileByUserId },
+          profileRepository: { findByUserId: (userId) => getProfileByUserId(userId, testClock) },
           clock,
           matchingPoolSize: 5,
           discoverableUserRepository: getDiscoverableUserRepository(),

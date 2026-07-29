@@ -15,7 +15,7 @@ import { systemClock } from "../../../../../src/system/clock";
 
 export async function POST(request: Request): Promise<Response> {
   const [session, sessionId] = await Promise.all([
-    getSessionFromRequest(request),
+    getSessionFromRequest(request, { clock: systemClock() }),
     extractSessionIdFromRequest(request),
   ]);
 

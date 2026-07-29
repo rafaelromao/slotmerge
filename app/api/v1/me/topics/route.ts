@@ -13,7 +13,9 @@ import { systemClock } from "../../../../../src/system/clock";
 import { systemDependencies } from "../../../../../src/system";
 
 export async function GET(request: Request): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });
@@ -23,7 +25,9 @@ export async function GET(request: Request): Promise<Response> {
     session.user.id,
   );
 
-  const meProposalsHandlers = createMeTopicProposalsHandlers();
+  const meProposalsHandlers = createMeTopicProposalsHandlers({
+    clock: systemClock(),
+  });
   const proposalsResponse = await meProposalsHandlers.GET(request);
   const proposalsData = (await proposalsResponse.json()) as {
     proposals: {
@@ -65,7 +69,9 @@ async function updateTopics(
   request: Request,
   clock: { now: () => Date },
 ): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });
@@ -91,7 +97,9 @@ async function updateTopics(
 }
 
 export async function submitTopicProposal(request: Request): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     const sealed = await sealFeedback({ type: "unauthenticated" });

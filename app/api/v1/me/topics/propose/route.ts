@@ -5,7 +5,9 @@ import { createTopicProposalsHandlers } from "../../../../../../src/topics/propo
 import { systemClock } from "../../../../../../src/system/clock";
 
 export async function POST(request: Request): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });

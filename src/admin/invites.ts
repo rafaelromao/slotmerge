@@ -54,7 +54,10 @@ export type CreateInviteResult =
   { ok: true; invite: InviteRecord } | { ok: false; reason: "duplicate" };
 
 export type AdminInvitesDependencies = {
-  getSession?: (request: Request) => Promise<Session | null>;
+  getSession?: (
+    request: Request,
+    deps: { clock: Clock; randomSource: RandomSource },
+  ) => Promise<Session | null>;
   inviteRepository?: InviteRepository;
   magicLinkTokenIssuer?: ReturnType<typeof createMagicLinkTokenIssuer>;
   emailDeliveryService?: ReturnType<typeof createEmailDeliveryService>;
@@ -75,10 +78,11 @@ export function createAdminInvitesHandlers({
   magicLinkTokenIssuer,
   emailDeliveryService,
   clock,
+  randomSource,
 }: AdminInvitesDependencies) {
   return {
     GET: async (request: Request): Promise<Response> => {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock, randomSource });
       if (!isAdminSession(session)) {
         return createAccessDeniedResponse(session);
       }
@@ -92,7 +96,7 @@ export function createAdminInvitesHandlers({
       );
     },
     POST: async (request: Request): Promise<Response> => {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock, randomSource });
       if (!isAdminSession(session)) {
         return createAccessDeniedResponse(session);
       }

@@ -1,6 +1,7 @@
 "use server";
 
 import { createHash } from "node:crypto";
+import { systemClock } from "../../../../src/system/clock";
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -11,7 +12,6 @@ import { listActiveTopics } from "../../../../src/topics/repository";
 import { getSearchResultRepository } from "../../../../src/search/search-result-repository";
 import { getDiscoverableUserRepository } from "../../../../src/search/discoverable-user-repository";
 import { getProfileByUserId } from "../../../../src/profile/repository";
-import { systemClock } from "../../../../src/system/clock";
 import {
   SEARCH_FORM_ID,
   sealSearchFeedbackToken,
@@ -27,7 +27,7 @@ function buildWorkflow() {
   return createSearchWorkflow({
     clock,
     profileRepository: {
-      findByUserId: getProfileByUserId,
+      findByUserId: (userId) => getProfileByUserId(userId, systemClock()),
     },
     activeTopicsRepository: {
       async listActive() {
@@ -84,7 +84,8 @@ export async function runSearchAction(formData: FormData): Promise<void> {
   const clock = systemClock();
   const handler = buildSearchActionHandler({
     workflow,
-    loadSession: async (request) => getSessionFromRequest(request),
+    loadSession: async (request) =>
+      getSessionFromRequest(request, { clock: systemClock() }),
   });
 
   const headerList = await headers();

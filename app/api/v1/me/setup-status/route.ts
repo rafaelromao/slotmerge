@@ -18,7 +18,9 @@ function getSetupHomeWorkflow(): SetupHomeWorkflow {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return problemJson(401, {

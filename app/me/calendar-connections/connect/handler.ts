@@ -12,7 +12,7 @@ import { createCalendarConnectionWorkflow } from "../../../../src/workflow/calen
 export function createCalendarConnectPost(provider: CalendarProvider) {
   return async function POST(request: Request): Promise<Response> {
     const [session, sessionId] = await Promise.all([
-      getSessionFromRequest(request),
+      getSessionFromRequest(request, { clock: systemClock() }),
       extractSessionIdFromRequest(request),
     ]);
     if (!session || !sessionId) {

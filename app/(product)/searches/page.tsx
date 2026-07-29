@@ -127,7 +127,7 @@ export default async function SearchesPage({
   const workflow = createSearchWorkflow({
     clock: systemClock(),
     profileRepository: {
-      findByUserId: getProfileByUserId,
+      findByUserId: (userId) => getProfileByUserId(userId, systemClock()),
     },
     activeTopicsRepository: {
       async listActive() {

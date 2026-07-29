@@ -128,7 +128,7 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
             },
             profileRepository: {
               async findByUserId(uid) {
-                return getProfileByUserId(uid);
+                return getProfileByUserId(uid, testClock);
               },
             },
             clock: { now: getTestClock() },

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { systemClock } from "../../../../src/system/clock";
 
 import { getServerSession } from "../../../../src/auth/session";
 import { assertCsrfFromFormData, CsrfError } from "../../../../src/lib/csrf";
@@ -15,7 +16,6 @@ import {
 import { createPostgresAdminUserRepository } from "../../../../src/admin/users.repository";
 import { createPostgresInviteRepository } from "../../../../src/admin/invites.repository";
 import { getSessionRepository } from "../../../../src/auth/session";
-import { systemClock } from "../../../../src/system/clock";
 import { createPostgresEmailEventRepository } from "../../../../src/email/repository";
 import { createEmailDeliveryService } from "../../../../src/email/service";
 import { enqueueInviteEmailJob } from "../../../../src/email/invite-jobs";
@@ -67,7 +67,7 @@ function assertCsrfForAction(formData: FormData, session: SessionLike): void {
 async function assertAdminAndCsrf(formData: FormData): Promise<{
   session: SessionLike;
 }> {
-  const session = await getServerSession();
+  const session = await getServerSession({ clock: systemClock() });
   if (!session || session.user.role !== "admin") {
     redirect("/sign-in?returnTo=%2Fadmin");
   }

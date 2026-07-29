@@ -11,7 +11,6 @@ import { enqueueInviteEmailJob } from "../email/invite-jobs";
 import { loadRuntimeConfig } from "../config/runtime";
 import { getDb } from "../db/client";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 import { invites, users, type UserRole } from "../db/schema";
 
 export type MagicLinkRequestInviteRecord = {
@@ -235,17 +234,15 @@ function jsonResponse(data: unknown, status: number): Response {
   });
 }
 
-function createInMemoryRateLimiter(
-  {
-    clock,
-    limit = 5,
-    windowMs = 60_000,
-  }: {
-    clock: Clock;
-    limit?: number;
-    windowMs?: number;
-  } = { clock: systemClock() },
-): MagicLinkRequestRateLimiter {
+function createInMemoryRateLimiter({
+  clock,
+  limit = 5,
+  windowMs = 60_000,
+}: {
+  clock: Clock;
+  limit?: number;
+  windowMs?: number;
+} & { clock: Clock }): MagicLinkRequestRateLimiter {
   const state = new Map<string, { windowStart: number; count: number }>();
 
   return {

@@ -7,7 +7,10 @@ import {
 } from "./proposals.repository";
 
 export type TopicProposalsDependencies = {
-  getSession?: (request: Request) => Promise<Session | null>;
+  getSession?: (
+    request: Request,
+    deps: { clock: Clock },
+  ) => Promise<Session | null>;
   repository?: TopicProposalRouteRepository;
   clock: Clock;
 };
@@ -51,7 +54,7 @@ export function createTopicProposalsHandlers({
     repository ?? getTopicProposalRouteRepository();
   return {
     async POST(request: Request): Promise<Response> {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock });
 
       if (!session) {
         return Response.json({ error: "unauthenticated" }, { status: 401 });

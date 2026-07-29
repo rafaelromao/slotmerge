@@ -375,7 +375,7 @@ describe("E2E: Admin retires an active Topic", () => {
             },
             profileRepository: {
               async findByUserId(uid) {
-                return getProfileByUserId(uid);
+                return getProfileByUserId(uid, testClock);
               },
             },
             clock: { now: getTestClock() },

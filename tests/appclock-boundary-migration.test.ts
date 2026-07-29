@@ -1,4 +1,4 @@
-import { readFile, readdir, type Dirent } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -16,7 +16,10 @@ const NEXTJS_BOUNDARY_PREFIXES = [
   "app/auth",
   "app/me",
   "app/topics",
+  "app/topic-proposals",
   "app/(product)",
+  "src/lib",
+  "src/worker",
 ];
 
 const SCAN_ROOTS = ["src", "app"];
@@ -43,6 +46,8 @@ const MATH_RANDOM_CALL = /\bMath\.random\s*\(/g;
 const SYSTEM_CLOCK_DEFAULT = /=\s*systemClock(?:Boundary)?\s*\(/g;
 const SYSTEM_CLOCK_BOUNDARY_CONST =
   /\bconst\s+systemClockBoundary\s*=\s*systemClock\s*\(/g;
+const SYSTEM_CLOCK_CALL = /\bsystemClock\s*\(/g;
+const SYSTEM_RANDOM_SOURCE_CALL = /\bsystemRandomSource\s*\(/g;
 
 type Violation = {
   file: string;
@@ -71,17 +76,18 @@ function isProductionSource(file: string): boolean {
 async function listFiles(root: string): Promise<string[]> {
   const out: string[] = [];
   async function walk(dir: string) {
-    let entries: Dirent[];
+    let entries: Array<{ name: string; isDirectory(): boolean }>;
     try {
-      entries = (await readdir(dir, { withFileTypes: true })) as Dirent[];
+      entries = await readdir(dir, {
+        withFileTypes: true,
+      });
     } catch {
       return;
     }
     for (const entry of entries) {
-      const e = entry as { name: unknown; isDirectory?: () => boolean };
-      const entryName: string = String(e.name);
+      const entryName: string = String(entry.name);
       const full = path.join(dir, entryName);
-      if (typeof e.isDirectory === "function" && e.isDirectory()) {
+      if (typeof entry.isDirectory === "function" && entry.isDirectory()) {
         if (SCAN_EXCLUDE_DIRS.has(entryName)) continue;
         await walk(full);
       } else {
@@ -157,6 +163,43 @@ async function scanFile(file: string): Promise<Violation[]> {
         file: normalized,
         line: i + 1,
         rule: "no-system-clock-boundary-const",
+        match: match[0],
+      });
+    }
+
+    SYSTEM_CLOCK_CALL.lastIndex = 0;
+    while ((match = SYSTEM_CLOCK_CALL.exec(line)) !== null) {
+      // Allow `systemClock()` declaration line and typed imports (rare)
+      // We flag any other call site in core code.
+      if (isBoundary) continue;
+      // Skip the function definition itself (`export function systemClock(): Clock {`).
+      if (
+        /export\s+function\s+systemClock\b/.test(line) ||
+        /\bsystemClock\.now\s*\(/.test(line)
+      ) {
+        continue;
+      }
+      violations.push({
+        file: normalized,
+        line: i + 1,
+        rule: "no-system-clock-call",
+        match: match[0],
+      });
+    }
+
+    SYSTEM_RANDOM_SOURCE_CALL.lastIndex = 0;
+    while ((match = SYSTEM_RANDOM_SOURCE_CALL.exec(line)) !== null) {
+      if (isBoundary) continue;
+      if (
+        /export\s+function\s+systemRandomSource\b/.test(line) ||
+        /\bsystemRandomSource\.next\s*\(/.test(line)
+      ) {
+        continue;
+      }
+      violations.push({
+        file: normalized,
+        line: i + 1,
+        rule: "no-system-random-source-call",
         match: match[0],
       });
     }

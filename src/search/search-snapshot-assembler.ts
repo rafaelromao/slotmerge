@@ -21,7 +21,7 @@ import { calendarConnections, topicProposals } from "../db/schema";
 import { getDb } from "../db/client";
 import { getDiscoverabilityConsent } from "../profile/discoverability-consent";
 import { getTopicCatalogueRepository } from "../topics/repository";
-import { listWeeklyAvailabilityWindowsByUserId } from "../profile/availability-windows";
+import { createPostgresWeeklyAvailabilityWindowRepository } from "../profile/availability-windows";
 import { listAvailabilityOverridesByUserId } from "../profile/availability-overrides";
 import { createPostgresImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals.repository";
 import type { Clock } from "../system/clock";
@@ -310,6 +310,8 @@ export function createDefaultSearchSnapshotAssemblerDeps(
   > & { clock: Clock },
 ): SearchSnapshotAssemblerDeps {
   const { clock } = deps;
+  const weeklyAvailabilityWindowRepository =
+    createPostgresWeeklyAvailabilityWindowRepository(clock);
   return {
     discoverableUserRepository: deps.discoverableUserRepository,
     topicRepository: deps.topicRepository,
@@ -318,7 +320,7 @@ export function createDefaultSearchSnapshotAssemblerDeps(
       getTopicCatalogueRepository().listSelectedTopicIds(userId),
     loadUserAvailabilityData: async (userId, range) => {
       const [windows, overrides, busyIntervals] = await Promise.all([
-        listWeeklyAvailabilityWindowsByUserId(userId),
+        weeklyAvailabilityWindowRepository.listByUserId(userId),
         listAvailabilityOverridesByUserId(userId),
         createPostgresImportedBusyIntervalRepository(
           clock,

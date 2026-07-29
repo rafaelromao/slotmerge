@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   addWeeklyAvailabilityWindow,
   clearWeeklyAvailabilityWindowOverride,
+  getWeeklyAvailabilityWindowRepository,
   listWeeklyAvailabilityWindowsByUserId,
   removeWeeklyAvailabilityWindowById,
   setWeeklyAvailabilityWindowRepositoryForTests,
@@ -91,6 +92,20 @@ class InMemoryWeeklyAvailabilityWindowRepository implements WeeklyAvailabilityWi
 describe("weekly availability window repository", () => {
   afterEach(() => {
     clearWeeklyAvailabilityWindowOverride();
+  });
+
+  it("requires an explicit repository override when no Clock is available", () => {
+    expect(() => getWeeklyAvailabilityWindowRepository()).toThrow(
+      "getWeeklyAvailabilityWindowRepository() default requires a Clock",
+    );
+  });
+
+  it("returns the explicit test repository override", () => {
+    const repository = new InMemoryWeeklyAvailabilityWindowRepository();
+
+    setWeeklyAvailabilityWindowRepositoryForTests(repository);
+
+    expect(getWeeklyAvailabilityWindowRepository()).toBe(repository);
   });
 
   describe("add", () => {

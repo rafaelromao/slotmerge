@@ -199,7 +199,7 @@ async function runSyncForGoogleConnection(params: {
     timeMin: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     timeMax: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     fetchImpl,
-    busyIntervalRepository: createPostgresImportedBusyIntervalRepository(),
+    busyIntervalRepository: createPostgresImportedBusyIntervalRepository({ now: () => new Date() }),
     recordFailure: () => Promise.resolve(undefined),
     clock: () => now,
   });
@@ -277,7 +277,8 @@ describe("E2E: persist normalized imported busy intervals for the rolling 90-day
         csrfToken: SESSION.csrfToken,
         codeVerifier: "code-verifier-statuses",
         secret: SESSION_SECRET,
-      });
+      issuedAt: new Date(),
+    });
       const form = new FormData();
       form.set("code", "google-auth-code-statuses");
       form.set("state", sealedState);
@@ -347,7 +348,8 @@ describe("E2E: persist normalized imported busy intervals for the rolling 90-day
         csrfToken: SESSION.csrfToken,
         codeVerifier: "code-verifier-window",
         secret: SESSION_SECRET,
-      });
+      issuedAt: new Date(),
+    });
       const form = new FormData();
       form.set("code", "google-auth-code-window");
       form.set("state", sealedState);

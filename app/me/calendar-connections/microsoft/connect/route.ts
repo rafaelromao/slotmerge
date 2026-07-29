@@ -11,6 +11,7 @@ import {
 } from "../../../../../src/calendar/connection";
 import { getCalendarProvider } from "../../../../../src/calendar/providers";
 import { getCalendarConnectionRepository } from "../../../../../src/calendar/repository";
+import { systemClock } from "../../../../../src/system/clock";
 
 export async function POST(request: Request): Promise<Response> {
   const [session, sessionId] = await Promise.all([
@@ -36,7 +37,8 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const provider = getCalendarProvider("microsoft");
-  const repository = getCalendarConnectionRepository();
+  const clock = systemClock();
+  const repository = getCalendarConnectionRepository(clock);
   const connection = await startCalendarConnection({
     provider,
     repository,
@@ -46,6 +48,7 @@ export async function POST(request: Request): Promise<Response> {
     sessionId,
     sessionSecret: getSessionSecret(),
     userId: session.user.id,
+    clock,
   });
 
   return Response.json({

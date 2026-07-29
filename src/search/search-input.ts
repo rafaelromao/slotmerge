@@ -260,6 +260,7 @@ async function persistAndRunSearch(
       discoverableUserRepository: deps.discoverableUserRepository,
       topicRepository: deps.topicRepository,
       profileRepository: deps.profileRepository,
+      clock: deps.clock,
     });
 
   await runSearch(

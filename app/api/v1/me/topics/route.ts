@@ -9,6 +9,7 @@ import {
 } from "../../../../../src/topics/repository";
 import { createMeTopicProposalsHandlers } from "../../../../../src/topics/me-topic-proposals-route";
 import { createTopicProposalsHandlers } from "../../../../../src/topics/proposals-route";
+import { systemClock } from "../../../../../src/system/clock";
 import { systemDependencies } from "../../../../../src/system";
 
 export async function GET(request: Request): Promise<Response> {
@@ -129,7 +130,9 @@ export async function submitTopicProposal(request: Request): Promise<Response> {
     body: JSON.stringify({ candidateName }),
   });
 
-  const proposalsHandlers = createTopicProposalsHandlers();
+  const proposalsHandlers = createTopicProposalsHandlers({
+    clock: systemClock(),
+  });
   const result = await proposalsHandlers.POST(jsonRequest);
 
   if (result.status === 201) {

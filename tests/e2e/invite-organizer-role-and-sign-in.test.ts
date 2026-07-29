@@ -301,6 +301,7 @@ describe("E2E: invite role selection is explicit for Organizer and Admin", () =>
             return getProfileByUserId(uid);
           },
         },
+        clock: { now: () => new Date() },
       }),
     );
     const snapshot = await assembler.assemble({

@@ -34,9 +34,10 @@ export function createCalendarConnectPost(provider: CalendarProvider) {
       typeof connectionIdValue === "string" && connectionIdValue.length > 0
         ? connectionIdValue
         : undefined;
+    const clock = systemClock();
     const workflow = createCalendarConnectionWorkflow({
-      repository: getCalendarConnectionRepository(),
-      clock: systemClock(),
+      repository: getCalendarConnectionRepository(clock),
+      clock,
       listProviderCalendars: () => Promise.resolve([]),
       oauth: {
         baseUrl: process.env.APP_PUBLIC_URL ?? new URL(request.url).origin,

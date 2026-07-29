@@ -271,7 +271,7 @@ function wireTestRepositories(): void {
   };
 
   setCalendarConnectionRepositoryForTests(repository as never);
-  setImportedBusyIntervalRepositoryForTests(createPostgresImportedBusyIntervalRepository());
+  setImportedBusyIntervalRepositoryForTests(createPostgresImportedBusyIntervalRepository({ now: () => new Date() }));
 }
 
 describe("E2E: global Calendar Connection buffer applies to imported busy intervals", () => {

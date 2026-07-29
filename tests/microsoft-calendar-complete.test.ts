@@ -94,6 +94,7 @@ describe("completeMicrosoftCalendarConnection", () => {
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",
       secret: sessionSecret,
+      issuedAt: new Date(),
     });
 
     const completed = await completeCalendarConnection({
@@ -120,6 +121,8 @@ describe("completeMicrosoftCalendarConnection", () => {
       sessionSecret,
       state,
       tokenEncryptionKey,
+      now: new Date(),
+      clock: { now: () => new Date() },
     });
 
     expect(completed.status).toBe("connected");
@@ -170,6 +173,7 @@ describe("completeMicrosoftCalendarConnection", () => {
       csrfToken: "csrf-token",
       codeVerifier: "code-verifier",
       secret: sessionSecret,
+      issuedAt: new Date(),
     });
 
     const result = await completeCalendarConnection({
@@ -202,6 +206,8 @@ describe("completeMicrosoftCalendarConnection", () => {
       sessionSecret,
       state,
       tokenEncryptionKey: "0123456789abcdef0123456789abcdef",
+      now: new Date(),
+      clock: { now: () => new Date() },
     });
 
     expect(result).toMatchObject({

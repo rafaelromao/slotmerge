@@ -93,6 +93,7 @@ export default async function SearchesPage({
     ? await unsealSearchFeedbackToken(feedbackSealed, {
         csrfToken: context.csrfToken,
         path: "/searches",
+        now: Date.now(),
       })
     : null;
   const decoded = feedbackToken ? feedbackToFieldErrors(feedbackToken) : null;

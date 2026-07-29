@@ -12,6 +12,7 @@ describe("local smoke enqueue endpoint", () => {
     });
 
     const response = await createEnqueueSmokeResponse(request, {
+      clock: { now: () => new Date() },
       env: {
         APP_ENV: "local",
         DATABASE_URL: "postgres://slotmerge:slotmerge@localhost:5432/slotmerge",

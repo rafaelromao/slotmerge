@@ -229,6 +229,7 @@ export function createSearchWorkflow(
             listActive: () => Promise.resolve(activeTopics),
           },
           profileRepository,
+          clock: deps.clock,
         });
       const matchingPoolSize = (
         await new SearchSnapshotAssembler({

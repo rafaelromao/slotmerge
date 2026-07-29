@@ -24,6 +24,7 @@ import { getTopicCatalogueRepository } from "../topics/repository";
 import { listWeeklyAvailabilityWindowsByUserId } from "../profile/availability-windows";
 import { listAvailabilityOverridesByUserId } from "../profile/availability-overrides";
 import { createPostgresImportedBusyIntervalRepository } from "../calendar/imported-busy-intervals.repository";
+import type { Clock } from "../system/clock";
 
 import type { Interval } from "../matching/effective-availability";
 import { computeEffectiveAvailability } from "../matching/effective-availability";
@@ -311,8 +312,9 @@ export function createDefaultSearchSnapshotAssemblerDeps(
   deps: Pick<
     SearchSnapshotAssemblerDeps,
     "discoverableUserRepository" | "topicRepository" | "profileRepository"
-  >,
+  > & { clock: Clock },
 ): SearchSnapshotAssemblerDeps {
+  const { clock } = deps;
   return {
     discoverableUserRepository: deps.discoverableUserRepository,
     topicRepository: deps.topicRepository,
@@ -323,11 +325,9 @@ export function createDefaultSearchSnapshotAssemblerDeps(
       const [windows, overrides, busyIntervals] = await Promise.all([
         listWeeklyAvailabilityWindowsByUserId(userId),
         listAvailabilityOverridesByUserId(userId),
-        createPostgresImportedBusyIntervalRepository().findByUserIdAndDateRange(
-          userId,
-          range.rangeStart,
-          range.rangeEnd,
-        ),
+        createPostgresImportedBusyIntervalRepository(
+          clock,
+        ).findByUserIdAndDateRange(userId, range.rangeStart, range.rangeEnd),
       ]);
       return { windows, overrides, busyIntervals };
     },

@@ -293,7 +293,7 @@ describe("E2E: self-delete removes personal data and tokens, preserves audit his
         createdAt: now,
       });
 
-      const { POST } = createAdminTopicProposalsHandlers();
+      const { POST } = createAdminTopicProposalsHandlers({ clock: testClock });
       const adminCookie = await sealSessionCookie({
         sessionId: "00000000-0000-0000-0000-00000000b179",
       });
@@ -396,3 +396,6 @@ describe("E2E: self-delete removes personal data and tokens, preserves audit his
     },
   );
 });
+
+const testClock = { now: () => new Date() };
+

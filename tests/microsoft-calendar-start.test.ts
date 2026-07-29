@@ -24,6 +24,7 @@ describe("startCalendarConnection (Microsoft)", () => {
       },
       sessionSecret: "0123456789abcdef0123456789abcdef",
       userId: "user-1",
+      clock: { now: () => new Date() },
     });
 
     expect(created).toHaveLength(1);

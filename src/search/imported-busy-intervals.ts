@@ -1,7 +1,4 @@
-import {
-  getImportedBusyIntervalRepository,
-  type ImportedBusyIntervalRecord,
-} from "../calendar/imported-busy-intervals";
+import { type ImportedBusyIntervalRecord } from "../calendar/imported-busy-intervals";
 
 export type BusyIntervalWithBuffer = {
   originalId: string;
@@ -89,8 +86,9 @@ export function getImportedBusyIntervalLookup(): ImportedBusyIntervalLookup {
 }
 
 const defaultLookup: ImportedBusyIntervalLookup = {
-  async findByUserIdAndDateRange(userId, rangeStart, rangeEnd) {
-    const repo = getImportedBusyIntervalRepository();
-    return repo.findByUserIdAndDateRange(userId, rangeStart, rangeEnd);
+  findByUserIdAndDateRange() {
+    throw new Error(
+      "defaultLookup requires a clock; callers must call createInMemoryImportedBusyIntervalRepository(clock) or pass a lookup via setImportedBusyIntervalLookupForTests.",
+    );
   },
 };

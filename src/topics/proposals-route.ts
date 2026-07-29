@@ -1,6 +1,5 @@
 import { getSessionFromRequest, type Session } from "../auth/session";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 import { createTopicProposal, findSimilarTopics } from "./proposals";
 import {
   createPostgresTopicProposalRepository,
@@ -10,10 +9,8 @@ import {
 export type TopicProposalsDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
   repository?: TopicProposalRouteRepository;
-  clock?: Clock;
+  clock: Clock;
 };
-
-const systemClockBoundary = systemClock();
 
 export type TopicProposalRouteRepository = {
   findSimilarTopics(
@@ -48,8 +45,8 @@ export function getTopicProposalRouteRepository(): TopicProposalRouteRepository 
 export function createTopicProposalsHandlers({
   getSession = getSessionFromRequest,
   repository,
-  clock = systemClockBoundary,
-}: TopicProposalsDependencies = {}) {
+  clock,
+}: TopicProposalsDependencies) {
   const resolveRepository = () =>
     repository ?? getTopicProposalRouteRepository();
   return {

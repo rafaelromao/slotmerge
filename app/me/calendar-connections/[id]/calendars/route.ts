@@ -6,6 +6,7 @@ import {
 import { findCalendarConnectionById } from "../../../../../src/calendar/repository";
 import { decryptCalendarToken } from "../../../../../src/calendar/token-encryption";
 import { configuredProviderFetchImpl } from "../../../../../src/lib/fetch-wrapper";
+import { systemClock } from "../../../../../src/system/clock";
 
 export async function GET(
   request: Request,
@@ -19,7 +20,10 @@ export async function GET(
 
   const { id: expectedId } = await params;
 
-  const connection = await findCalendarConnectionById(expectedId);
+  const connection = await findCalendarConnectionById(
+    expectedId,
+    systemClock(),
+  );
 
   if (!connection) {
     return Response.json(

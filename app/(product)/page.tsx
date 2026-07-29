@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { getServerSession } from "../../src/auth/session";
+import { systemClock } from "../../src/system/clock";
 import { createProductionSetupHomeWorkflow } from "../../src/workflow/setup-home-production";
 import { requestMagicLinkAction } from "./_actions/request-magic-link";
 
@@ -107,7 +108,9 @@ export default async function SetupHomePage({
     );
   }
 
-  const result = await createProductionSetupHomeWorkflow().loadSummary({
+  const result = await createProductionSetupHomeWorkflow(
+    systemClock(),
+  ).loadSummary({
     userId: session.user.id,
   });
 

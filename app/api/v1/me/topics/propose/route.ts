@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 
 import { getSessionFromRequest } from "../../../../../../src/auth/session";
 import { createTopicProposalsHandlers } from "../../../../../../src/topics/proposals-route";
+import { systemClock } from "../../../../../../src/system/clock";
 
 export async function POST(request: Request): Promise<Response> {
   const session = await getSessionFromRequest(request);
@@ -34,7 +35,9 @@ export async function POST(request: Request): Promise<Response> {
     body: JSON.stringify({ candidateName }),
   });
 
-  const proposalsHandlers = createTopicProposalsHandlers();
+  const proposalsHandlers = createTopicProposalsHandlers({
+    clock: systemClock(),
+  });
   const result = await proposalsHandlers.POST(jsonRequest);
 
   return result;

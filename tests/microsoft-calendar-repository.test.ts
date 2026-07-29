@@ -32,7 +32,7 @@ describe("CalendarConnectionRepository override", () => {
       },
     });
 
-    const repository = getCalendarConnectionRepository();
+    const repository = getCalendarConnectionRepository({ now: () => new Date() });
 
     await repository.createPending({
       id: "connection-1",

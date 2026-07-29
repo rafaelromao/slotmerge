@@ -1,6 +1,7 @@
 import { getSessionFromRequest } from "../../../../../src/auth/session";
 import { problemJson } from "../../../../../src/api/problem-json";
 import { serializeSetupStatus } from "../../../../../src/api/serializers";
+import { systemClock } from "../../../../../src/system/clock";
 import { createProductionSetupHomeWorkflow } from "../../../../../src/workflow/setup-home-production";
 import type { SetupHomeWorkflow } from "../../../../../src/workflow/setup-home";
 
@@ -13,7 +14,7 @@ export function setSetupHomeWorkflowForTests(
 }
 
 function getSetupHomeWorkflow(): SetupHomeWorkflow {
-  return workflowOverride ?? createProductionSetupHomeWorkflow();
+  return workflowOverride ?? createProductionSetupHomeWorkflow(systemClock());
 }
 
 export async function GET(request: Request): Promise<Response> {

@@ -32,7 +32,8 @@ export async function PATCH(
     return Response.json({ error: "oauth_not_configured" }, { status: 500 });
   }
 
-  const repository = getCalendarConnectionRepository();
+  const clock = systemClock();
+  const repository = getCalendarConnectionRepository(clock);
   const found = await repository.findById(expectedId);
 
   if (!found || found.userId !== session.user.id) {

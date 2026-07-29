@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Session } from "../auth/session";
+import { buildTestClock } from "../../tests/test-clock";
 import { createSearchHistoryHandlers } from "./history-route";
 import { InMemorySearchRepository } from "./in-memory-repository";
 import { setSearchRepositoryForTests } from "./repository";
@@ -8,6 +9,8 @@ import {
   type SearchResultRecord,
   type SearchResultRepository,
 } from "./search-result-repository";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const baseSession: Session = {
   user: {
@@ -74,6 +77,7 @@ describe("createSearchHistoryHandlers", () => {
   describe("getHistory", () => {
     it("returns 403 for unauthenticated request", async () => {
       const handlers = createSearchHistoryHandlers({
+        clock: testClock,
         getSession: () => Promise.resolve(null),
       });
 
@@ -85,6 +89,7 @@ describe("createSearchHistoryHandlers", () => {
 
     it("returns 403 for user role", async () => {
       const handlers = createSearchHistoryHandlers({
+        clock: testClock,
         getSession: () => Promise.resolve(userSession),
       });
 
@@ -112,6 +117,7 @@ describe("createSearchHistoryHandlers", () => {
       setSearchRepositoryForTests(repo);
 
       const handlers = createSearchHistoryHandlers({
+        clock: testClock,
         getSession: () => Promise.resolve(baseSession),
       });
 
@@ -143,6 +149,7 @@ describe("createSearchHistoryHandlers", () => {
       setSearchRepositoryForTests(repo);
 
       const handlers = createSearchHistoryHandlers({
+        clock: testClock,
         getSession: () => Promise.resolve(baseSession),
       });
 
@@ -176,6 +183,7 @@ describe("createSearchHistoryHandlers", () => {
       setSearchRepositoryForTests(repo);
 
       const handlers = createSearchHistoryHandlers({
+        clock: testClock,
         getSession: () => Promise.resolve(adminSession),
       });
 
@@ -192,6 +200,7 @@ describe("createSearchHistoryHandlers", () => {
   describe("getSnapshot", () => {
     it("returns 403 for unauthenticated request", async () => {
       const handlers = createSearchHistoryHandlers({
+        clock: testClock,
         getSession: () => Promise.resolve(null),
       });
 
@@ -204,6 +213,7 @@ describe("createSearchHistoryHandlers", () => {
 
     it("returns 403 for user role", async () => {
       const handlers = createSearchHistoryHandlers({
+        clock: testClock,
         getSession: () => Promise.resolve(userSession),
       });
 
@@ -218,6 +228,7 @@ describe("createSearchHistoryHandlers", () => {
       setSearchResultRepositoryForTests(mockResultRepo);
 
       const handlers = createSearchHistoryHandlers({
+        clock: testClock,
         getSession: () => Promise.resolve(baseSession),
       });
 
@@ -243,6 +254,7 @@ describe("createSearchHistoryHandlers", () => {
       setSearchResultRepositoryForTests(mockResultRepo);
 
       const handlers = createSearchHistoryHandlers({
+        clock: testClock,
         getSession: () => Promise.resolve(baseSession),
       });
 

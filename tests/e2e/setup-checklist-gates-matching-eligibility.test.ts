@@ -49,6 +49,7 @@ async function runMatchingForAlice(): Promise<string[]> {
           return getProfileByUserId(uid);
         },
       },
+      clock: { now: () => new Date() },
     }),
   );
   const snapshot = await assembler.assemble({

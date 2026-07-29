@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { buildTestClock } from "../../tests/test-clock";
 import { createAdminUsersHandlers } from "./users";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 describe("admin users", () => {
   it("lists every user with their email, role, and status for an Admin session", async () => {
     const { GET } = createAdminUsersHandlers({
+      clock: testClock,
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "admin-1",
@@ -64,6 +68,7 @@ describe("admin users", () => {
 
   it("renders an empty-state row when no users exist", async () => {
     const { GET } = createAdminUsersHandlers({
+      clock: testClock,
       getSession: vi.fn().mockResolvedValue(adminSession()),
       userRepository: {
         listUsers: vi.fn().mockResolvedValue([]),
@@ -83,6 +88,7 @@ describe("admin users", () => {
 
   it("returns 401 when no session is present on GET /admin/users", async () => {
     const { GET } = createAdminUsersHandlers({
+      clock: testClock,
       getSession: vi.fn().mockResolvedValue(null),
       userRepository: {
         listUsers: vi.fn(),
@@ -102,6 +108,7 @@ describe("admin users", () => {
 
   it("returns 403 when a non-admin session is present on GET /admin/users", async () => {
     const { GET } = createAdminUsersHandlers({
+      clock: testClock,
       getSession: vi.fn().mockResolvedValue({
         user: {
           id: "user-1",
@@ -137,6 +144,7 @@ describe("admin users", () => {
       const changeRole = vi.fn().mockResolvedValue({ ok: true });
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(adminSession()),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),
@@ -177,6 +185,7 @@ describe("admin users", () => {
       const changeRole = vi.fn();
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(adminSession()),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),
@@ -211,6 +220,7 @@ describe("admin users", () => {
       });
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(adminSession()),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),
@@ -246,6 +256,7 @@ describe("admin users", () => {
       });
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(adminSession()),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),
@@ -280,6 +291,7 @@ describe("admin users", () => {
       const suspend = vi.fn().mockResolvedValue({ ok: true });
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(adminSession()),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),
@@ -321,6 +333,7 @@ describe("admin users", () => {
       });
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(adminSession()),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),
@@ -355,6 +368,7 @@ describe("admin users", () => {
       });
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(adminSession()),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),
@@ -386,6 +400,7 @@ describe("admin users", () => {
       const suspend = vi.fn();
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(adminSession()),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),
@@ -418,6 +433,7 @@ describe("admin users", () => {
       const suspend = vi.fn();
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(null),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),
@@ -452,6 +468,7 @@ describe("admin users", () => {
       const reinstate = vi.fn().mockResolvedValue({ ok: true });
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(adminSession()),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),
@@ -493,6 +510,7 @@ describe("admin users", () => {
       });
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(adminSession()),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),
@@ -527,6 +545,7 @@ describe("admin users", () => {
       });
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(adminSession()),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),
@@ -561,6 +580,7 @@ describe("admin users", () => {
       });
 
       const { POST } = createAdminUsersHandlers({
+        clock: testClock,
         getSession: vi.fn().mockResolvedValue(adminSession()),
         userRepository: {
           listUsers: vi.fn().mockResolvedValue([]),

@@ -117,6 +117,7 @@ describe("POST /me/calendar-connections/callback provider dispatch", () => {
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",
       secret: "0123456789abcdef0123456789abcdef",
+      issuedAt: new Date(),
     });
 
     const form = new FormData();
@@ -172,6 +173,7 @@ describe("POST /me/calendar-connections/callback provider dispatch", () => {
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",
       secret: "0123456789abcdef0123456789abcdef",
+      issuedAt: new Date(),
     });
 
     const form = new FormData();

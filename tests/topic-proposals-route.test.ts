@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createTopicProposalsHandlers } from "../src/topics/proposals-route";
+import { buildTestClock } from "./test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 describe("POST /topic-proposals", () => {
   const mockSession = {
@@ -42,6 +45,7 @@ describe("POST /topic-proposals", () => {
       body: JSON.stringify(body),
     });
     const handlers = createTopicProposalsHandlers({
+      clock: testClock,
       getSession: mockGetSession,
       repository: mockRepository,
     });

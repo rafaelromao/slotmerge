@@ -4,7 +4,6 @@ import {
   type Session,
 } from "../auth/session";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 import {
   getSearchRepository,
   type SearchHistoryItem,
@@ -19,15 +18,15 @@ export type SearchHistoryDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
   searchRepository?: SearchRepository;
   searchResultRepository?: SearchResultRepository;
-  clock?: Clock;
+  clock: Clock;
 };
 
 export function createSearchHistoryHandlers({
   getSession = getSessionFromRequest,
   searchRepository = getSearchRepository(),
   searchResultRepository = getSearchResultRepository(),
-  clock = systemClock(),
-}: SearchHistoryDependencies = {}) {
+  clock,
+}: SearchHistoryDependencies) {
   return {
     async getHistory(request: Request): Promise<Response> {
       const session = await getSession(request);

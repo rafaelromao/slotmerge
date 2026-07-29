@@ -44,6 +44,7 @@ export async function handleEmailDeliveryJob(
     emailTransportOverride ??
     createEmailTransport({
       adapter: config.emailAdapter,
+      clock: deps.clock,
       env: process.env,
     });
   const emailDeliveryService = createEmailDeliveryService({

@@ -161,7 +161,7 @@ describe("E2E: stale-data markers appear on affected Slots", () => {
         await grantDiscoverabilityConsent(MATCH_USER_ID);
         await grantDiscoverabilityConsent(SECONDARY_ELIGIBLE_USER.id);
 
-        setImportedBusyIntervalRepositoryForTests(createPostgresImportedBusyIntervalRepository());
+        setImportedBusyIntervalRepositoryForTests(createPostgresImportedBusyIntervalRepository({ now: () => new Date() }));
 
         const searchId = await runSearch();
         const snapshot = await loadSnapshot(searchId);
@@ -198,7 +198,7 @@ describe("E2E: stale-data markers appear on affected Slots", () => {
           await grantDiscoverabilityConsent(MATCH_USER_ID);
           await grantDiscoverabilityConsent(SECONDARY_ELIGIBLE_USER.id);
 
-          setImportedBusyIntervalRepositoryForTests(createPostgresImportedBusyIntervalRepository());
+          setImportedBusyIntervalRepositoryForTests(createPostgresImportedBusyIntervalRepository({ now: () => new Date() }));
 
           const searchId = await runSearch();
           const snapshot = await loadSnapshot(searchId);

@@ -1,4 +1,5 @@
 import type { CalendarProvider as CalendarProviderId } from "../db/schema";
+import type { Clock } from "../system/clock";
 import type { FreeBusyInterval } from "./freebusy/types";
 
 export type CalendarProviderCompletion =
@@ -29,6 +30,7 @@ export type CalendarProvider = {
     code: string;
     codeVerifier: string;
     fetchImpl: typeof fetch;
+    clock: Clock;
   }): Promise<CalendarProviderCompletion>;
   revoke(input: {
     refreshToken: string;

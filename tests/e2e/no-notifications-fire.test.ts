@@ -227,7 +227,7 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
         const adminCookie = await sealSessionCookie({
           sessionId: adminSessionId,
         });
-        const { POST } = createAdminTopicProposalsHandlers();
+        const { POST } = createAdminTopicProposalsHandlers({ clock: testClock });
 
         const rejectResponse = await POST(
           new Request("http://localhost/admin/topic-proposals", {
@@ -287,7 +287,7 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
         const adminCookie = await sealSessionCookie({
           sessionId: adminSessionId,
         });
-        const { POST } = createAdminTopicsHandlers();
+        const { POST } = createAdminTopicsHandlers({ clock: testClock });
 
         const retireResponse = await POST(
           new Request("http://localhost/admin/topics", {
@@ -310,3 +310,6 @@ describe("E2E: no notifications fire for matches, RSVPs, bookings, reminders, or
     );
   });
 });
+
+const testClock = { now: () => new Date() };
+

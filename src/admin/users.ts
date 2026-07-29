@@ -1,7 +1,6 @@
 import { getSessionFromRequest, type Session } from "../auth/session";
 import type { UserRole, UserStatus } from "../db/schema";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 import { z } from "zod";
 import {
   adminAccessDeniedResponse,
@@ -27,10 +26,8 @@ export type { AdminUserRepository } from "./users.repository";
 export type AdminUsersDependencies = {
   getSession?: (request: Request) => Promise<Session | null>;
   userRepository?: AdminUserRepository;
-  clock?: Clock;
+  clock: Clock;
 };
-
-const systemClockBoundary = systemClock();
 
 const userActionSchema = z.object({
   action: z.enum(["change-role", "suspend", "reinstate"]),
@@ -65,8 +62,8 @@ function getUserRepository(): AdminUserRepository {
 export function createAdminUsersHandlers({
   getSession = getSessionFromRequest,
   userRepository,
-  clock = systemClockBoundary,
-}: AdminUsersDependencies = {}) {
+  clock,
+}: AdminUsersDependencies) {
   const resolveRepository = () => userRepository ?? getUserRepository();
   return {
     GET: async (request: Request): Promise<Response> => {

@@ -145,8 +145,8 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
       "A10. [#52](https://github.com/rafaelromao/slotmerge/issues/52) Trigger Calendar Connection action-required email",
     vitestPath: "tests/e2e/action-required-email-on-token-revocation.test.ts",
     componentPath: null,
-    visualCommitted: null,
-    visualArtifact: null,
+    visualCommitted: "tests/e2e-browser/screenshots/calendar-connections/",
+    visualArtifact: "visual-regression.yml",
     pr: null,
     correctiveCommentUrl:
       "https://github.com/rafaelromao/slotmerge/issues/52#issuecomment-5111930657",

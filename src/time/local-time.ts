@@ -74,14 +74,46 @@ function formatLocal(local: LocalDateTime): string {
 }
 
 /**
- * Validates that `timezone` is an IANA zone that Node's `Intl` runtime can
- * resolve. Accepts canonical names and aliases (e.g. both `Asia/Katmandu` and
- * the older `Asia/Kathmandu` spelling). Throws `RangeError` for empty input,
- * unknown names, and names whose resolver returns no canonical form.
+ * IANA zone identifiers that are accepted as explicit aliases of a canonical
+ * IANA zone. The key is the alias (the form the project accepts); the value
+ * is the canonical name `Intl.DateTimeFormat` resolves it to.
+ *
+ * Today the only alias is `Asia/Kathmandu`, which is the project's preferred
+ * spelling of the canonical `Asia/Katmandu` (the IANA tz database renamed
+ * the canonical entry while keeping the older spelling as an alias). This
+ * alias resolves the previously disputed Kathmandu spelling case and is
+ * the only project-side extension to the "canonical IANA identifiers"
+ * wording at issue #256 / decision #253.
+ */
+const TIMEZONE_ALIASES: Record<string, string> = {
+  "Asia/Kathmandu": "Asia/Katmandu",
+};
+
+/**
+ * Validates that `timezone` is a canonical IANA zone identifier recognized
+ * by Node's `Intl` runtime, or one of the project's documented aliases.
+ *
+ * Accepted:
+ * - The exact string `Intl.DateTimeFormat({ timeZone: input, locale: "en-US" }).resolvedOptions().timeZone` returns when called with `input` (case-sensitive round-trip). This includes canonical IANA zone IDs in `Region/City` form (`America/New_York`, `Asia/Katmandu`, `Pacific/Auckland`, ...) and the special `UTC` identifier.
+ * - A documented alias (`Asia/Kathmandu` for canonical `Asia/Katmandu`).
+ *
+ * Rejected (throws `RangeError`, no UTC fallback):
+ * - Casing variants of canonical zones (`america/new_york`, `asia/kathmandu`).
+ * - Timezone abbreviations (`EST`, `PST`) and Link-style aliases (`Etc/UTC`) that resolve to a different canonical name and therefore fail the round-trip equality.
+ * - Other legacy aliases (`GMT`, `Universal`, `Zulu`) for the same reason.
+ * - Unknown strings (`Foo/Bar`).
+ * - Empty string and non-string inputs.
+ *
+ * Pinned to Node 22 / V8 ICU behavior. A future ICU bump that changes the
+ * resolution of any input this contract depends on requires an explicit
+ * ticket to extend or update the alias set.
  */
 export function isValidTimeZone(timezone: string): void {
   if (typeof timezone !== "string" || timezone.length === 0) {
     throw new RangeError(`Invalid IANA timezone: ${JSON.stringify(timezone)}`);
+  }
+  if (Object.prototype.hasOwnProperty.call(TIMEZONE_ALIASES, timezone)) {
+    return;
   }
   let resolved: string;
   try {
@@ -91,7 +123,7 @@ export function isValidTimeZone(timezone: string): void {
   } catch {
     throw new RangeError(`Invalid IANA timezone: ${JSON.stringify(timezone)}`);
   }
-  if (typeof resolved !== "string" || resolved.length === 0) {
+  if (resolved !== timezone) {
     throw new RangeError(`Invalid IANA timezone: ${JSON.stringify(timezone)}`);
   }
 }

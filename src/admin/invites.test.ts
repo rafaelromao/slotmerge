@@ -470,4 +470,42 @@ describe("admin invites", () => {
     expect(html).toContain("orphan@example.com");
     expect(html).toContain("(deleted Admin)");
   });
+
+  it("propagates Invite repository read failures on a CSRF-rejection error response", async () => {
+    const repositoryError = new Error("connection lost");
+    const { POST } = createAdminInvitesHandlers({
+      clock: testClock,
+      randomSource: testRandomSource,
+
+      getSession: vi.fn().mockResolvedValue({
+        user: {
+          id: "admin-1",
+          email: "admin@example.com",
+          displayName: null,
+          role: "admin",
+          status: "active",
+          profileTimezone: null,
+          bufferMinutes: 0,
+        },
+        csrfToken: "csrf-token-1",
+      }),
+      inviteRepository: {
+        listInvites: vi.fn().mockRejectedValue(repositoryError),
+        listRecentInvites: vi.fn().mockResolvedValue([]),
+        createInvite: vi.fn(),
+      },
+    });
+
+    await expect(
+      POST(
+        new Request("http://localhost/admin/invites", {
+          method: "POST",
+          headers: {
+            "content-type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({ email: "alice@example.com" }).toString(),
+        }),
+      ),
+    ).rejects.toThrow("connection lost");
+  });
 });

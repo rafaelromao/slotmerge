@@ -179,12 +179,7 @@ async function createPostErrorResponse(
   message: string,
   status: number,
 ): Promise<Response> {
-  let inviteRows: InviteListItem[] = [];
-  try {
-    inviteRows = await inviteRepository.listInvites();
-  } catch {
-    inviteRows = [];
-  }
+  const inviteRows = await inviteRepository.listInvites();
   return htmlResponse(
     renderAdminShell({
       title: "Invite users",

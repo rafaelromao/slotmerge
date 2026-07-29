@@ -51,6 +51,7 @@ export async function insertLocalTestRows(
 
   const db = getPool();
   const client = await db.connect();
+  const fixtureDate = new Date(FIXTURE_DATE);
   try {
     await client.query("BEGIN");
 
@@ -60,9 +61,9 @@ export async function insertLocalTestRows(
         `INSERT INTO calendar_connections (
           id, user_id, provider, status, contributing_calendar_ids,
           created_at, updated_at
-        ) VALUES ($1, $2, 'google', 'needs_reconnect', '{}', now(), now())
+        ) VALUES ($1, $2, 'google', 'needs_reconnect', '{}', $3, $3)
         ON CONFLICT (id) DO UPDATE SET status = 'needs_reconnect'`,
-        [id, "00000000-0000-0000-0000-000000000001"],
+        [id, "00000000-0000-0000-0000-000000000001", fixtureDate],
       );
     }
 
@@ -74,10 +75,10 @@ export async function insertLocalTestRows(
           attempts, created_at, updated_at, failed_at, last_error_code, last_error_message
         ) VALUES (
           $1, $2, 'invite', 'local-test-rows', 'failed',
-          1, now(), now(), now(), 'smtp-timeout', 'Upstream SMTP timed out'
+           1, $3, $3, $3, 'smtp-timeout', 'Upstream SMTP timed out'
         )
         ON CONFLICT (id) DO UPDATE SET status = 'failed'`,
-        [id, `local-test-${i}@example.com`],
+        [id, `local-test-${i}@example.com`, fixtureDate],
       );
     }
 
@@ -88,9 +89,9 @@ export async function insertLocalTestRows(
         `INSERT INTO calendar_connections (
           id, user_id, provider, status, access_token_expires_at,
           contributing_calendar_ids, created_at, updated_at
-        ) VALUES ($1, $2, 'google', 'connected', $3, '{}', now(), now())
+        ) VALUES ($1, $2, 'google', 'connected', $3, '{}', $4, $4)
         ON CONFLICT (id) DO UPDATE SET access_token_expires_at = $3`,
-        [id, "00000000-0000-0000-0000-000000000001", expiresAt],
+        [id, "00000000-0000-0000-0000-000000000001", expiresAt, fixtureDate],
       );
     }
 
@@ -112,14 +113,15 @@ export async function cleanupLocalTestRows(): Promise<void> {
   // well-known UUIDs (see tests/fixtures/seeds.ts).
   await db.query(
     `DELETE FROM calendar_connections
-     WHERE id NOT IN (
-       '00000000-0000-0000-0000-000000000030',
-       '00000000-0000-0000-0000-000000000031'
-     )
-     AND created_at > now() - interval '10 minutes'`,
+      WHERE id NOT IN (
+        '00000000-0000-0000-0000-000000000030',
+        '00000000-0000-0000-0000-000000000031'
+      )
+      AND created_at = $1`,
+    [new Date(FIXTURE_DATE)],
   );
   await db.query(
     `DELETE FROM email_events
-     WHERE created_at > now() - interval '10 minutes'`,
+      WHERE payload_reference = 'local-test-rows'`,
   );
 }

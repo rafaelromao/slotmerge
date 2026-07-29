@@ -129,9 +129,15 @@ export default async function SearchHistoryPage({
     return (
       <main className="app-container search-history-page">
         <div className="empty-state" data-testid="search-history-empty-state">
-          <p className="empty-state-title">No Searches yet.</p>
-          <p>Run a Search to populate history.</p>
-          <Link href="/searches" className="btn btn-primary">
+          <p className="empty-state-title">No Searches yet</p>
+          <p className="empty-state-description">
+            Run a Search to populate history.
+          </p>
+          <Link
+            href="/searches"
+            className="btn btn-primary"
+            data-testid="search-history-empty-state-cta"
+          >
             Run your first Search
           </Link>
         </div>
@@ -141,115 +147,110 @@ export default async function SearchHistoryPage({
 
   return (
     <main className="app-container search-history-page">
-      <header className="page-header search-history-header-page">
+      <header className="page-header">
         <div className="page-header-copy">
           <p className="eyebrow">Searches</p>
           <h1>Search History</h1>
-          <p>
+          <p className="page-description">
             Immutable snapshots, newest first. Visible to every Organizer and
             Admin.
           </p>
         </div>
-        <Link href="/searches" className="btn btn-primary">
-          Run a Search
-        </Link>
+        <div className="page-header-actions">
+          <Link href="/searches" className="btn btn-primary">
+            Run a Search
+          </Link>
+        </div>
       </header>
 
-      <ol className="search-history-list" data-testid="search-history-list">
-        {pageHistory.map((item) => {
-          const openHref = `/searches/${item.id}?week=${formatWeekParam(new Date(item.dateRangeStart), item.organizerTimezone)}`;
-          return (
-            <li
-              key={item.id}
-              className="search-history-row"
-              data-testid="search-history-row"
-            >
-              <article className="search-history-item">
-                <header className="search-history-header">
-                  <h2>{item.organizerDisplayName}</h2>
-                  <span
-                    className={
-                      item.stale
-                        ? "status-pill status-pill-warn"
-                        : "status-pill status-pill-ok"
-                    }
-                    data-testid={`search-history-status-${item.id}`}
-                  >
-                    {item.stale ? "Stale" : "Fresh"}
-                  </span>
-                </header>
-                <dl className="search-history-meta">
-                  <div>
-                    <dt>Generated</dt>
-                    <dd>
-                      <time dateTime={item.generatedAt}>
-                        {formatDateTimeLabel(
-                          new Date(item.generatedAt),
-                          item.organizerTimezone,
-                        )}
-                      </time>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Topics</dt>
-                    <dd>{item.selectedTopicNames.join(", ")}</dd>
-                  </div>
-                  <div>
-                    <dt>Minimum</dt>
-                    <dd>{item.minimumMatchingUsers} people</dd>
-                  </div>
-                  <div>
-                    <dt>Duration</dt>
-                    <dd>{item.durationMinutes} minutes</dd>
-                  </div>
-                  <div>
-                    <dt>Date range</dt>
-                    <dd>
-                      {formatDateLabel(
-                        new Date(item.dateRangeStart),
-                        item.organizerTimezone,
-                      )}{" "}
-                      –{" "}
-                      {formatDateLabel(
-                        new Date(item.dateRangeEnd),
+      <div className="data-table-wrapper" data-testid="search-history-list">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Organizer</th>
+              <th scope="col">Status</th>
+              <th scope="col">Topics</th>
+              <th scope="col">Minimum</th>
+              <th scope="col">Duration</th>
+              <th scope="col">Date range</th>
+              <th scope="col">Generated</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pageHistory.map((item) => {
+              const openHref = `/searches/${item.id}?week=${formatWeekParam(new Date(item.dateRangeStart), item.organizerTimezone)}`;
+              return (
+                <tr key={item.id} data-testid="search-history-row">
+                  <td>
+                    <strong>{item.organizerDisplayName}</strong>
+                  </td>
+                  <td>
+                    <span
+                      className={`status-pill ${
+                        item.stale ? "status-pill-warn" : "status-pill-ok"
+                      }`}
+                      data-testid={`search-history-status-${item.id}`}
+                    >
+                      {item.stale ? "Stale" : "Fresh"}
+                    </span>
+                  </td>
+                  <td>{item.selectedTopicNames.join(", ")}</td>
+                  <td className="data-table-numeric">
+                    {item.minimumMatchingUsers} people
+                  </td>
+                  <td className="data-table-numeric">
+                    {item.durationMinutes} min
+                  </td>
+                  <td className="search-history-daterange">
+                    {formatDateLabel(
+                      new Date(item.dateRangeStart),
+                      item.organizerTimezone,
+                    )}
+                    <span aria-hidden="true">→</span>
+                    {formatDateLabel(
+                      new Date(item.dateRangeEnd),
+                      item.organizerTimezone,
+                    )}
+                  </td>
+                  <td className="data-table-numeric">
+                    <time dateTime={item.generatedAt}>
+                      {formatDateTimeLabel(
+                        new Date(item.generatedAt),
                         item.organizerTimezone,
                       )}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Timezone</dt>
-                    <dd>{item.organizerTimezone}</dd>
-                  </div>
-                </dl>
-                <div className="search-history-actions">
-                  <Link
-                    href={openHref}
-                    className="btn btn-secondary"
-                    data-testid="search-history-open-snapshot"
-                  >
-                    Open snapshot
-                  </Link>
-                  <form action={rerunSearchAction}>
-                    <input
-                      type="hidden"
-                      name="_csrf"
-                      value={context.csrfToken}
-                    />
-                    <input type="hidden" name="searchId" value={item.id} />
-                    <button
-                      type="submit"
-                      className="btn btn-primary"
-                      data-testid="search-history-rerun"
+                    </time>
+                  </td>
+                  <td className="data-table-actions">
+                    <Link
+                      href={openHref}
+                      className="btn btn-secondary"
+                      data-testid="search-history-open-snapshot"
                     >
-                      Re-run
-                    </button>
-                  </form>
-                </div>
-              </article>
-            </li>
-          );
-        })}
-      </ol>
+                      Open
+                    </Link>
+                    <form action={rerunSearchAction}>
+                      <input
+                        type="hidden"
+                        name="_csrf"
+                        value={context.csrfToken}
+                      />
+                      <input type="hidden" name="searchId" value={item.id} />
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        data-testid="search-history-rerun"
+                      >
+                        Re-run
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {hasMore ? (
         <Link

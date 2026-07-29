@@ -128,11 +128,7 @@ export default async function ProductLayout({
         <div className="top-bar-right top-bar-status-cluster">
           <ThemeToggle />
           {setupIncomplete && (
-            <Link
-              href="/"
-              className="setup-chip"
-              data-testid="setup-chip"
-            >
+            <Link href="/" className="setup-chip" data-testid="setup-chip">
               Setup
             </Link>
           )}

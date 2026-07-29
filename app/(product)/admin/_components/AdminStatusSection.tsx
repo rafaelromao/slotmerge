@@ -21,6 +21,18 @@ const STATUS_TONE_LABEL: Record<StatusTone, string> = {
   red: "Critical",
 };
 
+const STATUS_TONE_PILL: Record<StatusTone, string> = {
+  green: "status-pill-ok",
+  amber: "status-pill-warn",
+  red: "status-pill-danger",
+};
+
+const STATUS_TONE_DATA: Record<StatusTone, "green" | "amber" | "red"> = {
+  green: "green",
+  amber: "amber",
+  red: "red",
+};
+
 export function AdminStatusSection({
   statusResult,
   csrfToken,
@@ -37,20 +49,15 @@ export function AdminStatusSection({
       </p>
 
       <section
-        className="admin-status-email-block"
+        className="surface-section"
         aria-labelledby="admin-status-email-heading"
         data-testid="admin-status-email-block"
       >
-        <div className="admin-status-block-header">
-          <h3
-            id="admin-status-email-heading"
-            className="admin-status-subheading"
-          >
-            Transactional email delivery
-          </h3>
+        <div className="surface-section-header">
+          <h2 id="admin-status-email-heading">Transactional email delivery</h2>
           <span
-            className="admin-status-pill"
-            data-status={statusResult.health.email}
+            className={`status-pill ${STATUS_TONE_PILL[statusResult.health.email]}`}
+            data-status={STATUS_TONE_DATA[statusResult.health.email]}
             data-testid="admin-status-email-pill"
             aria-label={`Email health ${STATUS_TONE_LABEL[statusResult.health.email]}`}
           >
@@ -59,7 +66,7 @@ export function AdminStatusSection({
         </div>
         {statusResult.health.email !== "green" ? (
           <p
-            className="admin-status-warning admin-status-email-warning"
+            className="admin-status-warning"
             role="alert"
             data-testid="admin-status-email-warning"
           >
@@ -75,40 +82,43 @@ export function AdminStatusSection({
           className="admin-status-counts"
           data-testid="admin-status-email-counts"
         >
-          <div className="admin-status-count-row">
-            <dt>Pending</dt>
-            <dd>{statusResult.pendingEmailCount}</dd>
+          <div className="admin-status-tile">
+            <dt className="admin-status-tile-label">Pending</dt>
+            <dd className="admin-status-tile-count">
+              {statusResult.pendingEmailCount}
+            </dd>
           </div>
-          <div className="admin-status-count-row">
-            <dt>Sent</dt>
-            <dd>{statusResult.email.counts.sent}</dd>
+          <div className="admin-status-tile">
+            <dt className="admin-status-tile-label">Sent</dt>
+            <dd className="admin-status-tile-count">
+              {statusResult.email.counts.sent}
+            </dd>
           </div>
-          <div className="admin-status-count-row">
-            <dt>Failed</dt>
-            <dd>{statusResult.email.counts.failed}</dd>
+          <div className="admin-status-tile">
+            <dt className="admin-status-tile-label">Failed</dt>
+            <dd className="admin-status-tile-count">
+              {statusResult.email.counts.failed}
+            </dd>
           </div>
-          <div className="admin-status-count-row">
-            <dt>Failure rate</dt>
-            <dd>{statusResult.emailFailureRate.toFixed(2)}%</dd>
+          <div className="admin-status-tile">
+            <dt className="admin-status-tile-label">Failure rate</dt>
+            <dd className="admin-status-tile-count">
+              {statusResult.emailFailureRate.toFixed(2)}%
+            </dd>
           </div>
         </dl>
       </section>
 
       <section
-        className="admin-status-calendar-block"
+        className="surface-section"
         aria-labelledby="admin-status-calendar-heading"
         data-testid="admin-status-calendar-block"
       >
-        <div className="admin-status-block-header">
-          <h3
-            id="admin-status-calendar-heading"
-            className="admin-status-subheading"
-          >
-            Calendar connections
-          </h3>
+        <div className="surface-section-header">
+          <h2 id="admin-status-calendar-heading">Calendar connections</h2>
           <span
-            className="admin-status-pill"
-            data-status={statusResult.health.calendar}
+            className={`status-pill ${STATUS_TONE_PILL[statusResult.health.calendar]}`}
+            data-status={STATUS_TONE_DATA[statusResult.health.calendar]}
             data-testid="admin-status-calendar-pill"
             aria-label={`Calendar health ${STATUS_TONE_LABEL[statusResult.health.calendar]}`}
           >
@@ -117,7 +127,7 @@ export function AdminStatusSection({
         </div>
         {statusResult.health.calendar !== "green" ? (
           <p
-            className="admin-status-warning admin-status-calendar-warning"
+            className="admin-status-warning"
             role="alert"
             data-testid="admin-status-calendar-warning"
           >
@@ -126,9 +136,9 @@ export function AdminStatusSection({
             account to reconnect.
           </p>
         ) : null}
-        <div className="admin-status-tokens-table-wrap">
+        <div className="data-table-wrapper">
           <table
-            className="admin-status-tokens-table"
+            className="data-table"
             data-testid="admin-status-calendar-table"
           >
             <thead>
@@ -147,10 +157,14 @@ export function AdminStatusSection({
                   data-testid={`admin-status-calendar-row-${row.provider}`}
                 >
                   <th scope="row">{providerLabel(row.provider)}</th>
-                  <td>{row.counts.pending}</td>
-                  <td>{row.counts.connected}</td>
-                  <td>{row.counts.needsReconnect}</td>
-                  <td>{row.counts.disconnected}</td>
+                  <td className="data-table-numeric">{row.counts.pending}</td>
+                  <td className="data-table-numeric">{row.counts.connected}</td>
+                  <td className="data-table-numeric">
+                    {row.counts.needsReconnect}
+                  </td>
+                  <td className="data-table-numeric">
+                    {row.counts.disconnected}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -159,20 +173,15 @@ export function AdminStatusSection({
       </section>
 
       <section
-        className="admin-status-tokens-block"
+        className="surface-section"
         aria-labelledby="admin-status-tokens-heading"
         data-testid="admin-status-tokens-block"
       >
-        <div className="admin-status-block-header">
-          <h3
-            id="admin-status-tokens-heading"
-            className="admin-status-subheading"
-          >
-            Tokens needing refresh
-          </h3>
+        <div className="surface-section-header">
+          <h2 id="admin-status-tokens-heading">Tokens needing refresh</h2>
           <span
-            className="admin-status-pill"
-            data-status={statusResult.health.tokens}
+            className={`status-pill ${STATUS_TONE_PILL[statusResult.health.tokens]}`}
+            data-status={STATUS_TONE_DATA[statusResult.health.tokens]}
             data-testid="admin-status-tokens-pill"
             aria-label={`Tokens health ${STATUS_TONE_LABEL[statusResult.health.tokens]}`}
           >
@@ -188,7 +197,7 @@ export function AdminStatusSection({
             <p className="empty-state-title">
               No tokens need refresh right now
             </p>
-            <p className="empty-state-message">
+            <p className="empty-state-description">
               Every connected calendar&rsquo;s access token is fresh.
             </p>
             <a
@@ -200,9 +209,9 @@ export function AdminStatusSection({
             </a>
           </div>
         ) : (
-          <div className="admin-status-tokens-table-wrap">
+          <div className="data-table-wrapper">
             <table
-              className="admin-status-tokens-table"
+              className="data-table"
               data-testid="admin-status-tokens-table"
             >
               <thead>
@@ -260,72 +269,78 @@ function TokenRow({
       <td>{row.userId}</td>
       <td>{providerLabel(row.provider)}</td>
       <td>{row.accountIdentifier ?? "(no account on file)"}</td>
-      <td>
+      <td className="data-table-numeric">
         {row.accessTokenExpiresAt ? (
           <time dateTime={expiresIso}>{expiresIso}</time>
         ) : (
           expiresIso
         )}{" "}
-        <span className="admin-status-tokens-bucket">
+        <span
+          className={`status-pill ${
+            row.bucket === "expired"
+              ? "status-pill-danger"
+              : row.bucket === "expiring_soon"
+                ? "status-pill-warn"
+                : "status-pill-muted"
+          }`}
+        >
           {bucketLabel(row.bucket)}
         </span>
       </td>
-      <td>
-        <div className="admin-status-tokens-actions">
-          <form
-            method="POST"
-            action={refreshConnectionAction}
-            className="admin-status-tokens-refresh-form"
-            data-testid={`admin-status-tokens-refresh-form-${row.connectionId}`}
+      <td className="data-table-actions">
+        <form
+          method="POST"
+          action={refreshConnectionAction}
+          className="admin-status-tokens-refresh-form"
+          data-testid={`admin-status-tokens-refresh-form-${row.connectionId}`}
+        >
+          <input type="hidden" name="_csrf" value={csrfToken} />
+          <input type="hidden" name="connectionId" value={row.connectionId} />
+          <button
+            type="submit"
+            className="btn btn-secondary"
+            data-testid={`admin-status-tokens-refresh-${row.connectionId}`}
           >
-            <input type="hidden" name="_csrf" value={csrfToken} />
-            <input type="hidden" name="connectionId" value={row.connectionId} />
-            <button
-              type="submit"
-              className="btn btn-secondary"
-              data-testid={`admin-status-tokens-refresh-${row.connectionId}`}
-            >
-              Refresh
-            </button>
-          </form>
-          <form
-            method="POST"
-            action={disconnectConnectionAction}
-            className="admin-status-tokens-disconnect-form"
-            data-testid={`admin-status-tokens-disconnect-form-${row.connectionId}`}
+            Refresh
+          </button>
+        </form>
+        <form
+          method="POST"
+          action={disconnectConnectionAction}
+          className="admin-status-tokens-disconnect-form"
+          data-testid={`admin-status-tokens-disconnect-form-${row.connectionId}`}
+        >
+          <input type="hidden" name="_csrf" value={csrfToken} />
+          <input type="hidden" name="connectionId" value={row.connectionId} />
+          <label
+            htmlFor={confirmInputId}
+            className="admin-status-tokens-disconnect-label"
           >
-            <input type="hidden" name="_csrf" value={csrfToken} />
-            <input type="hidden" name="connectionId" value={row.connectionId} />
-            <label
-              htmlFor={confirmInputId}
-              className="admin-status-tokens-disconnect-label"
+            Type the account identifier to disconnect
+            <input
+              id={confirmInputId}
+              type="text"
+              name="confirmAccountIdentifier"
+              required
+              className="admin-status-tokens-disconnect-input"
+              data-testid={`admin-status-tokens-disconnect-confirm-${row.connectionId}`}
+              aria-describedby={confirmHintId}
+            />
+            <span
+              id={confirmHintId}
+              className="admin-status-tokens-disconnect-hint"
             >
-              Type the account identifier to disconnect
-              <input
-                id={confirmInputId}
-                type="text"
-                name="confirmAccountIdentifier"
-                required
-                className="admin-status-tokens-disconnect-input"
-                data-testid={`admin-status-tokens-disconnect-confirm-${row.connectionId}`}
-                aria-describedby={confirmHintId}
-              />
-              <span
-                id={confirmHintId}
-                className="admin-status-tokens-disconnect-hint"
-              >
-                {row.accountIdentifier ?? "(no account on file)"}
-              </span>
-            </label>
-            <button
-              type="submit"
-              className="btn btn-danger"
-              data-testid={`admin-status-tokens-disconnect-${row.connectionId}`}
-            >
-              Disconnect
-            </button>
-          </form>
-        </div>
+              {row.accountIdentifier ?? "(no account on file)"}
+            </span>
+          </label>
+          <button
+            type="submit"
+            className="btn btn-danger"
+            data-testid={`admin-status-tokens-disconnect-${row.connectionId}`}
+          >
+            Disconnect
+          </button>
+        </form>
       </td>
     </tr>
   );

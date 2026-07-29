@@ -58,8 +58,10 @@ export function ProfileForm({
       <input type="hidden" name="_csrf" value={csrfToken} />
 
       <div className="profile-form-row">
-        <label htmlFor="profile-display-name">Display name</label>
-        <div className="profile-input">
+        <label htmlFor="profile-display-name" className="field-label">
+          Display name
+        </label>
+        <div className="field">
           <input
             id="profile-display-name"
             name="displayName"
@@ -78,7 +80,7 @@ export function ProfileForm({
           {fieldErrors.displayName ? (
             <p
               id="profile-display-name-error"
-              className="profile-form-error"
+              className="form-field-error"
               role="alert"
               aria-live="polite"
               data-testid="profile-display-name-error"
@@ -88,7 +90,7 @@ export function ProfileForm({
           ) : (
             <p
               id="profile-display-name-hint"
-              className="profile-form-hint"
+              className="field-hint"
               data-testid="profile-display-name-hint"
             >
               Required. 1 to 80 characters after trim.
@@ -98,8 +100,10 @@ export function ProfileForm({
       </div>
 
       <div className="profile-form-row">
-        <label htmlFor="profile-email">Email</label>
-        <div className="profile-input">
+        <label htmlFor="profile-email" className="field-label">
+          Email
+        </label>
+        <div className="field">
           <input
             id="profile-email"
             name="email"
@@ -109,15 +113,17 @@ export function ProfileForm({
             aria-readonly="true"
             data-testid="profile-email-input"
           />
-          <p className="profile-form-hint">
+          <p className="field-hint">
             Email is set by the sign-in you accepted.
           </p>
         </div>
       </div>
 
       <div className="profile-form-row">
-        <label htmlFor="profile-timezone">Timezone</label>
-        <div className="profile-input">
+        <label htmlFor="profile-timezone" className="field-label">
+          Timezone
+        </label>
+        <div className="field">
           <select
             id="profile-timezone"
             name="profileTimezone"
@@ -143,7 +149,7 @@ export function ProfileForm({
           {fieldErrors.profileTimezone ? (
             <p
               id="profile-timezone-error"
-              className="profile-form-error"
+              className="form-field-error"
               role="alert"
               aria-live="polite"
               data-testid="profile-timezone-error"
@@ -153,7 +159,7 @@ export function ProfileForm({
           ) : (
             <p
               id="profile-timezone-hint"
-              className="profile-form-hint"
+              className="field-hint"
               data-testid="profile-timezone-hint"
             >
               Required. Must be a supported IANA timezone.
@@ -163,8 +169,10 @@ export function ProfileForm({
       </div>
 
       <div className="profile-form-row">
-        <label htmlFor="profile-buffer">Buffer minutes</label>
-        <div className="profile-input">
+        <label htmlFor="profile-buffer" className="field-label">
+          Buffer minutes
+        </label>
+        <div className="field">
           <input
             id="profile-buffer"
             name="bufferMinutes"
@@ -187,7 +195,7 @@ export function ProfileForm({
           {fieldErrors.bufferMinutes ? (
             <p
               id="profile-buffer-error"
-              className="profile-form-error"
+              className="form-field-error"
               role="alert"
               aria-live="polite"
               data-testid="profile-buffer-error"
@@ -197,7 +205,7 @@ export function ProfileForm({
           ) : (
             <p
               id="profile-buffer-hint"
-              className="profile-form-hint"
+              className="field-hint"
               data-testid="profile-buffer-hint"
             >
               Whole number between 0 and 60.
@@ -207,8 +215,10 @@ export function ProfileForm({
       </div>
 
       <div className="profile-form-row">
-        <label htmlFor="profile-avatar">Avatar URL</label>
-        <div className="profile-input">
+        <label htmlFor="profile-avatar" className="field-label">
+          Avatar URL
+        </label>
+        <div className="field">
           <input
             id="profile-avatar"
             name="avatarUrl"
@@ -225,7 +235,7 @@ export function ProfileForm({
           {fieldErrors.avatarUrl ? (
             <p
               id="profile-avatar-error"
-              className="profile-form-error"
+              className="form-field-error"
               role="alert"
               aria-live="polite"
               data-testid="profile-avatar-error"
@@ -235,7 +245,7 @@ export function ProfileForm({
           ) : (
             <p
               id="profile-avatar-hint"
-              className="profile-form-hint"
+              className="field-hint"
               data-testid="profile-avatar-hint"
             >
               Optional. Must start with https://.
@@ -245,8 +255,10 @@ export function ProfileForm({
       </div>
 
       <div className="profile-form-row">
-        <label htmlFor="profile-bio">Short bio</label>
-        <div className="profile-input">
+        <label htmlFor="profile-bio" className="field-label">
+          Short bio
+        </label>
+        <div className="field">
           <textarea
             id="profile-bio"
             name="shortBio"
@@ -262,7 +274,7 @@ export function ProfileForm({
           {fieldErrors.shortBio ? (
             <p
               id="profile-bio-error"
-              className="profile-form-error"
+              className="form-field-error"
               role="alert"
               aria-live="polite"
               data-testid="profile-bio-error"
@@ -272,7 +284,7 @@ export function ProfileForm({
           ) : (
             <p
               id="profile-bio-hint"
-              className="profile-form-hint"
+              className="field-hint"
               data-testid="profile-bio-hint"
             >
               Optional. Up to 280 characters.
@@ -281,7 +293,7 @@ export function ProfileForm({
         </div>
       </div>
 
-      <div className="profile-form-actions">
+      <div className="form-actions">
         <SaveButton />
       </div>
     </form>

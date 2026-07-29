@@ -1,5 +1,5 @@
 import { chromium, type Page } from "playwright";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 
 const PORT = 3002;
 const BASE_URL = `http://localhost:${PORT}`;

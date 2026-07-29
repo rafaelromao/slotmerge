@@ -45,7 +45,7 @@ describe("DiscoverabilityView", () => {
     expect(html).toContain("data-testid=\"discoverability-revoke\"");
     expect(html).toContain("data-state=\"granted\"");
     expect(html).not.toContain("data-testid=\"discoverability-form\"");
-    expect(html).toContain("Consent granted on");
+    expect(html).toContain("Granted on");
     expect(html).toContain("July");
   });
 
@@ -67,8 +67,10 @@ describe("DiscoverabilityView", () => {
     expect(html).toContain("data-testid=\"discoverability-revoked-note\"");
     expect(html).toContain("data-state=\"revoked\"");
     expect(html).toContain("Consent revoked on");
+    expect(html).toContain("You can grant consent again");
     expect(html).not.toContain("data-testid=\"discoverability-granted\"");
   });
+
 
   it("surfaces the consent_required field error inline and announces it via aria-live", () => {
     const view = toConsentView(null);

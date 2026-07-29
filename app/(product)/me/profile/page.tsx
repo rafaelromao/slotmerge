@@ -28,9 +28,9 @@ export default async function ProfileEditPage({
       <main className="app-container">
         <div className="empty-state" data-testid="profile-empty">
           <p className="empty-state-title">Profile not found</p>
-          <p>
-            We could not load your profile. Please refresh, or contact support
-            if the problem persists.
+          <p className="empty-state-description">
+            We could not load your profile. Refresh, or contact support if the
+            problem persists.
           </p>
         </div>
       </main>
@@ -47,8 +47,8 @@ export default async function ProfileEditPage({
 
   return (
     <main className="app-container me-page" data-testid="me-profile-page">
-      <header className="me-page-header">
-        <div className="me-page-header-copy">
+      <header className="page-header">
+        <div className="page-header-copy">
           <p className="eyebrow">Profile</p>
           <h1 data-testid="me-profile-page-heading">Edit profile</h1>
           <p className="page-description">
@@ -56,7 +56,7 @@ export default async function ProfileEditPage({
             sign-in you accepted.
           </p>
         </div>
-        <div className="me-page-header-actions">
+        <div className="page-header-actions">
           <Link
             href="/me"
             className="btn btn-secondary"
@@ -78,20 +78,29 @@ export default async function ProfileEditPage({
         </p>
       ) : null}
 
-      <div className="profile-form-card">
-        <ProfileForm
-          csrfToken={context.csrfToken}
-          supportedTimeZones={supportedTimeZones}
-          defaultValues={{
-            displayName: profile.displayName ?? "",
-            email: profile.email,
-            profileTimezone: profile.profileTimezone ?? "",
-            bufferMinutes: profile.bufferMinutes,
-            avatarUrl: profile.avatarUrl ?? "",
-            shortBio: profile.shortBio ?? "",
-          }}
-        />
-      </div>
+      <section className="me-section-card">
+        <div className="me-section-card-header">
+          <h2>Profile details</h2>
+          <p>
+            Email is fixed by the sign-in you accepted; the other fields are
+            editable.
+          </p>
+        </div>
+        <div className="me-section-card-body">
+          <ProfileForm
+            csrfToken={context.csrfToken}
+            supportedTimeZones={supportedTimeZones}
+            defaultValues={{
+              displayName: profile.displayName ?? "",
+              email: profile.email,
+              profileTimezone: profile.profileTimezone ?? "",
+              bufferMinutes: profile.bufferMinutes,
+              avatarUrl: profile.avatarUrl ?? "",
+              shortBio: profile.shortBio ?? "",
+            }}
+          />
+        </div>
+      </section>
     </main>
   );
 }

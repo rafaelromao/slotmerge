@@ -223,17 +223,25 @@ export default async function SearchesPage({
         </p>
       ) : null}
 
-      <p
+      <section
         className="searches-defaults-summary"
         data-testid="searches-defaults-summary"
       >
-        <span>Default snapshot window</span>
-        <strong>
-          {formatDateForInput(defaults.dateRangeStart, displayTimezone)} to{" "}
-          {formatDateForInput(defaults.dateRangeEnd, displayTimezone)}
-        </strong>
-        <span>{defaults.organizerTimezone || "Timezone not set"}</span>
-      </p>
+        <div>
+          <p className="searches-defaults-summary-eyebrow">
+            Default snapshot window
+          </p>
+          <p className="searches-defaults-summary-window">
+            <strong>
+              {formatDateForInput(defaults.dateRangeStart, displayTimezone)} →{" "}
+              {formatDateForInput(defaults.dateRangeEnd, displayTimezone)}
+            </strong>
+          </p>
+        </div>
+        <p className="searches-defaults-summary-timezone">
+          {defaults.organizerTimezone || "Timezone not set"}
+        </p>
+      </section>
 
       <form
         action={runSearchAction}
@@ -254,25 +262,27 @@ export default async function SearchesPage({
           <legend>Topics</legend>
           {hasActiveTopics ? (
             <ul
-              className="searches-topics-list"
+              className="searches-topics-list option-grid"
               data-testid="searches-topics-list"
             >
               {activeTopics.map((topic) => (
                 <li
                   key={topic.id}
-                  className="searches-topic-row"
                   data-testid={`searches-topic-row-${topic.id}`}
                 >
-                  <label htmlFor={`topic-${topic.id}`}>
+                  <label className="checkbox-row">
                     <input
-                      id={`topic-${topic.id}`}
                       type="checkbox"
                       name="topicIds"
                       value={topic.id}
                       defaultChecked={selectedTopicIds.has(topic.id)}
                       data-testid={`searches-topic-checkbox-${topic.id}`}
                     />
-                    <span>{topic.name}</span>
+                    <span className="checkbox-row-label">
+                      <span className="checkbox-row-label-main">
+                        {topic.name}
+                      </span>
+                    </span>
                   </label>
                 </li>
               ))}
@@ -283,8 +293,10 @@ export default async function SearchesPage({
               data-testid="searches-topics-empty"
               role="status"
             >
-              <p className="empty-state-title">No active Topics yet.</p>
-              <p>An Admin must curate Topics before a Search can run.</p>
+              <p className="empty-state-title">No active Topics yet</p>
+              <p className="empty-state-description">
+                An Admin must curate Topics before a Search can run.
+              </p>
               <Link className="btn btn-primary" href="/">
                 Back to setup
               </Link>
@@ -310,136 +322,154 @@ export default async function SearchesPage({
           ) : null}
         </fieldset>
 
-        <div className="searches-constraints-heading">
+        <div className="surface-section-header searches-constraints-heading">
           <h2>Search constraints</h2>
           <p>Set the group size, duration, date window, and result timezone.</p>
         </div>
 
-        <div className="searches-field" data-testid="searches-minimum-field">
-          <label htmlFor="minimumMatchingUsers">Minimum matching Users</label>
-          <input
-            id="minimumMatchingUsers"
-            type="number"
-            name="minimumMatchingUsers"
-            min={2}
-            defaultValue={minimumMatchingUsersInput}
-            aria-invalid={!!minimumMatchingUsersError}
-            aria-describedby={
-              minimumMatchingUsersError
-                ? "minimumMatchingUsers-error"
-                : undefined
-            }
-            data-testid="searches-minimum-input"
-          />
-          {minimumMatchingUsersError ? (
-            <p
-              id="minimumMatchingUsers-error"
-              className="form-field-error"
-              role="alert"
-              data-testid="searches-field-error-minimumMatchingUsers"
-            >
-              {FIELD_ERROR_MESSAGES.minimum_out_of_range}
-            </p>
-          ) : null}
-        </div>
+        <div className="searches-constraints-grid">
+          <div className="field" data-testid="searches-minimum-field">
+            <label className="field-label" htmlFor="minimumMatchingUsers">
+              Minimum matching Users
+            </label>
+            <input
+              id="minimumMatchingUsers"
+              type="number"
+              name="minimumMatchingUsers"
+              min={2}
+              defaultValue={minimumMatchingUsersInput}
+              aria-invalid={!!minimumMatchingUsersError}
+              aria-describedby={
+                minimumMatchingUsersError
+                  ? "minimumMatchingUsers-error"
+                  : undefined
+              }
+              data-testid="searches-minimum-input"
+            />
+            {minimumMatchingUsersError ? (
+              <p
+                id="minimumMatchingUsers-error"
+                className="form-field-error"
+                role="alert"
+                data-testid="searches-field-error-minimumMatchingUsers"
+              >
+                {FIELD_ERROR_MESSAGES.minimum_out_of_range}
+              </p>
+            ) : null}
+          </div>
 
-        <div className="searches-field" data-testid="searches-duration-field">
-          <label htmlFor="durationMinutes">Meeting duration (minutes)</label>
-          <input
-            id="durationMinutes"
-            type="number"
-            name="durationMinutes"
-            min={15}
-            max={240}
-            step={5}
-            defaultValue={durationMinutesInput}
-            aria-invalid={!!durationMinutesError}
-            aria-describedby={
-              durationMinutesError ? "durationMinutes-error" : undefined
-            }
-            data-testid="searches-duration-input"
-          />
-          {durationMinutesError ? (
-            <p
-              id="durationMinutes-error"
-              className="form-field-error"
-              role="alert"
-              data-testid="searches-field-error-durationMinutes"
-            >
-              {FIELD_ERROR_MESSAGES.duration_out_of_range}
-            </p>
-          ) : null}
-        </div>
+          <div className="field" data-testid="searches-duration-field">
+            <label className="field-label" htmlFor="durationMinutes">
+              Meeting duration (minutes)
+            </label>
+            <input
+              id="durationMinutes"
+              type="number"
+              name="durationMinutes"
+              min={15}
+              max={240}
+              step={5}
+              defaultValue={durationMinutesInput}
+              aria-invalid={!!durationMinutesError}
+              aria-describedby={
+                durationMinutesError ? "durationMinutes-error" : undefined
+              }
+              data-testid="searches-duration-input"
+            />
+            {durationMinutesError ? (
+              <p
+                id="durationMinutes-error"
+                className="form-field-error"
+                role="alert"
+                data-testid="searches-field-error-durationMinutes"
+              >
+                {FIELD_ERROR_MESSAGES.duration_out_of_range}
+              </p>
+            ) : null}
+          </div>
 
-        <div className="searches-field" data-testid="searches-daterange-field">
-          <label htmlFor="dateRangeStart">Date range start</label>
-          <input
-            id="dateRangeStart"
-            type="date"
-            name="dateRangeStart"
-            defaultValue={dateRangeStartInput}
-            data-testid="searches-daterange-start"
-          />
-          <label htmlFor="dateRangeEnd">Date range end</label>
-          <input
-            id="dateRangeEnd"
-            type="date"
-            name="dateRangeEnd"
-            defaultValue={dateRangeEndInput}
-            aria-invalid={!!dateRangeEndError}
-            aria-describedby={
-              dateRangeEndError ? "dateRangeEnd-error" : undefined
-            }
-            data-testid="searches-daterange-end"
-          />
-          {dateRangeEndError ? (
-            <p
-              id="dateRangeEnd-error"
-              className="form-field-error"
-              role="alert"
-              data-testid="searches-field-error-dateRangeEnd"
-            >
-              {FIELD_ERROR_MESSAGES[dateRangeEndError]}
-            </p>
-          ) : null}
-        </div>
+          <div className="field" data-testid="searches-daterange-field">
+            <label className="field-label" htmlFor="dateRangeStart">
+              Date range start
+            </label>
+            <input
+              id="dateRangeStart"
+              type="date"
+              name="dateRangeStart"
+              defaultValue={dateRangeStartInput}
+              data-testid="searches-daterange-start"
+            />
+          </div>
 
-        <div className="searches-field" data-testid="searches-timezone-field">
-          <label htmlFor="organizerTimezone">Timezone</label>
-          <input
-            id="organizerTimezone"
-            type="text"
-            name="organizerTimezone"
-            defaultValue={organizerTimezoneInput}
-            list={TIMEZONE_PICKER_ID}
-            aria-invalid={!!organizerTimezoneError}
-            aria-describedby={
-              organizerTimezoneError ? "organizerTimezone-error" : undefined
-            }
-            data-testid="searches-timezone-input"
-          />
-          <datalist
-            id={TIMEZONE_PICKER_ID}
-            data-testid="searches-timezone-picker"
+          <div className="field" data-testid="searches-daterange-end-field">
+            <label className="field-label" htmlFor="dateRangeEnd">
+              Date range end
+            </label>
+            <input
+              id="dateRangeEnd"
+              type="date"
+              name="dateRangeEnd"
+              defaultValue={dateRangeEndInput}
+              aria-invalid={!!dateRangeEndError}
+              aria-describedby={
+                dateRangeEndError ? "dateRangeEnd-error" : undefined
+              }
+              data-testid="searches-daterange-end"
+            />
+            {dateRangeEndError ? (
+              <p
+                id="dateRangeEnd-error"
+                className="form-field-error"
+                role="alert"
+                data-testid="searches-field-error-dateRangeEnd"
+              >
+                {FIELD_ERROR_MESSAGES[dateRangeEndError]}
+              </p>
+            ) : null}
+          </div>
+
+          <div
+            className="field searches-timezone-field"
+            data-testid="searches-timezone-field"
           >
-            {timezoneOptions.map((timezone) => (
-              <option key={timezone} value={timezone} />
-            ))}
-          </datalist>
-          {organizerTimezoneError ? (
-            <p
-              id="organizerTimezone-error"
-              className="form-field-error"
-              role="alert"
-              data-testid="searches-field-error-organizerTimezone"
+            <label className="field-label" htmlFor="organizerTimezone">
+              Timezone
+            </label>
+            <input
+              id="organizerTimezone"
+              type="text"
+              name="organizerTimezone"
+              defaultValue={organizerTimezoneInput}
+              list={TIMEZONE_PICKER_ID}
+              aria-invalid={!!organizerTimezoneError}
+              aria-describedby={
+                organizerTimezoneError ? "organizerTimezone-error" : undefined
+              }
+              data-testid="searches-timezone-input"
+            />
+            <datalist
+              id={TIMEZONE_PICKER_ID}
+              data-testid="searches-timezone-picker"
             >
-              {FIELD_ERROR_MESSAGES.organizer_timezone_required}{" "}
-              <a href="/me/profile">Set timezone</a>
-            </p>
-          ) : null}
+              {timezoneOptions.map((timezone) => (
+                <option key={timezone} value={timezone} />
+              ))}
+            </datalist>
+            {organizerTimezoneError ? (
+              <p
+                id="organizerTimezone-error"
+                className="form-field-error"
+                role="alert"
+                data-testid="searches-field-error-organizerTimezone"
+              >
+                {FIELD_ERROR_MESSAGES.organizer_timezone_required}{" "}
+                <a href="/me/profile">Set timezone</a>
+              </p>
+            ) : null}
+          </div>
         </div>
 
-        <div className="searches-actions">
+        <div className="form-actions">
           <button
             type="submit"
             className="btn btn-primary"

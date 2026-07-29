@@ -56,7 +56,9 @@ export function HeaderMenuToggle({
         </span>
         <span className="top-bar-avatar-name">{name}</span>
       </button>
-      {open ? <div className="avatar-dropdown-menu-wrap">{children}</div> : null}
+      {open ? (
+        <div className="avatar-dropdown-menu-wrap">{children}</div>
+      ) : null}
     </div>
   );
 }

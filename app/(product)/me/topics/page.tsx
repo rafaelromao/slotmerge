@@ -42,8 +42,8 @@ export default async function TopicsPage({
 
   return (
     <main className="app-container me-page" data-testid="topics-page">
-      <header className="me-page-header">
-        <div className="me-page-header-copy">
+      <header className="page-header">
+        <div className="page-header-copy">
           <p className="eyebrow">Topics</p>
           <h1 data-testid="topics-page-heading">My Topics</h1>
           <p className="page-description">
@@ -51,7 +51,7 @@ export default async function TopicsPage({
             a new Topic for Admin review.
           </p>
         </div>
-        <div className="me-page-header-actions">
+        <div className="page-header-actions">
           <span
             className="me-page-header-pill"
             data-tone={pageState.selectedTopicIds.length > 0 ? "ok" : "warn"}
@@ -79,11 +79,11 @@ export default async function TopicsPage({
       ) : null}
 
       <section
-        className="topics-page-section"
+        className="surface-section"
         aria-labelledby="topics-catalogue-heading"
         data-testid="topics-catalogue-section"
       >
-        <div className="topics-page-section-header">
+        <div className="surface-section-header">
           <h2 id="topics-catalogue-heading">Active Topics</h2>
           <p>{pageState.catalogue.length} available.</p>
         </div>
@@ -91,15 +91,15 @@ export default async function TopicsPage({
         {pageState.catalogue.length === 0 ? (
           <div className="empty-state" data-testid="topics-catalogue-empty">
             <p className="empty-state-title">
-              No active Topics are available yet.
+              No active Topics are available yet
             </p>
-            <p>
+            <p className="empty-state-description">
               Once Admins publish Topics, you can choose which ones show on your
               profile.
             </p>
             <a
               href="/me"
-              className="btn"
+              className="btn btn-primary"
               data-testid="topics-catalogue-empty-back"
             >
               Back to setup
@@ -109,40 +109,36 @@ export default async function TopicsPage({
           <form
             method="POST"
             action={saveTopicSelectionAction}
-            className="topics-catalogue-form"
             data-testid="topics-catalogue-form"
           >
             <input type="hidden" name="_csrf" value={context.csrfToken} />
-            <ul
-              className="topics-catalogue-list"
-              data-testid="topics-catalogue-list"
-            >
+            <ul className="option-grid" data-testid="topics-catalogue-list">
               {pageState.catalogue.map((topic) => {
                 const isChecked = pageState.selectedTopicIds.includes(topic.id);
                 return (
                   <li
                     key={topic.id}
-                    className="topics-catalogue-item"
                     data-testid={`topics-catalogue-item-${topic.id}`}
                   >
-                    <label htmlFor={`topic-${topic.id}`}>
+                    <label className="checkbox-row">
                       <input
-                        id={`topic-${topic.id}`}
                         type="checkbox"
                         name="topicIds"
                         value={topic.id}
                         defaultChecked={isChecked}
                         data-testid={`topics-catalogue-checkbox-${topic.id}`}
                       />
-                      <span className="topics-catalogue-name">
-                        {topic.name}
+                      <span className="checkbox-row-label">
+                        <span className="checkbox-row-label-main">
+                          {topic.name}
+                        </span>
                       </span>
                     </label>
                   </li>
                 );
               })}
             </ul>
-            <div className="topics-catalogue-actions">
+            <div className="form-actions">
               <button
                 type="submit"
                 className="btn btn-primary"
@@ -156,11 +152,11 @@ export default async function TopicsPage({
       </section>
 
       <section
-        className="topics-page-section"
+        className="surface-section"
         aria-labelledby="topics-propose-heading"
         data-testid="topics-propose-section"
       >
-        <div className="topics-page-section-header">
+        <div className="surface-section-header">
           <h2 id="topics-propose-heading">Propose a new Topic</h2>
           <p>2 to 60 characters. Reviewed by Admins.</p>
         </div>
@@ -168,11 +164,11 @@ export default async function TopicsPage({
       </section>
 
       <section
-        className="topics-page-section"
+        className="surface-section"
         aria-labelledby="topics-my-proposals-heading"
         data-testid="topics-my-proposals-section"
       >
-        <div className="topics-page-section-header">
+        <div className="surface-section-header">
           <h2 id="topics-my-proposals-heading">My Proposals</h2>
           <p>
             {pageState.proposals.length === 0
@@ -183,9 +179,9 @@ export default async function TopicsPage({
         {pageState.proposals.length === 0 ? (
           <div className="empty-state" data-testid="topics-my-proposals-empty">
             <p className="empty-state-title">
-              You have not proposed any Topics yet.
+              You have not proposed any Topics yet
             </p>
-            <p>
+            <p className="empty-state-description">
               Use the form above to suggest a Topic. Admins will review it
               before adding it to the catalogue.
             </p>
@@ -203,7 +199,13 @@ export default async function TopicsPage({
                 data-status={proposal.displayStatus}
               >
                 <span
-                  className={`topics-proposal-badge topics-proposal-badge--${proposal.displayStatus}`}
+                  className={`status-pill status-pill-${
+                    proposal.displayStatus === "pending"
+                      ? "warn"
+                      : proposal.displayStatus === "active"
+                        ? "ok"
+                        : "muted"
+                  }`}
                   data-testid={`topics-proposal-badge-${proposal.id}`}
                 >
                   {labelForStatus(proposal.displayStatus)}

@@ -100,11 +100,11 @@ export function AvailabilityView(props: AvailabilityViewProps) {
 
   return (
     <main
-      className="app-container availability-page"
+      className="app-container me-page availability-page"
       data-testid="availability-page"
     >
-      <header className="me-page-header">
-        <div className="me-page-header-copy">
+      <header className="page-header">
+        <div className="page-header-copy">
           <p className="eyebrow">Availability</p>
           <h1 data-testid="availability-page-heading">Availability</h1>
           <p className="page-description">
@@ -112,7 +112,7 @@ export function AvailabilityView(props: AvailabilityViewProps) {
             one-off overrides add or block specific dates.
           </p>
         </div>
-        <div className="me-page-header-actions">
+        <div className="page-header-actions">
           <span
             className="me-page-header-pill"
             data-tone={
@@ -154,11 +154,11 @@ export function AvailabilityView(props: AvailabilityViewProps) {
       ) : null}
 
       <section
-        className="availability-section"
+        className="surface-section"
         aria-labelledby="availability-timezone-heading"
         data-testid="availability-timezone-section"
       >
-        <div className="topics-page-section-header">
+        <div className="surface-section-header">
           <h2 id="availability-timezone-heading">Profile timezone</h2>
           <p>Sets the clock for every window below.</p>
         </div>
@@ -206,11 +206,11 @@ export function AvailabilityView(props: AvailabilityViewProps) {
       {timezoneRequired ? null : (
         <>
           <section
-            className="availability-section"
+            className="surface-section"
             aria-labelledby="availability-weekly-heading"
             data-testid="availability-weekly-section"
           >
-            <div className="topics-page-section-header">
+            <div className="surface-section-header">
               <h2 id="availability-weekly-heading">Weekly Availability</h2>
               <p>Repeats every week in your timezone.</p>
             </div>
@@ -388,11 +388,11 @@ export function AvailabilityView(props: AvailabilityViewProps) {
           </section>
 
           <section
-            className="availability-section"
+            className="surface-section"
             aria-labelledby="availability-overrides-heading"
             data-testid="availability-overrides-section"
           >
-            <div className="topics-page-section-header">
+            <div className="surface-section-header">
               <h2 id="availability-overrides-heading">One-off overrides</h2>
               <p>{overrides.length} added.</p>
             </div>
@@ -585,11 +585,11 @@ export function AvailabilityView(props: AvailabilityViewProps) {
           </section>
 
           <section
-            className="availability-section"
+            className="surface-section"
             aria-labelledby="availability-buffer-heading"
             data-testid="availability-buffer-section"
           >
-            <div className="topics-page-section-header">
+            <div className="surface-section-header">
               <h2 id="availability-buffer-heading">Calendar conflict buffer</h2>
               <p>Subtracted from every window by Calendar conflicts.</p>
             </div>
@@ -630,11 +630,11 @@ export function AvailabilityView(props: AvailabilityViewProps) {
           </section>
 
           <section
-            className="availability-section"
+            className="surface-section"
             aria-labelledby="availability-preview-heading"
             data-testid="availability-preview-section"
           >
-            <div className="topics-page-section-header">
+            <div className="surface-section-header">
               <h2 id="availability-preview-heading">
                 Effective Availability (next 7 days)
               </h2>

@@ -90,8 +90,8 @@ export default async function AdminPage({
 
   return (
     <main className="app-container admin-page">
-      <header className="admin-page-header">
-        <div className="admin-page-header-copy">
+      <header className="page-header">
+        <div className="page-header-copy">
           <p className="eyebrow">Administration</p>
           <h1>Admin</h1>
           <p className="page-description">
@@ -337,13 +337,13 @@ export default async function AdminPage({
             </form>
           </div>
 
-          <div className="users-card">
-            <div className="users-card-header">
-              <h3>Members</h3>
+          <div className="surface-section">
+            <div className="surface-section-header">
+              <h2>Members</h2>
               <p>{users.users.length} on the team.</p>
             </div>
-            <div className="users-table-wrap">
-              <table className="users-table" data-testid="users-table">
+            <div className="data-table-wrapper">
+              <table className="data-table" data-testid="users-table">
                 <thead>
                   <tr>
                     <th scope="col">Email</th>
@@ -375,7 +375,7 @@ export default async function AdminPage({
               data-testid="users-empty-state"
             >
               <p className="empty-state-title">No users yet</p>
-              <p className="empty-state-message">
+              <p className="empty-state-description">
                 Invite a teammate to grant them access. The invitee receives an
                 email with a single-use magic link.
               </p>
@@ -389,18 +389,20 @@ export default async function AdminPage({
             </div>
           ) : null}
 
-          <section className="recent-invites" data-testid="recent-invites">
-            <h3 className="recent-invites-heading">Recent invites</h3>
+          <section className="surface-section" data-testid="recent-invites">
+            <div className="surface-section-header">
+              <h2>Recent invites</h2>
+            </div>
             {users.recentInvites.length === 0 ? (
               <p
-                className="recent-invites-empty"
+                className="empty-state-description"
                 data-testid="recent-invites-empty"
               >
                 No invites yet.
               </p>
             ) : (
-              <div className="recent-invites-table-wrap">
-                <table className="recent-invites-table">
+              <div className="data-table-wrapper">
+                <table className="data-table recent-invites-table">
                   <thead>
                     <tr>
                       <th scope="col">Email</th>
@@ -612,7 +614,10 @@ function UserRow({
       data-testid={`users-row-${user.id}`}
       data-self={isSelf ? "true" : "false"}
     >
-      <td className="users-email-cell">{user.email}</td>
+      <td>
+        <strong>{user.email}</strong>
+        {isSelf ? <p className="data-meta-note">Signed-in as you</p> : null}
+      </td>
       <td>
         <form
           className="users-role-form"
@@ -639,7 +644,7 @@ function UserRow({
           </select>
           <button
             type="submit"
-            className="btn btn-secondary users-role-save"
+            className="btn btn-secondary"
             data-testid={`users-role-save-${user.id}`}
             disabled={isSelf}
             aria-describedby={isSelf ? selfHelpId : undefined}
@@ -653,10 +658,11 @@ function UserRow({
           ) : null}
         </form>
       </td>
-      <td className="users-status-cell" data-testid={`users-status-${user.id}`}>
+      <td data-testid={`users-status-${user.id}`}>
         <span
-          className="users-status-pill"
-          data-status={isSuspended ? "suspended" : "active"}
+          className={`status-pill ${
+            isSuspended ? "status-pill-danger" : "status-pill-ok"
+          }`}
         >
           {labelUserStatus(user.status)}
         </span>
@@ -680,7 +686,7 @@ function UserRow({
             <input type="hidden" name="userId" value={user.id} />
             <button
               type="submit"
-              className="btn btn-secondary users-reinstate-button"
+              className="btn btn-secondary"
               data-testid={`users-reinstate-button-${user.id}`}
             >
               Reinstate
@@ -710,33 +716,39 @@ function InviteRow({
   const actionLabel = isResendable ? "Resend" : "Re-invite";
   return (
     <tr data-testid={`recent-invites-row-${invite.id}`}>
-      <td className="users-email-cell">{invite.email}</td>
+      <td>
+        <strong>{invite.email}</strong>
+      </td>
       <td>{labelUserRole(invite.role)}</td>
       <td data-testid={`recent-invites-status-${invite.id}`}>
         <span
-          className="recent-invites-status"
-          data-status={invite.effectiveStatus}
+          className={`status-pill ${
+            invite.effectiveStatus === "pending"
+              ? "status-pill-warn"
+              : invite.effectiveStatus === "accepted"
+                ? "status-pill-ok"
+                : "status-pill-muted"
+          }`}
         >
           {labelInviteStatus(invite.effectiveStatus)}
         </span>
       </td>
       <td>
-        <div className="recent-invites-action">
-          <form
-            data-testid={`recent-invites-action-${invite.id}`}
-            action={resendInviteAction}
+        <form
+          className="recent-invites-action"
+          data-testid={`recent-invites-action-${invite.id}`}
+          action={resendInviteAction}
+        >
+          <input type="hidden" name="_csrf" value={csrfToken} />
+          <input type="hidden" name="inviteId" value={invite.id} />
+          <button
+            type="submit"
+            className="btn btn-secondary"
+            data-testid={`recent-invites-button-${invite.id}`}
           >
-            <input type="hidden" name="_csrf" value={csrfToken} />
-            <input type="hidden" name="inviteId" value={invite.id} />
-            <button
-              type="submit"
-              className="btn btn-secondary"
-              data-testid={`recent-invites-button-${invite.id}`}
-            >
-              {actionLabel}
-            </button>
-          </form>
-        </div>
+            {actionLabel}
+          </button>
+        </form>
       </td>
     </tr>
   );
@@ -750,22 +762,22 @@ function PendingTopicProposals({
   csrfToken: string;
 }) {
   return (
-    <section
-      className="topics-admin-section pending-topic-proposals"
-      data-testid="pending-topic-proposals"
-    >
-      <div className="topics-admin-section-header">
-        <h3>Pending Topic Proposals</h3>
+    <section className="surface-section" data-testid="pending-topic-proposals">
+      <div className="surface-section-header">
+        <h2>Pending Topic Proposals</h2>
         <p>{pendingProposals.length} awaiting review.</p>
       </div>
       {pendingProposals.length === 0 ? (
-        <p className="empty-state" data-testid="topics-pending-empty">
+        <p
+          className="empty-state-description"
+          data-testid="topics-pending-empty"
+        >
           No pending Topic Proposals.
         </p>
       ) : (
-        <div className="pending-topic-proposals-table-wrap">
+        <div className="data-table-wrapper">
           <table
-            className="pending-topic-proposals-table"
+            className="data-table"
             data-testid="pending-topic-proposals-table"
           >
             <thead>
@@ -801,42 +813,44 @@ function PendingProposalRow({
 }) {
   return (
     <tr data-testid={`topics-proposal-row-${proposal.id}`}>
-      <td className="users-email-cell">{proposal.candidateName}</td>
+      <td>
+        <strong>{proposal.candidateName}</strong>
+      </td>
       <td>{proposal.proposedByUserEmail ?? "(deleted User)"}</td>
-      <td>{formatProposalDate(proposal.createdAt)}</td>
-      <td className="actions-cell">
-        <div className="topics-proposal-actions">
-          <form
-            className="topics-proposal-approve-form"
-            data-testid={`topics-approve-form-${proposal.id}`}
-            action={approveProposalAction}
+      <td className="data-table-numeric">
+        {formatProposalDate(proposal.createdAt)}
+      </td>
+      <td className="data-table-actions">
+        <form
+          className="topics-proposal-approve-form"
+          data-testid={`topics-approve-form-${proposal.id}`}
+          action={approveProposalAction}
+        >
+          <input type="hidden" name="_csrf" value={csrfToken} />
+          <input type="hidden" name="proposalId" value={proposal.id} />
+          <button
+            type="submit"
+            className="btn btn-primary"
+            data-testid={`topics-approve-${proposal.id}`}
           >
-            <input type="hidden" name="_csrf" value={csrfToken} />
-            <input type="hidden" name="proposalId" value={proposal.id} />
-            <button
-              type="submit"
-              className="btn btn-primary"
-              data-testid={`topics-approve-${proposal.id}`}
-            >
-              Approve
-            </button>
-          </form>
-          <form
-            className="topics-proposal-reject-form"
-            data-testid={`topics-reject-form-${proposal.id}`}
-            action={rejectProposalAction}
+            Approve
+          </button>
+        </form>
+        <form
+          className="topics-proposal-reject-form"
+          data-testid={`topics-reject-form-${proposal.id}`}
+          action={rejectProposalAction}
+        >
+          <input type="hidden" name="_csrf" value={csrfToken} />
+          <input type="hidden" name="proposalId" value={proposal.id} />
+          <button
+            type="submit"
+            className="btn btn-secondary"
+            data-testid={`topics-reject-${proposal.id}`}
           >
-            <input type="hidden" name="_csrf" value={csrfToken} />
-            <input type="hidden" name="proposalId" value={proposal.id} />
-            <button
-              type="submit"
-              className="btn btn-secondary"
-              data-testid={`topics-reject-${proposal.id}`}
-            >
-              Reject
-            </button>
-          </form>
-        </div>
+            Reject
+          </button>
+        </form>
       </td>
     </tr>
   );
@@ -852,24 +866,21 @@ function ActiveTopics({
   csrfToken: string;
 }) {
   return (
-    <section
-      className="topics-admin-section active-topics"
-      data-testid="active-topics"
-    >
-      <div className="topics-admin-section-header">
-        <h3>Active Topics</h3>
+    <section className="surface-section" data-testid="active-topics">
+      <div className="surface-section-header">
+        <h2>Active Topics</h2>
         <p>{activeTopics.length} in the catalogue.</p>
       </div>
       {activeTopics.length === 0 ? (
-        <p className="empty-state" data-testid="topics-active-empty">
+        <p
+          className="empty-state-description"
+          data-testid="topics-active-empty"
+        >
           No active Topics.
         </p>
       ) : (
-        <div className="active-topics-table-wrap">
-          <table
-            className="active-topics-table"
-            data-testid="active-topics-table"
-          >
+        <div className="data-table-wrapper">
+          <table className="data-table" data-testid="active-topics-table">
             <thead>
               <tr>
                 <th scope="col">Name</th>
@@ -885,8 +896,10 @@ function ActiveTopics({
                     topic.proposedByUserId === actorId ? "true" : "false"
                   }
                 >
-                  <td className="users-email-cell">{topic.name}</td>
-                  <td className="actions-cell">
+                  <td>
+                    <strong>{topic.name}</strong>
+                  </td>
+                  <td className="data-table-actions">
                     <RetireTypedConfirm
                       topicId={topic.id}
                       topicName={topic.name}

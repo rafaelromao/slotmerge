@@ -182,7 +182,13 @@ type SetupCardProps = {
   status: "complete" | "pending" | "optional";
 };
 
-function SetupCard({ index, title, description, href, status }: SetupCardProps) {
+function SetupCard({
+  index,
+  title,
+  description,
+  href,
+  status,
+}: SetupCardProps) {
   const statusPill =
     status === "complete"
       ? { label: "Complete", tone: "ok" as const }

@@ -26,10 +26,7 @@ export default async function VerifyPage({
 
   return (
     <main className="public-state-page">
-      <section
-        className="public-state-panel"
-        aria-labelledby="verify-title"
-      >
+      <section className="public-state-panel" aria-labelledby="verify-title">
         <p className="eyebrow">Secure sign-in</p>
         <h1 id="verify-title">Signing you in</h1>
         <p

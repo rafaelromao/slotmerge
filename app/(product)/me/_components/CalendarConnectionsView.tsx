@@ -143,8 +143,8 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
       className="app-container me-page"
       data-testid="calendar-connection-page"
     >
-      <header className="me-page-header">
-        <div className="me-page-header-copy">
+      <header className="page-header">
+        <div className="page-header-copy">
           <p className="eyebrow">Calendar</p>
           <h1 data-testid="calendar-connection-page-heading">
             Calendar connections
@@ -155,7 +155,7 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
             attendees.
           </p>
         </div>
-        <div className="me-page-header-actions">
+        <div className="page-header-actions">
           <span
             className="me-page-header-pill"
             data-tone={
@@ -187,7 +187,11 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
 
       {banner ? (
         <div
-          className={banner.tone}
+          className={
+            outcome.kind === "failed"
+              ? "form-error-banner"
+              : "admin-info-banner"
+          }
           role={outcome.kind === "failed" ? "alert" : "status"}
           aria-live={outcome.kind === "failed" ? "assertive" : "polite"}
           data-testid={`calendar-connection-banner-${outcome.kind}`}
@@ -200,7 +204,11 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
       {mutationBanner &&
       (mutationOutcome.kind === "success" || !mutationOutcome.connectionId) ? (
         <div
-          className={`calendar-connection-banner calendar-connection-banner-${mutationOutcome.kind === "error" ? "error" : "success"}`}
+          className={
+            mutationOutcome.kind === "error"
+              ? "form-error-banner"
+              : "admin-info-banner"
+          }
           role={mutationOutcome.kind === "error" ? "alert" : "status"}
           aria-live={mutationOutcome.kind === "error" ? "assertive" : "polite"}
           data-testid={`calendar-connection-mutation-${mutationOutcome.kind}`}
@@ -210,11 +218,11 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
       ) : null}
 
       <section
-        className="topics-page-section"
+        className="surface-section"
         aria-labelledby="calendar-connection-connect-heading"
         data-testid="calendar-connection-connect-section"
       >
-        <div className="topics-page-section-header">
+        <div className="surface-section-header">
           <h2 id="calendar-connection-connect-heading">Connect a calendar</h2>
           <p>Pick a provider to begin OAuth.</p>
         </div>
@@ -253,11 +261,11 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
       </section>
 
       <section
-        className="topics-page-section"
+        className="surface-section"
         aria-labelledby="calendar-connection-list-heading"
         data-testid="calendar-connection-list-section"
       >
-        <div className="topics-page-section-header">
+        <div className="surface-section-header">
           <h2 id="calendar-connection-list-heading">
             Your calendar connections
           </h2>

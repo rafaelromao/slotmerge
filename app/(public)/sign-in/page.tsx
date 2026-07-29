@@ -27,9 +27,7 @@ export default async function SignInPage({
       >
         <p className="eyebrow">Access your workspace</p>
         <h1 id="sign-in-title">Sign in to SlotMerge</h1>
-        <p>
-          Enter your email and we will send you a secure, one-time link.
-        </p>
+        <p>Enter your email and we will send you a secure, one-time link.</p>
         {reason === "deleted" ? (
           <p
             className="admin-info-banner"

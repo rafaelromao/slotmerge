@@ -20,23 +20,41 @@ export function DeleteAccountView({
   const confirmationError = error === "csrf" ? undefined : error;
 
   return (
-    <main className="app-container delete-account-page">
-      <h1>Delete your account</h1>
-      <p className="delete-account-warning">{DELETE_ACCOUNT_BODY}</p>
+    <main className="app-container me-page delete-account-page">
+      <header className="page-header">
+        <div className="page-header-copy">
+          <p className="eyebrow">Account</p>
+          <h1>Delete your account</h1>
+          <p className="page-description">{DELETE_ACCOUNT_BODY}</p>
+        </div>
+        <div className="page-header-actions">
+          <Link href="/me" className="btn btn-secondary">
+            Cancel
+          </Link>
+        </div>
+      </header>
+
       {error === "csrf" ? (
-        <section
-          className="sign-in-error delete-account-banner"
+        <p
+          className="form-error-banner"
           role="alert"
           aria-live="polite"
           data-testid="delete-account-csrf-error"
         >
           Your request could not be verified. Refresh the page and try again.
-        </section>
+        </p>
       ) : null}
-      <DeleteAccountConfirm csrfToken={csrfToken} error={confirmationError} />
-      <Link href="/me" className="btn btn-secondary">
-        Cancel
-      </Link>
+
+      <section
+        className="surface-section"
+        aria-labelledby="delete-account-confirm-heading"
+      >
+        <div className="surface-section-header">
+          <h2 id="delete-account-confirm-heading">Confirm deletion</h2>
+          <p>Type DELETE exactly to confirm.</p>
+        </div>
+        <DeleteAccountConfirm csrfToken={csrfToken} error={confirmationError} />
+      </section>
     </main>
   );
 }

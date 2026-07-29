@@ -212,10 +212,16 @@ export default async function SearchResultPage({
 
   const actions = (
     <div className="search-result-actions">
-      <Link href="/searches/history">Open in history</Link>
-      <button type="button" popoverTarget={`rerun-search-confirm-${id}`}>
+      <button
+        type="button"
+        className="btn btn-primary"
+        popoverTarget={`rerun-search-confirm-${id}`}
+      >
         Re-run Search
       </button>
+      <Link href="/searches/history" className="btn btn-secondary">
+        Open in history
+      </Link>
       <div id={`rerun-search-confirm-${id}`} popover="auto">
         <div className="rerun-search-confirm-panel">
           <p>Re-run this Search?</p>
@@ -225,7 +231,9 @@ export default async function SearchResultPage({
           >
             <input type="hidden" name="_csrf" value={context.csrfToken} />
             <input type="hidden" name="searchId" value={id} />
-            <button type="submit">Re-run</button>
+            <button type="submit" className="btn btn-primary">
+              Re-run
+            </button>
           </form>
         </div>
       </div>
@@ -235,13 +243,16 @@ export default async function SearchResultPage({
   return (
     <main className="app-container search-result-page">
       <header className="search-result-header">
-        <div className="search-result-header-copy">
-          <p className="eyebrow">Immutable snapshot</p>
-          <h1>Search Result</h1>
-          <p className="search-result-header-description">
-            Slots and Matches reflect the Search at its generation time. They
-            never live-update.
-          </p>
+        <div className="search-result-header-head">
+          <div className="search-result-header-copy">
+            <p className="eyebrow">Immutable snapshot</p>
+            <h1>Search Result</h1>
+            <p className="search-result-header-description">
+              Slots and Matches reflect the Search at its generation time. They
+              never live-update.
+            </p>
+          </div>
+          <div className="search-result-header-actions">{actions}</div>
         </div>
         <dl className="search-result-header-meta">
           <div>
@@ -264,20 +275,20 @@ export default async function SearchResultPage({
           </div>
           <div>
             <dt>Date range</dt>
-            <dd>
-              <div>
+            <dd className="search-result-header-meta-stack">
+              <span>
                 {formatDateLabel(
                   dateRangeStart,
                   snapshotDto.search.organizerTimezone,
                 )}
-              </div>
-              <div>
-                –{" "}
+              </span>
+              <span>
+                →{" "}
                 {formatDateLabel(
                   dateRangeEnd,
                   snapshotDto.search.organizerTimezone,
                 )}
-              </div>
+              </span>
             </dd>
           </div>
           <div>
@@ -372,15 +383,19 @@ export default async function SearchResultPage({
         </>
       ) : (
         <div className="empty-state" data-testid="search-result-empty-state">
-          <p className="empty-state-title">No matching Slots this week.</p>
-          <p>Try the next week or review Search history.</p>
-          <Link href={emptyStatePrimaryHref} className="btn btn-primary">
+          <p className="empty-state-title">No matching Slots this week</p>
+          <p className="empty-state-description">
+            Try the next week or review Search history.
+          </p>
+          <Link
+            href={emptyStatePrimaryHref}
+            className="btn btn-primary"
+            data-testid="search-result-empty-state-cta"
+          >
             {emptyStatePrimaryLabel}
           </Link>
         </div>
       )}
-
-      {actions}
     </main>
   );
 }

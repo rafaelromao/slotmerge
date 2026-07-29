@@ -17,9 +17,9 @@ export default async function ProfileOverviewPage() {
       <main className="app-container">
         <div className="empty-state" data-testid="me-overview-empty">
           <p className="empty-state-title">Profile not found</p>
-          <p>
-            We could not load your profile. Please refresh, or contact support
-            if the problem persists.
+          <p className="empty-state-description">
+            We could not load your profile. Refresh, or contact support if the
+            problem persists.
           </p>
         </div>
       </main>
@@ -32,8 +32,8 @@ export default async function ProfileOverviewPage() {
 
   return (
     <main className="app-container me-page" data-testid="me-page">
-      <header className="me-page-header">
-        <div className="me-page-header-copy">
+      <header className="page-header">
+        <div className="page-header-copy">
           <p className="eyebrow">Profile</p>
           <h1 data-testid="me-page-heading">My Profile</h1>
           <p className="page-description">
@@ -41,7 +41,7 @@ export default async function ProfileOverviewPage() {
             can find you in searches.
           </p>
         </div>
-        <div className="me-page-header-actions">
+        <div className="page-header-actions">
           <span
             className="me-page-header-pill"
             data-tone={isComplete ? "ok" : "warn"}
@@ -56,11 +56,11 @@ export default async function ProfileOverviewPage() {
       </header>
 
       <section
-        className="profile-summary-card"
+        className="surface-section"
         aria-labelledby="profile-summary-heading"
         data-testid="profile-summary"
       >
-        <div className="profile-summary-card-header">
+        <div className="surface-section-header">
           <h2 id="profile-summary-heading">Profile summary</h2>
           <Link
             href="/me/profile"
@@ -70,22 +70,22 @@ export default async function ProfileOverviewPage() {
             Edit profile
           </Link>
         </div>
-        <dl className="profile-summary-list">
-          <div className="profile-summary-row">
+        <dl className="me-summary-list">
+          <div className="me-summary-row">
             <dt>Display name</dt>
             <dd data-testid="profile-summary-display-name">{displayName}</dd>
           </div>
-          <div className="profile-summary-row">
+          <div className="me-summary-row">
             <dt>Email</dt>
             <dd data-testid="profile-summary-email">{profile.email}</dd>
           </div>
-          <div className="profile-summary-row">
+          <div className="me-summary-row">
             <dt>Timezone</dt>
             <dd data-testid="profile-summary-timezone">
               {profile.profileTimezone ?? "Not set"}
             </dd>
           </div>
-          <div className="profile-summary-row">
+          <div className="me-summary-row">
             <dt>Buffer</dt>
             <dd data-testid="profile-summary-buffer">
               {profile.bufferMinutes} minutes

@@ -1,5 +1,7 @@
 import { Pool } from "pg";
 
+import { FIXTURE_DATE } from "../fixtures/seeds";
+
 let pool: Pool | null = null;
 
 function getPool(): Pool {
@@ -81,13 +83,14 @@ export async function insertLocalTestRows(
 
     for (let i = 0; i < (input.tokensExpiringSoonCount ?? 0); i += 1) {
       const id = crypto.randomUUID();
+      const expiresAt = new Date(new Date(FIXTURE_DATE).getTime() + 60 * 1000);
       await client.query(
         `INSERT INTO calendar_connections (
           id, user_id, provider, status, access_token_expires_at,
           contributing_calendar_ids, created_at, updated_at
-        ) VALUES ($1, $2, 'google', 'connected', now() + interval '60 seconds', '{}', now(), now())
-        ON CONFLICT (id) DO UPDATE SET access_token_expires_at = now() + interval '60 seconds'`,
-        [id, "00000000-0000-0000-0000-000000000001"],
+        ) VALUES ($1, $2, 'google', 'connected', $3, '{}', now(), now())
+        ON CONFLICT (id) DO UPDATE SET access_token_expires_at = $3`,
+        [id, "00000000-0000-0000-0000-000000000001", expiresAt],
       );
     }
 

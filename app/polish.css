@@ -1360,8 +1360,8 @@
   gap: var(--space-3);
   margin: 0;
   padding: var(--space-3) var(--space-4);
-  background: var(--warning-soft);
-  border: 1px solid var(--warning-soft-border);
+  background: var(--stale-soft);
+  border: 1px solid var(--stale-soft-border);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: var(--text-sm);
@@ -1369,7 +1369,7 @@
 
 .search-result-stale-note::before {
   content: "⚠";
-  color: var(--warning);
+  color: var(--stale);
   font-weight: var(--weight-bold);
 }
 
@@ -1500,14 +1500,14 @@
 }
 
 .calendar-slot[data-stale="true"] {
-  background: var(--warning-soft);
-  border-color: var(--warning-soft-border);
-  color: var(--warning);
+  background: var(--stale-soft);
+  border-color: var(--stale-soft-border);
+  color: var(--stale);
 }
 
 .calendar-slot[data-stale="true"]:hover {
-  background: var(--warning);
-  border-color: var(--warning);
+  background: var(--stale);
+  border-color: var(--stale);
   color: var(--text-inverse);
 }
 

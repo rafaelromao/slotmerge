@@ -46,56 +46,68 @@
   --radius-xl: 0.75rem;
   --radius-pill: 9999px;
 
-  /* Restrained palette, but warmer in light and deeper in dark. */
+  /* SlotMerge palette.
+   * Neutrals are tinted toward warm stone (hue 80) so the surfaces no longer
+   * read as a cool SaaS grid. The accent is a deliberate Committed indigo-ink
+   * at hue 280, not a stock navy. State colors share the same chroma curve
+   * (0.14-0.18) so the palette feels intentional, not a default Bootstrap set.
+   * Light surfaces are paper-warm; dark surfaces are deliberate ink with a
+   * violet undertone.
+   */
   --surface-base: oklch(98.4% 0.006 80);
-  --surface-raised: oklch(100% 0 0);
+  --surface-raised: oklch(99.6% 0.004 80);
   --surface-sunken: oklch(96% 0.008 80);
-  --surface-inset: oklch(94% 0.012 80);
-  --surface-overlay: oklch(100% 0 0);
-  --surface-accent-soft: oklch(94% 0.04 250);
+  --surface-inset: oklch(93% 0.012 80);
+  --surface-overlay: oklch(99.6% 0.004 80);
+  --surface-accent-soft: oklch(94% 0.04 280);
   --surface-rail: oklch(96% 0.005 80);
 
-  --text-primary: oklch(18% 0.018 260);
-  --text-secondary: oklch(36% 0.018 260);
-  --text-muted: oklch(48% 0.014 260);
-  --text-subtle: oklch(58% 0.01 260);
+  --text-primary: oklch(20% 0.02 280);
+  --text-secondary: oklch(38% 0.02 280);
+  --text-muted: oklch(50% 0.014 280);
+  --text-subtle: oklch(60% 0.01 280);
   --text-inverse: oklch(99% 0 0);
-  --text-accent: oklch(38% 0.18 260);
+  --text-accent: oklch(38% 0.18 280);
 
   --border-subtle: oklch(90% 0.008 80);
-  --border-strong: oklch(82% 0.01 80);
-  --border-focus: oklch(48% 0.2 260);
+  --border-strong: oklch(80% 0.012 80);
+  --border-focus: oklch(45% 0.2 280);
   --border-divider: oklch(86% 0.008 80);
 
-  /* Accent: a confident blue-steel, used at ~6% of surface. */
-  --accent: oklch(38% 0.18 260);
-  --accent-hover: oklch(32% 0.2 260);
+  /* Accent: deliberate Committed indigo-ink. */
+  --accent: oklch(45% 0.16 280);
+  --accent-hover: oklch(38% 0.18 280);
   --accent-text: oklch(99% 0 0);
-  --accent-soft: oklch(94% 0.04 260);
-  --accent-soft-border: oklch(84% 0.06 260);
+  --accent-soft: oklch(94% 0.04 280);
+  --accent-soft-border: oklch(84% 0.06 280);
+
+  /* Calendar freshness: a dedicated amber for stale calendar data. */
+  --stale: oklch(60% 0.16 70);
+  --stale-soft: oklch(95% 0.05 70);
+  --stale-soft-border: oklch(82% 0.09 70);
 
   /* State. Never used decoratively. */
-  --success: oklch(44% 0.14 150);
-  --success-soft: oklch(94% 0.04 150);
-  --success-soft-border: oklch(82% 0.06 150);
+  --success: oklch(46% 0.14 155);
+  --success-soft: oklch(94% 0.04 155);
+  --success-soft-border: oklch(82% 0.06 155);
 
-  --warning: oklch(58% 0.16 75);
-  --warning-soft: oklch(95% 0.05 75);
-  --warning-soft-border: oklch(82% 0.09 75);
+  --warning: oklch(60% 0.16 70);
+  --warning-soft: oklch(95% 0.05 70);
+  --warning-soft-border: oklch(82% 0.09 70);
 
   --danger: oklch(48% 0.2 25);
   --danger-soft: oklch(95% 0.04 25);
   --danger-soft-border: oklch(82% 0.08 25);
 
-  --info: oklch(48% 0.14 230);
-  --info-soft: oklch(94% 0.04 230);
+  --info: oklch(50% 0.14 240);
+  --info-soft: oklch(94% 0.04 240);
 
   --shadow-xs: 0 1px 1px oklch(0% 0 0 / 0.04);
   --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.06), 0 1px 1px oklch(0% 0 0 / 0.04);
   --shadow-md: 0 4px 14px oklch(0% 0 0 / 0.08), 0 2px 4px oklch(0% 0 0 / 0.04);
   --shadow-overlay: -8px 0 32px oklch(0% 0 0 / 0.16);
 
-  --scrim: oklch(15% 0.01 260 / 0.55);
+  --scrim: oklch(18% 0.02 280 / 0.55);
 
   --z-overlay: 50;
   --z-modal: 100;
@@ -109,46 +121,55 @@
 }
 
 :root[data-theme="dark"] {
-  --surface-base: oklch(14% 0.012 250);
-  --surface-raised: oklch(18% 0.014 250);
-  --surface-sunken: oklch(11% 0.012 250);
-  --surface-inset: oklch(16% 0.014 250);
-  --surface-overlay: oklch(20% 0.014 250);
-  --surface-accent-soft: oklch(24% 0.04 260);
-  --surface-rail: oklch(16% 0.014 250);
+  /* Deliberate ink dark. The page is not a near-black navy: it carries a
+   * deliberate violet undertone so the indigo accent feels native to the
+   * surface, not a foreign color. Border chroma is the same as light so
+   * they read as the same family.
+   */
+  --surface-base: oklch(14% 0.014 280);
+  --surface-raised: oklch(18% 0.016 280);
+  --surface-sunken: oklch(11% 0.014 280);
+  --surface-inset: oklch(16% 0.014 280);
+  --surface-overlay: oklch(20% 0.016 280);
+  --surface-accent-soft: oklch(24% 0.05 280);
+  --surface-rail: oklch(16% 0.014 280);
 
-  --text-primary: oklch(96% 0.008 250);
-  --text-secondary: oklch(82% 0.01 250);
-  --text-muted: oklch(64% 0.012 250);
-  --text-subtle: oklch(50% 0.012 250);
-  --text-inverse: oklch(14% 0.012 250);
-  --text-accent: oklch(82% 0.1 260);
+  --text-primary: oklch(96% 0.008 280);
+  --text-secondary: oklch(82% 0.01 280);
+  --text-muted: oklch(64% 0.012 280);
+  --text-subtle: oklch(50% 0.012 280);
+  --text-inverse: oklch(14% 0.014 280);
+  --text-accent: oklch(82% 0.12 280);
 
-  --border-subtle: oklch(26% 0.012 250);
-  --border-strong: oklch(36% 0.012 250);
-  --border-focus: oklch(78% 0.14 260);
-  --border-divider: oklch(28% 0.012 250);
+  --border-subtle: oklch(26% 0.012 280);
+  --border-strong: oklch(36% 0.012 280);
+  --border-focus: oklch(78% 0.16 280);
+  --border-divider: oklch(28% 0.012 280);
 
-  --accent: oklch(78% 0.14 260);
-  --accent-hover: oklch(82% 0.14 260);
-  --accent-text: oklch(13% 0.012 250);
-  --accent-soft: oklch(26% 0.05 260);
-  --accent-soft-border: oklch(38% 0.07 260);
+  --accent: oklch(74% 0.16 280);
+  --accent-hover: oklch(80% 0.16 280);
+  --accent-text: oklch(14% 0.014 280);
+  --accent-soft: oklch(26% 0.06 280);
+  --accent-soft-border: oklch(40% 0.08 280);
 
-  --success: oklch(78% 0.12 150);
-  --success-soft: oklch(22% 0.05 150);
-  --success-soft-border: oklch(34% 0.07 150);
+  --stale: oklch(82% 0.14 70);
+  --stale-soft: oklch(28% 0.07 70);
+  --stale-soft-border: oklch(40% 0.1 70);
 
-  --warning: oklch(82% 0.13 75);
-  --warning-soft: oklch(28% 0.06 75);
-  --warning-soft-border: oklch(40% 0.08 75);
+  --success: oklch(78% 0.14 155);
+  --success-soft: oklch(22% 0.05 155);
+  --success-soft-border: oklch(34% 0.07 155);
+
+  --warning: oklch(82% 0.14 70);
+  --warning-soft: oklch(28% 0.07 70);
+  --warning-soft-border: oklch(40% 0.1 70);
 
   --danger: oklch(76% 0.18 25);
   --danger-soft: oklch(26% 0.06 25);
   --danger-soft-border: oklch(38% 0.09 25);
 
-  --info: oklch(78% 0.12 230);
-  --info-soft: oklch(24% 0.05 230);
+  --info: oklch(78% 0.12 240);
+  --info-soft: oklch(24% 0.05 240);
 
   --shadow-xs: 0 1px 1px oklch(0% 0 0 / 0.32);
   --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.32), 0 1px 1px oklch(0% 0 0 / 0.24);
@@ -158,39 +179,43 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --surface-base: oklch(14% 0.012 250);
-    --surface-raised: oklch(18% 0.014 250);
-    --surface-sunken: oklch(11% 0.012 250);
-    --surface-inset: oklch(16% 0.014 250);
-    --surface-overlay: oklch(20% 0.014 250);
-    --surface-accent-soft: oklch(24% 0.04 260);
-    --surface-rail: oklch(16% 0.014 250);
+    --surface-base: oklch(14% 0.014 280);
+    --surface-raised: oklch(18% 0.016 280);
+    --surface-sunken: oklch(11% 0.014 280);
+    --surface-inset: oklch(16% 0.014 280);
+    --surface-overlay: oklch(20% 0.016 280);
+    --surface-accent-soft: oklch(24% 0.05 280);
+    --surface-rail: oklch(16% 0.014 280);
 
-    --text-primary: oklch(96% 0.008 250);
-    --text-secondary: oklch(82% 0.01 250);
-    --text-muted: oklch(64% 0.012 250);
-    --text-subtle: oklch(50% 0.012 250);
-    --text-inverse: oklch(14% 0.012 250);
-    --text-accent: oklch(82% 0.1 260);
+    --text-primary: oklch(96% 0.008 280);
+    --text-secondary: oklch(82% 0.01 280);
+    --text-muted: oklch(64% 0.012 280);
+    --text-subtle: oklch(50% 0.012 280);
+    --text-inverse: oklch(14% 0.014 280);
+    --text-accent: oklch(82% 0.12 280);
 
-    --border-subtle: oklch(26% 0.012 250);
-    --border-strong: oklch(36% 0.012 250);
-    --border-focus: oklch(78% 0.14 260);
-    --border-divider: oklch(28% 0.012 250);
+    --border-subtle: oklch(26% 0.012 280);
+    --border-strong: oklch(36% 0.012 280);
+    --border-focus: oklch(78% 0.16 280);
+    --border-divider: oklch(28% 0.012 280);
 
-    --accent: oklch(78% 0.14 260);
-    --accent-hover: oklch(82% 0.14 260);
-    --accent-text: oklch(13% 0.012 250);
-    --accent-soft: oklch(26% 0.05 260);
-    --accent-soft-border: oklch(38% 0.07 260);
+    --accent: oklch(74% 0.16 280);
+    --accent-hover: oklch(80% 0.16 280);
+    --accent-text: oklch(14% 0.014 280);
+    --accent-soft: oklch(26% 0.06 280);
+    --accent-soft-border: oklch(40% 0.08 280);
 
-    --success: oklch(78% 0.12 150);
-    --success-soft: oklch(22% 0.05 150);
-    --success-soft-border: oklch(34% 0.07 150);
+    --stale: oklch(82% 0.14 70);
+    --stale-soft: oklch(28% 0.07 70);
+    --stale-soft-border: oklch(40% 0.1 70);
 
-    --warning: oklch(82% 0.13 75);
-    --warning-soft: oklch(30% 0.06 75);
-    --warning-soft-border: oklch(40% 0.08 75);
+    --success: oklch(78% 0.14 155);
+    --success-soft: oklch(22% 0.05 155);
+    --success-soft-border: oklch(34% 0.07 155);
+
+    --warning: oklch(82% 0.14 70);
+    --warning-soft: oklch(28% 0.07 70);
+    --warning-soft-border: oklch(40% 0.1 70);
 
     --danger: oklch(76% 0.18 25);
     --danger-soft: oklch(26% 0.06 25);

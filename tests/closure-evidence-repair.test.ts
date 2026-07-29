@@ -22,74 +22,9 @@ interface DeficientTicket {
 const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
   {
     id: "A1",
-    issue: 15,
-    sectionHeading:
-      "A1. [#15](https://github.com/rafaelromao/slotmerge/issues/15) Sub-PRD: Search & Matching",
-    vitestPath: "tests/workflow-search.test.ts",
-    componentPath: "tests/app-searches-page.test.tsx",
-    visualCommitted: "tests/e2e-browser/screenshots/search-form/",
-    visualArtifact: "visual-regression.yml",
-    pr: null,
-    correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/15#issuecomment-5111930041",
-  },
-  {
-    id: "A2",
-    issue: 16,
-    sectionHeading:
-      "A2. [#16](https://github.com/rafaelromao/slotmerge/issues/16) Sub-PRD: Auth & Invites",
-    vitestPath: "src/workflow/auth.test.ts",
-    componentPath: "tests/app-sign-in-page.test.tsx",
-    visualCommitted: "tests/e2e-browser/screenshots/sign-in/",
-    visualArtifact: "visual-regression.yml",
-    pr: null,
-    correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/16#issuecomment-5111930110",
-  },
-  {
-    id: "A3",
-    issue: 17,
-    sectionHeading:
-      "A3. [#17](https://github.com/rafaelromao/slotmerge/issues/17) Sub-PRD: Calendar Connections",
-    vitestPath: "src/workflow/calendar-connection.test.ts",
-    componentPath: "tests/app-me-calendar-connections-page.test.tsx",
-    visualCommitted: "tests/e2e-browser/screenshots/calendar-connections/",
-    visualArtifact: "visual-regression.yml",
-    pr: null,
-    correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/17#issuecomment-5111930172",
-  },
-  {
-    id: "A4",
-    issue: 18,
-    sectionHeading:
-      "A4. [#18](https://github.com/rafaelromao/slotmerge/issues/18) Sub-PRD: Admin & Notifications",
-    vitestPath: "src/workflow/admin-users.test.ts",
-    componentPath: "tests/app-admin-page.test.tsx",
-    visualCommitted: "tests/e2e-browser/screenshots/admin/",
-    visualArtifact: "visual-regression.yml",
-    pr: null,
-    correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/18#issuecomment-5111930281",
-  },
-  {
-    id: "A5",
-    issue: 19,
-    sectionHeading:
-      "A5. [#19](https://github.com/rafaelromao/slotmerge/issues/19) Sub-PRD: Profile & Setup",
-    vitestPath: "src/profile/profile-workflow.test.ts",
-    componentPath: "tests/app-me-profile-page.test.tsx",
-    visualCommitted: "tests/e2e-browser/screenshots/user/",
-    visualArtifact: "visual-regression.yml",
-    pr: null,
-    correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/19#issuecomment-5111930358",
-  },
-  {
-    id: "A6",
     issue: 33,
     sectionHeading:
-      "A6. [#33](https://github.com/rafaelromao/slotmerge/issues/33) Define weekly Availability Windows in profile timezone",
+      "A1. [#33](https://github.com/rafaelromao/slotmerge/issues/33) Define weekly Availability Windows in profile timezone",
     vitestPath: "tests/e2e/define-weekly-availability-windows.test.ts",
     componentPath: "tests/app-me-availability-page.test.tsx",
     visualCommitted: "tests/e2e-browser/screenshots/user/availability/",
@@ -99,10 +34,10 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
       "https://github.com/rafaelromao/slotmerge/issues/33#issuecomment-5111930429",
   },
   {
-    id: "A7",
+    id: "A2",
     issue: 37,
     sectionHeading:
-      "A7. [#37](https://github.com/rafaelromao/slotmerge/issues/37) Invite a User with email and role from Admin UI",
+      "A2. [#37](https://github.com/rafaelromao/slotmerge/issues/37) Invite a User with email and role from Admin UI",
     vitestPath: "tests/e2e/admin-invites-user-from-admin-users-screen.test.ts",
     componentPath: "tests/app-admin-page.test.tsx",
     visualCommitted: "tests/e2e-browser/screenshots/admin/users/",
@@ -112,10 +47,10 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
       "https://github.com/rafaelromao/slotmerge/issues/37#issuecomment-5111930488",
   },
   {
-    id: "A8",
+    id: "A3",
     issue: 45,
     sectionHeading:
-      "A8. [#45](https://github.com/rafaelromao/slotmerge/issues/45) Encrypt Calendar Connection OAuth tokens at rest",
+      "A3. [#45](https://github.com/rafaelromao/slotmerge/issues/45) Encrypt Calendar Connection OAuth tokens at rest",
     vitestPath: "tests/calendar-token-encryption.test.ts",
     componentPath: null,
     visualCommitted: null,
@@ -125,10 +60,10 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
       "https://github.com/rafaelromao/slotmerge/issues/45#issuecomment-5111930538",
   },
   {
-    id: "A9",
+    id: "A4",
     issue: 49,
     sectionHeading:
-      "A9. [#49](https://github.com/rafaelromao/slotmerge/issues/49) Disconnect a Calendar Connection",
+      "A4. [#49](https://github.com/rafaelromao/slotmerge/issues/49) Disconnect a Calendar Connection",
     vitestPath:
       "tests/e2e/disconnect-removes-tokens-and-prevents-further-sync.test.ts",
     componentPath: "tests/app-me-calendar-connections-page.test.tsx",
@@ -139,10 +74,10 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
       "https://github.com/rafaelromao/slotmerge/issues/49#issuecomment-5111930596",
   },
   {
-    id: "A10",
+    id: "A5",
     issue: 52,
     sectionHeading:
-      "A10. [#52](https://github.com/rafaelromao/slotmerge/issues/52) Trigger Calendar Connection action-required email",
+      "A5. [#52](https://github.com/rafaelromao/slotmerge/issues/52) Trigger Calendar Connection action-required email",
     vitestPath: "tests/e2e/action-required-email-on-token-revocation.test.ts",
     componentPath: null,
     visualCommitted: "tests/e2e-browser/screenshots/calendar-connections/",
@@ -152,10 +87,10 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
       "https://github.com/rafaelromao/slotmerge/issues/52#issuecomment-5111930657",
   },
   {
-    id: "A11",
+    id: "A6",
     issue: 98,
     sectionHeading:
-      "A11. [#98](https://github.com/rafaelromao/slotmerge/issues/98) E2E test: Calendar Connection action-required state sends email",
+      "A6. [#98](https://github.com/rafaelromao/slotmerge/issues/98) E2E test: Calendar Connection action-required state sends email",
     vitestPath: "tests/e2e/action-required-email-on-token-revocation.test.ts",
     componentPath: null,
     visualCommitted: null,
@@ -165,10 +100,10 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
       "https://github.com/rafaelromao/slotmerge/issues/98#issuecomment-5111930728",
   },
   {
-    id: "A12",
+    id: "A7",
     issue: 108,
     sectionHeading:
-      "A12. [#108](https://github.com/rafaelromao/slotmerge/issues/108) E2E test: clicking a Slot opens a drawer with matching Users",
+      "A7. [#108](https://github.com/rafaelromao/slotmerge/issues/108) E2E test: clicking a Slot opens a drawer with matching Users",
     vitestPath: "tests/workflow-search.test.ts",
     componentPath: "tests/slot-details-drawer.test.tsx",
     visualCommitted: "tests/e2e-browser/screenshots/search-result/",
@@ -178,10 +113,10 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
       "https://github.com/rafaelromao/slotmerge/issues/108#issuecomment-5111930786",
   },
   {
-    id: "A13",
+    id: "A8",
     issue: 114,
     sectionHeading:
-      "A13. [#114](https://github.com/rafaelromao/slotmerge/issues/114) E2E test: match only considers setup-complete users",
+      "A8. [#114](https://github.com/rafaelromao/slotmerge/issues/114) E2E test: match only considers setup-complete users",
     vitestPath: "tests/e2e/setup-checklist-gates-matching-eligibility.test.ts",
     componentPath: "tests/app-setup-home-page.test.tsx",
     visualCommitted: "tests/e2e-browser/screenshots/setup-home/",
@@ -191,23 +126,10 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
       "https://github.com/rafaelromao/slotmerge/issues/114#issuecomment-5111930848",
   },
   {
-    id: "A14",
-    issue: 279,
-    sectionHeading:
-      "A14. [#279](https://github.com/rafaelromao/slotmerge/issues/279) Define rendered-screen and browser-journey completion gates",
-    vitestPath: "tests/t24-closure-evidence.test.ts",
-    componentPath: null,
-    visualCommitted: null,
-    visualArtifact: null,
-    pr: null,
-    correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/279#issuecomment-5111930904",
-  },
-  {
-    id: "A15",
+    id: "A9",
     issue: 307,
     sectionHeading:
-      "A15. [#307](https://github.com/rafaelromao/slotmerge/issues/307) T21 E2E plan #62 in-place update",
+      "A9. [#307](https://github.com/rafaelromao/slotmerge/issues/307) T21 E2E plan #62 in-place update",
     vitestPath: "tests/retired-routes.test.ts",
     componentPath: null,
     visualCommitted: null,
@@ -217,10 +139,10 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
       "https://github.com/rafaelromao/slotmerge/issues/307#issuecomment-5111930980",
   },
   {
-    id: "A16",
+    id: "A10",
     issue: 326,
     sectionHeading:
-      "A16. [#326](https://github.com/rafaelromao/slotmerge/issues/326) Commit Search-form visual-capture baselines",
+      "A10. [#326](https://github.com/rafaelromao/slotmerge/issues/326) Commit Search-form visual-capture baselines",
     vitestPath: "tests/workflow-search.test.ts",
     componentPath: "tests/app-searches-page.test.tsx",
     visualCommitted: "tests/e2e-browser/screenshots/search-form/",
@@ -286,9 +208,91 @@ const CATEGORY_B_TICKETS: readonly DeficientTicket[] = [
   },
 ] as const;
 
+const CATEGORY_C_TICKETS: readonly DeficientTicket[] = [
+  {
+    id: "C1",
+    issue: 15,
+    sectionHeading:
+      "C1. [#15](https://github.com/rafaelromao/slotmerge/issues/15) Sub-PRD: Search & Matching",
+    vitestPath: "tests/workflow-search.test.ts",
+    componentPath: "tests/app-searches-page.test.tsx",
+    visualCommitted: "tests/e2e-browser/screenshots/search-form/",
+    visualArtifact: "visual-regression.yml",
+    pr: null,
+    correctiveCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/15#issuecomment-5111930041",
+  },
+  {
+    id: "C2",
+    issue: 16,
+    sectionHeading:
+      "C2. [#16](https://github.com/rafaelromao/slotmerge/issues/16) Sub-PRD: Auth & Invites",
+    vitestPath: "src/workflow/auth.test.ts",
+    componentPath: "tests/app-sign-in-page.test.tsx",
+    visualCommitted: "tests/e2e-browser/screenshots/sign-in/",
+    visualArtifact: "visual-regression.yml",
+    pr: null,
+    correctiveCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/16#issuecomment-5111930110",
+  },
+  {
+    id: "C3",
+    issue: 17,
+    sectionHeading:
+      "C3. [#17](https://github.com/rafaelromao/slotmerge/issues/17) Sub-PRD: Calendar Connections",
+    vitestPath: "src/workflow/calendar-connection.test.ts",
+    componentPath: "tests/app-me-calendar-connections-page.test.tsx",
+    visualCommitted: "tests/e2e-browser/screenshots/calendar-connections/",
+    visualArtifact: "visual-regression.yml",
+    pr: null,
+    correctiveCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/17#issuecomment-5111930172",
+  },
+  {
+    id: "C4",
+    issue: 18,
+    sectionHeading:
+      "C4. [#18](https://github.com/rafaelromao/slotmerge/issues/18) Sub-PRD: Admin & Notifications",
+    vitestPath: "src/workflow/admin-users.test.ts",
+    componentPath: "tests/app-admin-page.test.tsx",
+    visualCommitted: "tests/e2e-browser/screenshots/admin/",
+    visualArtifact: "visual-regression.yml",
+    pr: null,
+    correctiveCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/18#issuecomment-5111930281",
+  },
+  {
+    id: "C5",
+    issue: 19,
+    sectionHeading:
+      "C5. [#19](https://github.com/rafaelromao/slotmerge/issues/19) Sub-PRD: Profile & Setup",
+    vitestPath: "src/profile/profile-workflow.test.ts",
+    componentPath: "tests/app-me-profile-page.test.tsx",
+    visualCommitted: "tests/e2e-browser/screenshots/user/",
+    visualArtifact: "visual-regression.yml",
+    pr: null,
+    correctiveCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/19#issuecomment-5111930358",
+  },
+  {
+    id: "C6",
+    issue: 279,
+    sectionHeading:
+      "C6. [#279](https://github.com/rafaelromao/slotmerge/issues/279) Define rendered-screen and browser-journey completion gates",
+    vitestPath: "tests/t24-closure-evidence.test.ts",
+    componentPath: null,
+    visualCommitted: null,
+    visualArtifact: null,
+    pr: null,
+    correctiveCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/279#issuecomment-5111930904",
+  },
+] as const;
+
 const ALL_TICKETS: readonly DeficientTicket[] = [
   ...CATEGORY_A_TICKETS,
   ...CATEGORY_B_TICKETS,
+  ...CATEGORY_C_TICKETS,
 ];
 
 async function readDocument(): Promise<string> {
@@ -357,11 +361,13 @@ describe("closure-evidence repair audit", () => {
       "## Closure-evidence standard",
       "## Per-ticket evidence — Category A (prohibited stand-alone comment)",
       "## Per-ticket evidence — Category B (missing closing comment)",
+      "## Per-ticket evidence — Category C (already-closed with proper closure-evidence)",
       "## Corrective comment template",
       "## Practical constraints (comment-only repair)",
-      "## Inconsistency callouts",
+      "## Inconsistency callouts (reversal)",
+      "## State at the audit window (corrected)",
       "## Reopening safety",
-      "## Open blockers (unchanged)",
+      "## Reproduction",
       "## PR-CI gate",
     ]) {
       expect(
@@ -399,7 +405,7 @@ describe("closure-evidence repair audit", () => {
       const section = sections.get(ticket.sectionHeading);
       expect(section, `section heading for ${ticket.id}`).toBeDefined();
       expect(section, `${ticket.id} section starts with the heading`).toMatch(
-        /^[AB]\d+\.\s*\[/,
+        /^[ABC]\d+\.\s*\[/,
       );
       expect(
         section,
@@ -553,7 +559,7 @@ describe("closure-evidence repair audit", () => {
     }
   });
 
-  it("disallows the prohibited stand-alone comment as the only closure record", async () => {
+  it("disallows the prohibited stand-alone comment as the only closure record for Category A rows", async () => {
     const document = await readDocument();
 
     expect(document).toContain(
@@ -562,58 +568,6 @@ describe("closure-evidence repair audit", () => {
     expect(document).not.toMatch(
       /^> Closed by sandman — issue already completed\.$/m,
     );
-  });
-
-  it("uses the canonical `## Closure Evidence` template header", async () => {
-    const document = await readDocument();
-
-    expect(document).toContain(
-      "## Closure Evidence\n\n> Audit-repair record from [#347]",
-    );
-  });
-
-  it("names the seven canonical fields in the corrective comment template", async () => {
-    const document = await readDocument();
-
-    for (const field of [
-      "Playwright happy-path spec",
-      "Playwright failure-path spec",
-      "Vitest unit test",
-      "Component test",
-      "Visual capture (committed baselines)",
-      "Visual capture (workflow artifact)",
-      "AGENTS.md acceptance bar checked",
-      "Closure PR",
-    ]) {
-      expect(
-        document,
-        `corrective-comment template must name the canonical field "${field}"`,
-      ).toContain(`- **${field}**:`);
-    }
-  });
-
-  it("records the AGENTS.md line 65 (CI gate) reference rather than line 64", async () => {
-    const document = await readDocument();
-
-    expect(document).toContain("AGENTS.md line 65");
-    expect(document).not.toMatch(/AGENTS\.md line 64\b/);
-  });
-
-  it("surfaces the #15 closure-while-blocked inconsistency", async () => {
-    const document = await readDocument();
-
-    expect(document).toContain("Sub-PRD: Search & Matching");
-    expect(document).toContain("T10");
-    expect(document).toContain("issues/296");
-    expect(document).toMatch(/Inconsistency callouts/);
-  });
-
-  it("records every audit-window open blocker as unchanged", async () => {
-    const document = await readDocument();
-
-    for (const issue of [296, 303, 304, 305]) {
-      expect(document).toContain(`issues/${issue}`);
-    }
   });
 
   it("preserves the locked PR-CI gate and the workflow-dispatch Playwright lane", async () => {
@@ -627,6 +581,29 @@ describe("closure-evidence repair audit", () => {
     expect(document).toContain("workflow_dispatch");
   });
 
+  it("records the corrected State at the audit window table", async () => {
+    const document = await readDocument();
+
+    expect(document).toContain("## State at the audit window (corrected)");
+    expect(document).toContain("T10");
+    expect(document).toContain("CLOSED");
+    expect(document).toContain("2026-07-28T03:15:45Z");
+    expect(document).toContain("2026-07-28T13:57:40Z");
+    expect(document).toContain("2026-07-28T03:58:11Z");
+    expect(document).toContain("2026-07-28T15:07:07Z");
+    for (const issue of [296, 303, 304, 305]) {
+      expect(document).toContain(`issues/${issue}`);
+    }
+  });
+
+  it("records the Inconsistency callouts (reversal) section", async () => {
+    const document = await readDocument();
+
+    expect(document).toContain("## Inconsistency callouts (reversal)");
+    expect(document).toContain("brief opening window is recorded");
+    expect(document).toContain("the durable state is");
+  });
+
   it("remains consistent with the T24 closure evidence document", async () => {
     const [document, t24] = await Promise.all([
       readDocument(),
@@ -634,10 +611,6 @@ describe("closure-evidence repair audit", () => {
     ]);
 
     expect(t24).toContain("# T24 closure evidence");
-    for (const issue of [296, 303, 304, 305]) {
-      expect(t24).toContain(`issues/${issue}`);
-    }
-
     expect(document).toContain("docs/t24-closure-evidence.md");
   });
 

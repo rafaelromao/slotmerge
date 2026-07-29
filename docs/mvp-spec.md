@@ -272,6 +272,22 @@ PostgreSQL is the primary database. Token material is encrypted at rest; non-sen
 
 - Audit record: id, actor (User id), action enum (invite / role-change / suspend / reinstate / approve-proposal / reject-proposal / retire-topic / refresh-calendar / disconnect-calendar), target type, target id, metadata jsonb, createdAt. The audit table is non-personal. Self-delete preserves the audit references.
 
+### 6.10 Timezone Validation Contract
+
+Every Profile timezone, Organizer Search timezone, Availability Window timezone, and Availability Override timezone passes through `isValidTimeZone` (canonical source: `src/time/local-time.ts`). The contract is the authoritative one for the project; this subsection is the back-reference and the JSDoc on `isValidTimeZone` is the canonical source.
+
+- **Accepted**:
+  - The exact string `Intl.DateTimeFormat({ timeZone: input, locale: "en-US" }).resolvedOptions().timeZone` returns when called with `input` (case-sensitive round-trip). This includes canonical IANA zone IDs in `Region/City` form (`America/New_York`, `Asia/Katmandu`, `Pacific/Auckland`, etc.) and the special `UTC` identifier.
+  - A documented alias from `TIMEZONE_ALIASES` in `src/time/local-time.ts`. Today the only alias is `Asia/Kathmandu`, which is the project's preferred spelling of canonical `Asia/Katmandu`. The alias resolves the previously disputed Kathmandu spelling case and is the only project-side extension to the audit's "canonical" wording at issue #256 (decision #253). Adding additional aliases is a deliberate, documented change to this section.
+- **Rejected** (throws `RangeError` with message `Invalid IANA timezone: <json>`, no UTC fallback):
+  - Casing variants of canonical zones (e.g., `america/new_york`, `asia/kathmandu`, `asia/katmandu`).
+  - Abbreviations that resolve via alias (e.g., `EST`, `PST`, `GMT`, `Etc/UTC`).
+  - Unknown strings (e.g., `Foo/Bar`, `not-a-zone`).
+  - The empty string and non-string inputs.
+- **Pinned to Node 22 / V8 ICU behavior**. A future ICU bump that changes the resolution of any input this contract depends on requires an explicit ticket to extend or update the alias set.
+
+`isValidTimeZone` is invoked at the input boundary of every consumer (`src/search/search-input.ts`, `src/workflow/search.ts`, `app/(product)/searches/_actions/run-search-handler.ts`) and at the entry of every conversion helper in `src/time/local-time.ts`. DST conversion and existing supported timezone behavior are unaffected by this contract: the conversion helpers themselves remain unchanged.
+
 ## 7. API Surface
 
 The MVP exposes a single full-stack web app with Server Actions as the primary mutation seam and a narrow `/api/v1` namespace as the public read seam. External seams (OAuth callback, provider webhooks, sign-out, self-delete, magic-link request and resend) are route handlers because the callers are not the browser. Authentication is required on every endpoint except invite acceptance and magic-link verification.

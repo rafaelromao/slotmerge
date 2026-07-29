@@ -13,9 +13,8 @@ import {
 } from "./local-time";
 
 describe("isValidTimeZone", () => {
-  it("accepts canonical IANA zones", () => {
+  it("accepts canonical IANA zone identifiers via round-trip strict equality", () => {
     expect(() => isValidTimeZone("America/New_York")).not.toThrow();
-    expect(() => isValidTimeZone("Asia/Kathmandu")).not.toThrow();
     expect(() => isValidTimeZone("Asia/Katmandu")).not.toThrow();
     expect(() => isValidTimeZone("UTC")).not.toThrow();
     expect(() => isValidTimeZone("Pacific/Chatham")).not.toThrow();
@@ -24,18 +23,41 @@ describe("isValidTimeZone", () => {
     expect(() => isValidTimeZone("Europe/London")).not.toThrow();
   });
 
+  it("accepts the documented alias 'Asia/Kathmandu' for canonical 'Asia/Katmandu'", () => {
+    expect(() => isValidTimeZone("Asia/Kathmandu")).not.toThrow();
+  });
+
+  it("throws RangeError for casing variants of canonical zones", () => {
+    expect(() => isValidTimeZone("america/new_york")).toThrow(RangeError);
+    expect(() => isValidTimeZone("asia/kathmandu")).toThrow(RangeError);
+    expect(() => isValidTimeZone("asia/katmandu")).toThrow(RangeError);
+    expect(() => isValidTimeZone("America/new_york")).toThrow(RangeError);
+  });
+
+  it("throws RangeError for abbreviations that resolve via alias", () => {
+    expect(() => isValidTimeZone("EST")).toThrow(RangeError);
+    expect(() => isValidTimeZone("PST")).toThrow(RangeError);
+    expect(() => isValidTimeZone("GMT")).toThrow(RangeError);
+    expect(() => isValidTimeZone("Etc/UTC")).toThrow(RangeError);
+  });
+
+  it("throws RangeError for unknown strings", () => {
+    expect(() => isValidTimeZone("Foo/Bar")).toThrow(RangeError);
+    expect(() => isValidTimeZone("not-a-zone")).toThrow(RangeError);
+  });
+
   it("throws RangeError for an empty string", () => {
     expect(() => isValidTimeZone("")).toThrow(RangeError);
   });
 
-  it("accepts aliases that resolve to canonical IANA zones", () => {
-    expect(() => isValidTimeZone("asia/kathmandu")).not.toThrow();
-    expect(() => isValidTimeZone("asia/katmandu")).not.toThrow();
-  });
-
-  it("throws RangeError for garbage input", () => {
-    expect(() => isValidTimeZone("Foo/Bar")).toThrow(RangeError);
-    expect(() => isValidTimeZone("not-a-zone")).toThrow(RangeError);
+  it("throws RangeError for non-string inputs", () => {
+    expect(() => isValidTimeZone(null as unknown as string)).toThrow(
+      RangeError,
+    );
+    expect(() => isValidTimeZone(undefined as unknown as string)).toThrow(
+      RangeError,
+    );
+    expect(() => isValidTimeZone(42 as unknown as string)).toThrow(RangeError);
   });
 
   it("does not silently fall back to UTC on invalid zones", () => {
@@ -45,6 +67,32 @@ describe("isValidTimeZone", () => {
     } catch (caught) {
       expect(caught).toBeInstanceOf(RangeError);
     }
+  });
+
+  it("documents the Node 22 / V8 ICU resolution behavior the contract depends on", () => {
+    expect(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Katmandu",
+      }).resolvedOptions().timeZone,
+    ).toBe("Asia/Katmandu");
+    expect(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Kathmandu",
+      }).resolvedOptions().timeZone,
+    ).toBe("Asia/Katmandu");
+    expect(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+      }).resolvedOptions().timeZone,
+    ).toBe("America/New_York");
+    expect(
+      new Intl.DateTimeFormat("en-US", { timeZone: "UTC" }).resolvedOptions()
+        .timeZone,
+    ).toBe("UTC");
+    expect(
+      new Intl.DateTimeFormat("en-US", { timeZone: "EST" }).resolvedOptions()
+        .timeZone,
+    ).not.toBe("EST");
   });
 });
 

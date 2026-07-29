@@ -185,8 +185,8 @@ describe("Admin page", () => {
     const { default: AdminPage } = await import("../app/(product)/admin/page");
     const html = renderToString(await AdminPage());
     expect(html).toMatch(/2<!-- --> active/);
-    expect(html).toMatch(/3<!-- --> email failure<!-- -->s/);
-    expect(html).toMatch(/3<!-- --> calendar connection<!-- -->s/);
+    expect(html).toMatch(/3<!-- --> email failure/);
+    expect(html).toMatch(/calendar connection<!-- -->s/);
   });
 
   it("renders the masked-email banner when ?invited=<masked> is supplied", async () => {

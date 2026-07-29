@@ -127,7 +127,7 @@ describe("/me/profile (profile edit page)", () => {
     }));
 
     expect(html).toContain("profile-saved-indicator");
-    expect(html).toContain("Saved");
+    expect(html).toMatch(/Profile saved/i);
   });
 
   it("renders the empty state when the profile cannot be loaded", async () => {

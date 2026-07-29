@@ -140,16 +140,50 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
 
   return (
     <main
-      className="app-container calendar-connection-page"
+      className="app-container me-page"
       data-testid="calendar-connection-page"
     >
-      <h1 data-testid="calendar-connection-page-heading">
-        Calendar connections
-      </h1>
-      <p className="calendar-connection-intro">
-        Connect a calendar to import busy times. SlotMerge only ever reads your
-        free/busy data and never your event titles, locations, or attendees.
-      </p>
+      <header className="me-page-header">
+        <div className="me-page-header-copy">
+          <p className="eyebrow">Calendar</p>
+          <h1 data-testid="calendar-connection-page-heading">
+            Calendar connections
+          </h1>
+          <p className="page-description">
+            Connect a calendar to import busy times. SlotMerge only ever reads
+            your free/busy data and never your event titles, locations, or
+            attendees.
+          </p>
+        </div>
+        <div className="me-page-header-actions">
+          <span
+            className="me-page-header-pill"
+            data-tone={
+              connections.length === 0
+                ? "warn"
+                : connections.some(
+                      (c) =>
+                        c.displayStatus === "needs_reconnect" ||
+                        c.displayStatus === "failed",
+                    )
+                  ? "danger"
+                  : "ok"
+            }
+            data-testid="calendar-connection-page-status-pill"
+          >
+            <strong>
+              {connections.length === 0
+                ? "Not connected"
+                : `${connections.length} connected`}
+            </strong>
+            <span>
+              {connections.length === 0
+                ? "Connect a calendar to import conflicts"
+                : "Free/busy only"}
+            </span>
+          </span>
+        </div>
+      </header>
 
       {banner ? (
         <div
@@ -176,11 +210,14 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
       ) : null}
 
       <section
-        className="calendar-connection-section"
+        className="topics-page-section"
         aria-labelledby="calendar-connection-connect-heading"
         data-testid="calendar-connection-connect-section"
       >
-        <h2 id="calendar-connection-connect-heading">Connect a calendar</h2>
+        <div className="topics-page-section-header">
+          <h2 id="calendar-connection-connect-heading">Connect a calendar</h2>
+          <p>Pick a provider to begin OAuth.</p>
+        </div>
         <div className="calendar-connection-connect-grid">
           <form
             method="POST"
@@ -216,11 +253,16 @@ export function CalendarConnectionsView(props: CalendarConnectionsViewProps) {
       </section>
 
       <section
-        className="calendar-connection-section"
+        className="topics-page-section"
         aria-labelledby="calendar-connection-list-heading"
         data-testid="calendar-connection-list-section"
       >
-        <h2 id="calendar-connection-list-heading">Your calendar connections</h2>
+        <div className="topics-page-section-header">
+          <h2 id="calendar-connection-list-heading">
+            Your calendar connections
+          </h2>
+          <p>{connections.length} connected.</p>
+        </div>
         {!pageState ? (
           <p
             role="alert"

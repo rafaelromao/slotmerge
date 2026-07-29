@@ -23,14 +23,14 @@ export function ProposeForm({ csrfToken }: ProposeFormProps) {
   return (
     <form
       action={formAction}
-      className="topics-propose-form"
+      className="topics-propose-card"
       data-testid="topics-propose-form"
       noValidate
     >
       <input type="hidden" name="_csrf" value={csrfToken} />
 
       <div className="topics-propose-row">
-        <label htmlFor="topics-propose-input">Propose a new Topic</label>
+        <label htmlFor="topics-propose-input">Topic name</label>
         <div className="topics-propose-input">
           <ProposeFormField state={state} />
         </div>

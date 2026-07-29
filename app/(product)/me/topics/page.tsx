@@ -40,30 +40,52 @@ export default async function TopicsPage({
   const pageState = pageStateResult.value;
 
   return (
-    <main className="app-container" data-testid="topics-page">
-      <h1 data-testid="topics-page-heading">My Topics</h1>
-      <p className="topics-page-intro">
-        Choose the Topics you want associated with your profile and propose a
-        new Topic for Admin review.
-      </p>
+    <main className="app-container me-page" data-testid="topics-page">
+      <header className="me-page-header">
+        <div className="me-page-header-copy">
+          <p className="eyebrow">Topics</p>
+          <h1 data-testid="topics-page-heading">My Topics</h1>
+          <p className="page-description">
+            Choose the Topics you want associated with your profile and propose
+            a new Topic for Admin review.
+          </p>
+        </div>
+        <div className="me-page-header-actions">
+          <span
+            className="me-page-header-pill"
+            data-tone={pageState.selectedTopicIds.length > 0 ? "ok" : "warn"}
+            data-testid="topics-page-status-pill"
+          >
+            <strong>{pageState.selectedTopicIds.length}</strong>
+            <span>
+              {pageState.selectedTopicIds.length === 1
+                ? "Topic selected"
+                : "Topics selected"}
+            </span>
+          </span>
+        </div>
+      </header>
 
       {showSavedIndicator ? (
         <p
-          className="topics-saved-indicator"
+          className="saved-banner"
           role="status"
           aria-live="polite"
           data-testid="topics-saved-indicator"
         >
-          Saved
+          Topic selection saved.
         </p>
       ) : null}
 
       <section
-        className="topics-section"
+        className="topics-page-section"
         aria-labelledby="topics-catalogue-heading"
         data-testid="topics-catalogue-section"
       >
-        <h2 id="topics-catalogue-heading">Active Topics</h2>
+        <div className="topics-page-section-header">
+          <h2 id="topics-catalogue-heading">Active Topics</h2>
+          <p>{pageState.catalogue.length} available.</p>
+        </div>
 
         {pageState.catalogue.length === 0 ? (
           <div className="empty-state" data-testid="topics-catalogue-empty">
@@ -133,20 +155,30 @@ export default async function TopicsPage({
       </section>
 
       <section
-        className="topics-section"
+        className="topics-page-section"
         aria-labelledby="topics-propose-heading"
         data-testid="topics-propose-section"
       >
-        <h2 id="topics-propose-heading">Propose a new Topic</h2>
+        <div className="topics-page-section-header">
+          <h2 id="topics-propose-heading">Propose a new Topic</h2>
+          <p>2 to 60 characters. Reviewed by Admins.</p>
+        </div>
         <ProposeForm csrfToken={context.csrfToken} />
       </section>
 
       <section
-        className="topics-section"
+        className="topics-page-section"
         aria-labelledby="topics-my-proposals-heading"
         data-testid="topics-my-proposals-section"
       >
-        <h2 id="topics-my-proposals-heading">My Proposals</h2>
+        <div className="topics-page-section-header">
+          <h2 id="topics-my-proposals-heading">My Proposals</h2>
+          <p>
+            {pageState.proposals.length === 0
+              ? "No proposals yet."
+              : `${pageState.proposals.length} submitted.`}
+          </p>
+        </div>
         {pageState.proposals.length === 0 ? (
           <div className="empty-state" data-testid="topics-my-proposals-empty">
             <p className="empty-state-title">

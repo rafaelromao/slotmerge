@@ -4,6 +4,7 @@ import {
   defaultSupportedTimeZones,
 } from "../../../../src/profile/profile-workflow";
 import { ProfileForm } from "../_components/ProfileForm";
+import Link from "next/link";
 
 type SearchParams = Promise<{
   saved?: string | string[];
@@ -44,31 +45,52 @@ export default async function ProfileEditPage({
   const supportedTimeZones = Array.from(defaultSupportedTimeZones()).sort();
 
   return (
-    <main className="app-container">
-      <h1>Edit profile</h1>
+    <main className="app-container me-page" data-testid="me-profile-page">
+      <header className="me-page-header">
+        <div className="me-page-header-copy">
+          <p className="eyebrow">Profile</p>
+          <h1 data-testid="me-profile-page-heading">Edit profile</h1>
+          <p className="page-description">
+            Your display name and timezone are required. Email is fixed by the
+            sign-in you accepted.
+          </p>
+        </div>
+        <div className="me-page-header-actions">
+          <Link
+            href="/me"
+            className="btn btn-secondary"
+            data-testid="me-profile-back-link"
+          >
+            Back to profile
+          </Link>
+        </div>
+      </header>
 
       {showSavedIndicator ? (
         <p
-          className="profile-saved-indicator"
+          className="saved-banner"
           role="status"
+          aria-live="polite"
           data-testid="profile-saved-indicator"
         >
-          Saved
+          Profile saved.
         </p>
       ) : null}
 
-      <ProfileForm
-        csrfToken={context.csrfToken}
-        supportedTimeZones={supportedTimeZones}
-        defaultValues={{
-          displayName: profile.displayName ?? "",
-          email: profile.email,
-          profileTimezone: profile.profileTimezone ?? "",
-          bufferMinutes: profile.bufferMinutes,
-          avatarUrl: profile.avatarUrl ?? "",
-          shortBio: profile.shortBio ?? "",
-        }}
-      />
+      <div className="profile-form-card">
+        <ProfileForm
+          csrfToken={context.csrfToken}
+          supportedTimeZones={supportedTimeZones}
+          defaultValues={{
+            displayName: profile.displayName ?? "",
+            email: profile.email,
+            profileTimezone: profile.profileTimezone ?? "",
+            bufferMinutes: profile.bufferMinutes,
+            avatarUrl: profile.avatarUrl ?? "",
+            shortBio: profile.shortBio ?? "",
+          }}
+        />
+      </div>
     </main>
   );
 }

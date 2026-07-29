@@ -202,7 +202,7 @@ describe("/me/topics (topics page)", () => {
     );
 
     expect(html).toContain("topics-saved-indicator");
-    expect(html).toContain("Saved");
+    expect(html).toMatch(/Topic selection saved/i);
   });
 
   it("does not show the Saved indicator when searchParams.saved is absent", async () => {

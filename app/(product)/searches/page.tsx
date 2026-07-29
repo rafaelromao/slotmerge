@@ -38,17 +38,24 @@ const VALID_FIELD_ERROR_CODES = new Set<FieldErrorCode>([
 ]);
 
 const FIELD_ERROR_MESSAGES: Record<FieldErrorCode, string> = {
-  selected_topics_required: "Select at least one active Topic.",
+  selected_topics_required: "Select at least one active Topic to run a Search.",
   topic_retired:
-    "One or more selected Topics are no longer active. Pick a different Topic set.",
+    "One or more selected Topics were retired since this Search. Pick a different Topic set and try again.",
   minimum_out_of_range:
-    "Minimum matching Users must be at least 2 and not exceed the matching pool.",
-  duration_out_of_range: "Meeting duration must be between 15 and 240 minutes.",
-  date_range_invalid: "Date range end must be after the start.",
+    "Minimum must be at least 2 and no greater than the matching pool.",
+  duration_out_of_range: "Duration must be between 15 and 240 minutes.",
+  date_range_invalid: "End date must be after the start date.",
   date_range_too_long: "Date range must be 90 days or less.",
   organizer_timezone_required:
-    "Set your profile timezone before running a Search.",
+    "Set a timezone in your profile before running a Search.",
 };
+
+const TIMEZONE_PICKER_ID = "organizer-timezone-options";
+
+function listTimezones(): string[] {
+  const zones = Intl.supportedValuesOf("timeZone");
+  return zones.includes("UTC") ? zones : ["UTC", ...zones];
+}
 
 function formatDateForInput(date: Date, timezone: string): string {
   if (Number.isNaN(date.getTime())) return "";
@@ -178,6 +185,7 @@ export default async function SearchesPage({
   const organizerTimezoneInput = hasFeedback
     ? (fb?.organizerTimezone ?? defaults.organizerTimezone)
     : defaults.organizerTimezone;
+  const timezoneOptions = listTimezones();
   const selectedTopicIds = new Set(fb?.selectedTopicIds ?? []);
   const errorMessage =
     errorCode === "organizer_timezone_required"
@@ -403,12 +411,21 @@ export default async function SearchesPage({
             type="text"
             name="organizerTimezone"
             defaultValue={organizerTimezoneInput}
+            list={TIMEZONE_PICKER_ID}
             aria-invalid={!!organizerTimezoneError}
             aria-describedby={
               organizerTimezoneError ? "organizerTimezone-error" : undefined
             }
             data-testid="searches-timezone-input"
           />
+          <datalist
+            id={TIMEZONE_PICKER_ID}
+            data-testid="searches-timezone-picker"
+          >
+            {timezoneOptions.map((timezone) => (
+              <option key={timezone} value={timezone} />
+            ))}
+          </datalist>
           {organizerTimezoneError ? (
             <p
               id="organizerTimezone-error"

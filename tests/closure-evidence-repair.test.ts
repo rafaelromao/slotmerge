@@ -361,7 +361,7 @@ describe("closure-evidence repair audit", () => {
       "## Closure-evidence standard",
       "## Per-ticket evidence — Category A (prohibited stand-alone comment)",
       "## Per-ticket evidence — Category B (missing closing comment)",
-      "## Per-ticket evidence — Category C (already-closed with proper closure-evidence)",
+      "## Per-ticket evidence — Category C (already-evidenced)",
       "## Corrective comment template",
       "## Practical constraints (comment-only repair)",
       "## Inconsistency callouts (reversal)",
@@ -632,5 +632,70 @@ describe("closure-evidence repair audit", () => {
 
     expect(graph).toContain("# SlotMerge Implementation Ticket Graph");
     expect(document).toContain("docs/implementation-graph.md");
+  });
+
+  it("does not reference nonexistent Vitest test files in any per-row B cell", async () => {
+    const document = await readDocument();
+    const headings = ALL_TICKETS.map((t) => t.sectionHeading);
+    const sections = extractTicketSections(document, headings);
+    const fs = await import("node:fs/promises");
+    const pathRegex = /`?([a-zA-Z0-9/_\-.]+\.test\.[a-z]+)`?/g;
+    for (const ticket of ALL_TICKETS) {
+      const section = sections.get(ticket.sectionHeading) ?? "";
+      const fields = readFields(section);
+      const bLine = fields["B. Vitest unit test"] ?? "";
+      const paths: string[] = [];
+      for (const match of bLine.matchAll(pathRegex)) {
+        const p = match[1];
+        if (p && /[/.]/.test(p)) paths.push(p);
+      }
+      for (const p of paths) {
+        let found = false;
+        try {
+          await fs.access(p);
+          found = true;
+        } catch {
+          found = false;
+        }
+        expect(
+          found,
+          `${ticket.id} B cell must reference an existing Vitest file: \`${p}\``,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("does not reference nonexistent Playwright or component test files in any per-row A or C cell", async () => {
+    const document = await readDocument();
+    const headings = ALL_TICKETS.map((t) => t.sectionHeading);
+    const sections = extractTicketSections(document, headings);
+    const fs = await import("node:fs/promises");
+    const pathRegex = /`?([a-zA-Z0-9/_\-.]+\.spec\.[a-z]+)`?/g;
+    for (const ticket of ALL_TICKETS) {
+      const section = sections.get(ticket.sectionHeading) ?? "";
+      const fields = readFields(section);
+      const aLine = fields["A. Playwright happy-path spec"] ?? "";
+      const cLine = fields["C. Component test"] ?? "";
+      const paths: string[] = [];
+      for (const line of [aLine, cLine]) {
+        for (const match of line.matchAll(pathRegex)) {
+          const p = match[1];
+          if (p && /[/.]/.test(p)) paths.push(p);
+        }
+      }
+      for (const p of paths) {
+        let found = false;
+        try {
+          await fs.access(p);
+          found = true;
+        } catch {
+          found = false;
+        }
+        expect(
+          found,
+          `${ticket.id} A/C cell must reference an existing Playwright or component test file: \`${p}\``,
+        ).toBe(true);
+      }
+    }
   });
 });

@@ -48,7 +48,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: `tests/e2e-browser/screenshots/search-form/`, `tests/e2e-browser/screenshots/search-result/`, `tests/e2e-browser/screenshots/search-history/`, `tests/e2e-browser/screenshots/organizer/`.
 - **E. Visual capture (workflow artifact)**: `workflow_dispatch` `visual-regression.yml` lane per AGENTS.md line 65 (WebM capture upload).
 - **F. AGENTS.md acceptance bar**: T24 entry in `docs/implementation-graph.md` line 218; AGENTS.md lines 51–66 reproduced in `docs/t24-closure-evidence.md` and `docs/t25-sub-prd-closure-evidence.md`.
-- **G. Corrective comment**: posted on issue [#15](https://github.com/rafaelromao/slotmerge/issues/15#issuecomment-5111821232).
+- **G. Corrective comment**: posted on issue [#15](https://github.com/rafaelromao/slotmerge/issues/15#issuecomment-5111930041).
 
 ### A2. [#16](https://github.com/rafaelromao/slotmerge/issues/16) Sub-PRD: Auth & Invites
 
@@ -58,7 +58,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: `tests/e2e-browser/screenshots/sign-in/`.
 - **E. Visual capture (workflow artifact)**: `workflow_dispatch` `visual-regression.yml` lane per AGENTS.md line 65.
 - **F. AGENTS.md acceptance bar**: T3 entry in `docs/implementation-graph.md` line 39; lines 51–66 reproduced in `docs/t25-sub-prd-closure-evidence.md`.
-- **G. Corrective comment**: posted on issue [#16](https://github.com/rafaelromao/slotmerge/issues/16#issuecomment-5111821426).
+- **G. Corrective comment**: posted on issue [#16](https://github.com/rafaelromao/slotmerge/issues/16#issuecomment-5111930110).
 
 ### A3. [#17](https://github.com/rafaelromao/slotmerge/issues/17) Sub-PRD: Calendar Connections
 
@@ -68,7 +68,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: `tests/e2e-browser/screenshots/calendar-connections/`.
 - **E. Visual capture (workflow artifact)**: `workflow_dispatch` `visual-regression.yml` lane per AGENTS.md line 65.
 - **F. AGENTS.md acceptance bar**: T8 entry in `docs/implementation-graph.md` line 83; lines 51–66 reproduced in `docs/t25-sub-prd-closure-evidence.md`.
-- **G. Corrective comment**: posted on issue [#17](https://github.com/rafaelromao/slotmerge/issues/17#issuecomment-5111821672).
+- **G. Corrective comment**: posted on issue [#17](https://github.com/rafaelromao/slotmerge/issues/17#issuecomment-5111930172).
 
 ### A4. [#18](https://github.com/rafaelromao/slotmerge/issues/18) Sub-PRD: Admin & Notifications
 
@@ -78,7 +78,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: `tests/e2e-browser/screenshots/admin/`.
 - **E. Visual capture (workflow artifact)**: `workflow_dispatch` `visual-regression.yml` lane per AGENTS.md line 65.
 - **F. AGENTS.md acceptance bar**: T16–T19 entries in `docs/implementation-graph.md` lines 157–189; lines 51–66 reproduced in `docs/t24-closure-evidence.md`.
-- **G. Corrective comment**: posted on issue [#18](https://github.com/rafaelromao/slotmerge/issues/18#issuecomment-5111821884); the comment records the open T17/T18/T19 status per the `## Open blockers` table.
+- **G. Corrective comment**: posted on issue [#18](https://github.com/rafaelromao/slotmerge/issues/18#issuecomment-5111930281); the comment records the open T17/T18/T19 status per the `## Open blockers` table.
 
 ### A5. [#19](https://github.com/rafaelromao/slotmerge/issues/19) Sub-PRD: Profile & Setup
 
@@ -88,7 +88,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: `tests/e2e-browser/screenshots/user/`.
 - **E. Visual capture (workflow artifact)**: `workflow_dispatch` `visual-regression.yml` lane per AGENTS.md line 65.
 - **F. AGENTS.md acceptance bar**: T4–T9 entries in `docs/implementation-graph.md` lines 47–97; lines 51–66 reproduced in `docs/t25-sub-prd-closure-evidence.md`.
-- **G. Corrective comment**: posted on issue [#19](https://github.com/rafaelromao/slotmerge/issues/19#issuecomment-5111822022).
+- **G. Corrective comment**: posted on issue [#19](https://github.com/rafaelromao/slotmerge/issues/19#issuecomment-5111930358).
 
 ### A6. [#33](https://github.com/rafaelromao/slotmerge/issues/33) Define weekly Availability Windows in profile timezone
 
@@ -98,7 +98,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: `tests/e2e-browser/screenshots/user/availability/` (per-state PNGs from T7 capture run).
 - **E. Visual capture (workflow artifact)**: `workflow_dispatch` `visual-regression.yml` lane per AGENTS.md line 65.
 - **F. AGENTS.md acceptance bar**: T7 entry in `docs/implementation-graph.md` line 75; issue #33 acceptance criteria 1–2; AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#33](https://github.com/rafaelromao/slotmerge/issues/33#issuecomment-5111822140).
+- **G. Corrective comment**: posted on issue [#33](https://github.com/rafaelromao/slotmerge/issues/33#issuecomment-5111930429).
 
 ### A7. [#37](https://github.com/rafaelromao/slotmerge/issues/37) Invite a User with email and role from Admin UI
 
@@ -108,7 +108,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: `tests/e2e-browser/screenshots/admin/users/`.
 - **E. Visual capture (workflow artifact)**: `workflow_dispatch` `visual-regression.yml` lane per AGENTS.md line 65.
 - **F. AGENTS.md acceptance bar**: T16 entry in `docs/implementation-graph.md` line 157; issue #37 acceptance criteria 1–3; AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#37](https://github.com/rafaelromao/slotmerge/issues/37#issuecomment-5111822257).
+- **G. Corrective comment**: posted on issue [#37](https://github.com/rafaelromao/slotmerge/issues/37#issuecomment-5111930488).
 
 ### A8. [#45](https://github.com/rafaelromao/slotmerge/issues/45) Encrypt Calendar Connection OAuth tokens at rest
 
@@ -118,7 +118,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: n/a — no rendered-surface change.
 - **E. Visual capture (workflow artifact)**: n/a — no rendered-surface change.
 - **F. AGENTS.md acceptance bar**: T8 entry in `docs/implementation-graph.md` line 83; issue #45 acceptance criteria 1–3; AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#45](https://github.com/rafaelromao/slotmerge/issues/45#issuecomment-5111822349).
+- **G. Corrective comment**: posted on issue [#45](https://github.com/rafaelromao/slotmerge/issues/45#issuecomment-5111930538).
 
 ### A9. [#49](https://github.com/rafaelromao/slotmerge/issues/49) Disconnect a Calendar Connection
 
@@ -128,7 +128,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: `tests/e2e-browser/screenshots/calendar-connections/`.
 - **E. Visual capture (workflow artifact)**: `workflow_dispatch` `visual-regression.yml` lane per AGENTS.md line 65.
 - **F. AGENTS.md acceptance bar**: T8 entry in `docs/implementation-graph.md` line 83; issue #49 acceptance criteria 1–2; AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#49](https://github.com/rafaelromao/slotmerge/issues/49#issuecomment-5111822465).
+- **G. Corrective comment**: posted on issue [#49](https://github.com/rafaelromao/slotmerge/issues/49#issuecomment-5111930596).
 
 ### A10. [#52](https://github.com/rafaelromao/slotmerge/issues/52) Trigger Calendar Connection action-required email
 
@@ -138,7 +138,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: n/a — no rendered-surface change.
 - **E. Visual capture (workflow artifact)**: n/a — no rendered-surface change.
 - **F. AGENTS.md acceptance bar**: T8 entry in `docs/implementation-graph.md` line 83; issue #52 acceptance criteria 1–2; AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#52](https://github.com/rafaelromao/slotmerge/issues/52#issuecomment-5111822597).
+- **G. Corrective comment**: posted on issue [#52](https://github.com/rafaelromao/slotmerge/issues/52#issuecomment-5111930657).
 
 ### A11. [#98](https://github.com/rafaelromao/slotmerge/issues/98) E2E test: Calendar Connection action-required state sends email
 
@@ -148,7 +148,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: n/a — lower-level Vitest test only.
 - **E. Visual capture (workflow artifact)**: n/a — lower-level Vitest test only.
 - **F. AGENTS.md acceptance bar**: T8 entry in `docs/implementation-graph.md` line 83; issue #98 acceptance criteria; AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#98](https://github.com/rafaelromao/slotmerge/issues/98#issuecomment-5111822850).
+- **G. Corrective comment**: posted on issue [#98](https://github.com/rafaelromao/slotmerge/issues/98#issuecomment-5111930728).
 
 ### A12. [#108](https://github.com/rafaelromao/slotmerge/issues/108) E2E test: clicking a Slot opens a drawer with matching Users
 
@@ -158,7 +158,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: `tests/e2e-browser/screenshots/search-result/`.
 - **E. Visual capture (workflow artifact)**: `workflow_dispatch` `visual-regression.yml` lane per AGENTS.md line 65.
 - **F. AGENTS.md acceptance bar**: T12 entry in `docs/implementation-graph.md` line 121; issue #108 acceptance criteria; AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#108](https://github.com/rafaelromao/slotmerge/issues/108#issuecomment-5111823096).
+- **G. Corrective comment**: posted on issue [#108](https://github.com/rafaelromao/slotmerge/issues/108#issuecomment-5111930786).
 
 ### A13. [#114](https://github.com/rafaelromao/slotmerge/issues/114) E2E test: match only considers setup-complete users
 
@@ -168,7 +168,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: `tests/e2e-browser/screenshots/setup-home/`.
 - **E. Visual capture (workflow artifact)**: `workflow_dispatch` `visual-regression.yml` lane per AGENTS.md line 65.
 - **F. AGENTS.md acceptance bar**: T1 entry in `docs/implementation-graph.md` line 20; issue #114 acceptance criteria; AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#114](https://github.com/rafaelromao/slotmerge/issues/114#issuecomment-5111823282).
+- **G. Corrective comment**: posted on issue [#114](https://github.com/rafaelromao/slotmerge/issues/114#issuecomment-5111930848).
 
 ### A14. [#279](https://github.com/rafaelromao/slotmerge/issues/279) Define rendered-screen and browser-journey completion gates
 
@@ -178,7 +178,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: n/a — specification ticket.
 - **E. Visual capture (workflow artifact)**: n/a — specification ticket.
 - **F. AGENTS.md acceptance bar**: the AGENTS.md completion gates encoded at lines 51–66 are the deliverable; the gate text is reproduced verbatim in `docs/t24-closure-evidence.md` and `docs/t25-sub-prd-closure-evidence.md`.
-- **G. Corrective comment**: posted on issue [#279](https://github.com/rafaelromao/slotmerge/issues/279#issuecomment-5111823471).
+- **G. Corrective comment**: posted on issue [#279](https://github.com/rafaelromao/slotmerge/issues/279#issuecomment-5111930904).
 
 ### A15. [#307](https://github.com/rafaelromao/slotmerge/issues/307) T21 E2E plan #62 in-place update
 
@@ -188,7 +188,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: n/a — plan layer.
 - **E. Visual capture (workflow artifact)**: n/a — plan layer.
 - **F. AGENTS.md acceptance bar**: T21 entry in `docs/implementation-graph.md` line 199; issue #62 body content (the deliverable); AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#307](https://github.com/rafaelromao/slotmerge/issues/307#issuecomment-5111823640).
+- **G. Corrective comment**: posted on issue [#307](https://github.com/rafaelromao/slotmerge/issues/307#issuecomment-5111930980).
 
 ### A16. [#326](https://github.com/rafaelromao/slotmerge/issues/326) Commit Search-form visual-capture baselines
 
@@ -198,7 +198,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: `tests/e2e-browser/screenshots/search-form/{after-run.png, date-range-invalid.png, date-range-too-long.png, defaults.png, duration-out-of-range.png, minimum-out-of-range.png, selected-topics-required.png, timezone-required.png, topic-retired.png}` plus the `tests/e2e-browser/screenshots/search-form/README.md` index.
 - **E. Visual capture (workflow artifact)**: `workflow_dispatch` `visual-regression.yml` lane per AGENTS.md line 65 (WebM capture upload).
 - **F. AGENTS.md acceptance bar**: T11 entry in `docs/implementation-graph.md` line 111; issue #326 acceptance criteria 1–5; AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#326](https://github.com/rafaelromao/slotmerge/issues/326#issuecomment-5111823794).
+- **G. Corrective comment**: posted on issue [#326](https://github.com/rafaelromao/slotmerge/issues/326#issuecomment-5111931052).
 
 ## Per-ticket evidence — Category B (missing closing comment)
 
@@ -210,7 +210,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: n/a — no rendered-surface change.
 - **E. Visual capture (workflow artifact)**: n/a — no rendered-surface change.
 - **F. AGENTS.md acceptance bar**: issue #343 acceptance criteria 1–5 (each eligible candidate prepared at most once; validation + assembly share the prepared set; Search Result JSON shape unchanged; per-dependency call counts asserted; PR CI green); AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#343](https://github.com/rafaelromao/slotmerge/issues/343#issuecomment-5111806044).
+- **G. Corrective comment**: posted on issue [#343](https://github.com/rafaelromao/slotmerge/issues/343#issuecomment-5111931105).
 - **Closing PR**: [#350](https://github.com/rafaelromao/slotmerge/pull/350).
 
 ### B2. [#344](https://github.com/rafaelromao/slotmerge/issues/344) Restore repo-wide AppClock boundary ownership
@@ -221,7 +221,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: n/a — no rendered-surface change.
 - **E. Visual capture (workflow artifact)**: n/a — no rendered-surface change.
 - **F. AGENTS.md acceptance bar**: issue #344 acceptance criteria 1–4 (migration-completeness test; boundary-required clock; per-handler clock parameter; existing tests pass); AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#344](https://github.com/rafaelromao/slotmerge/issues/344#issuecomment-5111809903).
+- **G. Corrective comment**: posted on issue [#344](https://github.com/rafaelromao/slotmerge/issues/344#issuecomment-5111931149).
 - **Closing PR**: [#353](https://github.com/rafaelromao/slotmerge/pull/353).
 
 ### B3. [#345](https://github.com/rafaelromao/slotmerge/issues/345) Complete Admin Invite shell and repository migration
@@ -232,7 +232,7 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: n/a — no rendered-surface change.
 - **E. Visual capture (workflow artifact)**: n/a — no rendered-surface change.
 - **F. AGENTS.md acceptance bar**: issue #345 acceptance criteria 1–6 (shell delegation; access-denied responses; Invite persistence boundary; repository-migration test; regression test on `createPostErrorResponse`; PR CI green); AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#345](https://github.com/rafaelromao/slotmerge/issues/345#issuecomment-5111812970).
+- **G. Corrective comment**: posted on issue [#345](https://github.com/rafaelromao/slotmerge/issues/345#issuecomment-5111931206).
 - **Closing PR**: [#352](https://github.com/rafaelromao/slotmerge/pull/352).
 
 ### B4. [#346](https://github.com/rafaelromao/slotmerge/issues/346) Resolve localTime timezone validation contract
@@ -243,30 +243,42 @@ Each row is one implementation ticket. The Vitest guard pins the row count, the 
 - **D. Visual capture (committed)**: n/a — no new rendered surface.
 - **E. Visual capture (workflow artifact)**: n/a — no new rendered surface.
 - **F. AGENTS.md acceptance bar**: issue #346 acceptance criteria 1–5 (`Intl` round-trip strict equality; `Asia/Kathmandu` documented alias; casing / abbreviation / unknown-string rejection; mvp-spec 6.10 Timezone Validation Contract subsection; PR CI green); AGENTS.md PR-CI gates.
-- **G. Corrective comment**: posted on issue [#346](https://github.com/rafaelromao/slotmerge/issues/346#issuecomment-5111815637).
+- **G. Corrective comment**: posted on issue [#346](https://github.com/rafaelromao/slotmerge/issues/346#issuecomment-5111931274).
 - **Closing PR**: [#351](https://github.com/rafaelromao/slotmerge/pull/351).
 
 ## Corrective comment template
 
-Each corrective comment is posted at the issue top-level so it lives above the prohibited stand-alone comment and therefore supersedes it for revalidation. The verbatim template:
+Each corrective comment is posted at the issue top-level so it lives above the prohibited stand-alone comment and therefore supersedes it for revalidation. The header is the canonical `## Closure Evidence` from `docs/implementation-graph.md:276` followed by a disambiguator marker so the audit trail is grep-able; the body reproduces the seven canonical fields verbatim. The verbatim template:
 
 ```markdown
-## Closure Evidence (audit-repair from #347)
+## Closure Evidence
 
-This ticket's deliverable, the closing PR, and the relevant evidence set are pinned by [`docs/closure-evidence-repair.md`](https://github.com/rafaelromao/slotmerge/blob/main/docs/closure-evidence-repair.md) as part of the [#347 audit](https://github.com/rafaelromao/slotmerge/issues/347). The previous stand-alone "Closed by sandman — issue already completed." comment is superseded by this record per AGENTS.md line 66.
+> Audit-repair record from [#347](https://github.com/rafaelromao/slotmerge/issues/347) ([docs/closure-evidence-repair.md](https://github.com/rafaelromao/slotmerge/blob/main/docs/closure-evidence-repair.md)). The previous stand-alone "Closed by sandman — issue already completed." comment is superseded by this record per AGENTS.md line 66.
 
-- **Playwright journey**: <A cell from the per-ticket evidence row>
+- **Playwright happy-path spec**: <A happy sub-bullet from the per-ticket evidence row>
+- **Playwright failure-path spec**: <A failure sub-bullet from the per-ticket evidence row, or `n/a` for tickets whose deliverable is a deep module>
 - **Vitest unit test**: <B cell from the per-ticket evidence row>
 - **Component test**: <C cell from the per-ticket evidence row>
 - **Visual capture (committed baselines)**: <D cell from the per-ticket evidence row>
-- **Visual capture (workflow artifact)**: <E cell from the per-ticket evidence row>
-- **AGENTS.md acceptance bar**: <F cell from the per-ticket evidence row>
-- **Closing PR**: <G cell linking to #N from the per-ticket evidence row>
+- **Visual capture (workflow artifact)**: <E cell from the per-ticket evidence row — `workflow_dispatch` `visual-regression.yml` lane per AGENTS.md line 65 — and the concrete WebM / WebM-index markdown link when the most recent capture run is known>
+- **AGENTS.md acceptance bar checked**: <F cell from the per-ticket evidence row>
+- **Closure PR**: <Closing PR URL if a Category B ticket, or `n/a — sub-PRD parent / spec / ADR ticket — no closing PR owns this issue` for non-implementation PRDs>
 
 Closing reference: `Closes #<ticket>`; this comment is the audited closure-evidence record.
 ```
 
 The wording on every corrective comment matches the template, with substitutions drawn from the per-ticket evidence rows above. The Vitest guard pins the cross-reference so a future re-audit cannot silently regress the ticket set.
+
+## Practical constraints (comment-only repair)
+
+The AGENTS.md "Tracker closure rule" entry at line 66 states the literal closure-evidence contract — both an issue-body `## Closure Evidence` section and a closing PR comment that reproduces each link verbatim. The audit's comment-only repair is the strongest record that can be posted without reopening already-merged closing PRs and breaking the auto-close behaviour on `Closes #<n>` (the merging of the PR with the `Closes` keyword is the durable state change). The corrective comments therefore use the canonical `## Closure Evidence` header and the seven canonical fields so the GitHub-side record conforms to the same shape that the original PR body should have carried. A future audit run may edit the affected issue bodies in place to add a permanent `## Closure Evidence` section, but that is out of scope for the comment-only repair that [#347](https://github.com/rafaelromao/slotmerge/issues/347) authorizes.
+
+## Inconsistency callouts
+
+The audit surfaced two closure-state inconsistencies where the issue is recorded as closed but the implementation tickets that gate its actual closure are still open. These are surfaced explicitly per `AGENTS.md:71` ("surface the contradiction explicitly rather than silently overriding"). The corrective comment on the offending issue records the inconsistency in its `AGENTS.md acceptance bar` cell.
+
+- **[#15](https://github.com/rafaelromao/slotmerge/issues/15) Sub-PRD: Search & Matching** — closed on 2026-07-28 while T10 ([#296](https://github.com/rafaelromao/slotmerge/issues/296)) is open. Per `docs/t25-sub-prd-closure-evidence.md:42`, "do not close" until T10 lands. The audit callout is pinned by `tests/closure-evidence-repair.test.ts`; the corrective comment on #15 records the open blocker.
+- **[#18](https://github.com/rafaelromao/slotmerge/issues/18) Sub-PRD: Admin & Notifications** — open (the prior `Closed by sandman` comment does not match the current issue state). T17 ([#303](https://github.com/rafaelromao/slotmerge/issues/303)), T18 ([#304](https://github.com/rafaelromao/slotmerge/issues/304)), and T19 ([#305](https://github.com/rafaelromao/slotmerge/issues/305)) are open per `docs/t24-closure-evidence.md` `## Open blockers`. Per `docs/t25-sub-prd-closure-evidence.md:45`, "do not close". The corrective comment on #18 records the open-blocker state.
 
 ## Reopening safety
 
@@ -278,4 +290,17 @@ Per [`docs/t24-closure-evidence.md`](https://github.com/rafaelromao/slotmerge/bl
 
 ## PR-CI gate
 
-The change-request PR for [#347](https://github.com/rafaelromao/slotmerge/issues/347) lands only `docs/closure-evidence-repair.md` and `tests/closure-evidence-repair.test.ts`. PR CI runs the locked five commands — `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build` — Vitest-only per AGENTS.md line 64. Playwright and the visual capture run on the `workflow_dispatch` lanes (`browser-tests.yml`, `visual-regression.yml`) and remain untouched.
+The change-request PR for [#347](https://github.com/rafaelromao/slotmerge/issues/347) lands only `docs/closure-evidence-repair.md` and `tests/closure-evidence-repair.test.ts`. PR CI runs the locked five commands — `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build` — Vitest-only per `AGENTS.md` line 65 (CI gate policy). Playwright and the visual capture run on the `workflow_dispatch` lanes (`browser-tests.yml`, `visual-regression.yml`) and remain untouched.
+
+## Closing-PR-side closure evidence (Category B)
+
+`AGENTS.md` line 66 requires the closing PR comment to reproduce each closure-evidence link verbatim. The audit therefore posts the matching `## Closure Evidence` block as a top-level comment on each Category B closing PR. The PR body deliberately remains `Closes #<N>` so the auto-close binding does not regress; the closing-PR-side comment carries the seven canonical fields and cross-references the issue-side audit-repair comment.
+
+| Closing PR | Closing-PR-side audit-repair comment |
+| --- | --- |
+| [#350](https://github.com/rafaelromao/slotmerge/pull/350) (closes #343) | https://github.com/rafaelromao/slotmerge/pull/350#issuecomment-5111946461 |
+| [#351](https://github.com/rafaelromao/slotmerge/pull/351) (closes #346) | https://github.com/rafaelromao/slotmerge/pull/351#issuecomment-5111947463 |
+| [#352](https://github.com/rafaelromao/slotmerge/pull/352) (closes #345) | https://github.com/rafaelromao/slotmerge/pull/352#issuecomment-5111948865 |
+| [#353](https://github.com/rafaelromao/slotmerge/pull/353) (closes #344) | https://github.com/rafaelromao/slotmerge/pull/353#issuecomment-5111949851 |
+
+For sub-PRD parents (#15–#19) and the spec / ADR tickets (#279, #307, #326) the closing PR exists in the git history (PR #335 for #311 / T25; PR #335 chain for the rest) but the relationship is one-to-many — one PR closed multiple sub-PRDs via the T25 batch — so the closing-PR-side comment is logged in `docs/t25-sub-prd-closure-evidence.md` and the audit does not duplicate it on each sub-PRD's PR thread.

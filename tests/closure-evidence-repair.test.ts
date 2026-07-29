@@ -31,7 +31,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: "visual-regression.yml",
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/15#issuecomment-5111821232",
+      "https://github.com/rafaelromao/slotmerge/issues/15#issuecomment-5111930041",
   },
   {
     id: "A2",
@@ -44,7 +44,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: "visual-regression.yml",
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/16#issuecomment-5111821426",
+      "https://github.com/rafaelromao/slotmerge/issues/16#issuecomment-5111930110",
   },
   {
     id: "A3",
@@ -57,7 +57,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: "visual-regression.yml",
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/17#issuecomment-5111821672",
+      "https://github.com/rafaelromao/slotmerge/issues/17#issuecomment-5111930172",
   },
   {
     id: "A4",
@@ -70,7 +70,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: "visual-regression.yml",
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/18#issuecomment-5111821884",
+      "https://github.com/rafaelromao/slotmerge/issues/18#issuecomment-5111930281",
   },
   {
     id: "A5",
@@ -83,7 +83,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: "visual-regression.yml",
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/19#issuecomment-5111822022",
+      "https://github.com/rafaelromao/slotmerge/issues/19#issuecomment-5111930358",
   },
   {
     id: "A6",
@@ -96,7 +96,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: "visual-regression.yml",
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/33#issuecomment-5111822140",
+      "https://github.com/rafaelromao/slotmerge/issues/33#issuecomment-5111930429",
   },
   {
     id: "A7",
@@ -109,7 +109,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: "visual-regression.yml",
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/37#issuecomment-5111822257",
+      "https://github.com/rafaelromao/slotmerge/issues/37#issuecomment-5111930488",
   },
   {
     id: "A8",
@@ -122,7 +122,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: null,
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/45#issuecomment-5111822349",
+      "https://github.com/rafaelromao/slotmerge/issues/45#issuecomment-5111930538",
   },
   {
     id: "A9",
@@ -136,7 +136,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: "visual-regression.yml",
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/49#issuecomment-5111822465",
+      "https://github.com/rafaelromao/slotmerge/issues/49#issuecomment-5111930596",
   },
   {
     id: "A10",
@@ -149,7 +149,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: null,
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/52#issuecomment-5111822597",
+      "https://github.com/rafaelromao/slotmerge/issues/52#issuecomment-5111930657",
   },
   {
     id: "A11",
@@ -162,7 +162,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: null,
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/98#issuecomment-5111822850",
+      "https://github.com/rafaelromao/slotmerge/issues/98#issuecomment-5111930728",
   },
   {
     id: "A12",
@@ -175,7 +175,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: "visual-regression.yml",
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/108#issuecomment-5111823096",
+      "https://github.com/rafaelromao/slotmerge/issues/108#issuecomment-5111930786",
   },
   {
     id: "A13",
@@ -188,7 +188,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: "visual-regression.yml",
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/114#issuecomment-5111823282",
+      "https://github.com/rafaelromao/slotmerge/issues/114#issuecomment-5111930848",
   },
   {
     id: "A14",
@@ -201,7 +201,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: null,
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/279#issuecomment-5111823471",
+      "https://github.com/rafaelromao/slotmerge/issues/279#issuecomment-5111930904",
   },
   {
     id: "A15",
@@ -214,7 +214,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: null,
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/307#issuecomment-5111823640",
+      "https://github.com/rafaelromao/slotmerge/issues/307#issuecomment-5111930980",
   },
   {
     id: "A16",
@@ -227,7 +227,7 @@ const CATEGORY_A_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: "visual-regression.yml",
     pr: null,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/326#issuecomment-5111823794",
+      "https://github.com/rafaelromao/slotmerge/issues/326#issuecomment-5111931052",
   },
 ] as const;
 
@@ -243,7 +243,7 @@ const CATEGORY_B_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: null,
     pr: 350,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/343#issuecomment-5111806044",
+      "https://github.com/rafaelromao/slotmerge/issues/343#issuecomment-5111931105",
   },
   {
     id: "B2",
@@ -256,7 +256,7 @@ const CATEGORY_B_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: null,
     pr: 353,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/344#issuecomment-5111809903",
+      "https://github.com/rafaelromao/slotmerge/issues/344#issuecomment-5111931149",
   },
   {
     id: "B3",
@@ -269,7 +269,7 @@ const CATEGORY_B_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: null,
     pr: 352,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/345#issuecomment-5111812970",
+      "https://github.com/rafaelromao/slotmerge/issues/345#issuecomment-5111931206",
   },
   {
     id: "B4",
@@ -282,7 +282,7 @@ const CATEGORY_B_TICKETS: readonly DeficientTicket[] = [
     visualArtifact: null,
     pr: 351,
     correctiveCommentUrl:
-      "https://github.com/rafaelromao/slotmerge/issues/346#issuecomment-5111815637",
+      "https://github.com/rafaelromao/slotmerge/issues/346#issuecomment-5111931274",
   },
 ] as const;
 
@@ -358,6 +358,8 @@ describe("closure-evidence repair audit", () => {
       "## Per-ticket evidence — Category A (prohibited stand-alone comment)",
       "## Per-ticket evidence — Category B (missing closing comment)",
       "## Corrective comment template",
+      "## Practical constraints (comment-only repair)",
+      "## Inconsistency callouts",
       "## Reopening safety",
       "## Open blockers (unchanged)",
       "## PR-CI gate",
@@ -560,6 +562,50 @@ describe("closure-evidence repair audit", () => {
     expect(document).not.toMatch(
       /^> Closed by sandman — issue already completed\.$/m,
     );
+  });
+
+  it("uses the canonical `## Closure Evidence` template header", async () => {
+    const document = await readDocument();
+
+    expect(document).toContain(
+      "## Closure Evidence\n\n> Audit-repair record from [#347]",
+    );
+  });
+
+  it("names the seven canonical fields in the corrective comment template", async () => {
+    const document = await readDocument();
+
+    for (const field of [
+      "Playwright happy-path spec",
+      "Playwright failure-path spec",
+      "Vitest unit test",
+      "Component test",
+      "Visual capture (committed baselines)",
+      "Visual capture (workflow artifact)",
+      "AGENTS.md acceptance bar checked",
+      "Closure PR",
+    ]) {
+      expect(
+        document,
+        `corrective-comment template must name the canonical field "${field}"`,
+      ).toContain(`- **${field}**:`);
+    }
+  });
+
+  it("records the AGENTS.md line 65 (CI gate) reference rather than line 64", async () => {
+    const document = await readDocument();
+
+    expect(document).toContain("AGENTS.md line 65");
+    expect(document).not.toMatch(/AGENTS\.md line 64\b/);
+  });
+
+  it("surfaces the #15 closure-while-blocked inconsistency", async () => {
+    const document = await readDocument();
+
+    expect(document).toContain("Sub-PRD: Search & Matching");
+    expect(document).toContain("T10");
+    expect(document).toContain("issues/296");
+    expect(document).toMatch(/Inconsistency callouts/);
   });
 
   it("records every audit-window open blocker as unchanged", async () => {

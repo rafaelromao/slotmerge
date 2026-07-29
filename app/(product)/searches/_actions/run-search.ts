@@ -11,6 +11,7 @@ import { CsrfError } from "../../../../src/lib/csrf";
 import { listActiveTopics } from "../../../../src/topics/repository";
 import { getSearchResultRepository } from "../../../../src/search/search-result-repository";
 import { getDiscoverableUserRepository } from "../../../../src/search/discoverable-user-repository";
+import { getDiscoverabilityConsentRepository } from "../../../../src/profile/discoverability-consent";
 import { getProfileByUserId } from "../../../../src/profile/repository";
 import {
   SEARCH_FORM_ID,
@@ -41,6 +42,7 @@ function buildWorkflow() {
     },
     discoverableUserRepository: getDiscoverableUserRepository(),
     searchResultRepository: getSearchResultRepository(),
+    discoverabilityConsentRepository: getDiscoverabilityConsentRepository(clock),
   });
 }
 

@@ -30,7 +30,7 @@ const RETIRE_TOPIC_NAME = "Product strategy";
 // per-test WebM.
 test.use({ storageState: "playwright/.auth/admin.json" });
 
-async function reseed(): Promise<void> {
+async function resetFixtures(): Promise<void> {
   await resetAdminFixtures(getDb());
 }
 
@@ -74,7 +74,7 @@ test.describe("invite surface", () => {
 
 test.describe("role change surface", () => {
   test.beforeEach(async () => {
-    await reseed();
+    await resetFixtures();
   });
 
   test("admin changes a non-self User's role, the page re-renders with the Role updated banner", async ({
@@ -113,10 +113,10 @@ test.describe("role change surface", () => {
 
 test.describe("suspend surface", () => {
   test.beforeEach(async () => {
-    await reseed();
+    await resetFixtures();
   });
   test.afterEach(async () => {
-    await reseed();
+    await resetFixtures();
   });
 
   test("admin suspends a non-self User with typed-confirm, the page re-renders with the Suspended banner", async ({
@@ -215,10 +215,10 @@ test.describe("reinstate surface", () => {
 
 test.describe("approve proposal surface", () => {
   test.beforeEach(async () => {
-    await reseed();
+    await resetFixtures();
   });
   test.afterEach(async () => {
-    await reseed();
+    await resetFixtures();
   });
 
   test("admin approves a pending Topic Proposal, the page re-renders with the Topic proposal approved banner", async ({
@@ -261,7 +261,7 @@ test.describe("approve proposal surface", () => {
 
 test.describe("reject proposal surface", () => {
   test.beforeEach(async () => {
-    await reseed();
+    await resetFixtures();
   });
 
   test("admin rejects a pending Topic Proposal, the page re-renders with the Topic proposal rejected banner", async ({
@@ -358,7 +358,7 @@ test.describe("retire topic surface", () => {
 
 test.describe("status surface", () => {
   test.beforeEach(async () => {
-    await reseed();
+    await resetFixtures();
   });
 
   test("admin opens the Status section, all three sub-blocks render with green pills", async ({

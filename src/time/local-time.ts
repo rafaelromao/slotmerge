@@ -82,8 +82,8 @@ function formatLocal(local: LocalDateTime): string {
  * spelling of the canonical `Asia/Katmandu` (the IANA tz database renamed
  * the canonical entry while keeping the older spelling as an alias). This
  * alias resolves the previously disputed Kathmandu spelling case and is
- * the only project-side extension to the audit's strict "canonical"
- * wording at audit #256 / decision #253.
+ * the only project-side extension to the "canonical IANA identifiers"
+ * wording at issue #256 / decision #253.
  */
 const TIMEZONE_ALIASES: Record<string, string> = {
   "Asia/Kathmandu": "Asia/Katmandu",
@@ -99,7 +99,8 @@ const TIMEZONE_ALIASES: Record<string, string> = {
  *
  * Rejected (throws `RangeError`, no UTC fallback):
  * - Casing variants of canonical zones (`america/new_york`, `asia/kathmandu`).
- * - Abbreviations that resolve via alias (`EST`, `PST`, `GMT`, `Etc/UTC`).
+ * - Timezone abbreviations (`EST`, `PST`) and Link-style aliases (`Etc/UTC`) that resolve to a different canonical name and therefore fail the round-trip equality.
+ * - Other legacy aliases (`GMT`, `Universal`, `Zulu`) for the same reason.
  * - Unknown strings (`Foo/Bar`).
  * - Empty string and non-string inputs.
  *

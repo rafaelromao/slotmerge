@@ -278,10 +278,11 @@ Every Profile timezone, Organizer Search timezone, Availability Window timezone,
 
 - **Accepted**:
   - The exact string `Intl.DateTimeFormat({ timeZone: input, locale: "en-US" }).resolvedOptions().timeZone` returns when called with `input` (case-sensitive round-trip). This includes canonical IANA zone IDs in `Region/City` form (`America/New_York`, `Asia/Katmandu`, `Pacific/Auckland`, etc.) and the special `UTC` identifier.
-  - A documented alias from `TIMEZONE_ALIASES` in `src/time/local-time.ts`. Today the only alias is `Asia/Kathmandu`, which is the project's preferred spelling of canonical `Asia/Katmandu`. The alias resolves the previously disputed Kathmandu spelling case and is the only project-side extension to the audit's "canonical" wording at issue #256 (decision #253). Adding additional aliases is a deliberate, documented change to this section.
+  - A documented alias from `TIMEZONE_ALIASES` in `src/time/local-time.ts`. Today the only alias is `Asia/Kathmandu`, which is the project's preferred spelling of canonical `Asia/Katmandu`. The alias resolves the previously disputed Kathmandu spelling case and is the only project-side extension to the "canonical IANA identifiers" wording at issue #256 / decision #253. Adding additional aliases is a deliberate, documented change to this section.
 - **Rejected** (throws `RangeError` with message `Invalid IANA timezone: <json>`, no UTC fallback):
   - Casing variants of canonical zones (e.g., `america/new_york`, `asia/kathmandu`, `asia/katmandu`).
-  - Abbreviations that resolve via alias (e.g., `EST`, `PST`, `GMT`, `Etc/UTC`).
+  - Timezone abbreviations (e.g., `EST`, `PST`) and Link-style aliases (e.g., `Etc/UTC`) that resolve to a different canonical name and therefore fail the round-trip equality.
+  - Other legacy aliases (e.g., `GMT`, `Universal`, `Zulu`) for the same reason.
   - Unknown strings (e.g., `Foo/Bar`, `not-a-zone`).
   - The empty string and non-string inputs.
 - **Pinned to Node 22 / V8 ICU behavior**. A future ICU bump that changes the resolution of any input this contract depends on requires an explicit ticket to extend or update the alias set.

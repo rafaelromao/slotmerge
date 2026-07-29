@@ -34,7 +34,7 @@ describe("isValidTimeZone", () => {
     expect(() => isValidTimeZone("America/new_york")).toThrow(RangeError);
   });
 
-  it("throws RangeError for abbreviations that resolve via alias", () => {
+  it("throws RangeError for abbreviations and Link-style aliases that fail round-trip equality", () => {
     expect(() => isValidTimeZone("EST")).toThrow(RangeError);
     expect(() => isValidTimeZone("PST")).toThrow(RangeError);
     expect(() => isValidTimeZone("GMT")).toThrow(RangeError);
@@ -68,16 +68,13 @@ describe("isValidTimeZone", () => {
       expect(caught).toBeInstanceOf(RangeError);
     }
   });
+});
 
-  it("documents the Node 22 / V8 ICU resolution behavior the contract depends on", () => {
+describe("isValidTimeZone Intl round-trip platform contract (Node 22 / V8 ICU pin)", () => {
+  it("asserts canonical zones round-trip to themselves", () => {
     expect(
       new Intl.DateTimeFormat("en-US", {
         timeZone: "Asia/Katmandu",
-      }).resolvedOptions().timeZone,
-    ).toBe("Asia/Katmandu");
-    expect(
-      new Intl.DateTimeFormat("en-US", {
-        timeZone: "Asia/Kathmandu",
       }).resolvedOptions().timeZone,
     ).toBe("Asia/Katmandu");
     expect(
@@ -89,10 +86,28 @@ describe("isValidTimeZone", () => {
       new Intl.DateTimeFormat("en-US", { timeZone: "UTC" }).resolvedOptions()
         .timeZone,
     ).toBe("UTC");
+  });
+
+  it("asserts the documented alias resolves to its canonical name", () => {
+    expect(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Kathmandu",
+      }).resolvedOptions().timeZone,
+    ).toBe("Asia/Katmandu");
+  });
+
+  it("asserts an abbreviation does not round-trip to itself", () => {
     expect(
       new Intl.DateTimeFormat("en-US", { timeZone: "EST" }).resolvedOptions()
         .timeZone,
     ).not.toBe("EST");
+  });
+});
+
+describe("TIMEZONE_ALIASES pin", () => {
+  it("accepts exactly the documented alias set", () => {
+    expect(() => isValidTimeZone("Asia/Kathmandu")).not.toThrow();
+    expect(() => isValidTimeZone("Asia/Katmandu")).not.toThrow();
   });
 });
 

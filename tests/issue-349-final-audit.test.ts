@@ -16,6 +16,7 @@ interface TargetIssue {
   readonly title: string;
   readonly rowHeading: string;
   readonly prs: readonly number[];
+  readonly closureCommentUrl: string;
 }
 
 const TARGET_ISSUES: readonly TargetIssue[] = [
@@ -26,6 +27,8 @@ const TARGET_ISSUES: readonly TargetIssue[] = [
     rowHeading:
       "[#14](https://github.com/rafaelromao/slotmerge/issues/14) | SlotMerge MVP PRD",
     prs: [],
+    closureCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/14#issuecomment-5121222111",
   },
   {
     id: "I2",
@@ -34,6 +37,8 @@ const TARGET_ISSUES: readonly TargetIssue[] = [
     rowHeading:
       "[#18](https://github.com/rafaelromao/slotmerge/issues/18) | Sub-PRD: Admin & Notifications",
     prs: [],
+    closureCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/18#issuecomment-5121226061",
   },
   {
     id: "I3",
@@ -42,6 +47,8 @@ const TARGET_ISSUES: readonly TargetIssue[] = [
     rowHeading:
       "[#62](https://github.com/rafaelromao/slotmerge/issues/62) | E2E test plan: SlotMerge MVP",
     prs: [],
+    closureCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/62#issuecomment-5121231079",
   },
   {
     id: "I4",
@@ -50,6 +57,8 @@ const TARGET_ISSUES: readonly TargetIssue[] = [
     rowHeading:
       "[#283](https://github.com/rafaelromao/slotmerge/issues/283) | Wayfinder: foundation",
     prs: [316, 317, 313, 312, 314, 315],
+    closureCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/283#issuecomment-5121233820",
   },
   {
     id: "I5",
@@ -58,6 +67,8 @@ const TARGET_ISSUES: readonly TargetIssue[] = [
     rowHeading:
       "[#284](https://github.com/rafaelromao/slotmerge/issues/284) | Wayfinder: User journey",
     prs: [318, 319, 320, 321, 322, 324, 327, 332],
+    closureCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/284#issuecomment-5121237774",
   },
   {
     id: "I6",
@@ -66,6 +77,8 @@ const TARGET_ISSUES: readonly TargetIssue[] = [
     rowHeading:
       "[#285](https://github.com/rafaelromao/slotmerge/issues/285) | Wayfinder: Organizer journey",
     prs: [325, 328, 329, 330, 331],
+    closureCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/285#issuecomment-5121240628",
   },
   {
     id: "I7",
@@ -74,6 +87,8 @@ const TARGET_ISSUES: readonly TargetIssue[] = [
     rowHeading:
       "[#286](https://github.com/rafaelromao/slotmerge/issues/286) | Wayfinder: Admin journey",
     prs: [323, 336, 334, 337],
+    closureCommentUrl:
+      "https://github.com/rafaelromao/slotmerge/issues/286#issuecomment-5121244133",
   },
 ];
 
@@ -290,6 +305,41 @@ describe("Issue #349 final audit", () => {
 
     expect(document).toContain("[docs/issue-349-final-audit.md]");
     expect(document).toContain("docs/t349-acceptance-runs.md");
+  });
+
+  it("pins the final-audit closure-evidence comment URL for every target issue", async () => {
+    const document = await readAuditDocument();
+
+    for (const issue of TARGET_ISSUES) {
+      expect(
+        document,
+        `audit document must pin the final-audit closure-evidence comment URL for issue #${issue.issue}`,
+      ).toContain(issue.closureCommentUrl);
+    }
+  });
+
+  it("pins the verbatim disclaimer prefix in the closure comments", async () => {
+    for (const issue of TARGET_ISSUES) {
+      const fetched = await fetch(
+        `https://api.github.com/repos/rafaelromao/slotmerge/issues/${issue.issue}/comments`,
+      );
+      const comments = (await fetched.json()) as Array<{ body: string }>;
+      const finalAuditComment = comments.find((c) =>
+        c.body.includes("Final-audit record from"),
+      );
+      expect(
+        finalAuditComment,
+        `issue #${issue.issue} must carry the final-audit closure-evidence comment`,
+      ).toBeDefined();
+      expect(
+        finalAuditComment?.body ?? "",
+        `issue #${issue.issue} closure comment must include the canonical disclaimer`,
+      ).toContain("docs/issue-349-final-audit.md");
+      expect(
+        finalAuditComment?.body ?? "",
+        `issue #${issue.issue} closure comment must include the closing reference`,
+      ).toContain(`Closes #${issue.issue}`);
+    }
   });
 
   it("does not record a remain-open findings report", async () => {

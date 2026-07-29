@@ -100,15 +100,15 @@ For each of the seven issues, the final-audit closure-evidence comment is posted
 
 The final-audit closure-evidence comment URL for each of the seven issues is recorded below; the comments are pinned by [`tests/issue-349-final-audit.test.ts`](../tests/issue-349-final-audit.test.ts):
 
-- [issue #14 final-audit closure-evidence comment](#)
-- [issue #18 final-audit closure-evidence comment](#)
-- [issue #62 final-audit closure-evidence comment](#)
-- [issue #283 final-audit closure-evidence comment](#)
-- [issue #284 final-audit closure-evidence comment](#)
-- [issue #285 final-audit closure-evidence comment](#)
-- [issue #286 final-audit closure-evidence comment](#)
+- [issue #14 final-audit closure-evidence comment](https://github.com/rafaelromao/slotmerge/issues/14#issuecomment-5121222111)
+- [issue #18 final-audit closure-evidence comment](https://github.com/rafaelromao/slotmerge/issues/18#issuecomment-5121226061)
+- [issue #62 final-audit closure-evidence comment](https://github.com/rafaelromao/slotmerge/issues/62#issuecomment-5121231079)
+- [issue #283 final-audit closure-evidence comment](https://github.com/rafaelromao/slotmerge/issues/283#issuecomment-5121233820)
+- [issue #284 final-audit closure-evidence comment](https://github.com/rafaelromao/slotmerge/issues/284#issuecomment-5121237774)
+- [issue #285 final-audit closure-evidence comment](https://github.com/rafaelromao/slotmerge/issues/285#issuecomment-5121240628)
+- [issue #286 final-audit closure-evidence comment](https://github.com/rafaelromao/slotmerge/issues/286#issuecomment-5121244133)
 
-(Each row is pinned post-issue-comment by the Vitest guard; the URLs are populated after the comments are posted.)
+(Each row is pinned post-issue-comment by the Vitest guard.)
 
 ## Visual capture inventory at the audit window
 

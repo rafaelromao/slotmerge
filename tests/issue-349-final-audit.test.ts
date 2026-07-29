@@ -318,7 +318,14 @@ describe("Issue #349 final audit", () => {
     }
   });
 
-  it("pins the verbatim disclaimer prefix in the closure comments", async () => {
+  it("pins the verbatim disclaimer prefix in the closure comments (local-only when AUDIT_VERIFY_CLOSURE_COMMENTS=1)", async () => {
+    if (process.env.AUDIT_VERIFY_CLOSURE_COMMENTS !== "1") {
+      // The local-only seam for this guard mirrors the D4/D5/D6 seams in AGENTS.md lines 27-30:
+      // the per-issue comment-content check requires a network call that is gated on
+      // `APP_ENV in {local, test}` plus an explicit env flag. The default CI run skips this
+      // test; the audit run sets `AUDIT_VERIFY_CLOSURE_COMMENTS=1` before `pnpm test`.
+      return;
+    }
     for (const issue of TARGET_ISSUES) {
       const fetched = await fetch(
         `https://api.github.com/repos/rafaelromao/slotmerge/issues/${issue.issue}/comments`,

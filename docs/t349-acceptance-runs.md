@@ -57,37 +57,55 @@ The artifact URLs are reachable via the run URLs above.
 
 The committed PNG inventory under `tests/e2e-browser/screenshots/**` at the audit window is 116 PNGs spanning every required User, Organizer, and Admin surface. The complete inventory:
 
-### User surface (29 PNGs)
+### User surface (56 PNGs across 10 paths)
 
-| Surface | Path | PNGs |
-| --- | --- | --- |
-| Sign-in | `tests/e2e-browser/screenshots/sign-in/` | `sent.png`, `signed-out.png`, `verify-auto-submit.png`, `verify-error-expired.png`, `verify-error-invalid.png`, `verify-error-used.png` (6) |
-| Setup Home | `tests/e2e-browser/screenshots/setup-home/` | `avatar-open.png`, `checklist.png`, `signed-out.png` (3) |
-| Profile | `tests/e2e-browser/screenshots/user/profile/` | `error-buffer.png`, `error-display-name.png`, `filled.png`, `loaded.png`, `saved.png`, `saved-then-hidden.png` (6) |
-| Discoverability | `tests/e2e-browser/screenshots/user/discoverability/` | `error.png`, `granted.png`, `initial.png`, `revoked.png` (4) |
-| Topics | `tests/e2e-browser/screenshots/user/topics/` | `loaded.png`, `pending-proposal.png`, `saved.png`, `similarity-error.png` (4) |
-| Availability | `tests/e2e-browser/screenshots/user/availability/` + `tests/e2e-browser/screenshots/availability/` | `add-override.png`, `block-override.png`, `buffer-edited.png`, `error-end-before-start.png`, `error-overlap.png`, `loaded.png`, `saved.png`, `stale-window.png`, `buffer-invalid-on-profile.png`, `error-date-required.png`, `non-empty.png`, `timezone-summary.png` (12) |
-| Calendar Connection | `tests/e2e-browser/screenshots/user/calendar-connection/` + `tests/e2e-browser/screenshots/calendar-connections/` | `denied.png`, `empty.png`, `loaded.png`, `unsupported.png`, `after-disconnect.png`, `after-refresh.png`, `after-save.png`, `connected.png`, `denied.png`, `empty.png`, `loaded.png`, `needs-reconnect.png`, `reconnected-expired.png`, `unsupported.png` (14) |
-| Self-delete | `tests/e2e-browser/screenshots/self-delete/` | `confirmed.png`, `deleted.png`, `invalid.png`, `loaded.png` (4) |
+| Path | PNGs |
+| --- | --- |
+| `tests/e2e-browser/screenshots/sign-in/` | 6 |
+| `tests/e2e-browser/screenshots/setup-home/` | 3 |
+| `tests/e2e-browser/screenshots/user/profile/` | 6 |
+| `tests/e2e-browser/screenshots/user/discoverability/` | 4 |
+| `tests/e2e-browser/screenshots/user/topics/` | 4 |
+| `tests/e2e-browser/screenshots/user/availability/` | 8 |
+| `tests/e2e-browser/screenshots/user/calendar-connection/` | 4 |
+| `tests/e2e-browser/screenshots/user/setup-home/` | 3 |
+| `tests/e2e-browser/screenshots/self-delete/` | 4 |
+| `tests/e2e-browser/screenshots/availability/` | 4 |
+| `tests/e2e-browser/screenshots/calendar-connections/` | 10 |
 
-### Organizer surface (32 PNGs)
+Subtotal: 56 PNGs.
 
-| Surface | Path | PNGs |
-| --- | --- | --- |
-| Search form | `tests/e2e-browser/screenshots/search-form/` | `after-run.png`, `date-range-invalid.png`, `date-range-too-long.png`, `defaults.png`, `duration-out-of-range.png`, `minimum-out-of-range.png`, `selected-topics-required.png`, `timezone-required.png`, `topic-retired.png`, `topics-selected.png` (10) |
-| Search result | `tests/e2e-browser/screenshots/search-result/` | `drawer.png`, `empty-week.png`, `grid.png`, `next-week.png`, `rerun-shell.png` (5) |
-| Search history | `tests/e2e-browser/screenshots/search-history/` | `after-rerun.png`, `empty.png`, `list.png`, `open-snapshot.png` (4) |
-| Organizer (alt naming) | `tests/e2e-browser/screenshots/organizer/` | `search-form/defaults.png`, `search-form/topics-selected.png`, `search-history/before-rerun.png`, `search-history/list.png`, `search-history/two-snapshots.png`, `search-result/after-rerun.png`, `search-result/drawer-stale.png`, `search-result/grid.png`, `search-result/next-week.png`, `search-result/source-opened-from-history.png`, `search-result/source-reopened.png` (11) |
-| Role-guard (organizer search) | `tests/e2e-browser/screenshots/searches/` | `role-guard-organizer-search.png` (1) |
+### Organizer surface (31 PNGs across 5 paths)
 
-### Admin surface (39 PNGs)
+| Path | PNGs |
+| --- | --- |
+| `tests/e2e-browser/screenshots/search-form/` | 10 |
+| `tests/e2e-browser/screenshots/search-result/` | 5 |
+| `tests/e2e-browser/screenshots/search-history/` | 4 |
+| `tests/e2e-browser/screenshots/organizer/` | 11 |
+| `tests/e2e-browser/screenshots/searches/` | 1 |
 
-| Surface | Path | PNGs |
-| --- | --- | --- |
-| Admin Users | `tests/e2e-browser/screenshots/admin/users/` | `invite-banner.png`, `reinstated.png`, `role-changed.png`, `self-row-disabled.png`, `suspend-confirm.png`, `suspended.png`, `users-after-invite.png`, `users-expanded.png`, `users-self-invite-error.png`, `users-suspend-confirm.png` (10) |
-| Admin Topics | `tests/e2e-browser/screenshots/admin/topics/` | `approve-proposal.png`, `reject-proposal.png`, `retire-confirm.png`, `retired.png`, `topics-after-approve.png`, `topics-after-reject.png`, `topics-after-retire.png`, `topics-expanded.png`, `topics-retire-confirm.png`, `topics-self-action-disabled.png` (10) |
-| Admin Status | `tests/e2e-browser/screenshots/admin/status/` | `expanded.png`, `status-expanded.png`, `status-expanded-desktop.png`, `status-expanded-mobile.png`, `status-expanded-tablet.png`, `status-tokens-needing-refresh.png`, `status-warning-calendar.png`, `status-warning-email.png`, `CLOSURE_SUMMARY.md` (8 PNGs + 1 summary) |
-| Admin role-guard | `tests/e2e-browser/screenshots/admin/` | `role-guard-admin.png` (1) |
+Subtotal: 31 PNGs.
+
+### Admin surface (29 PNGs across 4 subpaths)
+
+| Path | PNGs |
+| --- | --- |
+| `tests/e2e-browser/screenshots/admin/users/` | 10 |
+| `tests/e2e-browser/screenshots/admin/topics/` | 10 |
+| `tests/e2e-browser/screenshots/admin/status/` | 8 |
+| `tests/e2e-browser/screenshots/admin/role-guard-admin.png` | 1 |
+
+Subtotal: 29 PNGs.
+
+### Role-guard cross-surface
+
+The Admin role-guard PNG (`tests/e2e-browser/screenshots/admin/role-guard-admin.png`) is already counted in the Admin surface above (T2). The Organizer-search role-guard PNG (`tests/e2e-browser/screenshots/searches/role-guard-organizer-search.png`) is already counted in the Organizer surface above (T2).
+
+### Inventory cross-check
+
+- Total User + Organizer + Admin = 56 + 31 + 29 = 116.
+- `find tests/e2e-browser/screenshots -name "*.png" | wc -l` returns 116 at the audit window.
 
 The Admin Status surface now carries 8 PNGs at the canonical paths — the three viewport PNGs (`status-expanded-{desktop,tablet,mobile}.png`), the desktop-default `status-expanded.png`, the two warning paths (`status-warning-calendar.png`, `status-warning-email.png`), the tokens-table `status-tokens-needing-refresh.png`, and the `expanded.png` close-up. The closure summary at `CLOSURE_SUMMARY.md` enumerates the per-state captures and the durable artifact URLs.
 

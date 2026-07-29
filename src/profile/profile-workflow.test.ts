@@ -19,6 +19,8 @@ function fixedClock(now: Date): Clock {
   return { now: () => now };
 }
 
+void fixedClock;
+
 function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
   return {
     id: "user-1",
@@ -201,6 +203,7 @@ describe("createProfileWorkflow.loadMe", () => {
   it("returns the profile when the user exists", async () => {
     const profile = makeProfile();
     const workflow = createProfileWorkflow({
+      clock: { now: () => new Date() },
       getProfileByUserId: (userId) =>
         Promise.resolve(userId === profile.id ? profile : null),
       supportedTimeZones,
@@ -211,6 +214,7 @@ describe("createProfileWorkflow.loadMe", () => {
 
   it("returns not_found when no profile exists", async () => {
     const workflow = createProfileWorkflow({
+      clock: { now: () => new Date() },
       getProfileByUserId: () => Promise.resolve(null),
       supportedTimeZones,
     });
@@ -230,13 +234,13 @@ describe("createProfileWorkflow.updateProfile", () => {
       shortBio: "Compiler pioneer",
     });
     const workflow = createProfileWorkflow({
+      clock: { now: () => new Date() },
       getProfileByUserId: (userId) =>
         Promise.resolve(userId === initial.id ? initial : null),
       updateProfileByUserId: (userId, patch) =>
         Promise.resolve(
           userId === initial.id ? { ...initial, ...patch } : null,
         ),
-      clock: fixedClock(new Date("2026-07-12T12:00:00.000Z")),
       supportedTimeZones,
     });
     const result = await workflow.updateProfile({
@@ -256,6 +260,7 @@ describe("createProfileWorkflow.updateProfile", () => {
     let persisted = false;
     const initial = makeProfile();
     const workflow = createProfileWorkflow({
+      clock: { now: () => new Date() },
       getProfileByUserId: (userId) =>
         Promise.resolve(userId === initial.id ? initial : null),
       updateProfileByUserId: () => {
@@ -282,6 +287,7 @@ describe("createProfileWorkflow.updateProfile", () => {
   it("returns field errors for multiple fields at once", async () => {
     const initial = makeProfile();
     const workflow = createProfileWorkflow({
+      clock: { now: () => new Date() },
       getProfileByUserId: (userId) =>
         Promise.resolve(userId === initial.id ? initial : null),
       updateProfileByUserId: () => Promise.resolve(initial),
@@ -309,6 +315,7 @@ describe("createProfileWorkflow.updateProfile", () => {
 
   it("returns field errors when the user is missing", async () => {
     const workflow = createProfileWorkflow({
+      clock: { now: () => new Date() },
       getProfileByUserId: () => Promise.resolve(null),
       updateProfileByUserId: () => Promise.resolve(null),
       supportedTimeZones,

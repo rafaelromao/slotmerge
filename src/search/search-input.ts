@@ -7,11 +7,12 @@ import type { SearchResultRepository } from "./search-result-repository";
 import type { Clock } from "../system/clock";
 import {
   createDefaultSearchSnapshotAssemblerDeps,
+  type MatchPreparation,
   type SearchSnapshotAssemblerDeps,
 } from "./search-snapshot-assembler";
-import { addCivilDays, startOfWeekInTimezone } from "./timezone";
+import { addCivilDays, isValidTimeZone, startOfWeekInTimezone } from "../time";
 
-export { startOfWeekInTimezone } from "./timezone";
+export { startOfWeekInTimezone } from "../time";
 
 export type ActiveTopic = {
   id: string;
@@ -121,18 +122,6 @@ export type SearchInputValidationDeps = {
   matchingPoolSize: number;
 };
 
-function isValidIanaTimezone(value: string): boolean {
-  if (!value) return false;
-  try {
-    return (
-      new Intl.DateTimeFormat("en-US", { timeZone: value }).resolvedOptions()
-        .timeZone === value
-    );
-  } catch {
-    return false;
-  }
-}
-
 function isMinuteAligned(date: Date): boolean {
   return (
     date.getUTCMilliseconds() === 0 &&
@@ -197,7 +186,16 @@ export function validateSearchInput(
     });
   }
 
-  if (!isValidIanaTimezone(input.organizerTimezone)) {
+  if (input.organizerTimezone) {
+    try {
+      isValidTimeZone(input.organizerTimezone);
+    } catch {
+      errors.push({
+        field: "organizerTimezone",
+        message: "Organizer timezone must be a valid IANA zone.",
+      });
+    }
+  } else {
     errors.push({
       field: "organizerTimezone",
       message: "Organizer timezone must be a valid IANA zone.",
@@ -215,6 +213,7 @@ export type SubmitSearchDeps = SearchInputBuilderDeps & {
   assemblerDependencies?: SearchSnapshotAssemblerDeps;
   discoverableUserRepository: import("./discoverable-user-repository").DiscoverableUserRepository;
   searchResultRepository: import("./search-result-repository").SearchResultRepository;
+  preparedMatches?: MatchPreparation[];
 };
 
 export type SubmitSearchOverrides = SearchInputOverrides;
@@ -250,6 +249,7 @@ type PersistAndRunSearchDeps = {
   profileRepository: ProfileRepository;
   clock: Clock;
   assemblerDependencies?: SearchSnapshotAssemblerDeps;
+  preparedMatches?: MatchPreparation[];
 };
 
 async function persistAndRunSearch(
@@ -263,6 +263,7 @@ async function persistAndRunSearch(
       discoverableUserRepository: deps.discoverableUserRepository,
       topicRepository: deps.topicRepository,
       profileRepository: deps.profileRepository,
+      clock: deps.clock,
     });
 
   await runSearch(
@@ -270,6 +271,7 @@ async function persistAndRunSearch(
       searchRecord: stored,
       input: deps.input,
       generatedAt: deps.generatedAt,
+      preparedMatches: deps.preparedMatches,
     },
     {
       assemblerDependencies,
@@ -320,6 +322,7 @@ export async function submitSearch(
     profileRepository: deps.profileRepository,
     clock: deps.clock,
     assemblerDependencies: deps.assemblerDependencies,
+    preparedMatches: deps.preparedMatches,
   });
 
   return { ok: true, search: stored };

@@ -63,7 +63,7 @@ describe("E2E: Admin rejects a pending Topic Proposal", () => {
       const adminCookie = await sealSessionCookie({
         sessionId: adminSessionId,
       });
-      const { POST } = createAdminTopicProposalsHandlers();
+      const { POST } = createAdminTopicProposalsHandlers({ clock: testClock });
 
       const rejectResponse = await POST(
         new Request("http://localhost/admin/topic-proposals", {
@@ -129,3 +129,6 @@ describe("E2E: Admin rejects a pending Topic Proposal", () => {
     },
   );
 });
+
+const testClock = { now: () => new Date() };
+

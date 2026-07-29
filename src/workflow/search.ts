@@ -9,10 +9,10 @@ import {
 import type { SearchRecord } from "../search/repository";
 import {
   addCivilDays,
-  calendarDayNumber,
-  isValidIanaTimezone,
+  isValidTimeZone,
+  localDayNumber,
   startOfWeekInTimezone,
-} from "../search/timezone";
+} from "../time";
 import type { Result } from "../lib/result";
 import { err, ok } from "../lib/result";
 import type { SearchResultRepository } from "../search/search-result-repository";
@@ -229,24 +229,26 @@ export function createSearchWorkflow(
             listActive: () => Promise.resolve(activeTopics),
           },
           profileRepository,
+          clock: deps.clock,
         });
-      const matchingPoolSize = (
-        await new SearchSnapshotAssembler({
-          ...effectiveAssemblerDependencies,
-          topicRepository: {
-            listActive: () => Promise.resolve(activeTopics),
-          },
-        }).listEligibleUserIds({
-          organizerId: userId,
-          selectedTopicIds,
-          durationMinutes: raw.durationMinutes,
-          dateRangeStart: raw.dateRangeStart,
-          dateRangeEnd: raw.dateRangeEnd,
-          organizerTimezone,
-          minimumMatchingUsers: raw.minimumMatchingUsers,
-          now: clock.now(),
-        })
-      ).length;
+      const assembler = new SearchSnapshotAssembler({
+        ...effectiveAssemblerDependencies,
+        topicRepository: {
+          listActive: () => Promise.resolve(activeTopics),
+        },
+      });
+      const preparedMatches = await assembler.prepareMatches({
+        organizerId: userId,
+        selectedTopicIds,
+        durationMinutes: raw.durationMinutes,
+        dateRangeStart: raw.dateRangeStart,
+        dateRangeEnd: raw.dateRangeEnd,
+        organizerTimezone,
+        minimumMatchingUsers: raw.minimumMatchingUsers,
+        now: clock.now(),
+      });
+
+      const matchingPoolSize = preparedMatches.length;
 
       if (
         matchingPoolSize < MINIMUM_MATCHING_USERS_MIN ||
@@ -273,6 +275,7 @@ export function createSearchWorkflow(
         clock,
         matchingPoolSize,
         activeTopicsSnapshot: activeTopics,
+        preparedMatches,
       };
       submitDeps.assemblerDependencies = effectiveAssemblerDependencies;
 
@@ -409,6 +412,10 @@ export function createSearchWorkflow(
   };
 }
 
+function hasOrganizerTimezone(value: string): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function validateRaw(raw: SearchFormDefaults): SearchFieldErrors {
   const errors: SearchFieldErrors = {};
   const organizerTimezone =
@@ -447,13 +454,19 @@ function validateRaw(raw: SearchFormDefaults): SearchFieldErrors {
     errors.dateRangeEnd = "date_range_invalid";
   } else if (end.getTime() <= start.getTime()) {
     errors.dateRangeEnd = "date_range_invalid";
-  } else if (
-    isValidIanaTimezone(organizerTimezone) &&
-    calendarDayNumber(end, organizerTimezone) -
-      calendarDayNumber(start, organizerTimezone) >
-      DATE_RANGE_MAX_DAYS
-  ) {
-    errors.dateRangeEnd = "date_range_too_long";
+  } else if (hasOrganizerTimezone(organizerTimezone)) {
+    try {
+      isValidTimeZone(organizerTimezone);
+      if (
+        localDayNumber(end, organizerTimezone) -
+          localDayNumber(start, organizerTimezone) >
+        DATE_RANGE_MAX_DAYS
+      ) {
+        errors.dateRangeEnd = "date_range_too_long";
+      }
+    } catch {
+      // timezone is invalid; the field error is captured below
+    }
   }
 
   if (!organizerTimezone) {

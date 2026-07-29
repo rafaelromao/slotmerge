@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImportedBusyIntervalRecord } from "./imported-busy-intervals";
 import {
   clearInMemoryImportedBusyIntervalStore,
+  createInMemoryImportedBusyIntervalRepository,
   getImportedBusyIntervalRepository,
   setImportedBusyIntervalRepositoryForTests,
 } from "./imported-busy-intervals";
@@ -16,6 +17,11 @@ const fixedNow = new Date("2026-07-12T12:00:00.000Z");
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(fixedNow);
+  setImportedBusyIntervalRepositoryForTests(
+    createInMemoryImportedBusyIntervalRepository({
+      now: () => new Date(fixedNow),
+    }),
+  );
 });
 
 afterEach(() => {

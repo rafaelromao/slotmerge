@@ -1,6 +1,7 @@
 import { getAccountRepository } from "../../../../src/account/repository";
 import { getSessionFromRequest } from "../../../../src/auth/session";
 import { loadRuntimeConfig } from "../../../../src/config/runtime";
+import { systemClock } from "../../../../src/system/clock";
 import {
   createAccountWorkflow,
   type AccountWorkflow,
@@ -17,7 +18,8 @@ const accountWorkflow: AccountWorkflow = {
 
 export const selfDeleteAction = createSelfDeleteActionHandler({
   workflow: accountWorkflow,
-  loadSession: getSessionFromRequest,
+  loadSession: (request) =>
+    getSessionFromRequest(request, { clock: systemClock() }),
   expectedOrigin: () => new URL(loadRuntimeConfig().appPublicUrl).origin,
 });
 

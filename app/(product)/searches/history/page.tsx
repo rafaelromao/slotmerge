@@ -61,7 +61,7 @@ function buildHistoryWorkflow() {
   return createSearchWorkflow({
     clock: systemClock(),
     profileRepository: {
-      findByUserId: getProfileByUserId,
+      findByUserId: (userId) => getProfileByUserId(userId, systemClock()),
     },
     activeTopicsRepository: {
       async listActive() {

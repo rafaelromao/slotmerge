@@ -100,6 +100,7 @@ describe("Calendar Connection lifecycle", () => {
       csrfToken: "csrf-token",
       codeVerifier: "code-verifier",
       secret: sessionSecret,
+      issuedAt: new Date(),
     });
 
     const result = await completeCalendarConnection({
@@ -113,6 +114,8 @@ describe("Calendar Connection lifecycle", () => {
       sessionSecret,
       state,
       tokenEncryptionKey,
+      now: new Date(),
+      clock: { now: () => new Date() },
     });
 
     expect(result.status).toBe("connected");
@@ -177,6 +180,7 @@ describe("Calendar Connection lifecycle", () => {
       csrfToken: "csrf-token",
       codeVerifier: "code-verifier",
       secret: sessionSecret,
+      issuedAt: new Date(),
     });
 
     const result = await completeCalendarConnection({
@@ -190,6 +194,8 @@ describe("Calendar Connection lifecycle", () => {
       sessionSecret,
       state,
       tokenEncryptionKey: "abcdef0123456789abcdef0123456789",
+      now: new Date(),
+      clock: { now: () => new Date() },
     });
 
     expect(result).toMatchObject({
@@ -234,6 +240,7 @@ describe("Calendar Connection lifecycle", () => {
       csrfToken: "csrf-token",
       codeVerifier: "code-verifier",
       secret: sessionSecret,
+      issuedAt: new Date(),
     });
 
     await expect(
@@ -253,7 +260,9 @@ describe("Calendar Connection lifecycle", () => {
         sessionSecret,
         state,
         tokenEncryptionKey: "abcdef0123456789abcdef0123456789",
-      }),
+      now: new Date(),
+      clock: { now: () => new Date() },
+    }),
     ).rejects.toBe(failure);
   });
 
@@ -291,6 +300,7 @@ describe("Calendar Connection lifecycle", () => {
       generateId: () => "connection-1",
       sessionSecret: "0123456789abcdef0123456789abcdef",
       userId: "user-1",
+      clock: { now: () => new Date() },
     });
 
     expect(records).toEqual([
@@ -327,6 +337,7 @@ describe("Google calendar connection callback", () => {
       },
       sessionSecret: "0123456789abcdef0123456789abcdef",
       userId: "user-1",
+      clock: { now: () => new Date() },
     });
 
     expect(created).toHaveLength(1);
@@ -396,6 +407,7 @@ describe("Google calendar connection callback", () => {
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",
       secret: sessionSecret,
+      issuedAt: new Date(),
     });
 
     const completed = await completeCalendarConnection({
@@ -422,6 +434,8 @@ describe("Google calendar connection callback", () => {
       sessionSecret,
       state,
       tokenEncryptionKey,
+      now: new Date(),
+      clock: { now: () => new Date() },
     });
 
     expect(completed.status).toBe("connected");

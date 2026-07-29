@@ -7,7 +7,6 @@ import type {
   CalendarProvider as CalendarProviderId,
 } from "../db/schema";
 import type { CalendarProvider } from "./provider";
-import { systemClock } from "../system/clock";
 import { decryptCalendarToken, encryptCalendarToken } from "./token-encryption";
 
 export type CalendarConnectionRecord = {
@@ -100,12 +99,12 @@ export function hashCalendarOAuthCsrfToken(csrfToken: string): string {
 export async function unsealCalendarConnectionState({
   state,
   secret,
-  now = systemClock().now(),
+  now,
   maxLifetimeMs = CALENDAR_OAUTH_STATE_LIFETIME_MS,
 }: {
   state: string;
   secret: string;
-  now?: Date;
+  now: Date;
   maxLifetimeMs?: number;
 }): Promise<CalendarOAuthState> {
   const payload = calendarOAuthStateSchema.parse(
@@ -135,7 +134,7 @@ export async function sealCalendarConnectionState({
   csrfToken,
   csrfTokenHash,
   codeVerifier,
-  issuedAt = systemClock().now(),
+  issuedAt,
   expiresAt = new Date(issuedAt.getTime() + CALENDAR_OAUTH_STATE_LIFETIME_MS),
   returnTo = CALENDAR_OAUTH_RETURN_TO,
   secret,
@@ -146,7 +145,7 @@ export async function sealCalendarConnectionState({
   csrfToken?: string;
   csrfTokenHash?: string;
   codeVerifier: string;
-  issuedAt?: Date;
+  issuedAt: Date;
   expiresAt?: Date;
   returnTo?: typeof CALENDAR_OAUTH_RETURN_TO;
   secret: string;
@@ -292,6 +291,7 @@ export async function completeClaimedCalendarConnection({
   codeVerifier,
   fetchImpl,
   tokenEncryptionKey,
+  clock,
 }: {
   provider: CalendarProvider;
   repository: CalendarConnectionRepository;
@@ -303,6 +303,7 @@ export async function completeClaimedCalendarConnection({
   codeVerifier: string;
   fetchImpl: typeof fetch;
   tokenEncryptionKey: string;
+  clock: { now(): Date };
 }): Promise<CompleteCalendarConnectionResult> {
   if (connection.provider !== provider.id) {
     throw new Error("Calendar connection provider does not match.");
@@ -315,6 +316,7 @@ export async function completeClaimedCalendarConnection({
     code,
     codeVerifier,
     fetchImpl,
+    clock,
   });
 
   if (completion.kind === "unsupported") {
@@ -369,6 +371,7 @@ export async function completeCalendarConnection({
   tokenEncryptionKey,
   expectedUserId,
   now,
+  clock,
 }: {
   provider: CalendarProvider;
   repository: CalendarConnectionRepository;
@@ -381,7 +384,8 @@ export async function completeCalendarConnection({
   state: string;
   tokenEncryptionKey: string;
   expectedUserId?: string;
-  now?: Date;
+  now: Date;
+  clock: { now(): Date };
 }): Promise<CompleteCalendarConnectionResult> {
   const payload = await unsealCalendarConnectionState({
     state,
@@ -406,6 +410,7 @@ export async function completeCalendarConnection({
     codeVerifier: payload.codeVerifier,
     fetchImpl,
     tokenEncryptionKey,
+    clock,
   });
 }
 
@@ -416,7 +421,7 @@ export async function startCalendarConnection({
   clientId,
   csrfToken,
   sessionId = "session-1",
-  clock = systemClock(),
+  clock,
   generateId = () => randomUUID(),
   sessionSecret,
   userId,
@@ -427,7 +432,7 @@ export async function startCalendarConnection({
   clientId: string;
   csrfToken: string;
   sessionId?: string;
-  clock?: { now(): Date };
+  clock: { now(): Date };
   generateId?: () => string;
   sessionSecret: string;
   userId: string;

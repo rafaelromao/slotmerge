@@ -24,7 +24,10 @@ export type {
 const EMAIL_WINDOW_HOURS = 24;
 
 export type AdminStatusDependencies = {
-  getSession?: (request: Request) => Promise<Session | null>;
+  getSession?: (
+    request: Request,
+    deps: { clock: Clock },
+  ) => Promise<Session | null>;
   statusRepository?: OperationalStatusRepository;
   clock: Clock;
 };
@@ -47,7 +50,7 @@ export function createAdminStatusHandlers({
 }: AdminStatusDependencies) {
   return {
     GET: async (request: Request): Promise<Response> => {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock });
       if (!isAdminSession(session)) {
         return adminAccessDeniedResponse(session);
       }

@@ -3,7 +3,6 @@ import { and, eq, ne } from "drizzle-orm";
 import { getDb } from "../db/client";
 import { calendarConnections } from "../db/schema";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 import type {
   CalendarConnectionRecord,
   CalendarConnectionRepository,
@@ -17,24 +16,19 @@ export function setCalendarConnectionRepositoryForTests(
   repositoryOverride = repository;
 }
 
-let cachedDefaultRepository: CalendarConnectionRepository | null = null;
-
-function getDefaultRepository(): CalendarConnectionRepository {
-  if (!cachedDefaultRepository) {
-    cachedDefaultRepository =
-      createPostgresCalendarConnectionRepository(systemClock());
-  }
-  return cachedDefaultRepository;
-}
-
-export function getCalendarConnectionRepository(): CalendarConnectionRepository {
-  return repositoryOverride ?? getDefaultRepository();
+export function getCalendarConnectionRepository(
+  clock: Clock,
+): CalendarConnectionRepository {
+  return (
+    repositoryOverride ?? createPostgresCalendarConnectionRepository(clock)
+  );
 }
 
 export async function findCalendarConnectionById(
   id: string,
+  clock: Clock,
 ): Promise<CalendarConnectionRecord | null> {
-  return getCalendarConnectionRepository().findById(id);
+  return getCalendarConnectionRepository(clock).findById(id);
 }
 
 export async function listActiveConnections(): Promise<

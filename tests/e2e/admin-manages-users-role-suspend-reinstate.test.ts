@@ -150,7 +150,7 @@ async function runSearch(organizerId: string, poolSize: number): Promise<string>
       },
       profileRepository: {
         async findByUserId(uid) {
-          return getProfileByUserId(uid);
+          return getProfileByUserId(uid, testClock);
         },
       },
       clock: { now: getTestClock() },
@@ -224,7 +224,7 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       const adminCookie = await sealSessionCookie({
         sessionId: adminSessionId,
       });
-      const { GET, POST } = createAdminUsersHandlers();
+      const { GET, POST } = createAdminUsersHandlers({ clock: testClock });
 
       const getResponse = await GET(
         new Request("http://localhost/admin/users", {
@@ -295,7 +295,7 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       const adminCookie = await sealSessionCookie({
         sessionId: adminSessionId,
       });
-      const { GET, POST } = createAdminUsersHandlers();
+      const { GET, POST } = createAdminUsersHandlers({ clock: testClock });
 
       const getResponse = await GET(
         new Request("http://localhost/admin/users", {
@@ -458,7 +458,7 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       const adminCookie = await sealSessionCookie({
         sessionId: adminSessionId,
       });
-      const { GET, POST } = createAdminUsersHandlers();
+      const { GET, POST } = createAdminUsersHandlers({ clock: testClock });
 
       const getResponse = await GET(
         new Request("http://localhost/admin/users", {
@@ -553,7 +553,7 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
       await grantDiscoverabilityConsent(reinstatedUserId);
 
       const adminCookie = await sealSessionCookie({ sessionId: adminSessionId });
-      const { GET, POST } = createAdminUsersHandlers();
+      const { GET, POST } = createAdminUsersHandlers({ clock: testClock });
 
       const getResponse = await GET(
         new Request("http://localhost/admin/users", {
@@ -609,3 +609,6 @@ describe("E2E: Admin lists, changes role, suspends, and reinstates Users", () =>
     },
   );
 });
+
+const testClock = { now: () => new Date() };
+

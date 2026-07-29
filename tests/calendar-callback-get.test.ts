@@ -128,6 +128,7 @@ describe("GET /me/calendar-connections/callback", () => {
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",
       secret: "0123456789abcdef0123456789abcdef",
+      issuedAt: new Date(),
     });
 
     const url = new URL("http://localhost/me/calendar-connections/callback");
@@ -163,6 +164,7 @@ describe("GET /me/calendar-connections/callback", () => {
       csrfToken: "csrf-token-1",
       codeVerifier: "code-verifier-1",
       secret: "0123456789abcdef0123456789abcdef",
+      issuedAt: new Date(),
     });
 
     const url = new URL("http://localhost/me/calendar-connections/callback");

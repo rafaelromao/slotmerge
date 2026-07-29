@@ -104,7 +104,7 @@ describe("availabilityWorkflow", () => {
     });
     setWeeklyAvailabilityWindowRepositoryForTests(windows);
     setAvailabilityOverrideRepositoryForTests(overrides);
-    workflow = createAvailabilityWorkflow();
+    workflow = createAvailabilityWorkflow({ clock: { now: () => new Date() } });
   });
 
   afterEach(() => {
@@ -157,7 +157,7 @@ describe("availabilityWorkflow", () => {
       updateByUserId: vi.fn().mockResolvedValue(null),
       deleteByUserId: vi.fn().mockResolvedValue(false),
     });
-    workflow = createAvailabilityWorkflow();
+    workflow = createAvailabilityWorkflow({ clock: { now: () => new Date() } });
 
     const result = await workflow.loadPageState({ userId: "user-1", now: NOW });
     expect(result.ok).toBe(false);
@@ -335,7 +335,7 @@ describe("availabilityWorkflow", () => {
       updateByUserId: vi.fn().mockResolvedValue(null),
       deleteByUserId: vi.fn().mockResolvedValue(false),
     });
-    workflow = createAvailabilityWorkflow();
+    workflow = createAvailabilityWorkflow({ clock: { now: () => new Date() } });
 
     const result = await workflow.addWindow({
       userId: "user-1",

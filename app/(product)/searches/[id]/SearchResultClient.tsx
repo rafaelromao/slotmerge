@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { SlotDetailsDrawer } from "../../../components/SlotDetailsDrawer";
 import type { Slot, SearchSnapshot } from "../../../../src/db/schema";
-import { addCivilDays } from "../../../../src/search/timezone";
+import { addCivilDays } from "../../../../src/time";
 
 type WeeklyDay = {
   date: Date;

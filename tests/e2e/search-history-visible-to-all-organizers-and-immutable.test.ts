@@ -25,6 +25,9 @@ import { getProfileByUserId } from "../../src/profile/repository";
 import { listActiveTopics } from "../../src/topics/repository";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
 const HAS_TEST_DB = !!TEST_DB_URL;
@@ -142,7 +145,7 @@ async function submitSearchForOrganizer(
           }));
         },
       },
-      profileRepository: { findByUserId: getProfileByUserId },
+      profileRepository: { findByUserId: (userId) => getProfileByUserId(userId, testClock) },
       clock: { now: getTestClock() },
       matchingPoolSize: 2,
       discoverableUserRepository: getDiscoverableUserRepository(),

@@ -35,7 +35,7 @@ export type UnsealContext = {
   csrfToken: string;
   path: string;
   formId?: string;
-  now?: number;
+  now: number;
 };
 
 export async function unsealSearchFeedbackToken(
@@ -55,8 +55,7 @@ export async function unsealSearchFeedbackToken(
   if (!isValidFeedbackPayload(payload)) {
     return null;
   }
-  const now = context.now ?? Date.now();
-  if (now - payload.issuedAt > SEARCH_FEEDBACK_TTL_MS) {
+  if (context.now - payload.issuedAt > SEARCH_FEEDBACK_TTL_MS) {
     return null;
   }
   if (payload.path !== context.path) {

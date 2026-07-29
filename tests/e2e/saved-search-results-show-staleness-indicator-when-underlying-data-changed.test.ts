@@ -1,6 +1,10 @@
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, inject, it } from "vitest";
 
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
+
 import {
   availabilityWindows,
   discoverabilityConsents,
@@ -18,7 +22,6 @@ import {
 import { listActiveTopics } from "../../src/topics/repository";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestDb, setupTest } from "../helpers/setup";
-import { buildTestClock } from "../test-clock";
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -47,7 +50,7 @@ function buildSubmitDeps(clock: { now: () => Date }): SubmitDeps {
         }));
       },
     },
-    profileRepository: { findByUserId: getProfileByUserId },
+    profileRepository: { findByUserId: (userId) => getProfileByUserId(userId, testClock) },
     clock,
     matchingPoolSize: 5,
     discoverableUserRepository: getDiscoverableUserRepository(),

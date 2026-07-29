@@ -98,7 +98,7 @@ async function handleCallback({
       throw new Error("Calendar OAuth session binding does not match.");
     }
 
-    const repository = getCalendarConnectionRepository();
+    const repository = getCalendarConnectionRepository({ now: () => now });
     const connection = await repository.findById(payload.connectionId);
     if (
       !connection ||
@@ -145,6 +145,7 @@ async function handleCallback({
       codeVerifier: payload.codeVerifier,
       fetchImpl,
       tokenEncryptionKey,
+      clock: { now: () => now },
     });
 
     return redirectOutcome(

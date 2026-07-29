@@ -2,13 +2,14 @@ import Link from "next/link";
 
 import { requirePageContext } from "../../../src/lib/page-context";
 import { createProfileWorkflow } from "../../../src/profile/profile-workflow";
+import { systemClock } from "../../../src/system/clock";
 
 export default async function ProfileOverviewPage() {
   const context = await requirePageContext({
     roles: ["user", "organizer", "admin"],
   });
 
-  const workflow = createProfileWorkflow();
+  const workflow = createProfileWorkflow({ clock: systemClock() });
   const result = await workflow.loadMe({ userId: context.user.id });
 
   if (!result.ok) {

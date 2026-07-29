@@ -37,6 +37,7 @@ describe("GET /me/topic-proposals", () => {
       method: "GET",
     });
     const handlers = createMeTopicProposalsHandlers({
+      clock: { now: () => new Date() },
       getSession: mockGetSession,
       repository: mockRepository,
     });

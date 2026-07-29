@@ -482,4 +482,44 @@ describe("computeEffectiveAvailability", () => {
       expect(result[0].endUtc.getUTCHours()).toBe(14);
     });
   });
+
+  describe("date-line crossing zones", () => {
+    it("expands a Tuesday window in Pacific/Kiritimati without shifting backward", () => {
+      const inputs: EffectiveAvailabilityInputs = {
+        userId: "user-1",
+        profileTimezone: "Pacific/Kiritimati",
+        bufferMinutes: 0,
+        windows: [makeWindow(2, "09:00", "10:00", "Pacific/Kiritimati")],
+        overrides: [],
+        busyIntervals: [],
+        rangeStart: new Date("2026-07-13T00:00:00.000Z"),
+        rangeEnd: new Date("2026-07-13T23:59:59.999Z"),
+      };
+
+      const result = computeEffectiveAvailability(inputs);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].startUtc.toISOString()).toBe("2026-07-13T19:00:00.000Z");
+      expect(result[0].endUtc.toISOString()).toBe("2026-07-13T20:00:00.000Z");
+    });
+
+    it("expands a Monday window in Pacific/Kiritimati on the UTC date that contains its local start", () => {
+      const inputs: EffectiveAvailabilityInputs = {
+        userId: "user-1",
+        profileTimezone: "Pacific/Kiritimati",
+        bufferMinutes: 0,
+        windows: [makeWindow(1, "09:00", "10:00", "Pacific/Kiritimati")],
+        overrides: [],
+        busyIntervals: [],
+        rangeStart: new Date("2026-07-12T00:00:00.000Z"),
+        rangeEnd: new Date("2026-07-14T23:59:59.999Z"),
+      };
+
+      const result = computeEffectiveAvailability(inputs);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].startUtc.toISOString()).toBe("2026-07-12T19:00:00.000Z");
+      expect(result[0].endUtc.toISOString()).toBe("2026-07-12T20:00:00.000Z");
+    });
+  });
 });

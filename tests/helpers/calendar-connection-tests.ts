@@ -30,7 +30,7 @@ export async function listConnectionsForTests(
   connections: ListedConnection[];
 }> {
   const workflow = createCalendarConnectionWorkflow({
-    repository: getCalendarConnectionRepository(),
+    repository: getCalendarConnectionRepository({ now: () => new Date() }),
     clock: systemClock(),
     listProviderCalendars,
   });

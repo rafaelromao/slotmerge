@@ -152,7 +152,7 @@ describe("E2E: Search snapshot does not expose raw calendar events or email addr
         },
         profileRepository: {
           async findByUserId(userId: string) {
-            return getProfileByUserId(userId);
+            return getProfileByUserId(userId, { now: getTestClock() });
           },
         },
         clock: { now: getTestClock() },

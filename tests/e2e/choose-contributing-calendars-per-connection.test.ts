@@ -50,6 +50,9 @@ import {
   USER_FIXTURES,
 } from "../fixtures/seeds";
 import { getTestDb, getTestClock, setupTest } from "../helpers/setup";
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -281,7 +284,7 @@ async function runSyncForGoogleConnection(params: {
     timeMin: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     timeMax: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     fetchImpl,
-    busyIntervalRepository: createPostgresImportedBusyIntervalRepository(),
+    busyIntervalRepository: createPostgresImportedBusyIntervalRepository({ now: () => new Date() }),
     recordFailure: () => Promise.resolve(undefined),
     clock: () => now,
   });
@@ -391,7 +394,8 @@ describe("E2E: choose contributing calendars per connection", () => {
         csrfToken: SESSION.csrfToken,
         codeVerifier: "code-verifier-google-default",
         secret: SESSION_SECRET,
-      });
+      issuedAt: new Date(),
+    });
       const form = new FormData();
       form.set("code", "google-auth-code-default");
       form.set("state", sealedState);
@@ -427,7 +431,8 @@ describe("E2E: choose contributing calendars per connection", () => {
         csrfToken: SESSION.csrfToken,
         codeVerifier: "code-verifier-microsoft-default",
         secret: SESSION_SECRET,
-      });
+      issuedAt: new Date(),
+    });
       const form = new FormData();
       form.set("code", "microsoft-auth-code-default");
       form.set("state", sealedState);
@@ -466,7 +471,8 @@ describe("E2E: choose contributing calendars per connection", () => {
         csrfToken: SESSION.csrfToken,
         codeVerifier: "code-verifier-include",
         secret: SESSION_SECRET,
-      });
+      issuedAt: new Date(),
+    });
       const form = new FormData();
       form.set("code", "google-auth-code-include");
       form.set("state", sealedState);
@@ -515,7 +521,8 @@ describe("E2E: choose contributing calendars per connection", () => {
         csrfToken: SESSION.csrfToken,
         codeVerifier: "code-verifier-exclude",
         secret: SESSION_SECRET,
-      });
+      issuedAt: new Date(),
+    });
       const form = new FormData();
       form.set("code", "google-auth-code-exclude");
       form.set("state", sealedState);
@@ -587,7 +594,8 @@ describe("E2E: choose contributing calendars per connection", () => {
         csrfToken: SESSION.csrfToken,
         codeVerifier: "code-verifier-sync",
         secret: SESSION_SECRET,
-      });
+      issuedAt: new Date(),
+    });
       const form = new FormData();
       form.set("code", "google-auth-code-sync");
       form.set("state", sealedState);
@@ -677,7 +685,8 @@ describe("E2E: choose contributing calendars per connection", () => {
         csrfToken: SESSION.csrfToken,
         codeVerifier: "code-verifier-match",
         secret: SESSION_SECRET,
-      });
+      issuedAt: new Date(),
+    });
       const form = new FormData();
       form.set("code", "google-auth-code-match");
       form.set("state", sealedState);
@@ -711,7 +720,7 @@ describe("E2E: choose contributing calendars per connection", () => {
       });
 
       setImportedBusyIntervalRepositoryForTests(
-        createPostgresImportedBusyIntervalRepository(),
+        createPostgresImportedBusyIntervalRepository({ now: () => new Date() }),
       );
       const slotStart = syncBusyStart;
       const slotEnd = syncBusyEnd;
@@ -751,7 +760,7 @@ describe("E2E: choose contributing calendars per connection", () => {
       });
 
       setImportedBusyIntervalRepositoryForTests(
-        createPostgresImportedBusyIntervalRepository(),
+        createPostgresImportedBusyIntervalRepository({ now: () => new Date() }),
       );
 
       const intervalsAfter =
@@ -792,9 +801,10 @@ async function runMatchingForSlot(
       },
       profileRepository: {
         findByUserId(uid) {
-          return getProfileByUserId(uid);
+          return getProfileByUserId(uid, testClock);
         },
       },
+      clock: { now: () => new Date() },
     }),
   );
   const snapshot = await assembler.assemble({

@@ -13,6 +13,9 @@ import { submitSearch } from "../../src/search/search-input";
 import { listActiveTopics } from "../../src/topics/repository";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, getTestDb, setupTest } from "../helpers/setup";
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const HAS_TEST_DB = inject("testDbUrl") !== undefined;
 
@@ -135,7 +138,7 @@ describe("E2E: Slot start times align to an hourly grid", () => {
               }));
             },
           },
-          profileRepository: { findByUserId: getProfileByUserId },
+          profileRepository: { findByUserId: (userId) => getProfileByUserId(userId, testClock) },
           clock: { now: getTestClock() },
           matchingPoolSize: 2,
           discoverableUserRepository:
@@ -213,7 +216,7 @@ describe("E2E: Slot start times align to an hourly grid", () => {
               }));
             },
           },
-          profileRepository: { findByUserId: getProfileByUserId },
+          profileRepository: { findByUserId: (userId) => getProfileByUserId(userId, testClock) },
           clock: { now: getTestClock() },
           matchingPoolSize: 2,
           discoverableUserRepository:

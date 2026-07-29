@@ -24,7 +24,9 @@ export function buildUpdateProfileAction(
   deps: UpdateProfileActionDeps = {},
 ): (formData: FormData) => Promise<UpdateProfileActionState> {
   const getUserContext = deps.getUserContext ?? defaultGetUserContext;
-  const workflow = deps.workflow ?? createProfileWorkflow();
+  const workflow =
+    deps.workflow ??
+    createProfileWorkflow({ clock: { now: () => new Date("2026-01-01") } });
 
   return async function updateProfileAction(
     formData: FormData,

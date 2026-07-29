@@ -1269,3 +1269,216 @@ describe("SearchSnapshotAssembler public surface", () => {
     expect(typeof SearchSnapshotAssembler).toBe("function");
   });
 });
+
+describe("SearchSnapshotAssembler.prepareMatches", () => {
+  const candidateId = "candidate-1";
+  const candidateProfile: UserProfile = {
+    id: candidateId,
+    email: "candidate@example.com",
+    displayName: "Candidate One",
+    avatarUrl: null,
+    shortBio: null,
+    role: "user",
+    status: "active",
+    profileTimezone: "UTC",
+    bufferMinutes: 0,
+  };
+
+  function eligibleDeps(
+    overrides: Partial<SearchSnapshotAssemblerDeps> = {},
+  ): SearchSnapshotAssemblerDeps {
+    return buildAssemblerDeps({
+      discoverableUserRepository: {
+        listDiscoverableUserIds() {
+          return Promise.resolve([candidateId]);
+        },
+      },
+      topicRepository: {
+        listActive() {
+          return Promise.resolve([
+            { id: "topic-1", name: "Product strategy", status: "active" },
+          ]);
+        },
+      },
+      profileRepository: {
+        findByUserId(userId) {
+          if (userId === candidateId) return Promise.resolve(candidateProfile);
+          return Promise.resolve(null);
+        },
+      },
+      listSelectedTopicIds(userId) {
+        if (userId === candidateId) return Promise.resolve(["topic-1"]);
+        return Promise.resolve([]);
+      },
+      loadUserAvailabilityData(userId) {
+        if (userId === candidateId) {
+          return Promise.resolve({
+            profileTimezone: "UTC",
+            bufferMinutes: 0,
+            windows: [
+              {
+                id: "window-1",
+                userId: candidateId,
+                dayOfWeek: 1,
+                startTime: "00:00",
+                endTime: "23:59",
+                profileTimezone: "UTC",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+            ],
+            overrides: [],
+            busyIntervals: [],
+          });
+        }
+        return Promise.resolve({
+          profileTimezone: "UTC",
+          bufferMinutes: 0,
+          windows: [],
+          overrides: [],
+          busyIntervals: [],
+        });
+      },
+      getDiscoverabilityConsent(userId) {
+        if (userId === candidateId) {
+          return Promise.resolve({
+            state: "granted",
+            grantedAt: new Date("2026-07-12T12:00:00.000Z"),
+          });
+        }
+        return Promise.resolve(null);
+      },
+      computeEffectiveAvailability: () => [
+        {
+          startUtc: new Date("2026-07-13T15:00:00.000Z"),
+          endUtc: new Date("2026-07-13T18:00:00.000Z"),
+        },
+      ],
+      ...overrides,
+    });
+  }
+
+  it("returns the prepared candidates that listEligibleUserIds uses", async () => {
+    const assembler = new SearchSnapshotAssembler(eligibleDeps());
+
+    const prepared = await assembler.prepareMatches({
+      ...baseInput,
+      dateRangeStart: new Date("2026-07-13T16:00:00.000Z"),
+      dateRangeEnd: new Date("2026-07-13T17:00:00.000Z"),
+      minimumMatchingUsers: 1,
+    });
+
+    expect(prepared.map((m) => m.userId)).toEqual([candidateId]);
+    expect(prepared[0].displayName).toBe("Candidate One");
+    expect(prepared[0].matchedTopics).toEqual([
+      { id: "topic-1", name: "Product strategy" },
+    ]);
+  });
+
+  it("assemble skips the preparation pass when given pre-prepared candidates", async () => {
+    const calls: Record<string, number> = {
+      profileRepository: 0,
+      listSelectedTopicIds: 0,
+      loadUserAvailabilityData: 0,
+      getDiscoverabilityConsent: 0,
+      hasTopicProposal: 0,
+      computeEffectiveAvailability: 0,
+    };
+    const inc = (key: keyof typeof calls) => {
+      calls[key] += 1;
+    };
+
+    const base = eligibleDeps();
+    const countingDeps: SearchSnapshotAssemblerDeps = {
+      ...base,
+      profileRepository: {
+        findByUserId(userId) {
+          inc("profileRepository");
+          return base.profileRepository.findByUserId(userId);
+        },
+      },
+      listSelectedTopicIds(userId) {
+        inc("listSelectedTopicIds");
+        return base.listSelectedTopicIds(userId);
+      },
+      loadUserAvailabilityData(userId, range) {
+        inc("loadUserAvailabilityData");
+        return base.loadUserAvailabilityData(userId, range);
+      },
+      getDiscoverabilityConsent(userId) {
+        inc("getDiscoverabilityConsent");
+        return base.getDiscoverabilityConsent(userId);
+      },
+      hasTopicProposal(userId) {
+        inc("hasTopicProposal");
+        return base.hasTopicProposal(userId);
+      },
+      computeEffectiveAvailability(inputs) {
+        inc("computeEffectiveAvailability");
+        return base.computeEffectiveAvailability(inputs);
+      },
+    };
+
+    const assembler = new SearchSnapshotAssembler(countingDeps);
+
+    const prepared = await assembler.prepareMatches({
+      ...baseInput,
+      dateRangeStart: new Date("2026-07-13T16:00:00.000Z"),
+      dateRangeEnd: new Date("2026-07-13T17:00:00.000Z"),
+      minimumMatchingUsers: 1,
+    });
+
+    expect(calls.profileRepository).toBe(1);
+    expect(calls.listSelectedTopicIds).toBe(1);
+    expect(calls.loadUserAvailabilityData).toBe(1);
+    expect(calls.getDiscoverabilityConsent).toBe(1);
+    expect(calls.hasTopicProposal).toBe(1);
+    expect(calls.computeEffectiveAvailability).toBe(1);
+
+    const snapshot = await assembler.assemble(
+      {
+        ...baseInput,
+        dateRangeStart: new Date("2026-07-13T16:00:00.000Z"),
+        dateRangeEnd: new Date("2026-07-13T17:00:00.000Z"),
+        minimumMatchingUsers: 1,
+      },
+      prepared,
+    );
+
+    expect(snapshot.slots.length).toBeGreaterThan(0);
+    expect(calls.profileRepository).toBe(1);
+    expect(calls.listSelectedTopicIds).toBe(1);
+    expect(calls.loadUserAvailabilityData).toBe(1);
+    expect(calls.getDiscoverabilityConsent).toBe(1);
+    expect(calls.hasTopicProposal).toBe(1);
+    expect(calls.computeEffectiveAvailability).toBe(1);
+  });
+
+  it("assemble called without prepared candidates still runs preparation internally", async () => {
+    const calls: Record<string, number> = {
+      profileRepository: 0,
+    };
+    const base = eligibleDeps();
+    const countingDeps: SearchSnapshotAssemblerDeps = {
+      ...base,
+      profileRepository: {
+        findByUserId(userId) {
+          calls.profileRepository += 1;
+          return base.profileRepository.findByUserId(userId);
+        },
+      },
+    };
+
+    const assembler = new SearchSnapshotAssembler(countingDeps);
+
+    const snapshot = await assembler.assemble({
+      ...baseInput,
+      dateRangeStart: new Date("2026-07-13T16:00:00.000Z"),
+      dateRangeEnd: new Date("2026-07-13T17:00:00.000Z"),
+      minimumMatchingUsers: 1,
+    });
+
+    expect(snapshot.slots.length).toBeGreaterThan(0);
+    expect(calls.profileRepository).toBe(1);
+  });
+});

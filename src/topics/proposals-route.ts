@@ -1,6 +1,5 @@
 import { getSessionFromRequest, type Session } from "../auth/session";
 import type { Clock } from "../system/clock";
-import { systemClock } from "../system/clock";
 import { createTopicProposal, findSimilarTopics } from "./proposals";
 import {
   createPostgresTopicProposalRepository,
@@ -8,12 +7,13 @@ import {
 } from "./proposals.repository";
 
 export type TopicProposalsDependencies = {
-  getSession?: (request: Request) => Promise<Session | null>;
+  getSession?: (
+    request: Request,
+    deps: { clock: Clock },
+  ) => Promise<Session | null>;
   repository?: TopicProposalRouteRepository;
-  clock?: Clock;
+  clock: Clock;
 };
-
-const systemClockBoundary = systemClock();
 
 export type TopicProposalRouteRepository = {
   findSimilarTopics(
@@ -48,13 +48,13 @@ export function getTopicProposalRouteRepository(): TopicProposalRouteRepository 
 export function createTopicProposalsHandlers({
   getSession = getSessionFromRequest,
   repository,
-  clock = systemClockBoundary,
-}: TopicProposalsDependencies = {}) {
+  clock,
+}: TopicProposalsDependencies) {
   const resolveRepository = () =>
     repository ?? getTopicProposalRouteRepository();
   return {
     async POST(request: Request): Promise<Response> {
-      const session = await getSession(request);
+      const session = await getSession(request, { clock });
 
       if (!session) {
         return Response.json({ error: "unauthenticated" }, { status: 401 });

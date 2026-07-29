@@ -2,7 +2,7 @@ import { and, eq, gt, lt } from "drizzle-orm";
 
 import { getDb } from "../db/client";
 import { importedBusyIntervals } from "../db/schema";
-import { systemClock } from "../system/clock";
+import type { Clock } from "../system/clock";
 
 import {
   isWithinRollingWindow,
@@ -10,8 +10,9 @@ import {
   type ImportedBusyIntervalRepository,
 } from "./imported-busy-intervals";
 
-export function createPostgresImportedBusyIntervalRepository(): ImportedBusyIntervalRepository {
-  const clock = systemClock();
+export function createPostgresImportedBusyIntervalRepository(
+  clock: Clock,
+): ImportedBusyIntervalRepository {
   return {
     async upsertBatch(intervals) {
       if (intervals.length === 0) return;

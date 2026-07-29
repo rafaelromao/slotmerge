@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const testClock = { now: () => new Date() };
+
 import { setEmailDeliveryServiceForTests } from "./action-required-email-singleton";
 import { setConnectionActionRequiredDispatchLookupForTests } from "./action-required-email.repository";
 import {
@@ -75,7 +77,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
         code: "rate-limited",
         message: "Calendar provider returned 429",
       },
-      { connectionLookup: lookup },
+      { connectionLookup: lookup, clock: testClock },
     );
 
     expect(result).toMatchObject({ status: "sent", skipped: false });
@@ -126,6 +128,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
           provider: "google",
           user: { email: "user@example.com", displayName: null },
         }),
+        clock: testClock,
       },
     );
 
@@ -167,6 +170,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
           provider: "google",
           user: { email: "user@example.com", displayName: null },
         }),
+        clock: testClock,
       },
     );
 
@@ -227,6 +231,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
           provider: "google",
           user: { email: "user@example.com", displayName: "Ada" },
         }),
+        clock: testClock,
       },
     );
 
@@ -288,6 +293,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
           provider: "google",
           user: { email: "user@example.com", displayName: "Ada" },
         }),
+        clock: testClock,
       },
     );
 
@@ -349,6 +355,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
           provider: "google",
           user: { email: "user@example.com", displayName: "Ada" },
         }),
+        clock: testClock,
       },
     );
 
@@ -409,6 +416,7 @@ describe("recordCalendarConnectionSyncFailure", () => {
           provider: "google",
           user: { email: "user@example.com", displayName: "Ada" },
         }),
+        clock: testClock,
       },
     );
 

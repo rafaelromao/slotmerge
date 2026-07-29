@@ -93,6 +93,7 @@ export default async function SearchesPage({
     ? await unsealSearchFeedbackToken(feedbackSealed, {
         csrfToken: context.csrfToken,
         path: "/searches",
+        now: Date.now(),
       })
     : null;
   const decoded = feedbackToken ? feedbackToFieldErrors(feedbackToken) : null;
@@ -126,7 +127,7 @@ export default async function SearchesPage({
   const workflow = createSearchWorkflow({
     clock: systemClock(),
     profileRepository: {
-      findByUserId: getProfileByUserId,
+      findByUserId: (userId) => getProfileByUserId(userId, systemClock()),
     },
     activeTopicsRepository: {
       async listActive() {

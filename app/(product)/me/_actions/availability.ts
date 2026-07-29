@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { systemClock } from "../../../../src/system/clock";
 import { redirect } from "next/navigation";
 
 import { getSessionFromRequest } from "../../../../src/auth/session";
@@ -13,8 +14,9 @@ import {
 } from "./availability-handler";
 
 const handler = buildAvailabilityActionHandler({
-  workflow: createAvailabilityWorkflow(),
-  loadSession: async (request) => getSessionFromRequest(request),
+  workflow: createAvailabilityWorkflow({ clock: systemClock() }),
+  loadSession: async (request) =>
+    getSessionFromRequest(request, { clock: systemClock() }),
 });
 
 async function buildRequest(url: string): Promise<Request> {

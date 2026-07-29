@@ -27,7 +27,9 @@ function getSearchWorkflow(): SearchWorkflow {
 
   return createSearchWorkflow({
     clock: systemClock(),
-    profileRepository: { findByUserId: getProfileByUserId },
+    profileRepository: {
+      findByUserId: (userId) => getProfileByUserId(userId, systemClock()),
+    },
     activeTopicsRepository: {
       async listActive() {
         const entries = await listActiveTopics();
@@ -47,7 +49,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return problemJson(401, {

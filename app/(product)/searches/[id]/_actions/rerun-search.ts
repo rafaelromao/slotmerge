@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { systemClock } from "../../../../../src/system/clock";
 
 import { getServerSession } from "../../../../../src/auth/session";
 import { assertCsrfFromFormData, CsrfError } from "../../../../../src/lib/csrf";
@@ -8,14 +9,13 @@ import { getDiscoverableUserRepository } from "../../../../../src/search/discove
 import { getSearchResultRepository } from "../../../../../src/search/search-result-repository";
 import { listActiveTopics } from "../../../../../src/topics/repository";
 import { getProfileByUserId } from "../../../../../src/profile/repository";
-import { systemClock } from "../../../../../src/system/clock";
 import { createSearchWorkflow } from "../../../../../src/workflow/search";
 
 function buildWorkflow() {
   return createSearchWorkflow({
     clock: systemClock(),
     profileRepository: {
-      findByUserId: getProfileByUserId,
+      findByUserId: (userId) => getProfileByUserId(userId, systemClock()),
     },
     activeTopicsRepository: {
       async listActive() {
@@ -48,7 +48,7 @@ function redirectWithReason(searchId: string, reason: string): never {
 }
 
 export async function rerunSearchAction(formData: FormData): Promise<void> {
-  const session = await getServerSession();
+  const session = await getServerSession({ clock: systemClock() });
   const searchId = readSearchId(formData);
 
   if (!searchId) {

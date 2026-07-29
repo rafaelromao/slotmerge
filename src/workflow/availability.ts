@@ -15,10 +15,12 @@ import {
   removeAvailabilityOverrideById,
 } from "../profile/availability-overrides";
 import { getProfileByUserId, type UserProfile } from "../profile/repository";
+import type { Clock } from "../system/clock";
 import {
   computeEffectiveAvailability,
   type Interval,
 } from "../matching/effective-availability";
+import { getLocalDateParts, getLocalDayHour } from "../time";
 
 export type AvailabilityDayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -118,6 +120,7 @@ export type AvailabilityWorkflow = {
 };
 
 export type CreateAvailabilityWorkflowDeps = {
+  clock: Clock;
   listWindows?: typeof listWeeklyAvailabilityWindowsByUserId;
   addWindow?: typeof addWeeklyAvailabilityWindow;
   findWindow?: typeof findWeeklyAvailabilityWindowById;
@@ -125,7 +128,7 @@ export type CreateAvailabilityWorkflowDeps = {
   listOverrides?: typeof listAvailabilityOverridesByUserId;
   addOverride?: typeof addAvailabilityOverride;
   removeOverrideById?: typeof removeAvailabilityOverrideById;
-  getProfile?: typeof getProfileByUserId;
+  getProfile?: (userId: string) => Promise<UserProfile | null>;
 };
 
 export const PROFILE_BUFFER_MINUTES_MIN = 0;
@@ -229,23 +232,8 @@ function computePreviewRange(now: Date): { rangeStart: Date; rangeEnd: Date } {
 }
 
 function formatLocalDate(date: Date, timeZone: string): string {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return formatter.format(date);
-}
-
-function getLocalDayOfWeek(date: Date, timeZone: string): number {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    weekday: "short",
-  });
-  const dayStr = formatter.format(date);
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  return days.indexOf(dayStr);
+  const parts = getLocalDateParts(date, timeZone);
+  return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
 }
 
 function formatLocalTime(date: Date, timeZone: string): string {
@@ -259,6 +247,10 @@ function formatLocalTime(date: Date, timeZone: string): string {
   const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
   const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
   return `${hour}:${minute}`;
+}
+
+function getLocalDayOfWeek(date: Date, timeZone: string): number {
+  return getLocalDayHour(date, timeZone).dayOfWeek;
 }
 
 function buildPreviewLines(
@@ -295,8 +287,9 @@ function buildPreviewLines(
 }
 
 export function createAvailabilityWorkflow(
-  deps: CreateAvailabilityWorkflowDeps = {},
+  deps: CreateAvailabilityWorkflowDeps,
 ): AvailabilityWorkflow {
+  const { clock } = deps;
   const listWindows = deps.listWindows ?? listWeeklyAvailabilityWindowsByUserId;
   const addWindowFn = deps.addWindow ?? addWeeklyAvailabilityWindow;
   const findWindow = deps.findWindow ?? findWeeklyAvailabilityWindowById;
@@ -306,7 +299,8 @@ export function createAvailabilityWorkflow(
   const addOverrideFn = deps.addOverride ?? addAvailabilityOverride;
   const removeOverrideById =
     deps.removeOverrideById ?? removeAvailabilityOverrideById;
-  const getProfile = deps.getProfile ?? getProfileByUserId;
+  const getProfile =
+    deps.getProfile ?? ((userId: string) => getProfileByUserId(userId, clock));
 
   async function loadProfile(userId: string): Promise<UserProfile | null> {
     return getProfile(userId);

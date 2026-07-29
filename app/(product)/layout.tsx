@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { systemClock } from "../../src/system/clock";
 import Link from "next/link";
 import { and, eq, count, isNotNull } from "drizzle-orm";
 import { getServerSession } from "../../src/auth/session";
@@ -21,7 +22,7 @@ export default async function ProductLayout({
 }: {
   children: ReactNode;
 }) {
-  const session = await getServerSession();
+  const session = await getServerSession({ clock: systemClock() });
 
   if (!session) {
     return (

@@ -9,13 +9,16 @@ import { getSearchRepository } from "../../src/search/repository";
 import { getSearchResultRepository } from "../../src/search/search-result-repository";
 import {
   submitSearch,
-  startOfWeekInTimezone,
   type ProfileRepository,
 } from "../../src/search/search-input";
+import { startOfWeekInTimezone } from "../../src/time";
 import { getProfileByUserId } from "../../src/profile/repository";
 import { FIXTURE_DATE, TOPIC_FIXTURES, USER_FIXTURES } from "../fixtures/seeds";
 import { getTestClock, setupTest } from "../helpers/setup";
 import type { Clock } from "../../src/system/clock";
+import { buildTestClock } from "../test-clock";
+
+const testClock = buildTestClock(new Date("2026-07-12T00:00:00.000Z"));
 
 const TEST_DB_URL = inject("testDbUrl") as string | undefined;
 const HAS_TEST_DB = !!TEST_DB_URL;
@@ -27,7 +30,7 @@ const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 class DbBackedProfileRepository implements ProfileRepository {
   findByUserId(userId: string): ReturnType<typeof getProfileByUserId> {
-    return getProfileByUserId(userId);
+    return getProfileByUserId(userId, testClock);
   }
 }
 

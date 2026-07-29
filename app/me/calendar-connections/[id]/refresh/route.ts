@@ -3,13 +3,16 @@ import { timingSafeEqual } from "node:crypto";
 import { getSessionFromRequest } from "../../../../../src/auth/session";
 import { loadRuntimeConfig } from "../../../../../src/config/runtime";
 import { findCalendarConnectionById } from "../../../../../src/calendar/repository";
+import { systemClock } from "../../../../../src/system/clock";
 import { enqueueSyncCalendarConnectionJob } from "../../../../../src/worker/sync";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const session = await getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request, {
+    clock: systemClock(),
+  });
 
   if (!session) {
     return Response.json({ error: "unauthenticated" }, { status: 401 });
@@ -20,7 +23,10 @@ export async function POST(
   }
 
   const { id: connectionId } = await params;
-  const connection = await findCalendarConnectionById(connectionId);
+  const connection = await findCalendarConnectionById(
+    connectionId,
+    systemClock(),
+  );
 
   if (!connection) {
     return Response.json(

@@ -7,6 +7,7 @@ import type { SearchResultRepository } from "./search-result-repository";
 import type { Clock } from "../system/clock";
 import {
   createDefaultSearchSnapshotAssemblerDeps,
+  type MatchPreparation,
   type SearchSnapshotAssemblerDeps,
 } from "./search-snapshot-assembler";
 import { addCivilDays, isValidTimeZone, startOfWeekInTimezone } from "../time";
@@ -212,6 +213,7 @@ export type SubmitSearchDeps = SearchInputBuilderDeps & {
   assemblerDependencies?: SearchSnapshotAssemblerDeps;
   discoverableUserRepository: import("./discoverable-user-repository").DiscoverableUserRepository;
   searchResultRepository: import("./search-result-repository").SearchResultRepository;
+  preparedMatches?: MatchPreparation[];
 };
 
 export type SubmitSearchOverrides = SearchInputOverrides;
@@ -247,6 +249,7 @@ type PersistAndRunSearchDeps = {
   profileRepository: ProfileRepository;
   clock: Clock;
   assemblerDependencies?: SearchSnapshotAssemblerDeps;
+  preparedMatches?: MatchPreparation[];
 };
 
 async function persistAndRunSearch(
@@ -267,6 +270,7 @@ async function persistAndRunSearch(
       searchRecord: stored,
       input: deps.input,
       generatedAt: deps.generatedAt,
+      preparedMatches: deps.preparedMatches,
     },
     {
       assemblerDependencies,
@@ -317,6 +321,7 @@ export async function submitSearch(
     profileRepository: deps.profileRepository,
     clock: deps.clock,
     assemblerDependencies: deps.assemblerDependencies,
+    preparedMatches: deps.preparedMatches,
   });
 
   return { ok: true, search: stored };

@@ -230,23 +230,24 @@ export function createSearchWorkflow(
           },
           profileRepository,
         });
-      const matchingPoolSize = (
-        await new SearchSnapshotAssembler({
-          ...effectiveAssemblerDependencies,
-          topicRepository: {
-            listActive: () => Promise.resolve(activeTopics),
-          },
-        }).listEligibleUserIds({
-          organizerId: userId,
-          selectedTopicIds,
-          durationMinutes: raw.durationMinutes,
-          dateRangeStart: raw.dateRangeStart,
-          dateRangeEnd: raw.dateRangeEnd,
-          organizerTimezone,
-          minimumMatchingUsers: raw.minimumMatchingUsers,
-          now: clock.now(),
-        })
-      ).length;
+      const assembler = new SearchSnapshotAssembler({
+        ...effectiveAssemblerDependencies,
+        topicRepository: {
+          listActive: () => Promise.resolve(activeTopics),
+        },
+      });
+      const preparedMatches = await assembler.prepareMatches({
+        organizerId: userId,
+        selectedTopicIds,
+        durationMinutes: raw.durationMinutes,
+        dateRangeStart: raw.dateRangeStart,
+        dateRangeEnd: raw.dateRangeEnd,
+        organizerTimezone,
+        minimumMatchingUsers: raw.minimumMatchingUsers,
+        now: clock.now(),
+      });
+
+      const matchingPoolSize = preparedMatches.length;
 
       if (
         matchingPoolSize < MINIMUM_MATCHING_USERS_MIN ||
@@ -273,6 +274,7 @@ export function createSearchWorkflow(
         clock,
         matchingPoolSize,
         activeTopicsSnapshot: activeTopics,
+        preparedMatches,
       };
       submitDeps.assemblerDependencies = effectiveAssemblerDependencies;
 

@@ -106,6 +106,74 @@ const defaultRaw = (
   ...overrides,
 });
 
+type CallCounters = {
+  profileRepository: Map<string, number>;
+  listSelectedTopicIds: Map<string, number>;
+  loadUserAvailabilityData: Map<string, number>;
+  getDiscoverabilityConsent: Map<string, number>;
+  hasTopicProposal: Map<string, number>;
+  computeEffectiveAvailability: Map<string, number>;
+  loadCalendarConnectionLastSyncAt: Map<string, number>;
+};
+
+function buildCountingAssemblerDeps(
+  eligibleUserIds: string[],
+  activeTopics: Array<{ id: string; name: string }>,
+): {
+  deps: ReturnType<typeof makeEligibleAssemblerDeps>;
+  counters: CallCounters;
+} {
+  const counters: CallCounters = {
+    profileRepository: new Map(),
+    listSelectedTopicIds: new Map(),
+    loadUserAvailabilityData: new Map(),
+    getDiscoverabilityConsent: new Map(),
+    hasTopicProposal: new Map(),
+    computeEffectiveAvailability: new Map(),
+    loadCalendarConnectionLastSyncAt: new Map(),
+  };
+  const base = makeEligibleAssemblerDeps(eligibleUserIds, activeTopics);
+  const inc = (map: Map<string, number>, key: string) => {
+    map.set(key, (map.get(key) ?? 0) + 1);
+  };
+  return {
+    deps: {
+      ...base,
+      profileRepository: {
+        findByUserId(userId: string) {
+          inc(counters.profileRepository, userId);
+          return base.profileRepository.findByUserId(userId);
+        },
+      },
+      listSelectedTopicIds(userId: string) {
+        inc(counters.listSelectedTopicIds, userId);
+        return base.listSelectedTopicIds(userId);
+      },
+      loadUserAvailabilityData(userId: string, range) {
+        inc(counters.loadUserAvailabilityData, userId);
+        return base.loadUserAvailabilityData(userId, range);
+      },
+      loadCalendarConnectionLastSyncAt(userId: string) {
+        inc(counters.loadCalendarConnectionLastSyncAt, userId);
+        return base.loadCalendarConnectionLastSyncAt(userId);
+      },
+      getDiscoverabilityConsent(userId: string) {
+        inc(counters.getDiscoverabilityConsent, userId);
+        return base.getDiscoverabilityConsent(userId);
+      },
+      hasTopicProposal(userId: string) {
+        inc(counters.hasTopicProposal, userId);
+        return base.hasTopicProposal(userId);
+      },
+      computeEffectiveAvailability(inputs) {
+        inc(counters.computeEffectiveAvailability, inputs.userId);
+        return base.computeEffectiveAvailability(inputs);
+      },
+    },
+    counters,
+  };
+}
+
 describe("searchWorkflow.buildForm", () => {
   beforeEach(() => {
     setSearchRepositoryForTests(null);
@@ -604,6 +672,164 @@ describe("searchWorkflow.run", () => {
   });
 });
 
+describe("searchWorkflow.run (candidate preparation runs once per workflow)", () => {
+  beforeEach(() => {
+    setSearchRepositoryForTests(null);
+    setSearchResultRepositoryForTests(null);
+    setDiscoverableUserRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
+  });
+
+  afterEach(() => {
+    setSearchRepositoryForTests(null);
+    setSearchResultRepositoryForTests(null);
+    setDiscoverableUserRepositoryForTests(null);
+    setTopicCatalogueRepositoryForTests(null);
+  });
+
+  it("prepares each eligible candidate exactly once across the full workflow", async () => {
+    const eligibleUserIds = ["user-1", "user-2", "user-3"];
+    const activeTopics = [{ id: "topic-1", name: "Product strategy" }];
+    const { deps, counters } = buildCountingAssemblerDeps(
+      eligibleUserIds,
+      activeTopics,
+    );
+
+    const { workflow, resultRepo } = buildWorkflow({
+      discoverableUserIds: eligibleUserIds,
+      assemblerDependencies: deps,
+    });
+
+    const result = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw({ minimumMatchingUsers: 2 }),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected success");
+
+    for (const userId of eligibleUserIds) {
+      expect(counters.profileRepository.get(userId) ?? 0).toBe(1);
+      expect(counters.listSelectedTopicIds.get(userId) ?? 0).toBe(1);
+      expect(counters.loadUserAvailabilityData.get(userId) ?? 0).toBe(1);
+      expect(counters.loadCalendarConnectionLastSyncAt.get(userId) ?? 0).toBe(1);
+      expect(counters.getDiscoverabilityConsent.get(userId) ?? 0).toBe(1);
+      expect(counters.hasTopicProposal.get(userId) ?? 0).toBe(1);
+      expect(counters.computeEffectiveAvailability.get(userId) ?? 0).toBe(1);
+    }
+
+    const stored = await resultRepo.findBySearchId(result.value.searchId);
+    expect(stored).not.toBeNull();
+    expect(stored?.snapshotJson.slots.length).toBeGreaterThan(0);
+  });
+
+  it("persists the same prepared candidate set used for pool validation", async () => {
+    const eligibleUserIds = ["user-1", "user-2", "user-3"];
+    const activeTopics = [{ id: "topic-1", name: "Product strategy" }];
+    const { deps } = buildCountingAssemblerDeps(eligibleUserIds, activeTopics);
+
+    const { workflow, resultRepo } = buildWorkflow({
+      discoverableUserIds: eligibleUserIds,
+      assemblerDependencies: deps,
+    });
+
+    const result = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw({ minimumMatchingUsers: 2 }),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected success");
+
+    const stored = await resultRepo.findBySearchId(result.value.searchId);
+    expect(stored).not.toBeNull();
+    const snapshotUserIds = new Set<string>();
+    for (const slot of stored!.snapshotJson.slots) {
+      for (const match of slot.matches) {
+        snapshotUserIds.add(match.userId);
+      }
+    }
+    expect(snapshotUserIds).toEqual(new Set(eligibleUserIds));
+  });
+
+  it("does not run a second preparation pass when the pool is too small", async () => {
+    const eligibleUserIds = ["user-1"];
+    const activeTopics = [{ id: "topic-1", name: "Product strategy" }];
+    const { deps, counters } = buildCountingAssemblerDeps(
+      eligibleUserIds,
+      activeTopics,
+    );
+
+    let saveCalls = 0;
+    const trackingResultRepo: import("../src/search/search-result-repository").SearchResultRepository =
+      {
+        async save(record) {
+          await Promise.resolve();
+          saveCalls += 1;
+          return { ...record, id: "sr-1" };
+        },
+        async findById() {
+          await Promise.resolve();
+          return null;
+        },
+        async findBySearchId() {
+          await Promise.resolve();
+          return null;
+        },
+      };
+
+    const clock = pinnedClock("2026-07-08T15:00:00.000Z");
+    const searchRepo = new InMemorySearchRepository();
+    const discoverableRepo = new InMemoryDiscoverableUserRepository(
+      eligibleUserIds,
+    );
+    setSearchRepositoryForTests(searchRepo);
+    setDiscoverableUserRepositoryForTests(discoverableRepo);
+    setTopicCatalogueRepositoryForTests({
+      listCatalogue: () =>
+        Promise.resolve(
+          activeTopics.map((topic) => ({
+            id: topic.id,
+            name: topic.name,
+            status: "active" as const,
+          })),
+        ),
+      listSelectedTopicIds: () => Promise.resolve([]),
+      listAssociations: () => Promise.resolve([]),
+      saveAssociations: () => Promise.resolve(),
+    });
+    const workflow = createSearchWorkflow({
+      clock,
+      profileRepository: new InMemoryProfileRepository(organizerProfile),
+      activeTopicsRepository: new InMemoryActiveTopicsRepository(activeTopics),
+      discoverableUserRepository: discoverableRepo,
+      searchResultRepository: trackingResultRepo,
+      assemblerDependencies: deps,
+    });
+
+    const result = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw({ minimumMatchingUsers: 2 }),
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected validation failure");
+    expect(result.error.fieldErrors.minimumMatchingUsers).toBe(
+      "minimum_out_of_range",
+    );
+
+    expect(counters.profileRepository.get("user-1") ?? 0).toBe(1);
+    expect(counters.listSelectedTopicIds.get("user-1") ?? 0).toBe(1);
+    expect(counters.loadUserAvailabilityData.get("user-1") ?? 0).toBe(1);
+    expect(counters.loadCalendarConnectionLastSyncAt.get("user-1") ?? 0).toBe(1);
+    expect(counters.getDiscoverabilityConsent.get("user-1") ?? 0).toBe(1);
+    expect(counters.hasTopicProposal.get("user-1") ?? 0).toBe(1);
+    expect(counters.computeEffectiveAvailability.get("user-1") ?? 0).toBe(1);
+
+    expect(saveCalls).toBe(0);
+  });
+});
+
 describe("searchWorkflow.listHistory", () => {
   beforeEach(() => {
     setSearchRepositoryForTests(null);
@@ -863,5 +1089,49 @@ describe("searchWorkflow.rerun", () => {
 
     const all = await searchRepo.listAll();
     expect(all).toHaveLength(2);
+  });
+
+  it("prepares each eligible match exactly once during a rerun", async () => {
+    const eligibleUserIds = ["user-1", "user-2"];
+    const activeTopics = [{ id: "topic-1", name: "Product strategy" }];
+    const { deps, counters } = buildCountingAssemblerDeps(
+      eligibleUserIds,
+      activeTopics,
+    );
+
+    const { workflow } = buildWorkflow({
+      discoverableUserIds: eligibleUserIds,
+      assemblerDependencies: deps,
+    });
+
+    const initial = await workflow.run({
+      userId: "organizer-1",
+      raw: defaultRaw(),
+    });
+    expect(initial.ok).toBe(true);
+    if (!initial.ok) throw new Error("expected initial run to succeed");
+    const sourceSearchId = initial.value.searchId;
+
+    for (const key of Object.keys(counters) as Array<keyof typeof counters>) {
+      counters[key].clear();
+    }
+
+    const result = await workflow.rerun({
+      userId: "organizer-1",
+      searchId: sourceSearchId,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected rerun to succeed");
+
+    for (const userId of eligibleUserIds) {
+      expect(counters.profileRepository.get(userId) ?? 0).toBe(1);
+      expect(counters.listSelectedTopicIds.get(userId) ?? 0).toBe(1);
+      expect(counters.loadUserAvailabilityData.get(userId) ?? 0).toBe(1);
+      expect(counters.loadCalendarConnectionLastSyncAt.get(userId) ?? 0).toBe(1);
+      expect(counters.getDiscoverabilityConsent.get(userId) ?? 0).toBe(1);
+      expect(counters.hasTopicProposal.get(userId) ?? 0).toBe(1);
+      expect(counters.computeEffectiveAvailability.get(userId) ?? 0).toBe(1);
+    }
   });
 });

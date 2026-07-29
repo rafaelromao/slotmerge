@@ -83,13 +83,16 @@ describe("E2E: no real-time or websocket transport exists", () => {
     );
 
     expect(response.status).toBe(401);
-    expect(response.headers.get("content-type")).toMatch(/^application\/json/i);
+    expect(response.headers.get("content-type")).toMatch(
+      /^application\/problem\+json/i,
+    );
     expect(response.headers.get("upgrade")).toBeNull();
     expect(response.headers.get("connection") ?? "").not.toMatch(
       /\bupgrade\b/i,
     );
-    await expect(response.json()).resolves.toEqual({
-      error: "unauthenticated",
+    await expect(response.json()).resolves.toMatchObject({
+      status: 401,
+      title: "Sign in required",
     });
   });
 });

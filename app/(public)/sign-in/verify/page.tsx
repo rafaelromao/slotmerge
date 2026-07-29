@@ -27,7 +27,7 @@ export default async function VerifyPage({
   return (
     <main className="public-state-page">
       <section
-        className="public-state-panel public-state-panel--narrow"
+        className="public-state-panel"
         aria-labelledby="verify-title"
       >
         <p className="eyebrow">Secure sign-in</p>
@@ -84,7 +84,7 @@ function renderErrorState(
   return (
     <main className="public-state-page">
       <section
-        className="public-state-panel public-state-panel--narrow"
+        className="public-state-panel"
         aria-labelledby="verify-error-title"
       >
         <p className="eyebrow">Magic link</p>

@@ -25,15 +25,11 @@ export default async function SentPage({
       <section className="public-state-panel" aria-labelledby="sent-title">
         <p className="eyebrow">Magic link sent</p>
         <h1 id="sent-title">Check your inbox</h1>
-        <p data-testid="sent-masked-email" className="sent-masked-email">
-          {maskedEmail ? (
-            <>
-              We sent a sign-in link to <strong>{maskedEmail}</strong>.
-            </>
-          ) : (
-            "If an account exists for that email, we just sent a sign-in link."
-          )}
-        </p>
+        {maskedEmail ? (
+          <p data-testid="sent-masked-email" className="sent-masked-email">
+            We sent a sign-in link to <strong>{maskedEmail}</strong>.
+          </p>
+        ) : null}
         <p
           className="sent-non-leaking"
           role="status"

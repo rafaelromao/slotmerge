@@ -247,7 +247,11 @@ export default async function SearchResultPage({
           <div>
             <dt>Selected Topics</dt>
             <dd>
-              {snapshotDto.selectedTopics.map((topic) => topic.name).join(", ")}
+              <ul className="search-result-topic-chips">
+                {snapshotDto.selectedTopics.map((topic) => (
+                  <li key={topic.id}>{topic.name}</li>
+                ))}
+              </ul>
             </dd>
           </div>
           <div>
@@ -261,15 +265,19 @@ export default async function SearchResultPage({
           <div>
             <dt>Date range</dt>
             <dd>
-              {formatDateLabel(
-                dateRangeStart,
-                snapshotDto.search.organizerTimezone,
-              )}{" "}
-              -{" "}
-              {formatDateLabel(
-                dateRangeEnd,
-                snapshotDto.search.organizerTimezone,
-              )}
+              <div>
+                {formatDateLabel(
+                  dateRangeStart,
+                  snapshotDto.search.organizerTimezone,
+                )}
+              </div>
+              <div>
+                –{" "}
+                {formatDateLabel(
+                  dateRangeEnd,
+                  snapshotDto.search.organizerTimezone,
+                )}
+              </div>
             </dd>
           </div>
           <div>
@@ -306,30 +314,43 @@ export default async function SearchResultPage({
       >
         {prevWeekStart ? (
           <Link
-            className="btn btn-secondary"
+            className="btn btn-secondary search-result-week-nav-btn"
             href={`/searches/${id}?week=${formatWeekParam(prevWeekStart, snapshotDto.search.organizerTimezone)}`}
           >
-            Previous week
+            <span aria-hidden="true">←</span>
+            <span>Previous week</span>
           </Link>
         ) : (
-          <span className="btn btn-secondary" aria-disabled="true">
-            Previous week
+          <span
+            className="btn btn-secondary search-result-week-nav-btn"
+            aria-disabled="true"
+          >
+            <span aria-hidden="true">←</span>
+            <span>Previous week</span>
           </span>
         )}
         <span className="search-result-week-label">
-          Week of{" "}
-          {formatDateLabel(weekStart, snapshotDto.search.organizerTimezone)}
+          <span className="search-result-week-label-eyebrow">Showing</span>
+          <strong>
+            Week of{" "}
+            {formatDateLabel(weekStart, snapshotDto.search.organizerTimezone)}
+          </strong>
         </span>
         {nextWeekStart ? (
           <Link
-            className="btn btn-secondary"
+            className="btn btn-secondary search-result-week-nav-btn"
             href={`/searches/${id}?week=${formatWeekParam(nextWeekStart, snapshotDto.search.organizerTimezone)}`}
           >
-            Next week
+            <span>Next week</span>
+            <span aria-hidden="true">→</span>
           </Link>
         ) : (
-          <span className="btn btn-secondary" aria-disabled="true">
-            Next week
+          <span
+            className="btn btn-secondary search-result-week-nav-btn"
+            aria-disabled="true"
+          >
+            <span>Next week</span>
+            <span aria-hidden="true">→</span>
           </span>
         )}
       </nav>

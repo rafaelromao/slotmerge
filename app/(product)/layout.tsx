@@ -125,16 +125,20 @@ export default async function ProductLayout({
             ) : null}
           </nav>
         </details>
-        <div className="top-bar-right">
+        <div className="top-bar-right top-bar-status-cluster">
           <ThemeToggle />
           {setupIncomplete && (
-            <span className="setup-chip" data-testid="setup-chip">
+            <Link
+              href="/"
+              className="setup-chip"
+              data-testid="setup-chip"
+            >
               Setup
-            </span>
+            </Link>
           )}
           <Link
             href="/me/calendar-connections"
-            className={`calendar-badge calendar-badge-${calendarBadge.status}`}
+            className="calendar-badge"
             data-status={calendarBadge.status}
             data-testid={`calendar-badge-${calendarBadge.status}`}
             aria-label={calendarBadgeLabel}

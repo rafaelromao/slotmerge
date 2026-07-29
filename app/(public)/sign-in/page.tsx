@@ -19,18 +19,20 @@ export default async function SignInPage({
   const returnTo = firstString(params.returnTo) ?? "";
 
   return (
-    <main className="sign-in-page">
-      <section className="sign-in-panel" aria-labelledby="sign-in-title">
-        <div className="sign-in-intro">
-          <p className="eyebrow">Access your workspace</p>
-          <h1 id="sign-in-title">Sign in to SlotMerge</h1>
-          <p className="sign-in-help">
-            Enter your email and we will send you a secure, one-time link.
-          </p>
-        </div>
+    <main className="public-state-page">
+      <section
+        className="public-state-panel"
+        aria-labelledby="sign-in-title"
+        data-testid="sign-in-panel"
+      >
+        <p className="eyebrow">Access your workspace</p>
+        <h1 id="sign-in-title">Sign in to SlotMerge</h1>
+        <p>
+          Enter your email and we will send you a secure, one-time link.
+        </p>
         {reason === "deleted" ? (
           <p
-            className="sign-in-success"
+            className="admin-info-banner"
             role="status"
             aria-live="polite"
             data-testid="sign-in-deleted-notice"
@@ -44,20 +46,22 @@ export default async function SignInPage({
           data-testid="sign-in-form"
           action={signInRequestMagicLinkAction}
         >
-          <label className="sign-in-label" htmlFor="sign-in-email">
-            Email
-          </label>
-          <input
-            id="sign-in-email"
-            name="email"
-            type="email"
-            className="sign-in-input"
-            data-testid="sign-in-email"
-            defaultValue={prefilledEmail}
-            required
-            autoComplete="email"
-            placeholder="you@example.com"
-          />
+          <div className="field">
+            <label className="field-label" htmlFor="sign-in-email">
+              Email
+            </label>
+            <input
+              id="sign-in-email"
+              name="email"
+              type="email"
+              className="sign-in-input"
+              data-testid="sign-in-email"
+              defaultValue={prefilledEmail}
+              required
+              autoComplete="email"
+              placeholder="you@example.com"
+            />
+          </div>
           {returnTo ? (
             <input type="hidden" name="returnTo" value={returnTo} />
           ) : null}
@@ -68,17 +72,17 @@ export default async function SignInPage({
           >
             Send magic link
           </button>
-          {errorCode ? (
-            <p
-              className="sign-in-error"
-              role="alert"
-              aria-live="polite"
-              data-testid="sign-in-error"
-            >
-              {errorMessageFor(errorCode)}
-            </p>
-          ) : null}
         </form>
+        {errorCode ? (
+          <p
+            className="sign-in-error"
+            role="alert"
+            aria-live="polite"
+            data-testid="sign-in-error"
+          >
+            {errorMessageFor(errorCode)}
+          </p>
+        ) : null}
         <p className="sign-in-note">
           Calendar access is separate and connected only when you choose to.
         </p>

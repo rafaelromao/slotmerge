@@ -151,17 +151,18 @@ export default async function SetupHomePage({
         </div>
       </header>
 
-      <ul className="setup-cards" data-testid="setup-cards">
-        {items.map(({ card, status }) => (
+      <ol className="setup-cards" data-testid="setup-cards">
+        {items.map(({ card, status }, index) => (
           <SetupCard
             key={card.key}
+            index={index + 1}
             title={card.title}
             description={card.description}
             href={card.href}
             status={status}
           />
         ))}
-      </ul>
+      </ol>
     </div>
   );
 }
@@ -174,13 +175,14 @@ function firstString(value: string | string[] | undefined): string | null {
 }
 
 type SetupCardProps = {
+  index: number;
   title: string;
   description: string;
   href: string;
   status: "complete" | "pending" | "optional";
 };
 
-function SetupCard({ title, description, href, status }: SetupCardProps) {
+function SetupCard({ index, title, description, href, status }: SetupCardProps) {
   const statusPill =
     status === "complete"
       ? { label: "Complete", tone: "ok" as const }
@@ -196,16 +198,13 @@ function SetupCard({ title, description, href, status }: SetupCardProps) {
   const actionLabel = status === "complete" ? "Review" : "Continue";
   return (
     <li className="setup-card" data-status={status}>
+      <span className="setup-card-numeral" aria-hidden="true">
+        {String(index).padStart(2, "0")}
+      </span>
       <div className="setup-card-content">
-        <div className="setup-card-meta">
-          <span
-            className="setup-card-status-pill"
-            data-tone={statusPill.tone}
-            data-testid={`setup-card-status-${title.toLowerCase()}`}
-          >
-            {statusPill.label}
-          </span>
-        </div>
+        <span className="setup-card-status-pill" data-tone={statusPill.tone}>
+          {statusPill.label}
+        </span>
         <h2 className="setup-card-title">{title}</h2>
         <p className="setup-card-description">{description}</p>
       </div>
